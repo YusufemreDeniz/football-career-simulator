@@ -22,7 +22,7 @@ Tüm kararların başlangıç noktası:
 | `03_DOMAIN_MODEL.md` | Oyunun alan (domain) modeli, aktörler ve bileşenleri | Kesinleşti |
 | `04_EVENT_RULE_ENGINE.md` | Olay, bağlam ve sonuç sistemi / kural motoru | Kesinleşti |
 | `05_MEMORY_AND_PROMISE_SYSTEM.md` | Hafıza ve söz sistemi | Kesinleşti |
-| `06_RELATIONSHIP_SYSTEM.md` | İlişki, kişilik ve motivasyon sistemi | Taslak / Henüz çalışılmadı |
+| `06_RELATIONSHIP_SYSTEM.md` | İlişki, kişilik ve motivasyon sistemi | Kesinleşti |
 | `07_DIALOGUE_SYSTEM.md` | Diyalog sistemi | Taslak / Henüz çalışılmadı |
 | `08_TRANSFER_SYSTEM.md` | Transfer ve sözleşme sistemi | Taslak / Henüz çalışılmadı |
 | `09_MATCH_SIMULATION.md` | Maç ve taktik simülasyonu | Taslak / Henüz çalışılmadı |
@@ -39,7 +39,6 @@ Tüm kararların başlangıç noktası:
 
 Aşağıdaki belgeler yalnızca temel iskelet (amaç, sorular, referans, durum) içerir; ayrıntılı tasarım kararları henüz işlenmemiştir:
 
-- `06_RELATIONSHIP_SYSTEM.md`
 - `07_DIALOGUE_SYSTEM.md`
 - `08_TRANSFER_SYSTEM.md`
 - `09_MATCH_SIMULATION.md`
