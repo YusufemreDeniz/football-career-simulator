@@ -23,7 +23,7 @@ Tüm kararların başlangıç noktası:
 | `04_EVENT_RULE_ENGINE.md` | Olay, bağlam ve sonuç sistemi / kural motoru | Kesinleşti |
 | `05_MEMORY_AND_PROMISE_SYSTEM.md` | Hafıza ve söz sistemi | Kesinleşti |
 | `06_RELATIONSHIP_SYSTEM.md` | İlişki, kişilik ve motivasyon sistemi | Kesinleşti |
-| `07_DIALOGUE_SYSTEM.md` | Diyalog sistemi | Taslak / Henüz çalışılmadı |
+| `07_DIALOGUE_SYSTEM.md` | Diyalog sistemi | Kesinleşti |
 | `08_TRANSFER_SYSTEM.md` | Transfer ve sözleşme sistemi | Taslak / Henüz çalışılmadı |
 | `09_MATCH_SIMULATION.md` | Maç ve taktik simülasyonu | Taslak / Henüz çalışılmadı |
 | `10_MANAGER_CAREER.md` | Teknik direktör kariyeri | Taslak / Henüz çalışılmadı |
@@ -39,7 +39,6 @@ Tüm kararların başlangıç noktası:
 
 Aşağıdaki belgeler yalnızca temel iskelet (amaç, sorular, referans, durum) içerir; ayrıntılı tasarım kararları henüz işlenmemiştir:
 
-- `07_DIALOGUE_SYSTEM.md`
 - `08_TRANSFER_SYSTEM.md`
 - `09_MATCH_SIMULATION.md`
 - `10_MANAGER_CAREER.md`
