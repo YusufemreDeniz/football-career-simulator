@@ -26,7 +26,7 @@ Tüm kararların başlangıç noktası:
 | `07_DIALOGUE_SYSTEM.md` | Diyalog sistemi | Kesinleşti |
 | `08_TRANSFER_SYSTEM.md` | Transfer ve sözleşme sistemi | Kesinleşti |
 | `09_MATCH_SIMULATION.md` | Maç ve taktik simülasyonu | Kesinleşti |
-| `10_MANAGER_CAREER.md` | Teknik direktör kariyeri | Taslak / Henüz çalışılmadı |
+| `10_MANAGER_CAREER.md` | Teknik direktör kariyeri ve istihdam sistemi | Kesinleşti |
 | `11_PLAYER_CAREER.md` | Futbolcu kariyeri | Taslak / Henüz çalışılmadı |
 | `12_WORLD_SIMULATION.md` | Dünya simülasyonu | Taslak / Henüz çalışılmadı |
 | `13_SAVE_SYSTEM.md` | Kayıt ve dünya bütünlüğü | Taslak / Henüz çalışılmadı |
@@ -39,7 +39,6 @@ Tüm kararların başlangıç noktası:
 
 Aşağıdaki belgeler yalnızca temel iskelet (amaç, sorular, referans, durum) içerir; ayrıntılı tasarım kararları henüz işlenmemiştir:
 
-- `10_MANAGER_CAREER.md`
 - `11_PLAYER_CAREER.md`
 - `12_WORLD_SIMULATION.md`
 - `13_SAVE_SYSTEM.md`
