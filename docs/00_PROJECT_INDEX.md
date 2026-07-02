@@ -20,7 +20,7 @@ Tüm kararların başlangıç noktası:
 | `01_GAME_DESIGN_DOCUMENT.md` | Ana oyun tasarım dokümanı (vizyon, tüm sistemler, kurallar) | Yaşayan belge / geliştirmeye açık |
 | `02_MVP_SCOPE.md` | İlk oynanabilir sürümün kesin kapsamı | Kesinleşti |
 | `03_DOMAIN_MODEL.md` | Oyunun alan (domain) modeli, aktörler ve bileşenleri | Kesinleşti |
-| `04_EVENT_RULE_ENGINE.md` | Olay, bağlam ve sonuç sistemi / kural motoru | Taslak / Henüz çalışılmadı |
+| `04_EVENT_RULE_ENGINE.md` | Olay, bağlam ve sonuç sistemi / kural motoru | Kesinleşti |
 | `05_MEMORY_AND_PROMISE_SYSTEM.md` | Hafıza ve söz sistemi | Taslak / Henüz çalışılmadı |
 | `06_RELATIONSHIP_SYSTEM.md` | İlişki, kişilik ve motivasyon sistemi | Taslak / Henüz çalışılmadı |
 | `07_DIALOGUE_SYSTEM.md` | Diyalog sistemi | Taslak / Henüz çalışılmadı |
@@ -39,7 +39,6 @@ Tüm kararların başlangıç noktası:
 
 Aşağıdaki belgeler yalnızca temel iskelet (amaç, sorular, referans, durum) içerir; ayrıntılı tasarım kararları henüz işlenmemiştir:
 
-- `04_EVENT_RULE_ENGINE.md`
 - `05_MEMORY_AND_PROMISE_SYSTEM.md`
 - `06_RELATIONSHIP_SYSTEM.md`
 - `07_DIALOGUE_SYSTEM.md`
