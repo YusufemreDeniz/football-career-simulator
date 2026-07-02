@@ -2,534 +2,1106 @@
 
 **Belge:** `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md`
 **Durum:** Kesinleşti
+**Karar tarihi:** 2026-07-02
 **Ana referans:** `docs/01_GAME_DESIGN_DOCUMENT.md`
-**Kesin MVP sınırı:** `docs/02_MVP_SCOPE.md`
+**MVP sınırı:** `docs/02_MVP_SCOPE.md`
 **İlgili karar günlüğü:** `docs/15_DECISION_LOG.md`
 
 ---
 
-# 1. Belgenin Amacı
+## 1. Belgenin Amacı
 
-Bu belge, Football Career Simulator projesinin ilk oynanabilir sürümü (MVP) için onaylanmış teknoloji yığınını ve yüksek seviyeli mimari yönü kalıcı olarak kayıt altına alır.
+Bu belge, Football Career Simulator projesinin hedef platformunu, oyun motorunu, programlama dilini, kullanıcı arayüzü yaklaşımını, simülasyon çekirdeğinin çalışma biçimini, yüksek seviyeli katman sınırlarını, veri ve kayıt yönünü, test altyapısını, operasyonel araçlarını ve ilk teknik doğrulama spike'larını kesinleştirir.
 
 Bu belge:
 
-* MVP kapsamını değiştirmez veya genişletmez,
-* `docs/02_MVP_SCOPE.md` içinde tanımlanan sınırları esas alır,
-* domain, olay, kural, hafıza, söz, ilişki, transfer veya maç sistemlerinin ayrıntılı tasarımını yapmaz,
-* kesin proje scaffold'u, kaynak kodu veya proje dosyası üretmez,
-* bu belgede açıkça verilen teknoloji kararlarını yeniden tartışmaz.
+* tam domain modeli oluşturmaz,
+* entity veya aggregate sınıfları tanımlamaz,
+* kesin veritabanı tablo şeması üretmez,
+* olay tiplerini ayrıntılandırmaz,
+* maç matematiğini tasarlamaz,
+* GDD veya MVP kapsamını değiştirmez,
+* `docs/13_SAVE_SYSTEM.md` ve `docs/14_TEST_STRATEGY.md` belgelerinin ayrıntılı tasarım sorumluluğunu devralmaz.
 
-Bu belgedeki kararlar bağlayıcıdır ve alt sistem tasarım belgeleri bu kararlarla çelişmeyecek şekilde hazırlanmalıdır.
-
----
-
-# 2. Karar Bağlamı
-
-Ana oyun tasarım belgesi (`docs/01_GAME_DESIGN_DOCUMENT.md`) Kural 6 ve Kural 7 gereği motor/veritabanı/arayüz teknolojisi değişse bile domain modelinin korunmasını ve ana simülasyonun harici servislere zorunlu bağımlı olmamasını şart koşar. `docs/02_MVP_SCOPE.md` ise MVP'nin kesin sayısal ve işlevsel sınırlarını tanımlamış, ancak teknoloji seçimini bilinçli olarak açık bırakmıştır (Bölüm 1).
-
-Bu belge, o boşluğu doldurur: MVP'nin kesinleşmiş kapsamı temel alınarak motor, dil, UI yaklaşımı, simülasyon çekirdeği, kayıt yaklaşımı, test stratejisi, loglama ve CI yönü kesinleştirilir.
-
-Karar süreci `docs/16_INITIAL_ANALYSIS.md` içinde tanımlanan teknik risklerle (performans, veri hacmi büyümesi, determinizm/yeniden üretilebilirlik, kayıt sürüm geçişi, modülerlik, dış AI bağımsızlığı) uyumlu şekilde yürütülmüştür.
+Bu belgenin görevi, sonraki tasarım ve geliştirme çalışmalarının üzerinde ilerleyeceği teknik sınırları belirlemektir.
 
 ---
 
-# 3. Bağlayıcı Gereksinimler
+## 2. Karar Bağlamı
 
-Aşağıdaki gereksinimler bu kararın çıkış noktasıdır:
+Football Career Simulator:
 
-* Domain ve simülasyon çekirdeği motor teknolojisinden bağımsız olmalıdır (GDD Kural 6).
-* Ana simülasyon internete veya harici üretken yapay zekâya zorunlu bağımlı olmamalıdır (GDD Kural 7).
-* Kullanıcı arayüzü iş kurallarının sahibi olmamalıdır (GDD Kural 5; MVP Kapsamı Bölüm 2.2).
-* Kayıt bütünlüğü, veri doğrulama, olayların tekil uygulanması ve rastlantısallığın tekrar üretilebilirliği kısa vadeli hız uğruna feda edilemez (MVP Kapsamı Bölüm 2.3).
-* Sistem en az 10 sezon boyunca hatasız simüle edilebilmelidir (MVP Kapsamı Bölüm 22).
-* MVP'de yaklaşık 500 aktif futbolcu, 20 kulüp ve 38 maçlık sezon ölçeği desteklenmelidir (MVP Kapsamı Bölüm 17).
-* Maç sonucunu hesaplayan simülasyon çekirdeği ile maçın sunum katmanı ayrılmalıdır (MVP Kapsamı Bölüm 19).
-* Fiziksel 2D veya 3D maç sunumu MVP kapsamı dışındadır ancak mimari bu olasılığı gelecekte kapatmamalıdır (MVP Kapsamı Bölüm 19, Bölüm 23).
+* uzun vadeli,
+* sistemik,
+* olay tabanlı,
+* en az 10 sezonluk simülasyonu destekleyen,
+* menü, metin, tablo, karar ve veri ekranları ağırlıklı,
+* teknik direktör kariyerine odaklanan
 
----
+bir futbol kariyeri ve yaşam simülasyonudur.
 
-# 4. Kullanıcı ve Proje Varsayımları
+MVP:
 
-* Proje tek geliştirici tarafından yürütülmektedir; bakım ve öğrenme maliyeti düşük tutulmalıdır.
-* Geliştiricinin C#/.NET deneyimi ileri seviyededir; Unity deneyimi temel düzeydedir.
-* Birincil hedef platform Windows masaüstüdür; web, mobil veya çevrim içi çok oyunculu hedef yoktur.
-* Nihai vizyonda gelecekte 2D veya olası 3D maç sunumu değerlendirilebilir; bu olasılık mimari tarafından erken kapatılmamalıdır.
-* AI destekli kodlama araçlarıyla uyumlu, iyi tip güvenliğine sahip ve test edilebilir bir teknoloji ailesi tercih edilir.
+* 1 kurgusal ülke,
+* 1 profesyonel lig,
+* 20 kulüp,
+* yaklaşık 500 aktif futbolcu,
+* en fazla 10 tamamlanmış sezon,
+* haftalık kontrol merkezi,
+* kadro, taktik, antrenman ve maç simülasyonu,
+* transfer ve sözleşmeler,
+* ilişki, hafıza ve söz sistemleri,
+* olay ve kural motoru,
+* işten çıkarılma ve sınırlı kulüp değiştirme,
+* kayıt ve yükleme,
+* olay zaman çizelgesi tabanlı maç sunumu
 
----
+içerir.
 
-# 5. Değerlendirilen Seçenekler
+Fiziksel 2D ve 3D maç gösterimi MVP dışındadır. Bununla birlikte uzun vadede gelişmiş 2D maç sunumu olasıdır. 3D tamamen dışlanmamış ancak teknoloji seçiminin ana belirleyicisi değildir.
 
-Aşağıdaki teknoloji aileleri değerlendirilmiştir:
-
-1. **Godot 4.7 .NET + C#** — seçilen yığın.
-2. **.NET + Avalonia** — güçlü ikinci aday; UI spike'ı başarısız olursa geri dönüş adayı.
-3. **Unity + C#** — teknik olarak yeterli ancak reddedildi.
-4. **Godot + GDScript** — reddedildi.
-5. **React/TypeScript + Tauri (+ .NET)** — reddedildi.
-6. **MonoGame veya benzeri düşük seviyeli yaklaşım** — reddedildi.
-
-Değerlendirme kriterleri ve gerekçeler Bölüm 6 (Karar Matrisi) ve Bölüm 19 (Reddedilen Alternatifler) içinde detaylandırılmıştır.
+Tek geliştiricinin güçlü olduğu ana teknoloji C#/.NET'tir. Godot deneyimi orta, Unity deneyimi temel düzeydedir. İlk hedef yalnızca Windows masaüstüdür.
 
 ---
 
-# 6. Karar Matrisi
+## 3. Bağlayıcı Gereksinimler
 
-Puan ölçeği: 1 = zayıf, 2 = belirgin riskli, 3 = kabul edilebilir, 4 = güçlü, 5 = çok güçlü.
+Teknoloji ve mimari kararı aşağıdaki gereksinimlere tabidir:
 
-| Kriter | Ağırlık | Godot + C# | Avalonia + C# | Unity + C# | Godot + GDScript | React/Tauri + .NET |
+1. Domain ve simülasyon kuralları kullanıcı arayüzünde bulunamaz.
+2. UI domain state'i doğrudan değiştiremez.
+3. Simülasyon çekirdeği mümkün olduğunca oyun motorundan bağımsız test edilebilmelidir.
+4. Maç simülasyonu görsel sunum olmadan çalışabilmelidir.
+5. Dünya simülasyonu UI açılmadan otomatik çalıştırılabilmelidir.
+6. Rastlantısallık tohumlanabilir, sürümlenebilir ve tekrar üretilebilir olmalıdır.
+7. En az 10 sezonluk otomatik simülasyon testleri desteklenmelidir.
+8. Kayıt sürümü, migration ve geriye dönük uyumluluk desteklenmelidir.
+9. Kayıt bütünlüğü kısa vadeli geliştirme hızına feda edilemez.
+10. İnternet ve harici üretken AI temel oynanış için zorunlu bağımlılık olamaz.
+11. Teknoloji yığını tek geliştirici tarafından sürdürülebilir olmalıdır.
+12. MVP'de fiziksel 2D veya 3D maç gösterimi zorunlu değildir.
+13. Gelecekteki görsel maç katmanı, simülasyon çekirdeğinin yeniden yazılmasını gerektirmemelidir.
+14. Runtime state, authored content ve presentation state birbirinden ayrılmalıdır.
+15. Testler yalnızca oyun editörü açıldığında çalışabilir durumda olamaz.
+16. Simülasyon frame rate'e bağlanamaz.
+17. Save formatı Godot scene veya resource formatına bağlanamaz.
+18. İçerik verisi kaynak kod içine gömülemez.
+19. Domain modelleri doğrudan motor node veya component sınıflarına dönüştürülemez.
+20. Olay motoru kontrolsüz global mesajlaşma sistemine dönüştürülemez.
+
+---
+
+## 4. Değerlendirilen Seçenekler
+
+### 4.1. Godot 4 .NET + C#
+
+Godot'un oyun sunumu, 2D/3D, input, audio ve animasyon yeteneklerini; C#/.NET'in statik tip, refactoring, test ve domain modelleme avantajlarıyla birleştirir.
+
+Bu seçenek, simülasyon çekirdeğinin Godot bağımsız saf .NET bileşenleri olarak tutulması koşuluyla projenin ihtiyaçlarına güçlü biçimde uyar.
+
+### 4.2. Godot 4 + GDScript
+
+Godot entegrasyonu ve kısa vadeli prototipleme hızı yüksektir. Buna karşılık geniş domain modeli, save migration, uzun dönem refactoring ve motor bağımsız testler açısından C#/.NET'e göre daha yüksek bakım riski taşır.
+
+### 4.3. Unity + C#
+
+Güçlü 2D/3D, profiling, C# ve test altyapısı sunar. Ancak MVP'nin görsel kapsamına göre daha ağırdır; geliştiricinin Unity deneyimi daha düşüktür ve ticari lisans/vendor riski Godot'a göre daha yüksektir.
+
+### 4.4. Motor Bağımsız .NET + Avalonia
+
+Domain geliştirme, test, yoğun veri tabloları ve masaüstü UI için çok güçlüdür. Gelecekte oyun hissi, gelişmiş 2D sunum veya 3D görünüm gerektiğinde ek renderer ya da ayrı motor entegrasyonu gerektirir.
+
+### 4.5. React/TypeScript + Tauri + .NET
+
+Veri ekranlarında yüksek UI geliştirme hızı sunar. Fakat React/TypeScript, Tauri/Rust ve C#/.NET arasında çoklu teknoloji ve IPC sınırı oluşturarak tek geliştirici bakım maliyetini artırır. Web veya mobil hedef bulunmadığı için bu karmaşıklık yeterli karşılık üretmez.
+
+---
+
+## 5. Karar Matrisi
+
+Puanlama:
+
+* 5: Çok güçlü uyum
+* 4: Güçlü uyum
+* 3: Kabul edilebilir, belirgin bedelli
+* 2: Önemli dezavantaj
+* 1: Zayıf uyum
+
+Ağırlıkların toplamı 100'dür.
+
+| Kriter | Ağırlık | Godot + C# | Godot + GDScript | Unity + C# | .NET + Avalonia | React/Tauri + .NET |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Domain ve simulation test edilebilirliği | 10 | 5 | 5 | 4 | 3 | 4 |
-| Deterministik/headless simulation | 10 | 5 | 5 | 4 | 4 | 4 |
-| UI ağırlıklı oyun geliştirme verimliliği | 10 | 4 | 5 | 4 | 5 | 5 |
-| Tek geliştirici bakım maliyeti | 9 | 5 | 5 | 3 | 4 | 3 |
-| Refactoring ve statik tip güvenliği | 8 | 5 | 5 | 5 | 3 | 4 |
-| Kayıt ve migration kolaylığı | 7 | 5 | 5 | 4 | 3 | 4 |
-| Otomatik test tooling'i | 7 | 5 | 5 | 5 | 3 | 4 |
-| Windows dağıtımı | 5 | 5 | 5 | 5 | 5 | 4 |
-| Performans ve profiling | 5 | 4 | 4 | 5 | 4 | 4 |
+| Domain ve simülasyon test edilebilirliği | 10 | 5 | 3 | 4 | 5 | 4 |
+| Deterministik/headless simülasyon | 10 | 5 | 4 | 4 | 5 | 4 |
+| UI ağırlıklı oyun geliştirme verimliliği | 10 | 4 | 5 | 4 | 4.5 | 5 |
+| Tek geliştirici öğrenme ve bakım maliyeti | 9 | 5 | 4 | 3 | 5 | 3 |
+| Uzun dönem refactoring güvenliği | 7 | 5 | 3 | 5 | 5 | 4 |
+| Kayıt ve veri sürümleme kolaylığı | 7 | 5 | 3 | 4 | 5 | 4 |
+| Masaüstü dağıtımı | 5 | 5 | 5 | 5 | 5 | 4 |
+| Performans | 5 | 4 | 4 | 5 | 4 | 4 |
+| Debugging ve profiling | 5 | 4 | 4 | 5 | 5 | 4 |
+| Otomatik test desteği | 7 | 5 | 3 | 5 | 5 | 4 |
+| AI kodlama araçlarıyla çalışma kolaylığı | 4 | 5 | 3 | 5 | 5 | 4 |
 | Lisans ve ticari risk | 6 | 5 | 5 | 3 | 5 | 5 |
-| Gelecekte 2D/3D sunum | 8 | 5 | 2 | 5 | 5 | 2 |
-| Motor bağımlılığını kontrol etme | 5 | 4 | 5 | 3 | 2 | 4 |
-| AI kodlama araçlarıyla uyum | 5 | 5 | 5 | 5 | 3 | 4 |
-| Dokümantasyon ve ekosistem | 2 | 4 | 4 | 5 | 4 | 4 |
-| Uzun vadeli sürdürülebilirlik | 3 | 5 | 4 | 4 | 3 | 3 |
+| Gelecekte 2D/3D ekleyebilme | 7 | 5 | 5 | 5 | 2 | 2 |
+| Motor bağımlılığını kontrol altında tutma | 4 | 4 | 2 | 3 | 5 | 4 |
+| Topluluk ve resmî dokümantasyon | 2 | 4 | 4 | 5 | 4 | 4 |
+| Uzun vadeli sürdürülebilirlik | 2 | 4 | 4 | 4 | 4 | 3 |
 
-Ağırlıklı sonuçlar yaklaşık ve yönlendiricidir:
+Ağırlıklı sonuç:
 
-1. Godot + C#: yaklaşık 95/100
-2. Avalonia + C#: yaklaşık 92/100
-3. Unity + C#: yaklaşık 84/100
-4. React/Tauri + .NET: yaklaşık 78/100
-5. Godot + GDScript: yaklaşık 77/100
+| Sıra | Seçenek | Sonuç |
+| ---: | --- | ---: |
+| 1 | Godot 4 .NET + C# | 94.4 / 100 |
+| 2 | .NET + Avalonia | 93.0 / 100 |
+| 3 | Unity + C# | 84.6 / 100 |
+| 4 | React/TypeScript + Tauri + .NET | 78.2 / 100 |
+| 5 | Godot + GDScript | 77.0 / 100 |
 
-Puanların kullanıcı deneyimi, tek geliştirici kapasitesi ve gelecekteki 2D olasılığı varsayımlarına bağlı olduğu açıkça belirtilir; bu sayılar kesin bilimsel ölçüm değil, yönlendirici karar destek verisidir.
+Puanlar mutlak teknik gerçek olarak değerlendirilmemelidir. UI geliştirme hızı, öğrenme maliyeti ve bakım puanları geliştiricinin mevcut C#/.NET, Godot, Unity ve frontend deneyimine göre verilmiştir.
 
----
-
-# 7. Seçilen Teknoloji Yığını
-
-## 7.1. Hedef platform
-
-* Windows 10/11, x64 masaüstü, klavye ve fare odaklı kullanım.
-* MVP sırasında Linux, macOS, mobil ve web hedeflenmez ve kabul kriterine alınmaz.
-* Domain, simulation, application, content ve persistence katmanları işletim sistemine özel bağımlılık taşımaz; Linux ve macOS yalnızca MVP doğrulandıktan sonra değerlendirilebilir.
-
-## 7.2. Motor
-
-* Seçilen motor: **Godot 4.7 .NET**.
-* Godot 4.7 kararlı sürüm hattı esas alınır; kesin patch sürümü proje scaffold'u öncesindeki teknik spike sırasında seçilip sabitlenir.
-* Motor sürümü kontrolsüz biçimde yükseltilmez; her yükseltme ayrı değerlendirme, migration kontrolü ve smoke test gerektirir.
-
-## 7.3. Ana programlama dili
-
-* Ana ve varsayılan dil: **C#**.
-* C# şu alanlarda kullanılır: Domain, Simulation, Application/Use Cases, Persistence, Content validation, Tooling, Automated tests, Godot presentation davranışları, editor dışı teknik araçlar.
-* GDScript MVP üretim kodunda varsayılan olarak kullanılmaz. GDScript ancak ileride küçük, domain dışı, yalnızca Godot editörünü destekleyen ve C#'a göre açık/ölçülebilir avantaj sağlayan bir araç için ayrı bir karar kaydıyla istisna olarak değerlendirilebilir.
-* GDScript hiçbir durumda domain kuralları, simülasyon, kayıt migrasyonları, persistence, deterministik rastlantısallık, maç hesaplama veya olay/kural motoru için kullanılamaz.
-
-## 7.4. .NET sürüm yönü
-
-* Motor bağımsız .NET projeleri için tercih edilen taban: **.NET 10 LTS**.
-* Ortak target framework, seçilen Godot 4.7 .NET patch sürümünün resmî desteklediği target framework doğrulanarak kesinleştirilir.
-* Godot presentation projesi ve paylaşılan core projeleri arasında uyumsuz target framework kullanılmaz; gerekirse core projeleri ortak desteklenen LTS framework'ü hedefler.
-* Kesin target framework teknik spike sonrasında pinlenir. Preview veya destek dışı .NET sürümü kullanılmaz.
-* Bu konu teknoloji ailesini değiştiren açık soru değildir; yalnızca sürüm pinleme doğrulamasıdır.
+Godot + C# ile Avalonia arasındaki fark küçüktür. Godot'un seçilmesinin temel nedeni projenin yalnızca masaüstü veri uygulaması olmaması ve gelecekte gelişmiş 2D maç sunumu olasılığının korunmak istenmesidir.
 
 ---
 
-# 8. Hedef Platform ve Dağıtım
+## 6. Seçilen Teknoloji Yığını
 
-* İlk build hedefi: Windows x64 portable release package. Installer daha sonra ayrı bir karar olarak değerlendirilebilir.
-* Release build Godot editörü gerektirmeden çalışmalı, gerekli runtime bağımlılıkları belgelenmeli, lisans bildirimlerini içermeli, save ve log klasörlerini Windows kullanıcı dizinlerinde güvenli konumlarda tutmalıdır.
-* Sürüm pinleme yönü: Godot patch sürümü pinlenir, .NET SDK sürümü pinlenir, NuGet paket sürümleri merkezi ve kontrollü tutulur, CI ve yerel geliştirme aynı ana sürümleri kullanır, otomatik major upgrade yapılmaz.
+### 6.1. Hedef platform
 
----
+Birincil MVP hedefi:
 
-# 9. Yüksek Seviyeli Mimari Yön
+`Windows 10/11 x64 masaüstü`
 
-Aşağıdaki katmanlar bağlayıcı yüksek seviyeli sınırlardır. Kesin proje scaffold'u bu belgede oluşturulmaz.
+Linux ve macOS:
 
-## 9.1. Domain
+* MVP kabul kapsamına dahil değildir,
+* MVP sırasında zorunlu build veya test hedefi değildir,
+* mimari olarak gereksiz yere engellenmeyecektir.
 
-Sorumlulukları: temel iş kavramları, domain invariants, value object'ler, aggregate sınırları, domain davranışları, domain event sözleşmeleri.
+Mobil ve web hedeflenmemektedir.
 
-Bağımlılıkları: başka oyun katmanına, Godot'a, dosya sistemine, logging implementasyonuna veya persistence implementasyonuna bağımlı olmaz.
+### 6.2. Oyun motoru
 
-## 9.2. Simulation
+Seçilen motor ailesi:
 
-Sorumlulukları: dünya ilerletme, takvim adımları, maç ve diğer simülasyon süreçlerinin koordinasyonu, deterministik rastlantısallık kullanımı, uzun dönem simülasyon akışı, olay ve kural değerlendirme orkestrasyonu.
+`Godot 4 .NET`
 
-Bağımlılıkları: Domain'e bağımlı olabilir; Presentation, Godot veya Infrastructure implementasyonlarına bağımlı olamaz.
+İlk teknik spike, karar tarihindeki güncel kararlı Godot 4 .NET sürümüyle yapılacaktır.
 
-## 9.3. Application / Use Cases
+Kesin patch sürümü:
 
-Sorumlulukları: kullanıcı ve sistem use case'leri, command/query koordinasyonu, işlem sınırları, domain ve simulation çağrıları, persistence portları, read model üretimi, save/load orkestrasyonu.
+* teknik doğrulama spike'ları tamamlandıktan sonra sabitlenecek,
+* repository içinde açıkça pinlenecek,
+* kontrolsüz motor yükseltmeleri yapılmayacaktır.
 
-Bağımlılıkları: Domain ve Simulation'a bağımlı olabilir; Infrastructure implementasyonlarına doğrudan veya Presentation'a bağımlı olmaz.
+Preview, beta veya release candidate sürümleri üretim tabanı olarak kullanılmayacaktır.
 
-## 9.4. Contracts / Read Models
+### 6.3. Programlama dili
 
-Sorumlulukları: presentation-neutral command/query sözleşmeleri, read model'ler, application sonuçları, UI'ye taşınacak salt okunur veri şekilleri. Bu modeller domain entity'lerinin kendisi değildir.
+Ana ve varsayılan dil:
 
-## 9.5. Persistence / Infrastructure
+`C#`
 
-Sorumlulukları: save dosyası okuma/yazma, migration, checksum, atomik dosya işlemleri, backup, logging adaptörleri, işletim sistemi ve dosya sistemi entegrasyonları. Application veya core katmanlarının tanımladığı interface'leri uygular; domain kurallarının sahibi değildir.
+C# şu alanlarda kullanılacaktır:
 
-## 9.6. Content / Data
+* Domain
+* Simulation
+* Application / Use Cases
+* Infrastructure adaptörleri
+* Godot presentation davranışları
+* Testler
+* Tooling
+* Simulation runner
 
-Sorumlulukları: kulüp ve oyuncu başlangıç verileri, olay ve diyalog şablonları, doğrulanabilir tasarım verileri, content version, import ve validation. Runtime mutable state ile karıştırılmaz.
+GDScript, MVP üretim kodunda varsayılan olarak kullanılmayacaktır.
 
-## 9.7. Presentation.Godot
+GDScript:
 
-Sorumlulukları: Godot scene'leri, `Control` tabanlı UI, input, ses, animasyon, navigation, Godot-specific adapter ve composition root. Domain davranışlarının sahibi değildir.
+* domain,
+* simulation,
+* persistence,
+* migration,
+* save validation,
+* iş kuralları
 
-## 9.8. Tooling
+içinde kullanılamaz.
 
-Sorumlulukları: simulation runner, content validator, save inspector, migration doğrulama aracı, benchmark runner, simulation raporu üretimi. İlk geliştirme aşamasında yalnızca gerekli araçlar oluşturulur.
+İleride yalnızca küçük ve izole bir Godot editor aracı için somut fayda oluşursa ayrı karar kaydıyla istisna değerlendirilebilir.
 
-## 9.9. Automated Tests
+### 6.4. .NET sürüm yönü
 
-Test projeleri üretim katmanlarından ayrı tutulur. Beklenen yüksek seviyeli test ayrımı: Unit Tests, Integration Tests, Simulation Tests, Persistence/Migration Tests, Presentation Smoke Tests, Benchmarks.
+Exact target framework bu belgeyle varsayılmayacaktır.
 
-## 9.10. Bağımlılık yönü
+Sabitlenecek Godot .NET sürümüyle uyumlu, desteklenen güncel .NET LTS hattı teknik spike sırasında seçilecektir.
 
-* `Presentation -> Application -> Domain / Simulation`
-* `Infrastructure -> Application ports / Domain contracts`
-* `Tooling -> Application / Simulation / Infrastructure composition`
-* `Tests -> test edilen katmanlar`
-
-Domain ve Simulation hiçbir zaman Presentation veya Godot'a geri bağımlı olmaz.
-
----
-
-# 10. Simülasyon Çekirdeği
-
-Domain ve simülasyon çekirdeği Godot'tan bağımsız saf .NET projeleri olarak tasarlanır.
-
-Core katmanlarında şu tipler kullanılamaz: `Godot.Node`, `Godot.Resource`, `Godot.Vector2`, `Godot.Vector3`, `Godot.RandomNumberGenerator`, `Godot.Signal`, Godot sahne veya asset referansları, presentation tipleri.
-
-Simülasyon: kullanıcı arayüzü açılmadan çalışabilmeli, Godot motoru başlatılmadan test edilebilmeli, ayrı console simulation runner üzerinden çalıştırılabilmeli, aynı seed ve aynı input ile tekrar üretilebilir olmalı, frame rate'ten bağımsız olmalı, açık takvim adımları ve simulation checkpoint'leri üzerinden ilerlemelidir.
-
-Godot `--headless` yalnızca presentation smoke testleri, motor entegrasyon testleri ve CI export işlemleri için kullanılır. Ana uzun dönem simülasyon testleri Godot süreci gerektirmez.
-
-## 10.1. Deterministik rastlantısallık
-
-`System.Random` doğrudan domain veya simulation katmanında kullanılmaz.
-
-Deterministik rastlantısallık için proje tarafından sahip olunan, algoritması açıkça seçilmiş, sürümü kaydedilen, state'i save dosyasında saklanabilen bir RNG abstraction kullanılır.
-
-İlk tercih: **PCG32 veya eşdeğer küçük, kararlı ve sürümlenebilir deterministik algoritma**. Kesin implementasyon teknik spike ve simulation tasarımı sırasında doğrulanır.
-
-RNG yaklaşımı: root career seed bulunur; alt sistemler için isimlendirilmiş RNG stream'leri türetilir; maç, transfer, olay ve gelişim gibi sistemlerin rastgele sayı tüketimi mümkün olduğunca birbirinden ayrılır; seed yanında RNG algoritma sürümü de kaydedilir; debug raporunda seed ve simulation run ID bulunur.
-
-Aynı seed için tekrar üretilebilirlik garantisi aynı oyun sürümü, aynı content sürümü, aynı save schema sürümü, aynı RNG algoritma sürümü ve aynı input sırası kapsamında verilir. Farklı oyun sürümleri arasında bit düzeyinde aynı simülasyon sonucu zorunlu değildir; eski kayıtların yüklenebilmesi ve doğru migration uygulanması zorunludur.
-
-## 10.2. Zaman ilerletme
-
-Simulation zamanı gerçek zamanlı render loop'tan ayrılır. Zaman; takvim günü, planlama dönemi, anlamlı checkpoint, maç veya karar noktası gibi açık simulation adımlarıyla ilerler.
-
-Godot `_Process` veya `_PhysicsProcess`, dünya takviminin veya domain zamanının sahibi olamaz.
+Domain, Simulation, Application, Infrastructure, Tooling ve Test projeleri ortak uyumlu target framework tabanını kullanmalıdır.
 
 ---
 
-# 11. Olay ve Kural Entegrasyon Sınırı
+## 7. Hedef Platform ve Dağıtım
 
-Olay tabanlı yapı korunur ancak kontrolsüz genel mesajlaşma sistemi kurulmaz.
+İlk dağıtım Windows x64 olacaktır.
 
-Temel ilkeler:
+İlk paketleme yönü:
 
-* Domain event'leri typed ve açık sözleşmeli olacaktır.
-* Event dispatch sırası deterministik olmalıdır.
-* Bir event'in hangi sistemler tarafından işlendiği izlenebilir olmalıdır.
-* Aynı sonucun iki kez uygulanması önlenmelidir.
-* Application veya Simulation işlem sınırı event'lerin uygulanmasını koordine etmelidir.
-* UI, domain event bus'a doğrudan abone olarak iş kuralı çalıştırmamalıdır.
-* Godot autoload singleton, domain event bus yerine kullanılamaz.
-* Event log sınırsız büyüyen ana veri kaynağı olmayacaktır.
-* Tam event sourcing kullanılmayacaktır.
+* Godot Windows export,
+* portable build,
+* gerekli runtime ve third-party license bildirimleri,
+* ayrı save/log klasörleri,
+* temiz Windows ortamında açılış doğrulaması.
 
-Kesin event tipleri ve handler tasarımları bu belgede oluşturulmaz; ilgili olay/kural motoru tasarım belgesinde ele alınacaktır.
+Installer ve code signing MVP dağıtım aşamasında ayrıca değerlendirilecektir.
+
+Linux ve macOS portları ancak MVP doğrulandıktan sonra ayrı teknik ve ticari değerlendirme ile ele alınacaktır.
 
 ---
 
-# 12. UI ve Sunum Katmanı
+## 8. Yüksek Seviyeli Mimari Yön
 
-Ana UI yaklaşımı: **Godot Control tabanlı scene/component presentation katmanı**.
+Mimari katmanlar:
 
-UI'nin sorumlulukları: Application katmanından read model almak, bilgileri göstermek, kullanıcı kararlarını toplamak, application command veya use case çağrısı yapmak, doğrulama ve işlem sonuçlarını göstermek, ses/animasyon/geçiş/görsel geri bildirim sağlamak.
+1. Domain
+2. Simulation
+3. Application / Use Cases
+4. Presentation
+5. Persistence / Infrastructure
+6. Content / Data
+7. Tooling
+8. Automated Tests
 
-UI'nin yapamayacağı işlemler: domain entity alanlarını doğrudan değiştirmek; moral, kondisyon, ilişki, hafıza, söz, transfer veya yönetim güvenini doğrudan güncellemek; maç sonucu üretmek; rastlantısallık oluşturmak; takvim zamanını frame rate üzerinden ilerletmek; persistence dosyasına doğrudan yazmak; veritabanına veya save dosyasına doğrudan erişmek; domain event'lerini kontrolsüz global signal ağına dönüştürmek.
+### 8.1. Domain
 
-Ana iletişim yönü: `Godot UI -> Application Command / Query -> Domain ve Simulation -> Result / Read Model -> Godot UI`.
+Domain:
 
-Godot signal sistemi yalnızca presentation katmanı içindeki görsel ve input koordinasyonu için kullanılabilir. Domain event sistemi Godot signal sistemine bağımlı olmayacaktır.
+* temel iş kavramlarını,
+* invariant'ları,
+* domain davranışlarını,
+* değer nesnelerini,
+* domain sonuçlarını
 
-## 12.1. Büyük liste ve tablolar
+taşır.
 
-Kadro, transfer ve oyuncu listelerinde yaklaşık 500 aktif futbolcunun bulunacağı dikkate alınır. Godot'un standart UI kontrollerinin yeterli olacağı varsayılmaz.
+Domain:
 
-Benimsenen yaklaşım: liste verisi application read model üzerinden sunulur; filtreleme ve sıralama domain state'ini değiştirmez; görünür olmayan her satır için karmaşık node ağacı oluşturulmaz; satır pooling, virtualization veya sayfalama değerlendirilir; UI performansı teknik spike ile ölçülür; UI spike başarısız olursa ilk geri dönüş adayı `.NET + Avalonia` olur; bu geri dönüşün mümkün olması için core katmanları Godot'tan bağımsız tutulur.
+* Godot'a,
+* UI'a,
+* SQLite'a,
+* dosya sistemine,
+* log provider'a,
+* gerçek saate,
+* network'e
 
-## 12.2. Gelecekte 2D veya 3D sunum
+bağımlı olamaz.
 
-Maç simülasyonu görsel sunumdan tamamen bağımsız olacaktır. Maç çekirdeğinin sunuma verdiği sonuç ailesi yüksek seviyede maç sonucu, olay zaman çizelgesi, temel istatistikler, önemli anlar, presentation-neutral durum görüntüleri, açıklama ve sebep verilerini kapsayabilir. Kesin DTO veya sınıf şeması bu belgede oluşturulmaz.
+### 8.2. Simulation
 
-Metin tabanlı timeline, gelecekteki 2D gösterim ve olası 3D gösterim aynı simülasyon sonucunu farklı biçimlerde sunabilmelidir.
+Simulation:
 
-Görsel katman: maç sonucunu yeniden hesaplayamaz, kendi rastlantısallığını kullanamaz, simülasyon state'ini değiştiremez, frame rate'e bağlı oyun kuralı çalıştıramaz.
+* dünya ilerletme,
+* maç simülasyonu,
+* kontrollü rastlantısallık,
+* takvim adımları,
+* uzun dönem davranış
+
+gibi simülasyon koordinasyonundan sorumludur.
+
+Simulation, Godot frame loop'una bağlı olamaz.
+
+### 8.3. Application / Use Cases
+
+Application:
+
+* command ve query use-case'lerini,
+* transaction sınırlarını,
+* orchestration'ı,
+* save/load çağrılarını,
+* zaman ilerletme taleplerini,
+* read model üretim akışını
+
+koordine eder.
+
+Application, UI framework ayrıntılarını bilmez.
+
+### 8.4. Presentation
+
+Presentation:
+
+* Godot scene ve `Control` bileşenlerini,
+* input işlemlerini,
+* ekran navigasyonunu,
+* read model sunumunu,
+* animasyon, ses ve görsel geri bildirimi
+
+yönetir.
+
+Presentation domain state'i doğrudan değiştiremez.
+
+### 8.5. Persistence / Infrastructure
+
+Infrastructure:
+
+* SQLite save adapter'ını,
+* file system erişimini,
+* content loading'i,
+* structured logging provider'ını,
+* backup ve migration uygulamalarını,
+* sistem saati ve benzeri dış servis adaptörlerini
+
+barındırır.
+
+Infrastructure, Application tarafından tanımlanan portları uygular.
+
+### 8.6. Content / Data
+
+Content/Data:
+
+* authored JSON dosyalarını,
+* schema tanımlarını,
+* stable ID kataloglarını,
+* content version bilgisini
+
+taşır.
+
+### 8.7. Tooling
+
+Tooling:
+
+* headless simulation runner,
+* content validator,
+* save inspector,
+* migration verifier,
+* balance report generator
+
+gibi üretim dışı araçları barındırabilir.
+
+### 8.8. Automated Tests
+
+Test projeleri katman bazında ayrılmalıdır.
+
+Testlerin büyük bölümü Godot editörü veya GPU gerektirmeden çalışmalıdır.
+
+### 8.9. Bağımlılık yönü
+
+```text
+Presentation.Godot
+        |
+        v
+Application
+   |          |
+   v          v
+Domain <--- Simulation
+
+Infrastructure
+        |
+        v
+Application ports / Domain mappings
+
+Tooling
+        |
+        v
+Application / Simulation / Infrastructure composition
+```
+
+Domain içeri doğru bağımlılık merkezidir.
+
+Presentation ve Infrastructure birbirine doğrudan bağlanmaz. Somut bağımlılıklar composition root tarafından bir araya getirilir.
 
 ---
 
-# 13. Veri ve İçerik Yaklaşımı
+## 9. Simülasyon Çekirdeği
 
-## 13.1. Runtime state ve content ayrımı
+Simülasyon çekirdeği motor bağımsız olacaktır.
 
-İki veri ailesi kesin olarak ayrılır.
+Domain, Simulation ve Application katmanları:
 
-**Runtime state:** dünya state'i, takvim, kulüp ve oyuncu durumları, ilişkiler, hafıza, sözler, aktif olay zincirleri, RNG state'leri, kariyer geçmişi.
+* Godot node'larına,
+* scene tree'ye,
+* Godot resource formatına,
+* Godot matematik tiplerine,
+* Godot RNG'ye
 
-**Content data:** kulüp şablonları, futbolcu başlangıç verileri, olay şablonları, diyalog şablonları, isim havuzları, ayar ve denge tabloları.
+bağımlı olmayacaktır.
 
-Content verisi runtime save state'in içine kontrolsüz biçimde kopyalanmaz. Save dosyası kullanılan content sürümünü referanslar.
+Ana headless çalışma yöntemi saf .NET simulation runner'dır.
 
-## 13.2. Content üretim kararı
+Godot headless çalışma:
 
-Authoring formatları: JSON (hiyerarşik ve şablon tabanlı içerik), CSV (toplu ve tablosal başlangıç verileri), lokalizasyon anahtarları (doğrudan metin yerine referanslanabilir yapı).
+* presentation smoke testleri,
+* import doğrulaması,
+* Windows export,
+* engine integration
 
-Godot `Resource` dosyaları core content'in tek ve bağlayıcı kaynağı olmayacaktır.
+için kullanılacaktır.
 
-Content pipeline: authoring dosyalarını oku; şema ve alan doğrulaması yap; referans bütünlüğünü doğrula; identifier benzersizliğini doğrula; aralık ve invariant kontrollerini çalıştır; runtime immutable content catalog üret; content version ve hash üret; CI üzerinde validation çalıştır.
+### 9.1. Deterministik rastlantısallık
 
-İlk aşamada özel görsel content editor oluşturulmaz. Özel editor ancak manuel hata oranı yükselirse, içerik hacmi doğrulanmış biçimde büyürse veya JSON/CSV authoring geliştirmenin ana darboğazı hâline gelirse ayrı özellik olarak değerlendirilir.
+Simülasyon kendine ait bir RNG abstraction'ı kullanacaktır.
 
----
+Kayıt dosyasında en az:
 
-# 14. Kayıt ve Sürüm Geçişi Yönü
+* root seed,
+* RNG algorithm/version,
+* gerekiyorsa RNG state veya deterministik stream bilgisi
 
-## 14.1. MVP'de veritabanı kararı
+korunacaktır.
 
-MVP save sistemi için SQL Server, SQLite veya başka bir ilişkisel veritabanı kullanılmaz.
+`System.Random` veya Godot RNG domain'e dağınık biçimde çağrılamaz.
 
-Gerekçe: dünya ölçeği yaklaşık 500 aktif futbolcu ve 20 kulüple sınırlıdır; offline ve taşınabilir tek save dosyası tercih edilmektedir; domain object graph'ının ilişkisel şemaya erken bağlanması migration ve bakım maliyetini artırır; kayıt bütünlüğü explicit persistence DTO ve migration pipeline ile daha kontrollü ele alınabilir.
+Aynı:
 
-SQLite gelecekte yalnızca telemetry, yerel analytics, çok büyük history sorguları, içerik arama veya editör tooling'i için somut performans ihtiyacı kanıtlanırsa ayrı karar olarak değerlendirilebilir.
+* başlangıç state'i,
+* content version,
+* simulation version,
+* input sequence,
+* seed
 
-## 14.2. Save biçimi
+aynı canonical sonucu üretmelidir.
 
-Save dosyası yönü: **sürümlendirilmiş, sıkıştırılmış JSON snapshot container**. Önerilen uzantı: `.fcsave`.
+Kesin PRNG algoritması teknik spike ile doğrulandıktan sonra sürümlenecektir.
 
-Container yüksek seviyede şunları içermelidir: `manifest.json`, `state.json`, isteğe bağlı `summary.json`, checksum bilgileri, bounded diagnostic veya timeline kayıtları.
+### 9.2. Zaman ilerletme
 
-Kesin dosya şeması `docs/13_SAVE_SYSTEM.md` içinde tasarlanacaktır.
+Simülasyon zamanı ayrık adımlarla ilerler.
 
-JSON serileştirme yönü: `System.Text.Json`; explicit persistence DTO'ları; domain entity'lerini doğrudan serialize etmeme; enum ve identifier davranışlarını açıkça kontrol etme; canonical serialization veya canonical state hash yaklaşımı; invariant culture kullanımı.
+UI yalnızca zaman ilerletme use-case'ini çağırır.
 
-## 14.3. Save source of truth
+Frame delta:
 
-Ana kayıt kaynağı: **state snapshot**.
+* gün ilerletmez,
+* maç sonucu üretmez,
+* olay zinciri çalıştırmaz,
+* domain state'in sahibi değildir.
 
-Event log tam event sourcing kaynağı değildir; oyuncuya gösterilen geçmiş, açıklama, audit, debug ve sınırlı yeniden üretim desteği için kullanılır; sınırsız büyümez; retention ve özetleme politikası ilgili sistem belgelerinde belirlenir.
+Kesin takvim kuralları ilgili alt sistem belgesinde tasarlanacaktır.
 
-## 14.4. Save versioning
+### 9.3. Maç sunumu sınırı
 
-Her save dosyasında en az şunlar bulunmalıdır: save schema version, game version, content version, created timestamp, last saved timestamp, root career seed, RNG algorithm version, platform bilgisi, checksum metadata.
+Maç çekirdeği presentation-neutral çıktı üretir:
 
-## 14.5. Migration
+* timeline,
+* events,
+* statistics,
+* snapshots,
+* result,
+* explanation metadata.
 
-Migration yaklaşımı: **sequential forward migrations** (örnek yön: `V1 -> V2 -> V3`).
-
-Kurallar: migration doğrudan eski save'i yerinde değiştirmez; önce backup alınır; eski dosya okunur ve doğrulanır; sıralı migration adımları uygulanır; yeni state doğrulanır; yeni dosya geçici path'e yazılır; checksum doğrulanır; başarıdan sonra atomik replace uygulanır; başarısızlık durumunda eski save korunur; migration idempotency test edilmelidir. Backward migration zorunlu değildir.
-
-## 14.6. Atomik kayıt ve backup
-
-Save işlemi: geçici dosyaya yazma; flush ve kapatma; checksum doğrulama; mevcut save'in backup'ını alma; atomik replace veya mümkün olan en güvenli platform işlemi; son dosyayı tekrar doğrulama. En az iki dönen backup yönü dokümante edilmelidir.
-
-Bozuk save: sessizce yüklenmez, geçerli save üzerine yazılmaz, mümkünse son backup önerilir, tanı raporu oluşturulabilir, kullanıcıya bozulmanın genel nedeni gösterilir.
-
----
-
-# 15. Test Stratejisi Yönü
-
-Ana .NET test framework'ü: **xUnit.net v3**.
-Property/invariant test yönü: **FsCheck + xUnit entegrasyonu**.
-Performans benchmark yönü: **BenchmarkDotNet**.
-
-Godot presentation testleri mümkün olduğunca az sayıda tutulur; sahne açılışı, temel navigation, adapter wiring ve export smoke kapsamındadır. Core iş kuralları Godot test runner'ına taşınmaz.
-
-## 15.1. Zorunlu test aileleri
-
-* **Unit tests:** domain invariants, value calculations, rule evaluations, deterministic RNG wrapper, application validation.
-* **Integration tests:** birden fazla sistemin tanımlı işlem sınırında birlikte çalışması, event dispatch sırası, persistence adapter entegrasyonu, content loading ve validation.
-* **Simulation tests:** bir sezon, çok sezon, 10 sezon, binlerce maç, farklı seed'ler, işten çıkarılma ve kulüp değişimi akışları.
-* **Property/invariant tests:** örnek invariant aileleri — var olmayan oyuncu referansı bulunmaması, aynı oyuncunun iki kulübün aktif kadrosunda olmaması, negatif veya geçersiz sözleşme süreleri oluşmaması, fikstür bütünlüğünün bozulmaması, save/load sonrasında canonical state'in korunması, olay sonuçlarının iki kez uygulanmaması. Kesin invariants ilgili sistem belgelerinde tanımlanacaktır.
-* **Save/load round-trip tests:** state serialize, save, load, validate, canonical state hash karşılaştır.
-* **Migration tests:** eski fixture save'leri saklanır; her schema sürümü sonraki sürüme taşınır; migration sonrası validation yapılır; migration başarısızlığında eski dosyanın korunduğu doğrulanır.
-* **Determinism tests:** aynı seed, content, input, version ve RNG sürümü ile aynı canonical state hash üretilmelidir.
-* **10-season soak tests:** memory büyümesi, referans bütünlüğü, performans, event/history hacmi, emeklilik ve yeni oyuncu üretimi, save/load, simülasyon tamamlanması kontrol edilir.
-* **Binlerce maçlık denge testleri:** bu testler oyun tasarımı sonucunu otomatik olarak "doğru" ilan etmez; sonuç dağılımları, ev sahibi avantajı, gol dağılımı, favori kazanma oranları, sakatlık dağılımı, performans süreleri ve anormal uç değerleri raporlar.
+Text timeline, gelişmiş 2D ve olası 3D sunum aynı temel çıktıları tüketmelidir.
 
 ---
 
-# 16. Loglama, Profiling ve Debug
+## 10. UI ve Sunum Katmanı
 
-Logging abstraction: **Microsoft.Extensions.Logging**.
-Runtime structured logging implementasyonu: **Serilog**.
+Ana UI yaklaşımı Godot `Control` tabanlı scene/component yapısıdır.
 
-Loglama yalnızca composition root veya infrastructure üzerinden bağlanır. Domain katmanı Serilog'a doğrudan bağımlı olmaz.
+Örnek ekran alanları:
 
-Log context'inde mümkün olduğunda şunlar bulunmalıdır: simulation run ID, career ID, root seed, subsystem RNG stream, game version, save schema version, content version, current simulation date, current checkpoint, event correlation ID.
+* Weekly Control Center
+* Squad
+* Tactics
+* Training
+* Transfers
+* Relationships
+* Match Timeline
+* Inbox / Decisions
+* Career History
 
-Log çıktıları: geliştirmede console, dönen structured file log, gerektiğinde insan tarafından okunabilir özet. Harici cloud logging veya crash reporting zorunlu bağımlılık değildir.
+UI akışı:
 
-## 16.1. Debug seed
+```text
+User Interaction
+        |
+        v
+Application Command / Query
+        |
+        v
+Domain / Simulation
+        |
+        v
+Result / Read Model
+        |
+        v
+Godot Presentation
+```
 
-Her simulation test ve hata raporu seed, input senaryosu, simulation version, content version ve başarısız checkpoint bilgilerini üretmelidir.
+UI:
 
-## 16.2. Simulation raporu
+* SQLite'a doğrudan erişemez,
+* domain collection'larını doğrudan mutasyona uğratamaz,
+* moral, ilişki, yorgunluk, söz veya transfer state'i değiştiremez.
 
-Headless simulation runner en az şu raporları üretebilmelidir: toplam süre, sezon süreleri, maç sayısı, event sayıları, save boyutu, memory göstergeleri, invariant failures, final canonical state hash, kullanılan seed. Kesin rapor formatı tooling geliştirme aşamasında belirlenir.
+### 10.1. Büyük listeler
 
-## 16.3. Profiling
+500 futbolculuk liste ve benzeri veri ekranlarında:
 
-Core profiling araç yönü: BenchmarkDotNet, `dotnet-trace`, `dotnet-counters`, ölçümlü simulation runner raporları.
+* tüm satırlar için pahalı scene oluşturulması varsayılmayacak,
+* row recycling, virtualization veya paging değerlendirilecek,
+* sorting ve filtering read model/query katmanında ele alınacak,
+* filtreler domain state'i değiştirmeyecek,
+* selection state ile domain state ayrılacak,
+* performans spike ile ölçülecektir.
 
-Godot presentation profiling yönü: Godot profiler, scene/node sayısı, frame time, UI liste güncelleme maliyeti, allocation ve redraw davranışı.
-
----
-
-# 17. Build ve CI Yönü
-
-CI sistemi: **GitHub Actions**.
-
-PR üzerinde zorunlu olacak yön: restore, build, unit tests, integration tests, determinism tests, save/load round-trip tests, content validation.
-
-Her PR'da çalışması gerekmeyen ağır testler: tam 10 sezon soak, büyük benchmark setleri, binlerce seed dengesi, tam Windows export. Bunlar scheduled, nightly, manuel workflow veya release gate olarak çalıştırılabilir.
-
-Build ve dağıtım yönü Bölüm 8'de (Hedef Platform ve Dağıtım) tanımlanmıştır.
-
----
-
-# 18. Teknik Doğrulama Spike'ları
-
-Aşağıdaki altı spike, üretim domain modeli ve proje scaffold'undan önce ayrı görevler olarak planlanmalıdır. Bu belgede spike kodu yazılmamıştır.
-
-## Spike 1 — Motor bağımsız 10 sezon simülasyonu
-
-Doğruladığı risk: simülasyon çekirdeğinin Godot olmadan çalışması, performans, uzun dönem memory ve state büyümesi.
-
-Başarı kriteri: temsilî MVP dünyası veya yeterli sahte dünya ile 10 sezon tamamlanır; UI ve Godot süreci gerekmez; unhandled exception oluşmaz; invariant failure oluşmaz; süre ve memory raporu üretilir; geliştirici referans makinesinde başlangıç hedefi olarak 120 saniyenin altında kalır. Bu sayı nihai ürün SLA'sı değildir; teknik risk eşiğidir.
-
-Başarısız olursa etkilenecek karar: simulation granularity, data structures, uzak dünya ayrıntı seviyesi. Motor seçimi doğrudan değişmez.
-
-## Spike 2 — Deterministik tekrar üretim
-
-Doğruladığı risk: aynı seed'in farklı sonuç üretmesi, RNG stream karışması, iteration order kaynaklı nondeterminism.
-
-Başarı kriteri: aynı build ve input ile 10 bağımsız process çalıştırması aynı canonical final hash'i üretir; farklı seed'ler anlamlı biçimde farklı sonuç üretir; seed ve RNG sürümü raporda bulunur.
-
-Başarısız olursa etkilenecek karar: RNG implementasyonu, collection iteration politikası, event ordering.
-
-## Spike 3 — Save/load, migration ve bozulma testi
-
-Doğruladığı risk: kayıt bütünlüğü, migration, atomik yazma, bozuk save davranışı.
-
-Başarı kriteri: save/load round-trip aynı canonical state hash'i üretir; örnek V1 save V2'ye migrate edilir; checksum bozulması algılanır; başarısız migration eski save'i değiştirmez; backup'tan kurtarma doğrulanır.
-
-Başarısız olursa etkilenecek karar: JSON container yapısı, persistence DTO sınırı, migration pipeline.
-
-## Spike 4 — 500 futbolculuk Godot UI listesi
-
-Doğruladığı risk: Godot Control ile yoğun veri ekranlarının ergonomisi ve performansı.
-
-Başarı kriteri: yaklaşık 500 futbolcu gösterilebilir; sıralama ve filtreleme uygulanabilir; filtre sonucu kullanıcı etkileşiminde yaklaşık 100 ms içinde görünür; scroll sırasında belirgin takılma oluşmaz; idle durumda hedef 60 FPS korunur; node ve allocation davranışı raporlanır.
-
-Başarısız olursa etkilenecek karar: custom virtualized list yaklaşımı, UI component tasarımı, son çare olarak presentation katmanının Avalonia'ya taşınması. Domain, Simulation ve Application kararları değişmez.
-
-## Spike 5 — Windows export ve temiz makine testi
-
-Doğruladığı risk: paketleme, runtime bağımlılıkları, path ve save erişimi.
-
-Başarı kriteri: Windows x64 release export üretilir; Godot editor kurulu olmayan temiz Windows ortamında başlatılır; gerekli runtime prerequisite varsa açıkça belgelenir; save ve log klasörleri oluşturulur; temel açılış smoke testi geçer.
-
-Başarısız olursa etkilenecek karar: export preset, runtime packaging, installer veya portable package yönü.
-
-## Spike 6 — CI core test ve Godot headless doğrulaması
-
-Doğruladığı risk: yerel makineye bağımlı build, headless export, presentation ve core testlerinin ayrılması.
-
-Başarı kriteri: core build ve testler Godot kurulmadan çalışır; Godot smoke/export işi ayrı job olarak çalışır; CI ortamında pencere veya GPU zorunluluğu oluşmaz; test ve export raporları artifact olarak alınabilir.
-
-Başarısız olursa etkilenecek karar: CI job ayrımı, Godot runner kurulumu, export otomasyonu.
+Godot'un hazır UI bileşenlerinin bütün tablo gereksinimlerini doğrudan karşılayacağı varsayılmayacaktır.
 
 ---
 
-# 19. Reddedilen Alternatifler
+## 11. Veri ve İçerik Yaklaşımı
 
-## .NET + Avalonia
+Runtime state ve authored content birbirinden ayrılır.
 
-İkinci en güçlü adaydır. Avantajları: C#/.NET uyumu, yoğun tablo ve form ekranları, MVVM, kolay test, masaüstü dağıtımı.
+### 11.1. Runtime state
 
-Reddedilme gerekçesi: oyun motoru değildir; gelecekteki gelişmiş 2D sunum daha pahalı olur; animasyon, ses, oyun hissi ve görsel maç katmanı için ek altyapı gerekir.
+Runtime state:
 
-Godot UI spike'ı (Spike 4) başarısız olursa geri dönüş adayı olarak korunur.
+* aktif kariyer,
+* dünya durumu,
+* kulüp ve futbolcu state'i,
+* ilişkiler,
+* sözler,
+* hafızalar,
+* takvim,
+* simülasyon state'i
 
-## Unity + C#
+gibi değişken verileri içerir.
 
-Teknik olarak yeterlidir.
+Aktif runtime state domain modelinde memory içinde bulunur.
 
-Reddedilme gerekçesi: kullanıcının Unity deneyimi temel düzeydedir; MVP için gereksiz editör ve motor ağırlığı oluşturur; kesin bir 3D hedefi yoktur; vendor ve lisans politikası riski Godot'tan yüksektir; tek geliştirici bakım maliyeti daha yüksektir.
+### 11.2. Authored content
 
-## Godot + GDScript
+Authored content:
 
-Reddedilme gerekçesi: büyük ve uzun ömürlü domain modeli, save migration, refactoring güvenliği, test tooling'i ve kullanıcının ileri C# deneyimi nedeniyle ana dil olarak C# daha uygundur.
+* başlangıç kulüpleri,
+* başlangıç futbolcuları,
+* olay şablonları,
+* diyalog şablonları,
+* isim havuzları,
+* kültür ve kural parametreleri
 
-## React/TypeScript + Tauri
+gibi tasarım verilerini içerir.
 
-Reddedilme gerekçesi: React, Rust/Tauri ve C#/.NET arasında çoklu runtime sınırı oluşturur; IPC ve process lifecycle yönetimi gerekir; web veya mobil hedefi bulunmamaktadır; gelecekteki 2D maç sunumu için ek karmaşıklık oluşturur.
+Ana format UTF-8 JSON'dır.
 
-## MonoGame veya benzeri düşük seviyeli yaklaşım
+İçerik:
 
-Reddedilme gerekçesi: UI ve tooling altyapısının önemli bölümünün elle geliştirilmesi gerekir; MVP doğrulama süresini uzatır; Godot'un hazır UI, scene, audio ve görsel araçlarına göre daha yüksek mühendislik maliyeti vardır.
+* stable ID kullanmalı,
+* version bilgisi taşımalı,
+* schema validation'dan geçmeli,
+* semantic validation'dan geçmeli,
+* kaynak koddan ayrı tutulmalıdır.
+
+### 11.3. İçerik araçları
+
+MVP başında özel editör zorunlu değildir.
+
+İlk yön:
+
+* elle düzenlenebilir JSON,
+* otomatik validator,
+* gerekirse spreadsheet-to-JSON dönüşüm aracı.
+
+Runtime doğrudan spreadsheet dosyasına bağlı olmayacaktır.
 
 ---
 
-# 20. Riskler ve Azaltma Planları
+## 12. Kayıt ve Sürüm Geçişi Yönü
 
-| Risk | Etkilediği Alan | Azaltma Yaklaşımı |
+Kayıt formatı yönü:
+
+`Versioned SQLite tabanlı tek dosyalı save container`
+
+SQLite:
+
+* runtime domain state'in yerine geçmez,
+* persistence mekanizmasıdır,
+* UI tarafından doğrudan kullanılmaz.
+
+### 12.1. Save schema version
+
+Her kayıt zorunlu schema version taşımalıdır.
+
+Ek olarak gerektiğinde:
+
+* game version,
+* simulation version,
+* content version,
+* RNG version,
+* creation/update metadata
+
+saklanmalıdır.
+
+### 12.2. Migration
+
+Migration'lar:
+
+* sıralı,
+* tekrarlanabilir,
+* otomatik testli,
+* tek yönlü,
+* loglanabilir
+
+olmalıdır.
+
+Migration başlamadan önce save yedeği alınır.
+
+Migration başarısız olursa:
+
+* orijinal save korunur,
+* yarım migration sonucu geçerli save olarak kabul edilmez,
+* hata açık biçimde raporlanır.
+
+### 12.3. Doğrulama
+
+Save load öncesinde:
+
+* format,
+* schema version,
+* required records,
+* referential integrity,
+* temel domain invariant'ları
+
+doğrulanır.
+
+Bozuk kayıt sessizce yüklenmez.
+
+Kurtarılabilir durumda son sağlıklı backup önerilebilir.
+
+### 12.4. Snapshot ve event log
+
+Snapshot ana state kaynağıdır.
+
+Event log:
+
+* tam event sourcing mekanizması değildir,
+* her state değişikliğini sonsuza kadar saklamaz,
+* önemli tarihçe,
+* açıklanabilirlik,
+* debug,
+* sınırlı audit
+
+amaçlarına hizmet eder.
+
+Event retention, compaction ve summary politikaları `docs/13_SAVE_SYSTEM.md` içinde ayrıntılandırılacaktır.
+
+Kesin tablo şeması bu belgede tanımlanmaz.
+
+---
+
+## 13. Test Stratejisi Yönü
+
+Ana test altyapısı:
+
+* saf .NET test projeleri,
+* `dotnet test`,
+* sabitlenmiş güncel xUnit.net sürümü,
+* ayrı headless simulation runner.
+
+### 13.1. Unit tests
+
+Saf domain kuralları ve küçük simulation bileşenleri izole test edilir.
+
+### 13.2. Integration tests
+
+Application, infrastructure adapter'ları, geçici SQLite save ve content loading birlikte test edilir.
+
+### 13.3. Simulation tests
+
+Belirli dünya ve seed ile birden fazla gün, hafta, sezon veya kariyer adımı çalıştırılır.
+
+### 13.4. Property ve invariant tests
+
+Örnek invariant alanları:
+
+* negatif olmayan zorunlu değerler,
+* geçerli kulüp/futbolcu referansları,
+* aynı olay sonucunun iki kez uygulanmaması,
+* takvim sırasının bozulmaması,
+* emekli veya silinmiş aktör referanslarının kontrolü,
+* söz state geçişlerinin geçerli olması.
+
+Kesin invariant listesi ilgili sistem belgelerinde tanımlanacaktır.
+
+### 13.5. Save/load round-trip
+
+Save öncesi ve load sonrası canonical state eşdeğerliği doğrulanır.
+
+### 13.6. Determinism tests
+
+Aynı seed ve input sequence ile canonical sonuç hash'i eşit olmalıdır.
+
+Farklı seed senaryolarında invariant'lar korunurken en az bazı anlamlı sonuçların değişmesi beklenir.
+
+### 13.7. Ten-season soak tests
+
+UI açılmadan 10 sezonluk simülasyon çalıştırılır.
+
+Test:
+
+* exception,
+* invalid state,
+* reference corruption,
+* uncontrolled memory growth,
+* runaway event growth,
+* save/load failure
+
+aramalıdır.
+
+### 13.8. Thousands-of-matches tests
+
+Binlerce maç çalıştırılarak:
+
+* skor dağılımı,
+* güç farkı ile sonuç ilişkisi,
+* aşırı uç sonuçlar,
+* beraberlik oranı,
+* home/away etkisi,
+* determinism,
+* invariant ihlalleri
+
+raporlanır.
+
+Kesin denge eşikleri maç sistemi belgesinde belirlenecektir.
+
+### 13.9. Test failure diagnostics
+
+Simulation test hataları en az:
+
+* seed,
+* scenario ID,
+* simulation version,
+* content version,
+* simulation date,
+* canonical state hash veya checkpoint
+
+bilgisini raporlamalıdır.
+
+---
+
+## 14. Loglama, Profiling ve Debug
+
+Loglama abstraction'ı:
+
+`Microsoft.Extensions.Logging`
+
+Yapılandırılmış yerel dosya logları için Serilog uyumlu provider yönü kullanılacaktır.
+
+Loglar en az şu bağlamları taşıyabilmelidir:
+
+* timestamp,
+* severity,
+* subsystem,
+* career/save ID,
+* simulation date,
+* seed,
+* correlation/context ID,
+* application version.
+
+Domain doğrudan dosya logger'ına bağımlı olmayacaktır.
+
+Yerel loglar:
+
+* rolling,
+* retention,
+* boyut sınırı
+
+uygulamalıdır.
+
+MVP'de zorunlu çevrim içi telemetry bulunmaz.
+
+Debug seed, simulation report ve son güvenli checkpoint hata teşhisinde kullanılmalıdır.
+
+Profiling yönü:
+
+* Godot profiler: presentation, scene, rendering ve UI
+* .NET diagnostics: CPU, allocation ve memory
+* BenchmarkDotNet: izole performans benchmark'ları için gerektiğinde
+
+---
+
+## 15. Build ve CI Yönü
+
+CI sağlayıcısı:
+
+`GitHub Actions`
+
+Birincil runner:
+
+`Windows`
+
+Per-commit veya pull request kontrolleri, ilgili altyapı oluşturulduğunda en az şunları kapsamalıdır:
+
+1. Restore
+2. Build
+3. Unit tests
+4. Integration smoke tests
+5. Determinism smoke test
+6. Save/load smoke test
+7. Content validation
+8. Documentation validation
+
+Godot entegrasyonu oluşturulduğunda:
+
+* headless import,
+* headless Windows export,
+* exported build smoke test
+
+ayrı job olarak çalıştırılmalıdır.
+
+Uzun soak ve büyük denge testleri ayrı:
+
+* scheduled,
+* nightly,
+* manual
+
+workflow olarak çalıştırılabilir.
+
+İlk dağıtım Windows x64 portable build yönündedir.
+
+Installer ve code signing ayrı dağıtım kararıdır.
+
+---
+
+## 16. Teknik Doğrulama Spike'ları
+
+En fazla altı teknik spike uygulanacaktır.
+
+### Spike 1 — Motor bağımsız 10 sezonluk headless simulation
+
+**Doğruladığı risk**
+
+Saf .NET çekirdeğinin Godot olmadan çalışması, 20 kulüp ve yaklaşık 500 futbolculuk dünya ölçeğinin uzun dönem yürütülebilmesi.
+
+**Başarı kriterleri**
+
+* UI ve Godot açılmadan çalışır.
+* 10 sezonluk minimal dünya senaryosu tamamlanır.
+* Ardışık en az 10 çalıştırmada exception veya invariant ihlali oluşmaz.
+* CI için tek çalıştırma süresi beş dakikalık üst bütçeyi aşmaz.
+* Retained memory sezonlar boyunca sürekli ve açıklanamayan biçimde büyümez.
+* Seed ve performans raporu üretilir.
+
+**Başarısız olursa etkilenecek karar**
+
+Simulation katmanı sınırları, dünya ayrıntı seviyesi ve performans bütçesi yeniden değerlendirilir. Godot seçimi tek başına değişmez.
+
+### Spike 2 — Deterministik sonuç ve seed doğrulaması
+
+**Doğruladığı risk**
+
+Rastlantısallığın tekrar üretilebilirliği ve save/load sonrasında aynı akışın devam etmesi.
+
+**Başarı kriterleri**
+
+* Aynı başlangıç state'i ve seed ile en az 20 tekrar aynı canonical final hash'i üretir.
+* Simülasyon ortasında save/load yapıldığında kesintisiz koşuyla aynı final hash elde edilir.
+* Farklı seed, invariant'ları bozmadan en az bir anlamlı sonuç farkı üretir.
+* RNG version bilgisi raporlanır.
+
+**Başarısız olursa etkilenecek karar**
+
+RNG abstraction, stream stratejisi, serialization ve simulation ordering yaklaşımı yeniden değerlendirilir.
+
+### Spike 3 — SQLite save/load, migration ve corruption davranışı
+
+**Doğruladığı risk**
+
+Kayıt bütünlüğü, transaction, schema version ve migration güvenliği.
+
+**Başarı kriterleri**
+
+* Save/load round-trip canonical state eşdeğerliği sağlar.
+* Örnek eski sürüm save yeni sürüme migrate edilir.
+* Migration öncesi backup oluşturulur.
+* Migration hatasında orijinal save değişmez.
+* Bilinçli bozulmuş save algılanır ve geçerli state olarak yüklenmez.
+* Geçici dosya veya yarım işlem geçerli save olarak kalmaz.
+
+**Başarısız olursa etkilenecek karar**
+
+SQLite provider, save container yapısı veya migration transaction yaklaşımı yeniden değerlendirilir. Snapshot-first kararı korunur.
+
+### Spike 4 — 500 futbolculuk Godot UI listesi
+
+**Doğruladığı risk**
+
+Godot `Control` UI'nin yoğun veri ekranlarında performans ve bakım yeterliliği.
+
+**Başarı kriterleri**
+
+* 500 kayıt görüntülenebilir.
+* Sorting, filtering ve selection doğru çalışır.
+* Filtre sonucu normal geliştirme bilgisayarında 100 ms hedefinin altında güncellenir.
+* Scroll sırasında belirgin input kilitlenmesi oluşmaz.
+* Hedef 60 FPS'tir; p95 frame süresi 33 ms'yi aşmamalıdır.
+* Row recycling, virtualization veya paging yaklaşımından en az biri doğrulanır.
+* UI domain state'i doğrudan değiştirmez.
+
+**Başarısız olursa etkilenecek karar**
+
+Godot UI component yaklaşımı yeniden tasarlanır. Sorun çözülemezse presentation katmanı için Avalonia geri dönüş seçeneği yeniden açılır; Domain, Simulation ve Application katmanları değişmez.
+
+### Spike 5 — Windows x64 export ve temiz ortam çalıştırma
+
+**Doğruladığı risk**
+
+Paketleme, runtime bağımlılıkları ve kullanıcı makinesinde açılış.
+
+**Başarı kriterleri**
+
+* Windows x64 export alınır.
+* Godot editörü ve .NET SDK bulunmayan temiz Windows ortamında uygulama açılır.
+* Temel UI açılış smoke testi geçer.
+* Save ve log klasörlerine yazılabilir.
+* Third-party license bildirimleri pakette bulunur.
+* Crash veya missing runtime hatası oluşmaz.
+
+**Başarısız olursa etkilenecek karar**
+
+Deployment modeli, runtime packaging veya Godot/.NET sürüm kombinasyonu yeniden değerlendirilir.
+
+### Spike 6 — CI üzerinde saf .NET testleri ve Godot headless doğrulaması
+
+**Doğruladığı risk**
+
+Yerel ortam bağımlılığı ve otomasyon zinciri.
+
+**Başarı kriterleri**
+
+* Windows GitHub Actions runner üzerinde saf .NET build ve testler çalışır.
+* Domain ve Simulation testleri Godot editörü gerektirmez.
+* Godot headless import ve export job'ı çalışır.
+* Test ve build artefact'ları saklanır.
+* Her hata non-zero exit code üretir.
+* Aynı seed ile determinism smoke test sonucu CI ve yerel ortamda eşleşir.
+
+**Başarısız olursa etkilenecek karar**
+
+SDK pinleme, CI image, Godot export automation ve build scripts yönü yeniden değerlendirilir.
+
+---
+
+## 17. Reddedilen Alternatifler
+
+### 17.1. Godot + GDScript
+
+Ana dil olarak reddedildi.
+
+Gerekçe:
+
+* geliştiricinin ileri C#/.NET deneyimini kullanmaması,
+* büyük domain modelinde refactoring güvenliğinin daha düşük olması,
+* standart .NET test ve migration araçlarından uzaklaşması,
+* motor bağımsız çekirdek sınırını korumanın zorlaşması.
+
+### 17.2. Unity + C#
+
+Birincil motor olarak reddedildi.
+
+Gerekçe:
+
+* MVP için gereğinden ağır editör ve motor yüzeyi,
+* geliştiricinin Unity deneyiminin daha düşük olması,
+* olası 3D ihtiyacının kesin ürün hedefi olmaması,
+* Godot'a göre daha yüksek lisans ve vendor riski.
+
+### 17.3. .NET + Avalonia
+
+Birincil presentation framework olarak reddedildi ancak geri dönüş seçeneği olarak korundu.
+
+Gerekçe:
+
+* veri ekranlarında çok güçlü olmasına rağmen oyun sunumu ve gelişmiş 2D için ek renderer maliyeti,
+* gelecekte ayrı oyun motoru entegrasyonu ihtimali,
+* Godot'un mevcut proje için daha dengeli oyun/UI kombinasyonu sunması.
+
+Godot UI spike'ı başarısız olursa presentation katmanı için ilk yeniden değerlendirme adayı Avalonia'dır.
+
+### 17.4. React/TypeScript + Tauri + .NET
+
+Reddedildi.
+
+Gerekçe:
+
+* React/TypeScript, Rust/Tauri ve C#/.NET arasında çoklu teknoloji yüzeyi,
+* IPC ve process lifecycle karmaşıklığı,
+* web veya mobil hedef bulunmaması,
+* tek geliştirici bakım maliyetinin artması.
+
+### 17.5. MonoGame benzeri düşük seviyeli framework
+
+Birincil seçenek olarak reddedildi.
+
+Gerekçe:
+
+* UI, scene, tooling ve asset altyapısının önemli bölümünü özel geliştirme gerektirmesi,
+* MVP'nin doğrulanmasını geciktirmesi,
+* Godot'un aynı görsel esnekliği daha düşük altyapı maliyetiyle sunması.
+
+---
+
+## 18. Riskler ve Azaltma Planları
+
+| Risk | Etki | Azaltma |
 | --- | --- | --- |
-| Godot 4.7 .NET patch sürümünün beklenmedik uyumluluk sorunu çıkarması | Motor, build | Spike 1, 5 ve 6 sırasında erken doğrulama; patch sürümünün sabitlenmesi |
-| Deterministik rastlantısallığın uzun kariyerde bozulması | Simulation, kayıt bütünlüğü | Spike 2; isimlendirilmiş RNG stream'leri; canonical state hash testleri |
-| Kayıt/migration hatalarının kariyer kaybına yol açması | Persistence | Spike 3; atomik yazma; sıralı migration; backup stratejisi |
-| Godot standart UI kontrollerinin ~500 futbolculuk listelerde yetersiz kalması | Presentation.Godot | Spike 4; virtualization/pooling; Avalonia'ya geri dönüş adayı |
-| Windows dışı ortamlarda paketleme veya çalıştırma sorunları | Build, dağıtım | Spike 5; temiz makine testi; runtime prerequisite dokümantasyonu |
-| Yerel makineye bağımlı, tekrarlanamayan CI sonuçları | CI | Spike 6; core/Godot job ayrımı; headless doğrulama |
-| Domain/simulation katmanlarına yanlışlıkla Godot tipi sızması | Mimari bütünlük | Katman bağımlılık kuralı (Bölüm 9, 10); code review disiplini; ileride otomatik bağımlılık denetimi değerlendirilebilir |
-| Event motorunun kontrolsüz genel mesajlaşmaya dönüşmesi | Olay/kural motoru | Bölüm 11'deki sınırlar; typed event sözleşmeleri; işlem sınırı koordinasyonu |
-| Uzun dönem event/history verisinin sınırsız büyümesi | Performans, save boyutu | Event log'un audit/debug amaçlı sınırlı tutulması; retention politikasının ilgili sistem belgelerinde tanımlanması |
-| Content authoring hacminin büyümesiyle manuel hata oranının artması | Content/Data | Şema/referans/aralık doğrulama pipeline'ı; gerekirse ileride özel editör değerlendirmesi |
-
-Bu risk listesi kapanmış bir liste değildir; alt sistem tasarım belgeleri ve teknik spike'lar yeni riskler ortaya çıkarabilir.
+| Godot UI'nin büyük tablolarda yetersiz kalması | Ana veri ekranlarının yavaş veya pahalı geliştirilmesi | 500 kayıt UI spike'ı; recycling, virtualization veya paging; başarısızlıkta Avalonia değerlendirmesi |
+| Godot tiplerinin domain'e sızması | Motor bağımlılığı ve test zorluğu | Saf .NET proje sınırları, dependency rules ve architecture tests |
+| Save şemasının hızlı değişmesi | Eski kayıtların bozulması | Schema version, migration testleri, backup, round-trip ve corruption testleri |
+| Event log büyümesi | Save boyutu ve performans sorunu | Snapshot-first, bounded audit log, compaction ve summary politikası |
+| Determinizmin call-order değişiklikleriyle bozulması | Hataların tekrar üretilememesi | Project-owned RNG abstraction, versioned seed/state, canonical hash testleri |
+| En yeni motor sürümünde regresyon | Build veya runtime kararsızlığı | Stable release kullanımı, spike, exact patch pinleme, kontrollü upgrade |
+| Tek geliştirici bakım yükü | Geliştirmenin yavaşlaması | Tek ana dil, sınırlı package yüzeyi, katmanlı yapı, otomatik test ve tooling |
+| Çok erken özel içerik aracı geliştirme | MVP kapsam kayması | JSON + validator ile başlama; editör ihtiyacını ölçümle doğrulama |
+| Aşırı genel event bus | Gizli coupling ve sıralama hataları | Typed event contracts, açık handler sahipliği ve application orchestration |
+| Uzun soak testlerinin CI'ı yavaşlatması | Geri bildirim süresinin artması | Hızlı test ve scheduled soak workflow ayrımı |
 
 ---
 
-# 21. Açık Kalan Teknik Sorular
+## 19. Açık Kalan Teknik Sorular
 
-Aşağıdaki sorular bu kararın teknoloji ailesini veya ana mimari yönünü değiştirmez; yalnızca uygulama ayrıntısı ve sürüm pinleme doğrulamasıdır. Bu sorularda sessiz varsayım yapılamaz.
+Aşağıdaki konular kararın özünü değiştirmez ancak spike veya ilgili alt tasarım belgesinde kesinleştirilmelidir:
 
-1. Godot 4.7 patch sürümünün hangisinin pinleneceği.
-2. Godot ile ortak kullanılacak kesin .NET target framework.
-3. Godot liste UI'sinde virtualization/pooling implementasyon yönü.
-4. `.fcsave` container'ın kesin iç şeması.
-5. RNG algoritmasının kesin implementasyonu ve sürüm politikası.
-6. CI soak testlerinin hedef makine ve süre bütçesi.
-7. Windows installer'ın MVP içinde gerekli olup olmadığı.
+1. Sabitlenecek exact Godot 4 .NET patch sürümü.
+2. Godot sürümüyle ortak kullanılacak exact .NET LTS target framework.
+3. Kullanılacak SQLite .NET provider.
+4. Versioned deterministic PRNG algoritması ve stream stratejisi.
+5. Godot büyük liste component'inin recycling, virtualization veya paging uygulaması.
+6. İlk portable build sonrasında installer biçimi.
+7. Code signing zamanı ve sertifika yaklaşımı.
+8. Event/audit retention ve compaction eşikleri.
+9. Save backup sayısı ve saklama politikası.
+10. Scheduled soak testlerinin kesin süre ve performans eşikleri.
+
+Bu sorular sessiz varsayımla kapatılmamalıdır.
 
 ---
 
-# 22. Sonraki Adım
+## 20. Sonraki Adım
 
-1. Bu belgenin commit edilmesi.
-2. Ardından teknik spike'ların (Bölüm 18) sırayla ve ayrı görevler hâlinde planlanması.
-3. Spike'lardan önce üretim domain modelinin yazılmaması.
+Bir sonraki en küçük mantıklı adım:
+
+1. Bu belgede tanımlanan altı teknik spike'ın sırasını ve çalışma kartlarını hazırlamak.
+2. Spike'lar tamamlanmadan geniş üretim scaffold'u oluşturmamak.
+3. Spike sonuçlarına göre exact Godot, .NET ve persistence provider sürümlerini pinlemek.
+4. Sonrasında domain modelleme ve sistem tasarım belgelerine devam etmek.
+5. Üretim koduna geçmeden önce ilgili sistem için amaç, veri, bağımlılıklar, olaylar, sınır durumları ve test senaryolarını tanımlamak.
+
+---
+
+## Karar Özeti
+
+Seçilen yön:
+
+* Platform: Windows 10/11 x64
+* Motor: Godot 4 .NET
+* Dil: C#
+* UI: Godot `Control`
+* Simülasyon: Godot'tan bağımsız saf .NET
+* Headless çalışma: saf .NET simulation runner
+* Persistence: versioned SQLite tek dosyalı save
+* İçerik: doğrulanan UTF-8 JSON
+* Test: xUnit.net, `dotnet test`, simulation ve soak runner
+* Loglama: `Microsoft.Extensions.Logging` abstraction ve structured local logging
+* CI: GitHub Actions, Windows runner
+* Gelecek görsel sunum: presentation-neutral match timeline/snapshot çıktıları
+
+Ana trade-off:
+
+Godot'un veri tablosu yetenekleri Avalonia veya web UI kadar hazır değildir. Buna karşılık Godot; oyun sunumu, animasyon, ses ve gelecekteki gelişmiş 2D görünüm için daha dengeli bir temel sağlar.
