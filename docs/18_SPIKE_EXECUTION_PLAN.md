@@ -50,7 +50,7 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 
 ## 4. Çalışma Kartları
 
-### Kart 0 — Minimum Repository İskeleti
+### Kart 0 — Minimum Repository İskeleti — Tamamlandı
 
 **Ön koşul:** Yok.
 
@@ -65,6 +65,8 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 **Kapsam dışı:** Godot projesi, SQLite, gerçek domain modeli, UI.
 
 **Kabul kriteri:** Çözüm derlenir; en az bir yer tutucu (placeholder) test çalışır ve geçer.
+
+**Sonuç:** `FootballCareerSimulator.slnx` altında Domain/Simulation/Application/Tests projeleri oluşturuldu; `dotnet build` ve `dotnet test` başarılı (3/3 test geçti). Bkz. `docs/15_DECISION_LOG.md` D-331. Geçici hedef çerçeve `net10.0`'dır; exact pinleme Kart 2–4'e bırakılmıştır.
 
 ### Kart 1 — CI-lite (yalnız saf .NET)
 

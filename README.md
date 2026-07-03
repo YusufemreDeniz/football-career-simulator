@@ -4,7 +4,7 @@ Uzun soluklu, oyuncunun kararlarını, ilişkilerini ve geçmişini yıllarca ha
 
 ## Proje Durumu
 
-Bu proje şu anda **dokümantasyon aşamasını tamamlamış, uygulama öncesi teknik doğrulama aşamasındadır**. Henüz üretim kodu, test projesi, Godot projesi veya CI workflow oluşturulmamıştır.
+Bu proje şu anda **dokümantasyon aşamasını tamamlamış, uygulama öncesi teknik doğrulama aşamasındadır**. `docs/18_SPIKE_EXECUTION_PLAN.md` Kart 0 kapsamında minimum bir .NET çözüm iskeleti (Domain/Simulation/Application/Tests, yalnızca yer tutucu içerikle) oluşturulmuştur. Henüz gerçek domain modeli, Godot projesi veya CI workflow oluşturulmamıştır.
 
 Hedef platform, oyun motoru, programlama dili ve yüksek seviyeli mimari **kesinleşmiştir**: Windows 10/11 x64, Godot 4 .NET, C# ve Godot'tan bağımsız saf .NET tabanlı bir domain/simülasyon çekirdeği. Bu kararların ayrıntısı ve gerekçesi `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` içinde kesinleştirilmiştir; kesin sürüm pinleme ve implementasyon düzeyindeki ayrıntılar ilk teknik spike'lar tamamlandıktan sonra netleşecektir.
 
@@ -35,10 +35,18 @@ Alınan tüm kararların günlüğü için:
 ```
 Football_Career_Simulator/
 ├── README.md
+├── FootballCareerSimulator.slnx           # Ana .NET çözümü
+├── Directory.Build.props                  # Projeler arası ortak derleme ayarları
 ├── docs/          # Tasarım ve planlama dokümanları
-├── src/           # Kaynak kod (henüz boş)
-├── tests/         # Testler (henüz boş)
+├── src/
+│   ├── FootballCareerSimulator.Domain/         # Domain katmanı (dış teknolojiye bağımlı değil)
+│   ├── FootballCareerSimulator.Simulation/     # Simulation katmanı
+│   └── FootballCareerSimulator.Application/    # Application / use case katmanı
+├── tests/
+│   └── FootballCareerSimulator.Tests/          # xUnit test projesi
 ├── tools/         # Yardımcı araçlar (henüz boş)
 ├── assets/        # Oyun varlıkları (henüz boş)
 └── prototypes/    # Küçük prototipler (henüz boş)
 ```
+
+Mevcut kod, `docs/18_SPIKE_EXECUTION_PLAN.md` Kart 0 kapsamında oluşturulmuş minimum bir iskelettir; gerçek domain modelini değil, katman ayrımının derlenebilir ve test edilebilir olduğunu kanıtlayan yer tutucu bir yapıyı temsil eder. Presentation katmanı ve Godot projesi henüz eklenmemiştir (bkz. Kart 5).

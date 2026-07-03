@@ -1,0 +1,19 @@
+# .NET build çıktıları
+bin/
+obj/
+*.user
+
+# IDE
+.vs/
+.idea/
+
+# Godot (ileride eklenecek proje kabuğu için, bkz. docs/18_SPIKE_EXECUTION_PLAN.md Kart 5)
+.godot/
+.import/
+export_presets.cfg
+
+# Test/coverage çıktıları
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
