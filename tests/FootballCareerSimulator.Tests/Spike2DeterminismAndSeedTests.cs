@@ -24,6 +24,24 @@ public class Spike2DeterminismAndSeedTests
         Assert.All(hashes, hash => Assert.Equal(hashes[0], hash));
     }
 
+    /// <summary>
+    /// docs/18_SPIKE_EXECUTION_PLAN.md Kart 8'in "aynı seed ile determinism smoke test sonucu CI ve
+    /// yerel ortamda eşleşir" kriterini doğrudan doğrular: bu sabit hash, geliştirme makinesinde
+    /// `tools/FootballCareerSimulator.SimulationRunner` ile üretilmiştir. Bu test CI'da (farklı işletim
+    /// sistemi sürümü/donanım) başarısız olursa, bu ortamlar arası bir determinizm sapması anlamına
+    /// gelir ve sessizce göz ardı edilmemelidir.
+    /// </summary>
+    [Fact]
+    public void Run_Seed42TenSeasons_MatchesKnownCanonicalHashAcrossEnvironments()
+    {
+        const string knownGoodHashFromLocalDevelopmentMachine =
+            "63DA08650D5BD04C95E7610F353C545CCDE2780320FA6FB163B0B2F2CBAA0370";
+
+        var report = HeadlessSimulationRunner.Run(seed: 42, seasonCount: SeasonCount);
+
+        Assert.Equal(knownGoodHashFromLocalDevelopmentMachine, report.CanonicalStateHash);
+    }
+
     [Fact]
     public void Run_DifferentSeeds_ProduceDifferentCanonicalHashWithoutViolatingInvariants()
     {

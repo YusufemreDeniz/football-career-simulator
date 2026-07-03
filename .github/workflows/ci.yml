@@ -1,8 +1,9 @@
 name: CI
 
-# Kart 1 (bkz. docs/18_SPIKE_EXECUTION_PLAN.md) kapsamında yalnızca saf .NET restore/build/test
-# adımlarını çalıştırır. Godot headless import/export doğrulaması Kart 8'de ayrı bir job olarak
-# eklenecektir (docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md Bölüm 15).
+# Kart 1 (bkz. docs/18_SPIKE_EXECUTION_PLAN.md) kapsamında `dotnet` job'ı yalnızca saf .NET
+# restore/build/test adımlarını çalıştırır. Kart 8 kapsamında `godot-headless` job'ı, Godot headless
+# import/export/smoke-test doğrulamasını ayrı ve bağımsız bir job olarak ekler
+# (docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md Bölüm 15).
 
 on:
   push:
@@ -40,4 +41,112 @@ jobs:
         with:
           name: test-results
           path: TestResults/**/*.trx
+          retention-days: 14
+
+  godot-headless:
+    name: Godot headless import, export ve smoke test
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      GODOT_VERSION: "4.7-stable"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: .NET SDK kurulumu
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Godot editör/export şablon önbelleğini geri yükle
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: C:\godot-tools
+          key: godot-${{ env.GODOT_VERSION }}-mono-windows-v1
+
+      - name: Godot editörünü indir (cache miss)
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          New-Item -ItemType Directory -Path "C:\godot-tools\editor" -Force | Out-Null
+          $editorUrl = "https://github.com/godotengine/godot/releases/download/$env:GODOT_VERSION/Godot_v$($env:GODOT_VERSION)_mono_win64.zip"
+          Invoke-WebRequest -Uri $editorUrl -OutFile "$env:RUNNER_TEMP\godot_editor.zip" -UseBasicParsing
+          Expand-Archive -Path "$env:RUNNER_TEMP\godot_editor.zip" -DestinationPath "C:\godot-tools\editor" -Force
+
+      - name: Export şablonlarını indir (cache miss)
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+          $templatesUrl = "https://github.com/godotengine/godot/releases/download/$env:GODOT_VERSION/Godot_v$($env:GODOT_VERSION)_mono_export_templates.tpz"
+          Invoke-WebRequest -Uri $templatesUrl -OutFile "$env:RUNNER_TEMP\godot_templates.tpz" -UseBasicParsing
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          [System.IO.Compression.ZipFile]::ExtractToDirectory("$env:RUNNER_TEMP\godot_templates.tpz", "$env:RUNNER_TEMP\godot_templates_extract")
+          New-Item -ItemType Directory -Path "C:\godot-tools\export_templates" -Force | Out-Null
+          Move-Item -Path "$env:RUNNER_TEMP\godot_templates_extract\templates\*" -Destination "C:\godot-tools\export_templates" -Force
+
+      - name: Godot exe yolunu belirle
+        shell: pwsh
+        run: |
+          $exePath = Get-ChildItem -Path "C:\godot-tools\editor" -Filter "*_console.exe" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $exePath) { throw "Godot console exe bulunamadı (indirme/cache adımı başarısız olmuş olabilir)." }
+          "GODOT_EXE=$exePath" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Godot exe: $exePath"
+
+      - name: Export şablonlarını Godot'un beklediği konuma yerleştir
+        shell: pwsh
+        run: |
+          $destDir = "$env:APPDATA\Godot\export_templates\4.7.stable.mono"
+          New-Item -ItemType Directory -Path (Split-Path $destDir -Parent) -Force | Out-Null
+          if (Test-Path $destDir) { Remove-Item $destDir -Recurse -Force }
+          Copy-Item "C:\godot-tools\export_templates" $destDir -Recurse -Force
+
+      - name: Headless import
+        shell: pwsh
+        working-directory: src/FootballCareerSimulator.Presentation
+        run: |
+          & $env:GODOT_EXE --headless --editor --import --quit-after 60
+          if ($LASTEXITCODE -ne 0) { throw "Godot headless import başarısız oldu (exit code $LASTEXITCODE)." }
+
+      - name: Windows x64 export
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "builds\windows" -Force | Out-Null
+          Push-Location "src/FootballCareerSimulator.Presentation"
+          & $env:GODOT_EXE --headless --export-release "Windows Desktop x86_64" "../../builds/windows/FootballCareerSimulator.exe"
+          $exportExitCode = $LASTEXITCODE
+          Pop-Location
+          if ($exportExitCode -ne 0) { throw "Godot export başarısız oldu (exit code $exportExitCode)." }
+
+      - name: Export çıktısını doğrula
+        shell: pwsh
+        run: |
+          $exePath = "builds/windows/FootballCareerSimulator.exe"
+          if (-not (Test-Path $exePath)) { throw "Export edilen .exe bulunamadı: $exePath" }
+          $size = (Get-Item $exePath).Length
+          Write-Host "Export edilen exe boyutu: $size byte"
+          if ($size -lt 1MB) { throw "Export edilen .exe beklenenden küçük: $size byte." }
+
+      - name: Üçüncü taraf bildirimini pakete ekle
+        shell: pwsh
+        run: Copy-Item "src/FootballCareerSimulator.Presentation/THIRD_PARTY_NOTICES.md" "builds/windows/THIRD_PARTY_NOTICES.md" -Force
+
+      - name: Exported build smoke test (temiz ortam yaklaşımı)
+        shell: pwsh
+        run: |
+          $output = & "builds/windows/FootballCareerSimulator.console.exe" --quit-after 90 2>&1 | Out-String
+          Write-Host $output
+          if ($output -notmatch "SPIKE5_SMOKE_TEST_RESULT=PASS") {
+            throw "Exported build smoke test başarısız: beklenen SPIKE5_SMOKE_TEST_RESULT=PASS bulunamadı."
+          }
+
+      - name: Export edilen build'i sakla
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-export
+          path: builds/windows/**
           retention-days: 14

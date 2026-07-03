@@ -138,6 +138,11 @@ public partial class PlayerListScreen : Control
         }
 
         GD.Print(passed ? "[SelfCheck] TÜMÜ BAŞARILI." : "[SelfCheck] BİR VEYA DAHA FAZLA KONTROL BAŞARISIZ.");
+
+        // docs/18_SPIKE_EXECUTION_PLAN.md Kart 8: CI'daki "exported build smoke test" adımının konsol
+        // kodlamasından (encoding) bağımsız, kararlı biçimde ayrıştırabilmesi için salt ASCII bir işaret
+        // satırı da yazılır; Türkçe karakterli mesajların yerini almaz, yalnızca otomasyon için eklenir.
+        GD.Print(passed ? "SPIKE5_SMOKE_TEST_RESULT=PASS" : "SPIKE5_SMOKE_TEST_RESULT=FAIL");
     }
 
     private static bool LogCheck(string name, bool ok)
