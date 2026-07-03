@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\FootballCareerSimulator.Domain\FootballCareerSimulator.Domain.csproj" />
+    <ProjectReference Include="..\..\src\FootballCareerSimulator.Simulation\FootballCareerSimulator.Simulation.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+</Project>

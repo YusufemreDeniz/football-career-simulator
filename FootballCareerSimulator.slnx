@@ -7,4 +7,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/FootballCareerSimulator.Tests/FootballCareerSimulator.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/FootballCareerSimulator.SimulationRunner/FootballCareerSimulator.SimulationRunner.csproj" />
+  </Folder>
 </Solution>

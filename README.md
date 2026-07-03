@@ -44,9 +44,10 @@ Football_Career_Simulator/
 │   └── FootballCareerSimulator.Application/    # Application / use case katmanı
 ├── tests/
 │   └── FootballCareerSimulator.Tests/          # xUnit test projesi
-├── tools/         # Yardımcı araçlar (henüz boş)
+├── tools/
+│   └── FootballCareerSimulator.SimulationRunner/  # Spike 1 headless simülasyon aracı
 ├── assets/        # Oyun varlıkları (henüz boş)
 └── prototypes/    # Küçük prototipler (henüz boş)
 ```
 
-Mevcut kod, `docs/18_SPIKE_EXECUTION_PLAN.md` Kart 0 kapsamında oluşturulmuş minimum bir iskelettir; gerçek domain modelini değil, katman ayrımının derlenebilir ve test edilebilir olduğunu kanıtlayan yer tutucu bir yapıyı temsil eder. Presentation katmanı ve Godot projesi henüz eklenmemiştir (bkz. Kart 5).
+Mevcut kod, `docs/18_SPIKE_EXECUTION_PLAN.md` Kart 0–2 kapsamında oluşturulmuş minimum bir iskelet ve ilk teknik spike'tır; gerçek domain modelini değil, katman ayrımının derlenebilir/test edilebilir olduğunu ve ~20 kulüp/~500 futbolculuk dünya ölçeğinin motor bağımsız çalıştırılabildiğini kanıtlayan yer tutucu bir yapıyı temsil eder (`Spike1Placeholder` alt alanları). Presentation katmanı ve Godot projesi henüz eklenmemiştir (bkz. Kart 5).

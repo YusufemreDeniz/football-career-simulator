@@ -82,13 +82,15 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 
 **Sonuç:** `.github/workflows/ci.yml` eklendi — `master`'a push/PR ve manuel tetikleme (`workflow_dispatch`) ile Windows runner üzerinde restore/build (Release)/test çalışır; test sonuçları (`.trx`) artefact olarak saklanır. Adımlar yerel olarak da doğrulandı. Bkz. `docs/15_DECISION_LOG.md` D-332.
 
-### Kart 2 — Spike 1: Motor bağımsız 10 sezonluk headless simulation
+### Kart 2 — Spike 1: Motor bağımsız 10 sezonluk headless simulation — Tamamlandı
 
 **Ön koşul:** Kart 0–1.
 
 **Kapsam ve kabul kriterleri:** `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16, Spike 1 ile birebir aynıdır; burada tekrar edilmez.
 
 **Not:** Bu kart, 14 bounded context'in tam implementasyonunu değil, mimarinin ve uzun dönem çalıştırılabilirliğin doğrulanmasına yetecek minimal bir dikey kesiti hedefler.
+
+**Sonuç:** `src/FootballCareerSimulator.Domain/Spike1Placeholder` ve `src/FootballCareerSimulator.Simulation/Spike1Placeholder` altında yer tutucu bir dünya modeli (20 kulüp, 500 futbolcu), seeded `SimulationRandomContext` (D-058 ile uyumlu) ve `HeadlessSimulationRunner` eklendi; `tools/FootballCareerSimulator.SimulationRunner` konsol aracı Godot/UI olmadan çalıştırılıp seed=42 ile 10 sezonu 1 ms'de, ~0,07 MB bellekle tamamladı. `Spike1HeadlessTenSeasonSimulationTests` beş testle tek çalıştırmayı, 10 ardışık çalıştırmayı, performans bütçesini, bellek büyümesini ve seed determinizmini doğruluyor (8/8 test yeşil). Bkz. `docs/15_DECISION_LOG.md` D-333.
 
 ### Kart 3 — Spike 2: Deterministik sonuç ve seed doğrulaması
 
