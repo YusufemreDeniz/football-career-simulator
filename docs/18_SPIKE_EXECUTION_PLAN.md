@@ -130,11 +130,24 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 
 **Bilinen sınırlama:** Godot.NET.Sdk, `Debug`/`ExportDebug`/`ExportRelease` adlı kendi konfigürasyonlarını kullanır; standart MSBuild `Release` konfigürasyonuyla derlendiğinde çıktı yine `Debug` klasörüne düşüyor. Bu, Kart 7'de (Windows export) `ExportRelease` akışı kurulurken ayrıca ele alınacaktır.
 
-### Kart 6 — Spike 4: 500 futbolculuk Godot UI listesi
+### Kart 6 — Spike 4: 500 futbolculuk Godot UI listesi — Tamamlandı
 
 **Ön koşul:** Kart 5.
 
 **Kapsam ve kabul kriterleri:** `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16, Spike 4 ile birebir aynıdır.
+
+**Sonuç:** `FootballCareerSimulator.Application.Spike4Placeholder.PlayerListQuery` (Godot'a bağımlı olmayan filtre/sıralama/sayfalama) ve bunu kullanan Godot `PlayerListScreen` (`Tree`, `LineEdit`, sayfalama butonları, 50 satır/sayfa) eklendi. Sonuçlar:
+
+* 500 kayıt, 20 kulüp doğru üretildi ve görüntülendi.
+* Sıralama (4 kolon × 2 yön), filtreleme ve seçim — hem 14 xUnit testiyle (saf mantık) hem sahneye gömülü bir öz-kontrolle (gerçek Tree/Label bağlantısı) doğrulandı; her ikisi de "TÜMÜ BAŞARILI" verdi.
+* Filtre/sıralama pipeline'ı 500 satır için ortalama <5 ms sürdü (100 ms hedefinin çok altında).
+* Sayfalama (paging), 500 satırın tamamının aynı anda render edilmesini önleyen virtualization yaklaşımı olarak kullanıldı (her seferinde yalnızca 50 `TreeItem` oluşturulur).
+* Gerçek Vulkan GPU (Forward+, Intel Iris Xe) ile ölçülen p95 frame süresi: durağan durumda ~8,3 ms; 300 frame'lik otomatik sayfa-geçiş stres testi sırasında da hep 33 ms hedefinin altında (~8-17 ms) kaldı. Headless (dummy renderer) çalıştırma yalnızca mantık/CPU doğruluğu ve smoke test için kullanıldı; asıl performans iddiası gerçek GPU render'ıyla kanıtlandı.
+* UI, Domain/Simulation state'ini hiçbir noktada doğrudan değiştirmedi; yalnızca `PlayerListQuery` read model'ini okudu.
+
+Bkz. `docs/15_DECISION_LOG.md` D-337 (bu kart sırasında bulunup düzeltilen, alakasız bir Kart 4 flaky test hatası) ve D-338 (Kart 6 tamamlanma kaydı).
+
+**Önemli sınırlama:** `PlayerListRow`/`Player.Id` gösterimi ("Player#N") yer tutucudur; gerçek futbolcu isimlendirme ve içerik üretimi kapsam dışıdır (`docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 11). Kolon başlığına tıklayarak sıralama yerine ayrı butonlar kullanıldı; nihai UI etkileşim tasarımı bu spike'ın kapsamında değildir.
 
 ### Kart 7 — Spike 5: Windows x64 export ve temiz ortam çalıştırma
 
