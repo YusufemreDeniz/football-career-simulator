@@ -28,7 +28,7 @@ Tüm kararların başlangıç noktası:
 | `09_MATCH_SIMULATION.md` | Maç ve taktik simülasyonu | Kesinleşti |
 | `10_MANAGER_CAREER.md` | Teknik direktör kariyeri ve istihdam sistemi | Kesinleşti |
 | `11_PLAYER_CAREER.md` | Futbolcu kariyeri, gelişim ve emeklilik sistemi | Kesinleşti |
-| `12_WORLD_SIMULATION.md` | Dünya simülasyonu | Taslak / Henüz çalışılmadı |
+| `12_WORLD_SIMULATION.md` | Dünya simülasyonu ve zaman akışı sistemi | Kesinleşti |
 | `13_SAVE_SYSTEM.md` | Kayıt ve dünya bütünlüğü | Taslak / Henüz çalışılmadı |
 | `14_TEST_STRATEGY.md` | Test stratejisi ve uzun dönem simülasyon testleri | Taslak / Henüz çalışılmadı |
 | `15_DECISION_LOG.md` | Alınan tasarım/teknik kararların günlüğü | Başlangıç kayıtlarıyla oluşturuldu |
@@ -39,7 +39,6 @@ Tüm kararların başlangıç noktası:
 
 Aşağıdaki belgeler yalnızca temel iskelet (amaç, sorular, referans, durum) içerir; ayrıntılı tasarım kararları henüz işlenmemiştir:
 
-- `12_WORLD_SIMULATION.md`
 - `13_SAVE_SYSTEM.md`
 - `14_TEST_STRATEGY.md`
 
