@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\FootballCareerSimulator.Domain\FootballCareerSimulator.Domain.csproj" />
+    <ProjectReference Include="..\FootballCareerSimulator.Simulation\FootballCareerSimulator.Simulation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <!--
+      Transitive pin: Microsoft.Data.Sqlite 10.0.9, SQLitePCLRaw.lib.e_sqlite3 2.1.11'i tasir; bu surum
+      SQLite 3.50.2 oncesi bir surumu paketler ve CVE-2025-6965 (GHSA-2m69-gcr7-jv3q, yuksek onem
+      derecesi) tarafindan etkilenir. 3.50.3, yamali SQLite'i paketler ve 2.1.x yonetilen provider ile
+      ABI uyumludur. Microsoft.Data.Sqlite bu zinciri kendisi guncelledikten sonra bu pin kaldirilabilir.
+    -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.50.3" />
+  </ItemGroup>
+
+</Project>

@@ -104,11 +104,15 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 
 **Önemli sınırlama:** `SimulationCheckpointResumer`'ın "seed'den yeniden oynatarak RNG cursor'ı kurma" tekniği yalnızca bu spike'ın kanıtı içindir; gerçek sistemin nihai RNG stream stratejisi kararı hâlâ açıktır (D-072). Aynı şekilde `Player.Form` tamamen kurgusal bir spike alanıdır, gerçek bir oyun mekaniği değildir.
 
-### Kart 4 — Spike 3: SQLite save/load, migration ve corruption davranışı
+### Kart 4 — Spike 3: SQLite save/load, migration ve corruption davranışı — Tamamlandı
 
 **Ön koşul:** Kart 3.
 
 **Kapsam ve kabul kriterleri:** `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16, Spike 3 ile birebir aynıdır.
+
+**Sonuç:** Yeni `FootballCareerSimulator.Infrastructure` projesi (`Microsoft.Data.Sqlite`; transitive CVE-2025-6965 için `SQLitePCLRaw.lib.e_sqlite3` 3.50.3'e pinlendi) eklendi: `SqliteSaveWriter` (atomik temp+move ile yazma), `SqliteSaveReader` (okuma + canonical hash doğrulama), `SqliteSaveMigrator` (V1→V2, önce backup, migration'ı yalnızca bir çalışma kopyasında yapıp yalnızca başarı sonrası atomik swap). Sekiz test: round-trip, ardışık farklı seed'lerle round-trip, V1'den migration (Form varsayılan 0, `.bak` oluşumu, ikinci yüklemede tekrar migrate edilmeme), "zehirli" V1 dosyasında migration'ın orijinali byte-for-byte değiştirmeden başarısız olması, bozuk SQLite byte'larının reddi, ham SQL ile kurcalanmış verinin hash uyuşmazlığıyla yakalanması, önceki denemeden kalan `.tmp` dosyasının yeni save'i engellememesi, olmayan dosyanın net hata vermesi. 21/21 test yeşil (yerel + Release); `dotnet list package --vulnerable` temiz. Bkz. `docs/15_DECISION_LOG.md` D-335.
+
+**Önemli sınırlama:** Kullanılan SQLite şeması (`SaveManifest`/`Clubs`/`Players`, iki sürüm) yalnızca bu spike'ın kanıtı içindir; kesin ve kalıcı save şeması `docs/13_SAVE_SYSTEM.md` ve D-284'teki açık kararlar çerçevesinde ayrıca kesinleştirilecektir.
 
 ### Kart 5 — Minimum Godot Proje Kabuğu
 

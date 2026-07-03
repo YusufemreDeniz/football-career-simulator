@@ -41,7 +41,8 @@ Football_Career_Simulator/
 ├── src/
 │   ├── FootballCareerSimulator.Domain/         # Domain katmanı (dış teknolojiye bağımlı değil)
 │   ├── FootballCareerSimulator.Simulation/     # Simulation katmanı
-│   └── FootballCareerSimulator.Application/    # Application / use case katmanı
+│   ├── FootballCareerSimulator.Application/    # Application / use case katmanı
+│   └── FootballCareerSimulator.Infrastructure/ # SQLite save/load, migration (Spike 3)
 ├── tests/
 │   └── FootballCareerSimulator.Tests/          # xUnit test projesi
 ├── tools/
