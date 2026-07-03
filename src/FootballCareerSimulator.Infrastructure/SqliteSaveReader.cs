@@ -42,9 +42,21 @@ public static class SqliteSaveReader
     {
         try
         {
-            using var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly");
-            connection.Open();
-            return SqliteRowReader.ReadSchemaVersion(connection);
+            int schemaVersion;
+
+            using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
+            {
+                connection.Open();
+                schemaVersion = SqliteRowReader.ReadSchemaVersion(connection);
+            }
+
+            // Microsoft.Data.Sqlite varsayılan olarak native bağlantıları havuzlar; `using` C# nesnesini
+            // dispose eder ama OS dosya kolunu havuzda açık tutabilir. Aynı yola art arda yazılan bir
+            // sonraki `Save` çağrısının `File.Move`'unun Windows'ta "Access to the path is denied"
+            // hatasıyla başarısız olmaması için havuz burada da temizlenir (bkz. SqliteSaveWriter.Save).
+            SqliteConnection.ClearAllPools();
+
+            return schemaVersion;
         }
         catch (Exception ex) when (ex is not SaveIntegrityException)
         {
@@ -56,12 +68,20 @@ public static class SqliteSaveReader
     {
         try
         {
-            using var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly");
-            connection.Open();
+            (int RootSeed, string RandomContextVersion, int CurrentSeason, string CanonicalStateHash) manifest;
+            IReadOnlyList<ClubSnapshot> clubs;
+            IReadOnlyList<PlayerSnapshot> players;
 
-            var manifest = SqliteRowReader.ReadManifest(connection);
-            var clubs = SqliteRowReader.ReadClubs(connection);
-            var players = SqliteRowReader.ReadPlayers(connection);
+            using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
+            {
+                connection.Open();
+                manifest = SqliteRowReader.ReadManifest(connection);
+                clubs = SqliteRowReader.ReadClubs(connection);
+                players = SqliteRowReader.ReadPlayers(connection);
+            }
+
+            // Bkz. ReadSchemaVersionSafely'deki not: aynı yolun tekrar yazılabilmesi için pool temizlenir.
+            SqliteConnection.ClearAllPools();
 
             var snapshot = new WorldSnapshot(manifest.CurrentSeason, clubs, players);
             var world = WorldSnapshotSerializer.Restore(snapshot);
