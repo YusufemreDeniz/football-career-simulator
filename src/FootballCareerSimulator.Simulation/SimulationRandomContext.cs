@@ -7,9 +7,18 @@ namespace FootballCareerSimulator.Simulation;
 /// </summary>
 public sealed class SimulationRandomContext
 {
+    /// <summary>
+    /// `docs/15_DECISION_LOG.md` D-069 ile uyumlu, RNG davranış sürümüdür. Bu sürüm değiştiğinde
+    /// aynı seed ile önceki üretilen sonuçların artık birebir eşleşmeyebileceği açıkça kabul edilir.
+    /// </summary>
+    public const string Version = "1";
+
     private readonly Random _random;
 
     public int Seed { get; }
+
+    /// <summary>Bu context üzerinden yapılmış toplam çekiliş sayısı; raporlama ve teşhis amaçlıdır.</summary>
+    public int DrawCount { get; private set; }
 
     public SimulationRandomContext(int seed)
     {
@@ -17,5 +26,9 @@ public sealed class SimulationRandomContext
         _random = new Random(seed);
     }
 
-    public int NextInt(int minInclusive, int maxExclusive) => _random.Next(minInclusive, maxExclusive);
+    public int NextInt(int minInclusive, int maxExclusive)
+    {
+        DrawCount++;
+        return _random.Next(minInclusive, maxExclusive);
+    }
 }

@@ -47,6 +47,12 @@ public static class WorldInvariantChecker
                 throw new WorldInvariantViolationException(
                     $"{player.Id} negatif yaşta: {player.Age}.");
             }
+
+            if (player.Form is < -10 or > 10)
+            {
+                throw new WorldInvariantViolationException(
+                    $"{player.Id} izin verilen aralık dışında forma sahip: {player.Form}.");
+            }
         }
     }
 }

@@ -92,13 +92,17 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 
 **Sonuç:** `src/FootballCareerSimulator.Domain/Spike1Placeholder` ve `src/FootballCareerSimulator.Simulation/Spike1Placeholder` altında yer tutucu bir dünya modeli (20 kulüp, 500 futbolcu), seeded `SimulationRandomContext` (D-058 ile uyumlu) ve `HeadlessSimulationRunner` eklendi; `tools/FootballCareerSimulator.SimulationRunner` konsol aracı Godot/UI olmadan çalıştırılıp seed=42 ile 10 sezonu 1 ms'de, ~0,07 MB bellekle tamamladı. `Spike1HeadlessTenSeasonSimulationTests` beş testle tek çalıştırmayı, 10 ardışık çalıştırmayı, performans bütçesini, bellek büyümesini ve seed determinizmini doğruluyor (8/8 test yeşil). Bkz. `docs/15_DECISION_LOG.md` D-333.
 
-### Kart 3 — Spike 2: Deterministik sonuç ve seed doğrulaması
+### Kart 3 — Spike 2: Deterministik sonuç ve seed doğrulaması — Tamamlandı
 
 **Ön koşul:** Kart 2.
 
 **Kapsam ve kabul kriterleri:** `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16, Spike 2 ile birebir aynıdır.
 
 **Not:** Bu kartta kullanılan save/load, tam SQLite kalıcılığı değil; canonical state'in serileştirilip geri yüklenebildiğini kanıtlayacak en küçük mekanizmadır (D-276, D-294 ile uyumlu semantic/canonical state ayrımı korunur).
+
+**Sonuç:** `CanonicalStateHasher` (SHA-256 tabanlı, sıralanmış semantic içerik), `WorldSnapshot`/`WorldSnapshotSerializer` (gerçek save/load round-trip, canlı nesne paylaşımı yok) ve `SimulationCheckpointResumer` (seed tabanlı deterministik replay ile RNG cursor'ının yeniden kurulması) eklendi. `Spike2DeterminismAndSeedTests` beş testle: aynı seed ile 20 tekrarın aynı hash'i ürettiğini, farklı seed'lerin farklı hash ürettiğini, RNG sürümünün raporlandığını, snapshot round-trip'in hash'i koruduğunu ve — en kritik olarak — 4 sezon sonra "save" alınıp yeni nesnelerle "load" edilip devam edilen bir koşunun, kesintisiz 10 sezonluk koşuyla **birebir aynı final hash'i** ürettiğini doğruladı. Ayrıca `dotnet run` ile iki ayrı süreç çağrısında seed=42 aynı hash'i (`63DA0865...`), seed=7 farklı bir hash'i (`665E9E45...`) üretti — süreçler arası determinizm de kanıtlandı. 13/13 test yeşil. Bkz. `docs/15_DECISION_LOG.md` D-334.
+
+**Önemli sınırlama:** `SimulationCheckpointResumer`'ın "seed'den yeniden oynatarak RNG cursor'ı kurma" tekniği yalnızca bu spike'ın kanıtı içindir; gerçek sistemin nihai RNG stream stratejisi kararı hâlâ açıktır (D-072). Aynı şekilde `Player.Form` tamamen kurgusal bir spike alanıdır, gerçek bir oyun mekaniği değildir.
 
 ### Kart 4 — Spike 3: SQLite save/load, migration ve corruption davranışı
 

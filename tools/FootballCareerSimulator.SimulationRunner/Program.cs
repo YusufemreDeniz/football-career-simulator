@@ -16,9 +16,11 @@ Console.WriteLine();
 var report = HeadlessSimulationRunner.Run(seed, seasonCount);
 
 Console.WriteLine("Sonuc raporu:");
+Console.WriteLine($"  RNG surumu          : {report.RandomContextVersion}");
 Console.WriteLine($"  Tamamlanan sezon    : {report.SeasonCount}");
 Console.WriteLine($"  Kulup sayisi        : {report.ClubCount}");
 Console.WriteLine($"  Futbolcu sayisi     : {report.PlayerCount}");
+Console.WriteLine($"  Canonical state hash: {report.CanonicalStateHash}");
 Console.WriteLine($"  Sure                : {report.ElapsedMilliseconds} ms");
 Console.WriteLine($"  Bellek (calisma once): {report.MemoryBeforeBytes / 1024.0 / 1024.0:F2} MB");
 Console.WriteLine($"  Bellek (calisma sonra): {report.MemoryAfterBytes / 1024.0 / 1024.0:F2} MB");

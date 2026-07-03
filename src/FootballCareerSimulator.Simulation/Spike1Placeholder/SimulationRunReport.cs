@@ -6,9 +6,11 @@ namespace FootballCareerSimulator.Simulation.Spike1Placeholder;
 /// </summary>
 public sealed record SimulationRunReport(
     int Seed,
+    string RandomContextVersion,
     int SeasonCount,
     int ClubCount,
     int PlayerCount,
+    string CanonicalStateHash,
     long ElapsedMilliseconds,
     long MemoryBeforeBytes,
     long MemoryAfterBytes);
