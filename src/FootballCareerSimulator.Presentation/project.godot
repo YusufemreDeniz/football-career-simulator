@@ -1,0 +1,19 @@
+; Engine configuration file.
+; docs/18_SPIKE_EXECUTION_PLAN.md Kart 5: minimum Godot 4 .NET proje kabuğu.
+
+config_version=5
+
+[application]
+
+config/name="Football Career Simulator - Presentation Shell"
+run/main_scene="res://Shell.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[dotnet]
+
+project/assembly_name="FootballCareerSimulator.Presentation"
+
+[rendering]
+
+renderer/rendering_method="gl_compatible"
+renderer/rendering_method.mobile="gl_compatible"

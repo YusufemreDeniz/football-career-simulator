@@ -3,6 +3,9 @@
     <Project Path="src/FootballCareerSimulator.Application/FootballCareerSimulator.Application.csproj" />
     <Project Path="src/FootballCareerSimulator.Domain/FootballCareerSimulator.Domain.csproj" />
     <Project Path="src/FootballCareerSimulator.Infrastructure/FootballCareerSimulator.Infrastructure.csproj" />
+    <Project Path="src/FootballCareerSimulator.Presentation/FootballCareerSimulator.Presentation.csproj">
+      <BuildType Project="Debug" />
+    </Project>
     <Project Path="src/FootballCareerSimulator.Simulation/FootballCareerSimulator.Simulation.csproj" />
   </Folder>
   <Folder Name="/tests/">

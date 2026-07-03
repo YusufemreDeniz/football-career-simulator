@@ -114,7 +114,7 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 
 **Önemli sınırlama:** Kullanılan SQLite şeması (`SaveManifest`/`Clubs`/`Players`, iki sürüm) yalnızca bu spike'ın kanıtı içindir; kesin ve kalıcı save şeması `docs/13_SAVE_SYSTEM.md` ve D-284'teki açık kararlar çerçevesinde ayrıca kesinleştirilecektir.
 
-### Kart 5 — Minimum Godot Proje Kabuğu
+### Kart 5 — Minimum Godot Proje Kabuğu — Tamamlandı
 
 **Ön koşul:** Kart 4.
 
@@ -125,6 +125,10 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 **Kapsam dışı:** Gerçek oyun ekranları, sanat varlıkları, ayrıntılı sahne yapısı.
 
 **Kabul kriteri:** Proje Godot editöründe açılır ve yer tutucu ekran hatasız çalışır.
+
+**Sonuç:** Godot 4.7 (Mono/.NET, `winget install GodotEngine.GodotEngine.Mono`) kuruldu. `src/FootballCareerSimulator.Presentation` altında `Godot.NET.Sdk/4.7.0` tabanlı minimal bir proje oluşturuldu: tek bir `Shell.tscn`/`Shell.cs` ekranı, `_Ready()` içinde yalnızca Application katmanındaki `AdvancePlaceholderSimulationUseCase`'i çağırıp sonucu bir `Label`'da gösteriyor (Domain/Simulation state'i doğrudan değiştirmiyor). Godot editörü headless olarak projeyi hatasız açtı (`--headless --editor --import`); proje headless çalıştırıldığında (`--headless --quit-after`) `[Shell] Hazır. Yer tutucu sonuç: 10` çıktısını üretti. Proje ana `.slnx`'e eklendi; `dotnet build`/`dotnet test` (Godot editörüne ihtiyaç duymadan, yalnızca NuGet üzerinden) hâlâ 21/21 yeşil. Bkz. `docs/15_DECISION_LOG.md` D-336.
+
+**Bilinen sınırlama:** Godot.NET.Sdk, `Debug`/`ExportDebug`/`ExportRelease` adlı kendi konfigürasyonlarını kullanır; standart MSBuild `Release` konfigürasyonuyla derlendiğinde çıktı yine `Debug` klasörüne düşüyor. Bu, Kart 7'de (Windows export) `ExportRelease` akışı kurulurken ayrıca ele alınacaktır.
 
 ### Kart 6 — Spike 4: 500 futbolculuk Godot UI listesi
 

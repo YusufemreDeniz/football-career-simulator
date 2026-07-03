@@ -7,7 +7,7 @@ obj/
 .vs/
 .idea/
 
-# Godot (ileride eklenecek proje kabuğu için, bkz. docs/18_SPIKE_EXECUTION_PLAN.md Kart 5)
+# Godot (bkz. src/FootballCareerSimulator.Presentation, docs/18_SPIKE_EXECUTION_PLAN.md Kart 5)
 .godot/
 .import/
 export_presets.cfg

@@ -4,7 +4,7 @@ Uzun soluklu, oyuncunun kararlarını, ilişkilerini ve geçmişini yıllarca ha
 
 ## Proje Durumu
 
-Bu proje şu anda **dokümantasyon aşamasını tamamlamış, uygulama öncesi teknik doğrulama aşamasındadır**. `docs/18_SPIKE_EXECUTION_PLAN.md` Kart 0 kapsamında minimum bir .NET çözüm iskeleti (Domain/Simulation/Application/Tests, yalnızca yer tutucu içerikle) oluşturulmuştur. Henüz gerçek domain modeli, Godot projesi veya CI workflow oluşturulmamıştır.
+Bu proje şu anda **dokümantasyon aşamasını tamamlamış, uygulama öncesi teknik doğrulama aşamasındadır**. `docs/18_SPIKE_EXECUTION_PLAN.md` Kart 0–5 kapsamında minimum bir .NET çözüm iskeleti (Domain/Simulation/Application/Infrastructure/Tests, yalnızca yer tutucu içerikle), bir CI workflow'u ve minimal bir Godot 4 .NET proje kabuğu oluşturulmuştur. Henüz gerçek domain modeli, gerçek oyun ekranları veya Windows export akışı oluşturulmamıştır.
 
 Hedef platform, oyun motoru, programlama dili ve yüksek seviyeli mimari **kesinleşmiştir**: Windows 10/11 x64, Godot 4 .NET, C# ve Godot'tan bağımsız saf .NET tabanlı bir domain/simülasyon çekirdeği. Bu kararların ayrıntısı ve gerekçesi `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` içinde kesinleştirilmiştir; kesin sürüm pinleme ve implementasyon düzeyindeki ayrıntılar ilk teknik spike'lar tamamlandıktan sonra netleşecektir.
 
@@ -42,7 +42,8 @@ Football_Career_Simulator/
 │   ├── FootballCareerSimulator.Domain/         # Domain katmanı (dış teknolojiye bağımlı değil)
 │   ├── FootballCareerSimulator.Simulation/     # Simulation katmanı
 │   ├── FootballCareerSimulator.Application/    # Application / use case katmanı
-│   └── FootballCareerSimulator.Infrastructure/ # SQLite save/load, migration (Spike 3)
+│   ├── FootballCareerSimulator.Infrastructure/ # SQLite save/load, migration (Spike 3)
+│   └── FootballCareerSimulator.Presentation/   # Godot 4 .NET proje kabuğu (Kart 5)
 ├── tests/
 │   └── FootballCareerSimulator.Tests/          # xUnit test projesi
 ├── tools/
@@ -51,4 +52,4 @@ Football_Career_Simulator/
 └── prototypes/    # Küçük prototipler (henüz boş)
 ```
 
-Mevcut kod, `docs/18_SPIKE_EXECUTION_PLAN.md` Kart 0–2 kapsamında oluşturulmuş minimum bir iskelet ve ilk teknik spike'tır; gerçek domain modelini değil, katman ayrımının derlenebilir/test edilebilir olduğunu ve ~20 kulüp/~500 futbolculuk dünya ölçeğinin motor bağımsız çalıştırılabildiğini kanıtlayan yer tutucu bir yapıyı temsil eder (`Spike1Placeholder` alt alanları). Presentation katmanı ve Godot projesi henüz eklenmemiştir (bkz. Kart 5).
+Mevcut kod, `docs/18_SPIKE_EXECUTION_PLAN.md` Kart 0–5 kapsamında oluşturulmuş minimum bir iskelet ve ilk teknik spike'lardır; gerçek domain modelini değil, katman ayrımının derlenebilir/test edilebilir olduğunu, ~20 kulüp/~500 futbolculuk dünya ölçeğinin motor bağımsız çalıştırılabildiğini, sonucun deterministik ve SQLite ile kalıcı biçimde saklanabildiğini kanıtlayan yer tutucu bir yapıyı temsil eder (`Spike1Placeholder` alt alanları). Godot 4 .NET proje kabuğu eklenmiştir; henüz gerçek oyun ekranı, sanat varlığı veya Windows export akışı yoktur (bkz. Kart 6–7).
