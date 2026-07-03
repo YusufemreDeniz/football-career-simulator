@@ -68,7 +68,7 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 
 **Sonuç:** `FootballCareerSimulator.slnx` altında Domain/Simulation/Application/Tests projeleri oluşturuldu; `dotnet build` ve `dotnet test` başarılı (3/3 test geçti). Bkz. `docs/15_DECISION_LOG.md` D-331. Geçici hedef çerçeve `net10.0`'dır; exact pinleme Kart 2–4'e bırakılmıştır.
 
-### Kart 1 — CI-lite (yalnız saf .NET)
+### Kart 1 — CI-lite (yalnız saf .NET) — Tamamlandı
 
 **Ön koşul:** Kart 0.
 
@@ -79,6 +79,8 @@ Bu gerekçeyle CI ve iskelet, numaralandırılmış altı spike'a ek olarak ayr�
 **Kapsam dışı:** Godot headless import/export job'ı (Kart 8'de eklenir).
 
 **Kabul kriteri:** Her push/PR'da CI otomatik çalışır; hatalı adım non-zero exit code ile başarısız olur.
+
+**Sonuç:** `.github/workflows/ci.yml` eklendi — `master`'a push/PR ve manuel tetikleme (`workflow_dispatch`) ile Windows runner üzerinde restore/build (Release)/test çalışır; test sonuçları (`.trx`) artefact olarak saklanır. Adımlar yerel olarak da doğrulandı. Bkz. `docs/15_DECISION_LOG.md` D-332.
 
 ### Kart 2 — Spike 1: Motor bağımsız 10 sezonluk headless simulation
 

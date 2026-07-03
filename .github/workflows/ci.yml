@@ -1,0 +1,43 @@
+name: CI
+
+# Kart 1 (bkz. docs/18_SPIKE_EXECUTION_PLAN.md) kapsamında yalnızca saf .NET restore/build/test
+# adımlarını çalıştırır. Godot headless import/export doğrulaması Kart 8'de ayrı bir job olarak
+# eklenecektir (docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md Bölüm 15).
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+jobs:
+  dotnet:
+    name: Saf .NET derleme ve testler
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: .NET SDK kurulumu
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore FootballCareerSimulator.slnx
+
+      - name: Build
+        run: dotnet build FootballCareerSimulator.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test FootballCareerSimulator.slnx --configuration Release --no-build --logger "trx;LogFileName=test-results.trx" --results-directory TestResults
+
+      - name: Test sonuçlarını sakla
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/**/*.trx
+          retention-days: 14
