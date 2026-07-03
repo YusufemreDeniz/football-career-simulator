@@ -149,11 +149,24 @@ Bkz. `docs/15_DECISION_LOG.md` D-337 (bu kart sırasında bulunup düzeltilen, a
 
 **Önemli sınırlama:** `PlayerListRow`/`Player.Id` gösterimi ("Player#N") yer tutucudur; gerçek futbolcu isimlendirme ve içerik üretimi kapsam dışıdır (`docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 11). Kolon başlığına tıklayarak sıralama yerine ayrı butonlar kullanıldı; nihai UI etkileşim tasarımı bu spike'ın kapsamında değildir.
 
-### Kart 7 — Spike 5: Windows x64 export ve temiz ortam çalıştırma
+### Kart 7 — Spike 5: Windows x64 export ve temiz ortam çalıştırma — Tamamlandı
 
 **Ön koşul:** Kart 6.
 
 **Kapsam ve kabul kriterleri:** `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16, Spike 5 ile birebir aynıdır.
+
+**Sonuç:** Godot 4.7-stable mono export şablonları kuruldu (resmi GitHub release'inden, ~1,2 GB). `export_presets.cfg` ile bir "Windows Desktop x86_64" preset'i eklendi (Godot'un C# export'unun gerektirdiği proje-yerel `.sln` dosyası da ayrıca oluşturuldu — kök `.slnx` yeterli değildi). Headless export (`--export-release`) hatasız tamamlandı ve self-contained bir `.exe` (+ konsol sarmalayıcı + ~86 MB veri klasörü, CoreCLR ve tüm .NET runtime DLL'leri dahil) üretti.
+
+Doğrulama:
+
+* Paket, repodan tamamen ayrı bir klasöre (`Desktop\CleanEnvTest`) kopyalanıp, `PATH`'inden Godot ve dotnet'in çıkarıldığı kısıtlı bir `cmd` ortamında çalıştırıldı (`where dotnet` / `where godot` her ikisi de "bulunamadı" sonucu verdi). Uygulama yine de hatasız açıldı, tüm öz-kontroller ("TÜMÜ BAŞARILI") geçti ve çöküş/missing-runtime hatası oluşmadı.
+* `user://` altına gerçek bir işaret dosyası yazılıp geri okundu; ayrıca Godot'un yerleşik dosya loglaması (`debug/file_logging/enable_file_logging=true`) gerçek bir `logs/godot.log` dosyası üretti — "save ve log klasörlerine yazılabilir" kriteri iki bağımsız mekanizmayla kanıtlandı.
+* `THIRD_PARTY_NOTICES.md` (Godot Engine MIT, .NET Runtime MIT) pakete dahil edildi.
+* Ana sahne `PlayerListScreen.tscn`'e alındı; böylece exe açılışı doğrudan Kart 6'nın 500 futbolculuk ekranını ve öz-kontrolünü çalıştırır.
+
+**Gözlemlenen sınırlama (gizlenmeden not edilir):** Soğuk başlangıçta (process ilk açıldığında, JIT ısınmadan önce) ilk filtre/sıralama çağrısı 100 ms hedefini aştı (~215 ms); sonraki çağrılar normale döndü. Bu, self-contained .NET dağıtımının JIT ısınma maliyetidir; ReadyToRun/NativeAOT gibi seçenekler gerçek sistemde ayrıca değerlendirilebilir, ancak bu spike'ın kapsamında değildir.
+
+Bkz. `docs/15_DECISION_LOG.md` D-339 (bu kart ve Godot patch sürümü pinlemesi).
 
 ### Kart 8 — CI Tamamlama (Spike 6'nın Godot bölümü)
 

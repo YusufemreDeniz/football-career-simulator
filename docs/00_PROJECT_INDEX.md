@@ -53,7 +53,7 @@ Ayrıntılı tasarımı henüz hazırlanmamış belge bulunmamaktadır.
 9. Kayıt stratejisinin belirlenmesi — Tamamlandı
 10. Test stratejisinin hazırlanması — Tamamlandı
 11. Teknoloji ve mimari seçimi — Tamamlandı
-12. Küçük prototiplerin (teknik doğrulama spike'larının) geliştirilmesi — Sırası ve çalışma kartları planlandı (`18_SPIKE_EXECUTION_PLAN.md`); Kart 0 (minimum repository iskeleti), Kart 1 (CI-lite), Kart 2 (Spike 1 — headless 10 sezon), Kart 3 (Spike 2 — determinizm), Kart 4 (Spike 3 — SQLite save/load/migration), Kart 5 (minimum Godot proje kabuğu) ve Kart 6 (Spike 4 — 500 futbolculuk Godot UI listesi) tamamlandı, Kart 7 (Spike 5 — Windows x64 export) sıradaki adım
+12. Küçük prototiplerin (teknik doğrulama spike'larının) geliştirilmesi — Sırası ve çalışma kartları planlandı (`18_SPIKE_EXECUTION_PLAN.md`); Kart 0 (minimum repository iskeleti), Kart 1 (CI-lite), Kart 2 (Spike 1 — headless 10 sezon), Kart 3 (Spike 2 — determinizm), Kart 4 (Spike 3 — SQLite save/load/migration), Kart 5 (minimum Godot proje kabuğu), Kart 6 (Spike 4 — 500 futbolculuk Godot UI listesi) ve Kart 7 (Spike 5 — Windows x64 export) tamamlandı, Kart 8 (CI tamamlama — Godot headless import/export job'ı) sıradaki adım
 
 Bu sıra, `01_GAME_DESIGN_DOCUMENT.md` Bölüm 36 (Geliştirme Yaklaşımı) ile tutarlıdır: önce tasarım, sonra veri modeli, sonra kod.
 

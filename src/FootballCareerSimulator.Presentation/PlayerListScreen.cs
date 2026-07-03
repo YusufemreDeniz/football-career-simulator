@@ -52,6 +52,43 @@ public partial class PlayerListScreen : Control
         GD.Print($"[PlayerListScreen] Hazır. {_allRows.Count} futbolcu, {WorldFactory.ClubCount} kulüp yüklendi.");
 
         RunSelfCheck();
+        RunSaveAndLogWriteCheck();
+    }
+
+    /// <summary>
+    /// docs/18_SPIKE_EXECUTION_PLAN.md Kart 7 (Spike 5) başarı kriterlerinden "save ve log klasörlerine
+    /// yazılabilir"i doğrudan kanıtlar: `user://` (paketlenmiş exe'de gerçek bir kullanıcı veri
+    /// klasörüne karşılık gelir) altına küçük bir işaret dosyası yazar, geri okur ve doğrular.
+    /// </summary>
+    private void RunSaveAndLogWriteCheck()
+    {
+        const string relativePath = "user://spike5_write_check.txt";
+        var marker = $"Spike5 write check - {DateTime.UtcNow:O}";
+
+        try
+        {
+            using (var writeHandle = Godot.FileAccess.Open(relativePath, Godot.FileAccess.ModeFlags.Write))
+            {
+                if (writeHandle is null)
+                {
+                    GD.PrintErr($"[SelfCheck] BAŞARISIZ: save/log yazma - dosya açılamadı ({Godot.FileAccess.GetOpenError()}).");
+                    return;
+                }
+
+                writeHandle.StoreString(marker);
+            }
+
+            using var readHandle = Godot.FileAccess.Open(relativePath, Godot.FileAccess.ModeFlags.Read);
+            var readBack = readHandle?.GetAsText();
+
+            var ok = readHandle is not null && readBack == marker;
+            GD.Print(ok ? "[SelfCheck] Save/log dizinine yazma OK." : "[SelfCheck] BAŞARISIZ: Save/log dizinine yazma.");
+            GD.Print($"[SelfCheck] Kullanıcı veri dizini: {OS.GetUserDataDir()}");
+        }
+        catch (Exception ex)
+        {
+            GD.PrintErr($"[SelfCheck] BAŞARISIZ: save/log yazma istisna fırlattı: {ex.Message}");
+        }
     }
 
     /// <summary>

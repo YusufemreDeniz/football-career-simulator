@@ -2,9 +2,11 @@
 
   <!--
     Ortak proje ayarları (docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md Bölüm 6.4 ve Bölüm 8 ile uyumlu).
-    TargetFramework burada geçici olarak yerel SDK ile uyumlu güncel .NET LTS hattına sabitlenmiştir;
-    exact sürüm pinlemesi docs/18_SPIKE_EXECUTION_PLAN.md Kart 2-4 (Spike 1-3) sonuçlarına göre
-    docs/15_DECISION_LOG.md üzerinden ayrıca kesinleştirilecektir.
+    TargetFramework burada net10.0 olarak kullanılmaktadır ve altı spike'ın tamamında (headless
+    simulation, determinizm, SQLite, Godot editör/headless çalıştırma, Godot Windows export dahil)
+    sorunsuz doğrulanmıştır (bkz. docs/15_DECISION_LOG.md D-331 vd., D-339). Buna rağmen exact .NET
+    sürüm pinlemesi, `docs/18_SPIKE_EXECUTION_PLAN.md` Bölüm 20'deki genel karar adımıyla ayrı bir
+    karar kaydında açıkça kesinleştirilene kadar teknik olarak hâlâ geçici kabul edilir.
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
