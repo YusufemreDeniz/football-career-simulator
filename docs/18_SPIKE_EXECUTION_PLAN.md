@@ -168,7 +168,7 @@ Doğrulama:
 
 Bkz. `docs/15_DECISION_LOG.md` D-339 (bu kart ve Godot patch sürümü pinlemesi).
 
-### Kart 8 — CI Tamamlama (Spike 6'nın Godot bölümü)
+### Kart 8 — CI Tamamlama (Spike 6'nın Godot bölümü) — Tamamlandı
 
 **Ön koşul:** Kart 5–7.
 
@@ -177,6 +177,14 @@ Bkz. `docs/15_DECISION_LOG.md` D-339 (bu kart ve Godot patch sürümü pinlemesi
 **Kapsam içi:** CI'a Godot headless import ve export job'ının eklenmesi; saf .NET ve Godot doğrulamalarının aynı pipeline'da, ayrı adımlar olarak yer alması.
 
 **Kabul kriteri:** `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16, Spike 6'daki tüm başarı kriterleri karşılanır.
+
+**Sonuç:** `.github/workflows/ci.yml`'e ayrı bir `godot-headless` job'ı eklendi: Godot 4.7-stable mono editörü ve export şablonlarını resmi GitHub release'inden indirip (`actions/cache` ile önbellekleyerek) kurar; ardından headless import, Windows x64 export, export çıktısı boyut doğrulaması, `THIRD_PARTY_NOTICES.md` ekleme ve export edilen build'in gerçek bir smoke testini (ASCII `SPIKE5_SMOKE_TEST_RESULT=PASS` işaretini arayarak) çalıştırır. Bu, konsol kodlamasından bağımsız kararlı bir otomasyon sağlamak için `PlayerListScreen`'in öz-kontrolüne eklenen bir ASCII sentinel çıktısıdır. Her kritik adım, Godot'un kendi exit code'una tam güvenmek yerine açıkça `$LASTEXITCODE` ve çıktı/dosya doğrulamasıyla kontrol edilir; başarısızlık `throw` ile CI adımını non-zero exit code'la durdurur.
+
+Canlı CI çalıştırmasında (`gh run watch` ile izlendi) her iki job da yeşil geçti: `godot-headless` 19m34s (çoğunlukla soğuk NuGet/.NET runtime pack indirmesi içeren ilk `dotnet publish`), `dotnet` job'ı 1m54s. CI logunda doğrudan görülen kanıtlar: `Export edilen exe boyutu: 109408896 byte` ve `SPIKE5_SMOKE_TEST_RESULT=PASS`. `windows-export` ve `test-results` artefaktları saklandı. Ayrıca, aynı seed ile üretilen canonical hash'in yerel makine ile CI arasında birebir eşleştiğini doğrudan doğrulayan sabit bir regresyon testi (`Run_Seed42TenSeasons_MatchesKnownCanonicalHashAcrossEnvironments`) eklendi ve her iki ortamda da geçti.
+
+`docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16, Spike 6'nın tüm başarı kriterleri (saf .NET build/test, Godot editörsüz Domain/Simulation testleri, Godot headless import/export job'ı, artefakt saklama, non-zero exit code, CI/yerel determinizm eşleşmesi) karşılanmıştır. Bkz. `docs/15_DECISION_LOG.md` D-340.
+
+**Gözlemlenen sınırlama:** İlk (soğuk önbellek) CI çalıştırması ~20 dakika sürdü; bunun büyük kısmı `dotnet publish`'in self-contained .NET runtime paketini ilk kez indirmesinden kaynaklanır. Godot editör/şablon indirmesi `actions/cache` ile sonraki çalıştırmalarda hızlanacaktır; NuGet/runtime pack önbellekleme bu spike'ın kapsamı dışında bırakılmış, ileride bir CI performans iyileştirmesi olarak değerlendirilebilir.
 
 ---
 
@@ -193,4 +201,20 @@ Aşağıdakiler bu belgenin kapsamı dışındadır ve ilgili kart yürütülür
 
 ## 6. Sonraki Adım
 
-Kart 0 (Minimum Repository İskeleti) ile başlanması.
+Kart 0'dan Kart 8'e kadar tüm çalışma kartları tamamlanmıştır; altı teknik spike'ın tamamı
+(`docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16) somut kanıtla kapatılmıştır:
+
+1. Motor bağımsız 10 sezonluk headless simulation — Tamamlandı (Kart 2)
+2. Deterministik sonuç ve seed doğrulaması — Tamamlandı (Kart 3)
+3. SQLite save/load, migration ve corruption davranışı — Tamamlandı (Kart 4)
+4. 500 futbolculuk Godot UI listesi — Tamamlandı (Kart 6)
+5. Windows x64 export ve temiz ortam çalıştırma — Tamamlandı (Kart 7)
+6. CI üzerinde saf .NET testleri ve Godot headless doğrulaması — Tamamlandı (Kart 1, Kart 8)
+
+Bu plan belgesinin kapsamı burada sona erer. `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 20'de önerilen bir sonraki adımlar:
+
+* Spike sonuçlarına göre exact Godot/.NET/persistence provider sürüm pinlemesi (Godot 4.7-stable mono zaten D-339 ile pinlenmiştir; exact .NET sürümü ve SQLite provider'ı hâlâ açık bırakılmıştır).
+* Domain modelleme ve sistem tasarım belgelerine (gerçek 14 bounded context implementasyonu) geçiş — bu, bu plandaki `Spike1Placeholder`/`Spike4Placeholder` yer tutucularının yerini alacak yeni ve ayrı bir çalışmadır, bu belgenin kapsamında değildir.
+* Üretim koduna geçmeden önce her sistem için amaç, veri, bağımlılıklar, olaylar, sınır durumları ve test senaryolarının tanımlanması (`docs/03_DOMAIN_MODEL.md`'den itibaren mevcut sistem belgeleri referans alınarak).
+
+Bu adımların hiçbiri bu belge tarafından sessizce başlatılmaz; ayrı bir karar veya açık kullanıcı talimatıyla başlatılmalıdır.

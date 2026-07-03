@@ -1,6 +1,6 @@
 # Proje Dokümantasyon Endeksi
 
-**Durum:** Ana sistem dokümantasyonu kesinleşti; uygulama öncesi teknik doğrulama aşamasına geçildi
+**Durum:** Ana sistem dokümantasyonu kesinleşti; uygulama öncesi teknik doğrulama (altı spike, `18_SPIKE_EXECUTION_PLAN.md`) tamamlandı
 
 ## Amaç
 
@@ -53,8 +53,8 @@ Ayrıntılı tasarımı henüz hazırlanmamış belge bulunmamaktadır.
 9. Kayıt stratejisinin belirlenmesi — Tamamlandı
 10. Test stratejisinin hazırlanması — Tamamlandı
 11. Teknoloji ve mimari seçimi — Tamamlandı
-12. Küçük prototiplerin (teknik doğrulama spike'larının) geliştirilmesi — Sırası ve çalışma kartları planlandı (`18_SPIKE_EXECUTION_PLAN.md`); Kart 0 (minimum repository iskeleti), Kart 1 (CI-lite), Kart 2 (Spike 1 — headless 10 sezon), Kart 3 (Spike 2 — determinizm), Kart 4 (Spike 3 — SQLite save/load/migration), Kart 5 (minimum Godot proje kabuğu), Kart 6 (Spike 4 — 500 futbolculuk Godot UI listesi) ve Kart 7 (Spike 5 — Windows x64 export) tamamlandı, Kart 8 (CI tamamlama — Godot headless import/export job'ı) sıradaki adım
+12. Küçük prototiplerin (teknik doğrulama spike'larının) geliştirilmesi — **Tamamlandı**. `18_SPIKE_EXECUTION_PLAN.md`'deki Kart 0–8'in tamamı ve altı teknik spike'ın (headless 10 sezon, determinizm, SQLite save/load/migration, 500 futbolculuk Godot UI listesi, Windows x64 export, CI'da saf .NET + Godot headless doğrulaması) tamamı somut kanıtla kapatılmıştır (bkz. `15_DECISION_LOG.md` D-331–D-340)
 
 Bu sıra, `01_GAME_DESIGN_DOCUMENT.md` Bölüm 36 (Geliştirme Yaklaşımı) ile tutarlıdır: önce tasarım, sonra veri modeli, sonra kod.
 
-Madde 1–11 kapsamındaki bütün ana sistem belgeleri (`02_MVP_SCOPE.md`–`14_TEST_STRATEGY.md` ve `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md`) kesinleşmiştir (bkz. `15_DECISION_LOG.md`, özellikle D-328). Proje şu an madde 12'ye, yani `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16'da tanımlanan ve `18_SPIKE_EXECUTION_PLAN.md` içinde sıraya konan altı teknik doğrulama spike'ının yürütülmesi aşamasına geçmiştir; bu aşamadan önce üretim kodu, test projesi veya proje iskeleti oluşturulmamıştır.
+Madde 1–11 kapsamındaki bütün ana sistem belgeleri (`02_MVP_SCOPE.md`–`14_TEST_STRATEGY.md` ve `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md`) kesinleşmiştir (bkz. `15_DECISION_LOG.md`, özellikle D-328). Madde 12, yani `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16'da tanımlanan ve `18_SPIKE_EXECUTION_PLAN.md` içinde sıraya konan altı teknik doğrulama spike'ı da dokuz çalışma kartının (Kart 0–8) tamamı yürütülerek tamamlanmıştır (bkz. `15_DECISION_LOG.md` D-331–D-340). Bu aşamada yalnızca `18_SPIKE_EXECUTION_PLAN.md`'de tanımlanan yer tutucu/kanıt niteliğindeki kod (`Spike1Placeholder`, `Spike4Placeholder`, minimal Godot kabuğu) oluşturulmuştur; gerçek 14 bounded context domain modelinin üretim implementasyonu henüz başlamamıştır ve ayrı bir çalışma/karar gerektirir.
