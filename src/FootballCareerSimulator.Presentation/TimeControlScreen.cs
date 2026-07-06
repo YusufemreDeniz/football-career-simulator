@@ -10,6 +10,7 @@ namespace FootballCareerSimulator.Presentation;
 /// </summary>
 public partial class TimeControlScreen : Control
 {
+    private WorldCalendarPresentationHost _host = null!;
     private WorldCalendarModule _module = null!;
     private Label _dateLabel = null!;
     private Label _periodLabel = null!;
@@ -18,7 +19,8 @@ public partial class TimeControlScreen : Control
 
     public override void _Ready()
     {
-        _module = WorldCalendarPresentationHost.CreateDefault().Module;
+        _host = WorldCalendarPresentationHost.CreateDefault();
+        _module = _host.Module;
         BuildLayout();
         RefreshUi();
 
@@ -58,6 +60,14 @@ public partial class TimeControlScreen : Control
         advanceWeekButton.Pressed += () => AdvanceDays(7);
         layout.AddChild(advanceWeekButton);
 
+        var saveButton = new Button { Text = "Kaydet" };
+        saveButton.Pressed += SaveGame;
+        layout.AddChild(saveButton);
+
+        var loadButton = new Button { Text = "Yükle" };
+        loadButton.Pressed += LoadGame;
+        layout.AddChild(loadButton);
+
         _statusLabel = new Label { Name = "StatusLabel" };
         layout.AddChild(_statusLabel);
     }
@@ -81,6 +91,36 @@ public partial class TimeControlScreen : Control
         }
 
         RefreshUi();
+    }
+
+    private void SaveGame()
+    {
+        try
+        {
+            var result = _host.GameSession.Save(_host.DefaultSavePath);
+            _statusLabel.Text =
+                $"Kayıt tamamlandı: gün {result.SavedDayNumber} ({result.SavePath})";
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Kayıt hatası: {ex.Message}";
+        }
+    }
+
+    private void LoadGame()
+    {
+        try
+        {
+            var result = _host.GameSession.Load(_host.DefaultSavePath);
+            _statusLabel.Text = result.WasMigrated
+                ? $"Yükleme tamamlandı (migrate): gün {result.LoadedDayNumber}"
+                : $"Yükleme tamamlandı: gün {result.LoadedDayNumber}";
+            RefreshUi();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Yükleme hatası: {ex.Message}";
+        }
     }
 
     private void RefreshUi()
@@ -111,6 +151,33 @@ public partial class TimeControlScreen : Control
 
         var after = _module.Queries.GetCurrentGameDate();
         passed &= LogCheck("Query güncel tarih", after.DayNumber == before.DayNumber + 1);
+
+        var selfCheckSavePath = Path.Combine(OS.GetUserDataDir(), "world_calendar_selfcheck.db");
+        try
+        {
+            var checkpointDay = after.DayNumber;
+            var saveResult = _host.GameSession.Save(selfCheckSavePath);
+            passed &= LogCheck("Kayıt", saveResult.Succeeded && saveResult.SavedDayNumber == checkpointDay);
+
+            _module.AdvanceSimulationTime.Handle(
+                new AdvanceSimulationTimeCommand(Guid.NewGuid(), checkpointDay + 3));
+            passed &= LogCheck(
+                "İlerletme sonrası tarih değişti",
+                _module.Queries.GetCurrentGameDate().DayNumber == checkpointDay + 3);
+
+            var loadResult = _host.GameSession.Load(selfCheckSavePath);
+            passed &= LogCheck(
+                "Yükleme checkpoint",
+                loadResult.Succeeded && loadResult.LoadedDayNumber == checkpointDay);
+            passed &= LogCheck(
+                "Yükleme sonrası query",
+                _module.Queries.GetCurrentGameDate().DayNumber == checkpointDay);
+        }
+        catch (Exception ex)
+        {
+            GD.Print($"[SelfCheck] BAŞARISIZ: Kayıt/yükleme — {ex.Message}.");
+            passed = false;
+        }
 
         GD.Print(passed ? "[SelfCheck] TÜMÜ BAŞARILI." : "[SelfCheck] BİR VEYA DAHA FAZLA KONTROL BAŞARISIZ.");
         GD.Print(passed ? "WORLD_CALENDAR_UI_SMOKE_TEST_RESULT=PASS" : "WORLD_CALENDAR_UI_SMOKE_TEST_RESULT=FAIL");

@@ -79,6 +79,8 @@ public sealed class AdvanceSimulationTimeHandler
         return result;
     }
 
+    public void ResetIdempotencyCache() => _completedCommands.Clear();
+
     private static string MapEventType(WorldCalendarDomainEvent domainEvent) => domainEvent switch
     {
         GameDayStarted => nameof(GameDayStarted),

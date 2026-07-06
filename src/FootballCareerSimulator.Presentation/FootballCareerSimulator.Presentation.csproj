@@ -10,6 +10,7 @@
     <ProjectReference Include="..\FootballCareerSimulator.Domain\FootballCareerSimulator.Domain.csproj" />
     <ProjectReference Include="..\FootballCareerSimulator.Simulation\FootballCareerSimulator.Simulation.csproj" />
     <ProjectReference Include="..\FootballCareerSimulator.Application\FootballCareerSimulator.Application.csproj" />
+    <ProjectReference Include="..\FootballCareerSimulator.Infrastructure\FootballCareerSimulator.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

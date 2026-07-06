@@ -15,12 +15,14 @@ public sealed class WorldCalendarModule
         IWorldTimelineStore timelineStore,
         TimeAdvanceBlockerAggregator blockerAggregator,
         AdvanceSimulationTimeHandler advanceSimulationTime,
-        WorldCalendarQueryService queries)
+        WorldCalendarQueryService queries,
+        WorldCalendarGameSessionService? gameSession = null)
     {
         TimelineStore = timelineStore;
         BlockerAggregator = blockerAggregator;
         AdvanceSimulationTime = advanceSimulationTime;
         Queries = queries;
+        GameSession = gameSession;
     }
 
     public IWorldTimelineStore TimelineStore { get; }
@@ -31,27 +33,36 @@ public sealed class WorldCalendarModule
 
     public WorldCalendarQueryService Queries { get; }
 
-    public static WorldCalendarModule CreateNewGame(int rootSeed = 42) =>
+    public WorldCalendarGameSessionService? GameSession { get; }
+
+    public static WorldCalendarModule CreateNewGame(int rootSeed = 42, IWorldCalendarPersistence? persistence = null) =>
         Create(
             GameDate.FromCalendarDate(2026, 7, 1),
             rootSeed,
-            SimulationRandomContext.Version);
+            SimulationRandomContext.Version,
+            persistence: persistence);
 
     public static WorldCalendarModule Create(
         GameDate startingDate,
         int rootSeed = 0,
         string rngVersion = "1",
-        IEnumerable<ITimeAdvanceBlockerSource>? blockerSources = null)
+        IEnumerable<ITimeAdvanceBlockerSource>? blockerSources = null,
+        IWorldCalendarPersistence? persistence = null)
     {
         var timeline = WorldTimeline.Create(startingDate, rootSeed, rngVersion);
         var store = new InMemoryWorldTimelineStore(timeline);
         var sources = blockerSources?.ToArray() ?? Array.Empty<ITimeAdvanceBlockerSource>();
         var aggregator = new TimeAdvanceBlockerAggregator(sources);
+        var advanceHandler = new AdvanceSimulationTimeHandler(store, aggregator);
+        WorldCalendarGameSessionService? gameSession = persistence is null
+            ? null
+            : new WorldCalendarGameSessionService(store, advanceHandler, persistence);
 
         return new WorldCalendarModule(
             store,
             aggregator,
-            new AdvanceSimulationTimeHandler(store, aggregator),
-            new WorldCalendarQueryService(store, aggregator));
+            advanceHandler,
+            new WorldCalendarQueryService(store, aggregator),
+            gameSession);
     }
 }
