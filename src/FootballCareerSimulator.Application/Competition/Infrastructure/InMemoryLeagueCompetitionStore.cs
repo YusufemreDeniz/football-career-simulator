@@ -10,5 +10,8 @@ public sealed class InMemoryLeagueCompetitionStore : ILeagueCompetitionStore
         League = league ?? throw new ArgumentNullException(nameof(league));
     }
 
-    public LeagueCompetition League { get; }
+    public LeagueCompetition League { get; private set; }
+
+    public void Replace(LeagueCompetition league) =>
+        League = league ?? throw new ArgumentNullException(nameof(league));
 }
