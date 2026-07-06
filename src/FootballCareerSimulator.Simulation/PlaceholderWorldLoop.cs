@@ -1,5 +1,3 @@
-using FootballCareerSimulator.Domain;
-
 namespace FootballCareerSimulator.Simulation;
 
 /// <summary>
@@ -9,9 +7,9 @@ namespace FootballCareerSimulator.Simulation;
 /// </summary>
 public sealed class PlaceholderWorldLoop
 {
-    public SimulationStep AdvanceOneStep(SimulationStep current) => current.Next();
+    public PlaceholderSimulationStep AdvanceOneStep(PlaceholderSimulationStep current) => current.Next();
 
-    public SimulationStep AdvanceSteps(SimulationStep start, int stepCount)
+    public PlaceholderSimulationStep AdvanceSteps(PlaceholderSimulationStep start, int stepCount)
     {
         if (stepCount < 0)
         {

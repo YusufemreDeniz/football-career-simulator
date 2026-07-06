@@ -1,5 +1,5 @@
 using FootballCareerSimulator.Application;
-using FootballCareerSimulator.Domain;
+using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation;
 
 namespace FootballCareerSimulator.Tests;
@@ -15,7 +15,7 @@ public class PlaceholderSkeletonTests
     {
         var loop = new PlaceholderWorldLoop();
 
-        var next = loop.AdvanceOneStep(SimulationStep.Zero);
+        var next = loop.AdvanceOneStep(PlaceholderSimulationStep.Zero);
 
         Assert.Equal(1, next.Value);
     }
@@ -25,14 +25,14 @@ public class PlaceholderSkeletonTests
     {
         var useCase = new AdvancePlaceholderSimulationUseCase(new PlaceholderWorldLoop());
 
-        var result = useCase.Execute(SimulationStep.Zero, stepCount: 10);
+        var result = useCase.Execute(PlaceholderSimulationStep.Zero, stepCount: 10);
 
         Assert.Equal(10, result.Value);
     }
 
     [Fact]
-    public void Constructor_RejectsNegativeValue()
+    public void PlaceholderSimulationStep_Constructor_RejectsNegativeValue()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => new SimulationStep(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new PlaceholderSimulationStep(-1));
     }
 }

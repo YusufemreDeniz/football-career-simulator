@@ -1,5 +1,4 @@
 using FootballCareerSimulator.Application;
-using FootballCareerSimulator.Domain;
 using FootballCareerSimulator.Simulation;
 using Godot;
 
@@ -16,7 +15,7 @@ public partial class Shell : Control
     public override void _Ready()
     {
         var useCase = new AdvancePlaceholderSimulationUseCase(new PlaceholderWorldLoop());
-        var result = useCase.Execute(SimulationStep.Zero, stepCount: 10);
+        var result = useCase.Execute(PlaceholderSimulationStep.Zero, stepCount: 10);
 
         var label = GetNode<Label>("Label");
         label.Text = "Football Career Simulator\n"

@@ -1,4 +1,3 @@
-using FootballCareerSimulator.Domain;
 using FootballCareerSimulator.Simulation;
 
 namespace FootballCareerSimulator.Application;
@@ -16,5 +15,5 @@ public sealed class AdvancePlaceholderSimulationUseCase
         _worldLoop = worldLoop ?? throw new ArgumentNullException(nameof(worldLoop));
     }
 
-    public SimulationStep Execute(SimulationStep current, int stepCount) => _worldLoop.AdvanceSteps(current, stepCount);
+    public PlaceholderSimulationStep Execute(PlaceholderSimulationStep current, int stepCount) => _worldLoop.AdvanceSteps(current, stepCount);
 }

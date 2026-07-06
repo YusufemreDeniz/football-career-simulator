@@ -24,7 +24,7 @@ jobs:
       - name: .NET SDK kurulumu
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: "10.0.301"
 
       - name: Restore
         run: dotnet restore FootballCareerSimulator.slnx
@@ -57,7 +57,7 @@ jobs:
       - name: .NET SDK kurulumu
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: "10.0.301"
 
       - name: Godot editör/export şablon önbelleğini geri yükle
         id: godot-cache

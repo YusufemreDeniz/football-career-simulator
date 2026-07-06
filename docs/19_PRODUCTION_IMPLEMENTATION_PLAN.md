@@ -42,6 +42,7 @@ Spike kodu (`Spike1Placeholder`, `Spike4Placeholder` ve isimsiz yer tutucular) k
 * Spike kodunun her parçası için geçiş stratejisini (Bölüm 6).
 * Üretim implementasyonunun küçük, geri alınabilir çalışma kartlarına bölünmesini (Bölüm 7).
 * İlk üç kart için dosya/klasör etki alanını (Bölüm 8, kavramsal düzeyde — dosyalar bu görevde oluşturulmaz).
+* **(Production Kart 0 kapsamında, `docs/15_DECISION_LOG.md` D-342–D-351 ile)** World & Calendar terminoloji kilidi (D-342), proleptic Gregorian `GameDate`/`DayNumber` takvim modeli (D-343), günlük granularity ve same-day ordering (D-344, D-345), `net10.0` Target Framework kararı (D-346) ve manuel composition root/third-party container kullanılmaması kararları (D-348, D-349). **Exact .NET SDK sürümü kanıt yetersizliği nedeniyle kapatılmamıştır** (D-347 — Açık); bu tek madde Kart 0'ı "Bloke" durumunda bırakır (D-351, Bölüm 7).
 
 ### 1.4. Bu belge hangi kararları vermez?
 
@@ -144,16 +145,18 @@ Aşağıdaki tablo, mevcut belgelerde açıkça "açık" bırakılmış veya spi
 |---|---|---|---|---|---|
 | 1 | **Deterministik RNG stream stratejisi** — kesin PRNG algoritması, stream/sequence bölme yaklaşımı (`docs/12_WORLD_SIMULATION.md` Bölüm 38, `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 9.1) | Production Kart 4 (Deterministic Simulation entegrasyonu) | Farklı sistemlerin random tüketimi birbirini kontrolsüz etkiler; save/load sonrası determinizm bozulabilir | (a) Spike 2'nin "seed'den replay" tekniğini resmi stream stratejisi yapmak, (b) sistem/context bazlı ayrı RNG stream'leri (splittable PRNG), (c) tek global stream + sıra disiplini | Kart 4 başlamadan önce, küçük bir teknik not olarak (bu belgenin kapsamı dışında, ayrı bir kısa spike/karar notu) |
 | 2 | **Kalıcı save schema** — exact SQLite tablo/index şeması, canonical serialization biçimi (`docs/13_SAVE_SYSTEM.md` Bölüm 44, `docs/15_DECISION_LOG.md` D-284) | Production Kart 5 (Persistence entegrasyonu) | Spike 3'ün geçici şeması yanlışlıkla kalıcı şema sayılabilir; erken donmuş şema pahalı migration gerektirir | (a) Kart 5'te World & Calendar'a özel minimal şema tasarlamak ve genişlemeye açık bırakmak, (b) tüm 14 context için önce kavramsal şema taslağı çıkarmak | Kart 5 başlamadan hemen önce, yalnızca World & Calendar kapsamı için |
-| 3 | **Exact .NET SDK pinlemesi** — `Directory.Build.props`'ta hâlâ "geçici" işaretli `net10.0` (bkz. dosya içi yorum) | Production Kart 1 (ilk gerçek Domain kodu yazılmadan) | Geç pinleme, spike'lar boyunca biriken örtük bir bağımlılığı belgesiz bırakır | (a) Mevcut `net10.0`'ı spike kanıtlarına dayanarak resmi pinlemek, (b) LTS/STS değerlendirmesini tekrar açmak | Kart 1 başlamadan önce, kısa bir karar günlüğü kaydıyla |
+| 3 | **Target Framework (`net10.0`) — Kart 0'da kapatıldı (D-346).** Exact .NET SDK pin'i — **Açık kalmıştır (D-347), kanıt yetersiz.** `net10.0`, bir Target Framework Moniker'dır ve dokuz çalışma kartının (D-331–D-340) tamamında sorunsuz doğrulanmıştır — bu kapanmıştır. Ancak exact SDK sürümü (`10.0.xxx`) hiçbir spike kaydında sabitlenmemiştir; yerel makinede eşzamanlı olarak `10.0.300` ve `10.0.301` kurulu bulunmuş, `dotnet --version` ortama göre değişebilecek şekilde en yeniyi (`10.0.301`) göstermiştir, ve CI (`dotnet-version: "10.0.x"`) sabit bir exact sürüm değil, kayan bir feature-band joker karakteri kullanır. Bu nedenle exact SDK pin kararı kanıt yetersizliği nedeniyle **Açık** bırakılmıştır; sessizce varsayılmamıştır. | **TFM: kapandı. Exact SDK: Production Kart 1'in ön koşulu (ayrı küçük bir konfigürasyon kartıyla).** | TFM kapanmazsa spike'lar boyunca biriken örtük bağımlılık belgesiz kalır (bu risk artık yok); exact SDK kapanmazsa `global.json` yazılamaz ve derleme ortamları arasında sessiz kayma riski sürer | (a) Bir sonraki iyi bilinen CI çalıştırmasının tam SDK sürümünü loglardan çıkarıp exact pinlemek, (b) yerel geliştirme makinesinde tek bir SDK sürümüne indirmek ve o sürümü kanıt olarak kaydetmek | Exact SDK: Kart 1 başlamadan önce, ayrı bir küçük konfigürasyon kartı olarak (bu görevin ve bu belgenin kapsamı dışında — `global.json` burada oluşturulmaz) |
 | 4 | **Persistence provider pinlemesi** — `Microsoft.Data.Sqlite` sürümü ve `SQLitePCLRaw.lib.e_sqlite3` güvenlik pin'i (D-335) resmi olarak "üretim kararı" değil, spike kararı olarak kayıtlı | Production Kart 5 | Güvenlik pin'i zamanla eskiyebilir; sürüm sessizce üretime taşınabilir | (a) Aynı sürümleri üretim için de resmen benimsemek ve bir bağımlılık güncelleme politikası eklemek, (b) provider'ı yeniden değerlendirmek | Kart 5 başlamadan önce |
 | 5 | **Placeholder kodunun kaldırılma stratejisi** — hangi sırayla, hangi güvenlik ağıyla | Production Kart 2 tamamlanmadan (Bölüm 6) | Placeholder ve gerçek kod aynı isim alanında çakışabilir; build kararsız hâle gelebilir | Bölüm 6'daki sınıflandırma ve Bölüm 8'deki "dokunulmayacak dosyalar" listesi | Bu belgede kesinleştirildi (Bölüm 6) |
-| 6 | **Composition root ve dependency injection yaklaşımı** — `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` satır 407 yalnızca "composition root" kavramından bahseder, somut bir DI teknolojisi (Microsoft.Extensions.DependencyInjection, manuel composition, Godot autoload) seçmez | Production Kart 3 (Application command/query sınırı) | Presentation'ın Domain/Simulation nesnelerini doğrudan oluşturması riski (immutable kural #6) somut bir composition root olmadan büyür | (a) `Microsoft.Extensions.DependencyInjection`, (b) el ile yazılmış composition root, (c) Godot'a özel service locator deseni | Kart 3 başlamadan önce |
+| 6 | ~~**Composition root ve dependency injection yaklaşımı**~~ — **Bu madde Kart 0 kapsamında tam kapatıldı (D-348, D-349); Kart 0'ın GENEL durumu ise madde 3'teki exact SDK boşluğu nedeniyle Bloke'dur (bkz. Bölüm 7).** Manuel composition root ve constructor injection kullanılacaktır; başlangıçta third-party DI container (Microsoft.Extensions.DependencyInjection dahil) kullanılmayacaktır. Her executable host (Godot Presentation host, saf .NET headless simulation runner, test host/factory) kendi composition root'una sahip olacaktır. Bu artık bir mimari seçim SORUSU değildir; yalnızca fiziksel implementasyonu (exact registration kodu) Production Kart 3'e aittir. | *(Kapatıldı)* | *(Kapatıldı)* | *(Kapatıldı — üç seçenekten (a) reddedildi, (b) kabul edildi, (c) reddedildi)* | **Bu madde: kapatıldı.** Fiziksel implementasyon: Kart 3 |
 | 7 | **Gerçek read model sınırları** — Presentation'ın hangi query/read model tiplerini göreceği yalnızca kavramsal olarak (`docs/03_DOMAIN_MODEL.md` Bölüm 15.3) tanımlı | Production Kart 3 | Read model'lerin yanlışlıkla domain/aggregate nesnelerinin kendisi olması riski | Bölüm 5.8'deki contract sınırı yönü; kesin şekil Kart 3'te tasarlanır | Kart 3 sırasında |
 | 8 | **Domain event persistence gereksinimleri** — hangi event'lerin snapshot'a, hangilerinin yalnızca seçici history'ye gireceği (`docs/04_EVENT_RULE_ENGINE.md` Bölüm 18, `docs/13_SAVE_SYSTEM.md` Bölüm 29) | Production Kart 5 | Event log'un kontrolsüz büyümesi veya gerekli audit bilgisinin kaybolması | Bölüm 5.9'daki yön; kesin retention D-072/D-284 ile birlikte açık | Kart 5 sırasında, D-072/D-284 ile eş zamanlı |
 | 9 | **Save sürüm geçiş politikası** — Spike 3'ün V1→V2 migration'ı üretim şemasına doğrudan taşınamaz (`docs/13_SAVE_SYSTEM.md` Bölüm 25) | Production Kart 5 | Spike migration deseni yanlışlıkla "üretim migration stratejisi" sayılabilir | Spike'ın "backup + çalışma kopyası + atomik swap" TEKNİĞİ yeniden kullanılabilir; ŞEMA yeniden kullanılamaz (bkz. Bölüm 6) | Kart 5 sırasında |
 | 10 | **Bounded context implementasyon sırası (World & Calendar sonrası)** — bu belge yalnızca 1. sırayı doğrular | Production Kart 6 tamamlandıktan sonra | Erken ve sessiz bir "2. sıra" kararı, gerçek bağımlılık analizini atlayabilir | Bölüm 4'teki matris ikinci bir planlama çalışmasının girdisi olabilir | Kart 6 tamamlandıktan sonra, ayrı bir planlama görevi olarak |
 
-Bu tablodaki hiçbir madde bu belge tarafından kapatılmamıştır; her biri kendi ilgili kartında veya kartından önce ayrıca ele alınmalıdır.
+**Güncelleme (Production Kart 0 sonrası, bkz. `docs/15_DECISION_LOG.md` D-342–D-351):** Madde 3'ün TFM alt maddesi ve madde 6'nın tamamı kapatılmıştır. Madde 3'ün exact SDK alt maddesi **kanıt yetersizliği nedeniyle Açık bırakılmıştır** — bu, Production Kart 0'ın genel durumunu **"Bloke — exact .NET SDK pin kanıtı eksik"** yapar (bkz. Bölüm 7 ve Bölüm 10). Kalan açık maddeler (1, 2, 3'ün exact SDK alt maddesi, 4, 5 [zaten bu belgede kesinleşmişti], 7, 8, 9, 10) hâlâ açıktır ve kendi ilgili kartında veya kartından önce ayrıca ele alınmalıdır. Ayrıca bkz. Bölüm 5.7 (takvim modeli — Kart 0'da tam kapatıldı, D-343/D-344/D-345).
+
+**Bilinçli olarak kapatılmayan ek kararlar (D-350 ile teyit edildi):** Kart 0, yukarıdakilerin dışında şunları da KAPATMAZ: exact RNG algoritması, named RNG stream listesi, üretim SQLite şeması, migration formatı, exact SQLite provider/paket sürümü, exact season başlangıç tarihi, fixture takvim tarihleri, exact namespace/klasör yapısı, exact command/event sınıf listesi, (yeniden değerlendirilirse) DI container paketi ve persistence repository interface listesi. Bunlar ilgili kartlarında (Kart 1-6) veya ayrı planlama çalışmalarında ele alınacaktır.
 
 ---
 
@@ -211,6 +214,8 @@ Bunun ötesinde, Bölüm 4.2'deki kriterlere göre değerlendirme:
 
 **Sonuç:** Mevcut dokümanlar arasında bu konuda gerçek bir çelişki tespit edilmemiştir. `World & Calendar`, ilk üretim dikey kesiti olarak doğrulanmıştır ve Bölüm 5'te ayrıntılandırılmıştır.
 
+**Kart 0 kapanış notu:** Bu konumlandırma kararı (D-341) ve Bölüm 5.1'de kullanılan terminoloji kümesi, Production Kart 0 kapsamında `docs/15_DECISION_LOG.md` D-342 ile resmi olarak kilitlenmiştir. Kilitleme, terimlerin anlamını DEĞİŞTİRMEZ; yalnızca Production Kart 1'den itibaren bu terimlerin tutarlı ve bağlayıcı biçimde kullanılacağını teyit eder.
+
 ### 4.4. Event & Rule Evaluation ve Save Integrity Notu
 
 Bu iki context "Tümü" tarafından kullanılsa da, `docs/03_DOMAIN_MODEL.md` Bölüm 7.13/7.14 ve `docs/12_WORLD_SIMULATION.md` Bölüm 4.3'e göre bunlar **yeni bir on beşinci context değildir** ve kendi başlarına zengin bir business domain'e sahip değildir — büyük ölçüde Application/Infrastructure orkestrasyon sorumluluğudur. Bu nedenle bu ikisi "sıra 1" veya "sıra 2" olarak ayrı bir kart gerektirmez; World & Calendar'ın kendi olay üretimi ve save/load ihtiyacını karşılayacak **minimal bir kesit** olarak Production Kart 2, 4 ve 5 içinde birlikte büyütülürler (bkz. Bölüm 7). Bu, Bölüm 3 madde 8 ile tutarlıdır ve yeni bir bounded context oluşturmaz.
@@ -235,13 +240,15 @@ Kaynak: `docs/12_WORLD_SIMULATION.md` Bölüm 1, 4.2, 6.1–6.6, 9; `docs/03_DOM
 
 Bu sorulara verilen cevaplarda mevcut dokümanlar arasında belirsizlik yoktur; hepsi `docs/12_WORLD_SIMULATION.md`'den doğrudan alınmıştır.
 
+**Terminoloji kilidi (D-342 ile kapatıldı; Production Kart 0'ın genel durumu Bölüm 7'de Bloke olarak işaretlidir):** Bu bölümde ve Bölüm 5'in devamında kullanılan terimler — `GameDate`, `Planning Period`, `Simulation Horizon`, `Simulation Step`, `Simulation Phase`, `Simulation Checkpoint`, `Due Work Item`, `Scheduled Evaluation`, `Background Actor Decision`, `World Event Candidate`/`World Event`, `Interruption`, `Blocker`, `Simulation Fidelity`, `World Summary`/`News Projection` (`docs/12_WORLD_SIMULATION.md` Bölüm 6'daki tanımlarla birebir) — Production Kart 1'den itibaren bağlayıcı sözlük olarak kilitlenmiştir. Kod yazan bir çalışma kartı bu terimler için farklı bir anlam veya farklı bir isim türetemez; yeni bir terim gerekiyorsa önce bu belge güncellenmelidir.
+
 ### 5.2. Kullandığı Veriler
 
 Kaynak: `docs/12_WORLD_SIMULATION.md` Bölüm 6, 7, 10, 21, 32; `docs/03_DOMAIN_MODEL.md` Bölüm 7.1, 8, 9.
 
 | Kavram | Sahibi olan context | Kalıcı mı? | Snapshot'a girer mi? | Semantic state mi? | Türetilmiş/read model mi? |
 |---|---|---|---|---|---|
-| `GameDate` | World & Calendar | Evet | Evet | Evet | Hayır |
+| `GameDate` (immutable value object; canonical temsili integer `DayNumber`, proleptic Gregorian — bkz. Bölüm 5.7 "Takvim Modeli Kararı", D-343) | World & Calendar | Evet (canonical `DayNumber` olarak) | Evet (`DayNumber`; ISO `yyyy-MM-dd` yalnız projection/export) | Evet | Hayır |
 | `SimulationStep` (kimlik + checkpoint kaynağı + phase) | World & Calendar | Kısmen (aktif olan/son tamamlanan) | Evet (cursor olarak) | Evet | Hayır |
 | `Planning Period` (`PlanningPeriodId`, başlangıç/bitiş GameDate, Season referansı, blocker referansları, status) | World & Calendar | Evet (aktifse) | Evet | Evet | Hayır |
 | `Calendar Window` / transfer penceresi gibi zaman pencereleri | World & Calendar | Evet | Evet | Evet | Hayır |
@@ -348,26 +355,37 @@ Kaynak: `docs/12_WORLD_SIMULATION.md` Bölüm 9, 33, 36; `docs/03_DOMAIN_MODEL.m
 | 2 | Negatif veya sıfır dışı geçersiz ilerletme | Geçersiz `Simulation Horizon` (geçmiş tarih, negatif adım) command reddedilir; state transition oluşmaz. |
 | 3 | Aynı command'in iki kez uygulanması | `CommandId`/idempotency key ile aynı ilerletme isteği ikinci kez commit edilmez (Bölüm 5 madde 10, Bölüm 36 madde 2). |
 | 4 | Sezon başlangıç/bitiş sınırları | Season boundary normal günlük ilerleme içinde kaybolamaz (Bölüm 9 madde 15); Competition'ın prerequisite'leri karşılanmadan sınır aşılamaz (Bölüm 24.3). |
-| 5 | Ay/yıl geçişleri | Gün çözünürlüğü kullanıldığından ay/yıl geçişi yalnızca `GameDate`'in kendi takvim hesaplamasına bağlıdır; ayrı bir domain kuralı gerektirmez. |
-| 6 | Artık gün (leap year) davranışı | `docs/12_WORLD_SIMULATION.md` bunu açıkça ele almaz. **Seçenekler:** (a) gerçek Gregoryen takvim kullanmak (artık yıl otomatik desteklenir), (b) sadeleştirilmiş sabit-günlük özel takvim (artık gün kavramı yok). Bkz. bu bölümün altındaki "Takvim Modeli Seçenekleri". |
+| 5 | Ay/yıl geçişleri | **Kart 0'da kapatıldı (D-343):** Yıl, ay ve gün, canonical integer `DayNumber`'dan proleptic Gregorian kurallarıyla deterministik olarak türetilir; standart Gregoryen ay uzunlukları (28/29/30/31 gün) kullanılır. Ayrı bir domain kuralı gerekmez, türetme kuralı kapanmıştır. |
+| 6 | Artık gün (leap year) davranışı | **Kart 0'da kapatıldı (D-343):** Proleptic Gregorian artık yıl kuralları (4/100/400 bölünebilirlik) desteklenir; `DayNumber`'dan türetilen yıl/ay/gün bu kuralı otomatik yansıtır. Bu, .NET `DateOnly` gibi hazır bir adapter/helper ile doğrulanabilir ancak domain sözleşmesinin (canonical `DayNumber`) yerine geçmez. |
 | 7 | Save/load sonrasında aynı tarihten devam | Load sonrasında aynı due work ikinci kez uygulanmaz, kaçırılan due work sessizce atlanmaz (Bölüm 32 madde 3-4). |
 | 8 | Aynı seed ve aynı command dizisiyle aynı sonuç | Determinizm Sözleşmesi (Bölüm 33) — bağlayıcı. |
 | 9 | Zorunlu karar varken zaman ilerletme | Hard Blocker çözülmeden ilerleme başlayamaz (Bölüm 36 madde 19). |
 | 10 | Bir olay handler'ının başarısız olması | Failed consumer, source event'i "gerçekleşmemiş" hâle getirmez (Bölüm 13); güvenli checkpoint kritik effect tamamlanmadan oluşturulamaz (Bölüm 13, Bölüm 31). |
 | 11 | Kısmi ilerleme veya transaction sınırı | Simulation Step atomik veya açık tutarlılık sınırında işlenir (Bölüm 6.4); yarım Step save edilemez (Bölüm 32 madde 1). |
-| 12 | Uzun çalıştırmada overflow | `GameDate` ve `SimulationStepId` için sayısal taşma riski; kesin veri tipi/aralık bu belgede belirlenmez (Production Kart 1), ancak 10+ sezonluk (yaklaşık 3650+ gün, on binlerce Step) ölçek için yeterli aralık gereksinimi not edilir. |
+| 12 | Uzun çalıştırmada overflow | Canonical `DayNumber` (integer) ve `SimulationStepId` için sayısal taşma riski; kesin integer genişliği (örn. `int` vs `long`) bu belgede belirlenmez (Production Kart 1), ancak 10+ sezonluk (yaklaşık 3650+ gün, on binlerce Step) ölçek için yeterli aralık gereksinimi not edilir — proleptic Gregorian `DayNumber` hesaplaması bu ölçekte hiçbir standart integer genişliğinde taşma riski taşımaz. |
 | 13 | Timezone kullanılmaması veya kullanım gerekçesi | `GameDate` duvar saatinden bağımsızdır (Bölüm 6.1); timezone kavramı GEÇERSİZDİR — oyun tarihi tek, global, timezone'suz bir domain kavramıdır. |
 | 14 | Gerçek dünya tarihi ile oyun tarihi ayrımı | Save Manifest'teki `CreatedAtUtc` (gerçek dünya, teknik metadata) ile domain `GameDate` (oyun içi, business veri) kesinlikle ayrı alanlardır; Spike 3'ün `SaveManifest.CreatedAtUtc` alanı bu ayrımın zaten doğru yapıldığını gösterir (bkz. Bölüm 6). |
 
-**Takvim Modeli Seçenekleri (sessizce seçilmez, burada karşılaştırılır):**
+**Takvim Modeli Kararı (Bu madde Kart 0 kapsamında tam kapatıldı, bkz. `docs/15_DECISION_LOG.md` D-343, D-344, D-345; Kart 0'ın GENEL durumu Bölüm 7'de Bloke'dur):**
 
-| Seçenek | Avantaj | Dezavantaj |
-|---|---|---|
-| **Gerçek Gregoryen takvim** (örn. .NET `DateOnly`) | Artık yıl, ay uzunlukları gibi karmaşıklıklar hazır kütüphane tarafından çözülür; oyuncuya tanıdık gelir | Gerçek dünya takvim tuhaflıklarını (örn. Şubat 29) gereksiz yere taşır; `docs/12_WORLD_SIMULATION.md` bunu zorunlu kılmaz |
-| **Sadeleştirilmiş futbol takvimi** (örn. sabit 360 gün/yıl, 30 gün/ay) | Season/fixture hesaplamalarını basitleştirir; artık gün gibi kenar durumları ortadan kalkar | Oyuncuya "gerçek" tarih hissi vermeyebilir; mevcut hiçbir belge bunu talep etmez |
-| **Özel Season Calendar** (yalnızca season-relative gün sayacı, gerçek takvim tarihi yok) | En basit implementasyon; UI'da yalnızca "Sezon 3, Gün 45" gösterilebilir | GDD'nin "gerçek bir futbol kariyeri" hissi (Bölüm 5) ile daha az örtüşebilir; medya/haber projection'ları için daha az doğal |
+Bir önceki Kart 0 denemesinde seçilen "sadeleştirilmiş, Gregoryen olmayan futbol takvimi" kararı **düzeltilmiş ve kaldırılmıştır**. Bağlayıcı karar şu şekildedir:
 
-`docs/12_WORLD_SIMULATION.md` bu üçü arasında açık bir seçim yapmaz; yalnızca "gün çözünürlüğü" ve "duvar saatinden bağımsızlık" ilkelerini zorunlu kılar. **Bu belge bir seçim yapmaz**; seçim Production Kart 1'de, üç seçeneğin bu bölümdeki karşılaştırmasına dayanarak yapılmalıdır.
+* Authoritative tarih tipi immutable **`GameDate`** value object'idir.
+* Canonical temsil, integer **`DayNumber`** değeridir (proleptic Gregorian epoch'tan itibaren gün sayısı).
+* Takvim semantiği **proleptic Gregorian**'dır (Gregoryen takvim kuralları, tarihsel takvim geçişleri olmadan geriye ve ileriye doğru tutarlı biçimde uzatılır).
+* Yıl, ay ve gün, canonical `DayNumber`'dan deterministik olarak türetilir; bu üçü ayrıca kalıcı/mutable alan olarak SAKLANMAZ.
+* Gregoryen artık yıl kuralları (4/100/400 bölünebilirlik) desteklenir.
+* Ay uzunlukları standart Gregoryen ay uzunluklarıdır (Ocak 31, Şubat 28/29, vb.).
+* .NET `DateOnly`, internal helper veya adapter olarak kullanılabilir (örn. `DayNumber ↔ DateOnly` dönüşümü için); domain sözleşmesinin yerine geçmez — authoritative veri her zaman `DayNumber`'dır.
+* Save içindeki canonical değer `DayNumber`'dır; ISO `yyyy-MM-dd` biçimi yalnızca projection, debug veya export amaçlıdır, authoritative save alanı değildir.
+* Domain zamanı timezone, DST, saat, dakika veya saniye taşımaz (Bölüm 5.7 satır 13 ile birebir uyumlu).
+* MVP calendar granularity bir oyun günüdür.
+
+**Karar ve gerekçe:** Bu karar, bu görevin doğrudan ve açık talimatıyla bağlayıcı olarak verilmiştir ve önceki Kart 0 denemesindeki "kanıta dayalı çıkarım" (MVP'nin kurgusal-ülke doğasından sadeleştirilmiş takvimi türetme) yerini almıştır. Önceki çıkarım, `docs/02_MVP_SCOPE.md` Bölüm 7.1'in "Takvim gerçek günler üzerinden ilerler" ifadesini doğru biçimde soyut "Özel Season Calendar" seçeneğine karşı kullanmıştı; bu belge bunu geçersiz kılmaz. Ancak Gregoryen ile sadeleştirilmiş seçenek arasındaki ikinci adım artık açık bir mimari talimatla proleptic Gregorian yönünde kesinleştirilmiştir. Bu değişiklik mevcut hiçbir belgeyle (`docs/02_MVP_SCOPE.md`, `docs/12_WORLD_SIMULATION.md`, `docs/11_PLAYER_CAREER.md`) çelişmez; bu belgelerin hiçbiri Gregoryen olmayan bir takvimi ZORUNLU KILMAMIŞTI, yalnızca kesin seçimi açık bırakmışlardı.
+
+**Artık kapsam dışı bırakılmayan (bu kartta kapanan) alt maddeler:** Ay uzunlukları ve artık yıl semantiği tamamen kapanmıştır (bkz. Bölüm 5.7 satır 5-6); "exact ay uzunluklarının Kart 1'e bırakıldığı" ifadesi kaldırılmıştır.
+
+**Hâlâ açık kalan (bilinçli olarak kapatılmayan) alt maddeler:** Exact kariyer başlangıç tarihi ve competition fixture tarihleri (`docs/08_TRANSFER_SYSTEM.md` Bölüm 47, `docs/12_WORLD_SIMULATION.md` Bölüm 38 ile tutarlı — bkz. Bölüm 8'deki genel açık karar listesi).
 
 ### 5.8. Application Use Case Sınırı
 
@@ -399,7 +417,7 @@ Kaynak: `docs/13_SAVE_SYSTEM.md` Bölüm 7, 21, 23, 27, 32; `docs/12_WORLD_SIMUL
 
 | Konu | Yön |
 |---|---|
-| Game date'in snapshot'a eklenmesi | Zorunlu — güncel `GameDate` her snapshot'ın parçasıdır (`docs/13_SAVE_SYSTEM.md` Bölüm 10 kapsamına girer). |
+| Game date'in snapshot'a eklenmesi | Zorunlu — güncel `GameDate`'in canonical `DayNumber` temsili her snapshot'ın parçasıdır (`docs/13_SAVE_SYSTEM.md` Bölüm 10 kapsamına girer; D-343 ile uyumlu). ISO `yyyy-MM-dd` save'e authoritative alan olarak yazılmaz. |
 | Season identity'nin saklanması | World & Calendar bunu SAKLAMAZ — Season identity Competition'ın authoritative verisidir. World & Calendar yalnızca aktif Season'a bir REFERANS taşıyabilir (`docs/12_WORLD_SIMULATION.md` Bölüm 32: "active Season referansı"). |
 | Simulation step/cursor saklanması | Zorunlu — tamamlanmış Simulation Step kimlikleri veya eşdeğer cursor bilgisi (Bölüm 32). |
 | RNG state ile zaman state'inin atomik kaydı | Zorunlu — "RNG state kaybı farklı dünya sonucu üretmemelidir" (Bölüm 32 madde 5); ikisi aynı checkpoint/transaction sınırında commit edilmelidir. |
@@ -551,24 +569,35 @@ Aşağıdaki kartlar, görev talimatındaki başlangıç yapısını temel alır
 
 Bu kart sırası `docs/01_GAME_DESIGN_DOCUMENT.md` Bölüm 36'daki (Geliştirme Yaklaşımı) 12 adımla doğrudan eşleşir: adım 1-7 (amaç, veri, bağımlılıklar, olaylar, senaryolar) bu belgenin Bölüm 5'inde zaten tamamlanmıştır; adım 8-12 (veri modeli, iş kuralları, testler, uzun dönem test, UI) aşağıdaki Kart 1-6'ya karşılık gelir.
 
-### Production Kart 0 — Terminoloji ve Karar Kapanışları
+### Production Kart 0 — Terminoloji ve Karar Kapanışları — Bloke
+
+**Durum: Bloke — exact .NET SDK pin kanıtı eksik** (bkz. `docs/15_DECISION_LOG.md` D-342–D-351). Aşağıdaki altı koşuldan BEŞİ karşılanmıştır; exact SDK sürümü kanıtlanamadığından Kart 0 **"Tamamlandı" değildir**.
 
 * **Amaç:** World & Calendar için kullanılacak terminolojiyi (Bölüm 5.1) ve açık kararları (Bölüm 3, madde 1/3/6) görünür ve kayıtlı hâle getirmek; herhangi bir kodu etkilemeden.
-* **Ön koşul:** Bu belgenin (docs/19) onaylanması.
-* **Kapsam içi:** Takvim modeli seçimi (Bölüm 5.7'deki üç seçenekten biri), .NET SDK pinlemesinin resmileştirilmesi (Bölüm 3 madde 3), composition root yaklaşımının seçilmesi (Bölüm 3 madde 6) — bunlar KOD DEĞİL, karar günlüğü kayıtlarıdır.
-* **Kapsam dışı:** Herhangi bir `.cs`, `.csproj` veya `.tscn` değişikliği.
-* **Etkilenecek dosyalar:** Yalnızca `docs/15_DECISION_LOG.md` (yeni karar kayıtları).
+* **Ön koşul:** Bu belgenin (docs/19) onaylanması. — Karşılandı.
+* **Kapsam içi:** Takvim modeli kararı (Bölüm 5.7 — proleptic Gregorian `DayNumber`), Target Framework/SDK ayrımı ve exact SDK kanıt değerlendirmesi (Bölüm 3 madde 3), composition root ve DI yaklaşımının kapatılması (Bölüm 3 madde 6) — bunlar KOD DEĞİL, karar günlüğü kayıtlarıdır.
+* **Kapsam dışı:** Herhangi bir `.cs`, `.csproj`, `global.json` veya `.tscn` değişikliği. — Korundu; bu kartta hiçbir kaynak/yapılandırma dosyası değişmemiştir.
+* **Etkilenecek dosyalar:** Yalnızca `docs/15_DECISION_LOG.md` (D-342–D-351) ve `docs/19_PRODUCTION_IMPLEMENTATION_PLAN.md` (bu belgenin kendisi, ilgili bölümlerin senkronize edilmesi).
 * **Üretilecek domain/application olayları:** Yok.
 * **Testler:** Yok (kod yok).
-* **Kabul kriterleri:** Bölüm 3 madde 1, 3, 6'daki üç karar için `docs/15_DECISION_LOG.md`'de yeni "Kabul edildi" kayıtları mevcut; hiçbir kaynak dosya değişmemiş.
-* **Geri alma stratejisi:** Karar günlüğü kayıtlarını geri almak (yalnızca belge revert).
-* **Sonraki kart için önkoşul:** Kart 0 tamamlanmadan Kart 1 başlamaz (Kural 13).
+* **Kapanış koşulları ve gerçek durumu:**
+  1. **Proleptic Gregorian GameDate modeli kabul edildi** — ✅ Karşılandı (D-343). Authoritative tip immutable `GameDate`; canonical temsil integer `DayNumber`; proleptic Gregorian artık yıl ve standart ay uzunlukları desteklenir; `.NET DateOnly` yalnız adapter'dır.
+  2. **Günlük granularity kabul edildi** — ✅ Karşılandı (D-344). MVP calendar granularity bir oyun günüdür; domain zamanı timezone/DST/saat/dakika/saniye taşımaz.
+  3. **Same-day ordering kabul edildi** — ✅ Karşılandı (D-345). `ProcessingPhase`, priority, stable sequence ve stable ID ile belirlenir; `GameDate`, `SeasonId`, `SimulationStep` ve wall-clock timestamp ayrı kavramlardır; negatif zaman ilerletme normal domain command olarak desteklenmez.
+  4. **Exact SDK version kanıtlandı ve karar kaydına işlendi** — ❌ **Karşılanmadı.** Target Framework (`net10.0`) kapatıldı (D-346), ancak exact SDK sürümü kanıtlanamadı (bkz. Bölüm 3 madde 3 ve `docs/15_DECISION_LOG.md` D-347). Bu tek madde Kart 0'ın genel durumunu Bloke yapar.
+  5. **Manuel composition root kararı kabul edildi** — ✅ Karşılandı (D-348).
+  6. **Third-party container kararı kabul edildi** — ✅ Karşılandı (D-349 — başlangıçta kullanılmayacak).
+* **Kabul kriterleri:** Yukarıdaki altı koşuldan beşi `docs/15_DECISION_LOG.md`'de "Kabul edildi" kaydına sahiptir; madde 4 **kanıt yetersizliği nedeniyle "Açık"** kaydına sahiptir (D-347) — **kart genel olarak karşılanmamıştır, Bloke'dur.**
+* **Geri alma stratejisi:** D-342–D-351 kayıtlarını ve bu bölümdeki güncellemeleri geri almak (yalnızca belge revert).
+* **Sonraki kart için önkoşul:** Kart 0 **tamamlanmamıştır**; Production Kart 1 **"başlatılabilir" olarak gösterilmez** (Bölüm 11, Kural 13). Blokun kaldırılması için ayrı, küçük bir "exact SDK pin" konfigürasyon kartı gereklidir (Bölüm 7 madde 7 ile uyumlu).
 
 ### Production Kart 1 — Saf Domain Zaman Value Object'leri
 
-* **Amaç:** `GameDate`, `SimulationStepId` gibi saf, framework'ten bağımsız Domain value object'lerini oluşturmak.
-* **Ön koşul:** Kart 0.
-* **Kapsam içi:** Yalnızca `FootballCareerSimulator.Domain` projesinde yeni value object'ler (Bölüm 5.2'deki kavramlara karşılık gelen); `Domain/SimulationStep.cs`'in (Kart 0 placeholder'ı) silinmesi.
+**Ön koşul durumu: karşılanmamış.** Kart 0 hâlâ Bloke durumundadır (exact SDK pin kanıtı eksik, Bölüm 7 madde 7). Bu kart, Kart 0'ın blokunun kalkması ve `docs/15_DECISION_LOG.md`'de exact SDK kararının kapanmasından ÖNCE başlatılamaz.
+
+* **Amaç:** `GameDate`, `SimulationStepId` gibi saf, framework'ten bağımsız Domain value object'lerini, Kart 0'da kapatılan proleptic Gregorian `DayNumber` modeline göre oluşturmak.
+* **Ön koşul:** Kart 0 tamamlanmış (exact SDK kararı dahil), `global.json` için ayrı bir küçük konfigürasyon kartı tanımlanmış/tamamlanmış, çalışma ağacı temiz, kararlar commitlenmiş.
+* **Kapsam içi:** Yalnızca `FootballCareerSimulator.Domain` projesinde yeni value object'ler (Bölüm 5.2'deki kavramlara karşılık gelen; canonical `DayNumber` temsili dahil); `Domain/SimulationStep.cs`'in (Kart 0 placeholder'ı — dikkat: bu isim, karar günlüğündeki Production Kart numaralarıyla karıştırılmamalıdır) silinmesi.
 * **Kapsam dışı:** Godot, SQLite, UI; Application use case'leri; `Spike1Placeholder`/`Spike4Placeholder` namespace'lerine dokunma.
 * **Etkilenecek dosyalar:** Yeni `Domain/WorldCalendar/` (veya eşdeğer) klasörü; `Domain/SimulationStep.cs` silinir; `PlaceholderSkeletonTests.cs` içindeki `SimulationStep` referansları güncellenir veya bu test dosyası bu noktada elenir (Bölüm 6).
 * **Üretilecek domain/application olayları:** Yok (value object'ler event üretmez).
@@ -594,7 +623,7 @@ Bu kart sırası `docs/01_GAME_DESIGN_DOCUMENT.md` Bölüm 36'daki (Geliştirme 
 
 * **Amaç:** `AdvanceSimulationTime` command'i, `CurrentGameDate`/`CurrentPlanningPeriod` query'leri ve Bölüm 5.6'daki Blocker Aggregator contract'ını oluşturmak.
 * **Ön koşul:** Kart 2.
-* **Kapsam içi:** `FootballCareerSimulator.Application` projesinde yeni use case'ler; Bölüm 3 madde 6/7'deki composition root ve read model sınırı kararlarının UYGULANMASI (kararın kendisi Kart 0'da verilmiş olmalı).
+* **Kapsam içi:** `FootballCareerSimulator.Application` projesinde yeni use case'ler; Bölüm 3 madde 6/7'deki composition root ve read model sınırı kararlarının fiziksel implementasyonu. Mimari yaklaşımın TAMAMI (manuel composition root, constructor injection, third-party container kullanılmaması, host-başına composition root — D-348, D-349) Kart 0'da kapatıldı; bu kartın kendi görevi yalnızca exact registration kodunu ve host-başına composition root dosyalarını (Godot Presentation host, headless simulation runner, test host/factory) yazmaktır — yeni bir mimari seçim yapılmaz.
 * **Kapsam dışı:** Gerçek başka bounded context'lerin blocker query'lerinin implementasyonu (henüz yoklar); bu kartta Blocker Aggregator, henüz var olmayan context'ler için test-only stub/sahte (fake, gerçek değil) implementasyonlarla çalışır ve bu açıkça belgelenir.
 * **Etkilenecek dosyalar:** Yeni `Application/WorldCalendar/` (veya eşdeğer) klasörü; `AdvancePlaceholderSimulationUseCase.cs` (Kart 0) bu kartta silinir.
 * **Üretilecek domain/application olayları:** `TimeAdvanceBlocked` (Application seviyesinde, Bölüm 5.5).
@@ -706,11 +735,14 @@ Bu plan belgesi, aşağıdaki koşulların TAMAMI karşılandığında tamamlanm
 
 ## 11. Sonraki Adım
 
-Bu belge onaylandıktan sonraki en küçük mantıklı adım **Production Kart 0**'dır (Bölüm 7): World & Calendar terminolojisinin kesinleştirilmesi ve Bölüm 3'teki üç kararın (takvim modeli, .NET SDK pinlemesi, composition root yaklaşımı) karar günlüğüne işlenmesi — hiçbir kod değişikliği içermez.
+**Production Kart 0, "Bloke — exact .NET SDK pin kanıtı eksik" durumundadır** (bkz. Bölüm 7 ve `docs/15_DECISION_LOG.md` D-342–D-351). Altı kapanış koşulundan beşi karşılanmıştır: World & Calendar terminolojisi kilitlendi (D-342), takvim modeli proleptic Gregorian `DayNumber` olarak bağlayıcı biçimde kapatıldı (D-343), günlük granularity ve same-day ordering kapatıldı (D-344, D-345), Target Framework `net10.0` resmileştirildi (D-346), manuel composition root ve third-party container kullanılmaması kararları kapatıldı (D-348, D-349). **Ancak exact .NET SDK sürümü kanıtla doğrulanamamıştır** (D-347): yerel ortamda eşzamanlı olarak iki farklı SDK (`10.0.300`, `10.0.301`) kurulu bulunmuş ve CI yalnızca kayan bir `10.0.x` feature-band özelliği kullanmıştır; hiçbir spike kaydı tek bir exact sürümü sabitlememiştir.
+
+Bu nedenle **Production Kart 1 bu belge tarafından "başlatılabilir" olarak gösterilmez.** Bu belge onaylandıktan sonraki en küçük mantıklı adım, Production Kart 1'in KENDİSİ DEĞİL, Kart 0'ın blokunu kaldıracak **küçük, ayrı bir "exact .NET SDK pin" konfigürasyon kartı**dır: bir CI çalıştırmasının veya kontrollü yerel ortamın exact SDK sürümünü (`10.0.xxx`) sabitleyip kanıtla `docs/15_DECISION_LOG.md`'ye işlemek (D-347'yi "Kabul edildi" durumuna taşımak) ve gerekirse `global.json` oluşturmak — **bu adım bu belgenin ve bu görevin kapsamı dışındadır.**
 
 Bu adımdan önce:
 
-* Production Kart 1 veya sonrası başlatılmamalı,
+* Production Kart 1 **başlatılmamıştır ve başlatılamaz** — Kart 0 Bloke durumdayken hiçbir sonraki kart "hazır" sayılmaz,
 * `Spike1Placeholder`/`Spike4Placeholder` namespace'leri kaldırılmamalı,
-* Bölüm 3'teki açık kararlar sessizce kapatılmamalı,
+* Bölüm 3'teki kalan açık kararlar (madde 1, 2, 3'ün exact SDK alt maddesi, 4, 7, 8, 9, 10) sessizce kapatılmamalı,
+* Bölüm 8'de listelenen açık kararlar (RNG algoritması, RNG stream listesi, üretim SQLite şeması, migration formatı, exact SQLite provider/paket sürümü, exact season başlangıç tarihi, fixture takvim tarihleri, exact namespace/klasör yapısı, exact command/event sınıf listesi, DI container paketi, persistence repository interface listesi) kapatılmamalı,
 * GDD, MVP kapsamı veya kesinleşmiş alt sistem belgeleri değiştirilmemelidir.
