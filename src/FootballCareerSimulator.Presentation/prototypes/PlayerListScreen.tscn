@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dqk1v3x5t2m8w"]
 
-[ext_resource type="Script" path="res://PlayerListScreen.cs" id="1"]
+[ext_resource type="Script" path="res://prototypes/PlayerListScreen.cs" id="1"]
 
 [node name="PlayerListScreen" type="Control"]
 layout_mode = 3

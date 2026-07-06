@@ -4,6 +4,7 @@ using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Services;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation;
 
 /// <summary>
 /// Manuel composition root (D-348). Test host ve ilerideki headless runner bu modülü kullanır.
@@ -29,6 +30,12 @@ public sealed class WorldCalendarModule
     public AdvanceSimulationTimeHandler AdvanceSimulationTime { get; }
 
     public WorldCalendarQueryService Queries { get; }
+
+    public static WorldCalendarModule CreateNewGame(int rootSeed = 42) =>
+        Create(
+            GameDate.FromCalendarDate(2026, 7, 1),
+            rootSeed,
+            SimulationRandomContext.Version);
 
     public static WorldCalendarModule Create(
         GameDate startingDate,

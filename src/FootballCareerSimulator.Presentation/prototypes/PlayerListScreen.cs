@@ -3,7 +3,7 @@ using FootballCareerSimulator.Simulation;
 using FootballCareerSimulator.Simulation.Spike1Placeholder;
 using Godot;
 
-namespace FootballCareerSimulator.Presentation;
+namespace FootballCareerSimulator.Presentation.Prototypes;
 
 /// <summary>
 /// docs/18_SPIKE_EXECUTION_PLAN.md Kart 6 (Spike 4) için oluşturulmuş yer tutucu ekrandır. Godot
