@@ -28,7 +28,7 @@ Alınan tüm kararların günlüğü için:
 
 ## Sonraki Adımlar
 
-`docs/02_MVP_SCOPE.md` ile `docs/14_TEST_STRATEGY.md` arasındaki ana sistem belgeleri, teknik mimari kararı ve `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` içinde tanımlanan altı teknik doğrulama spike'ının (headless 10 sezon, determinizm, SQLite kayıt/migration, 500 futbolculuk arayüz, Windows export, CI doğrulaması) tamamı kesinleşmiş ve tamamlanmıştır (bkz. `docs/18_SPIKE_EXECUTION_PLAN.md`). Bir sonraki adım, gerçek 14 bounded context domain modelinin üretim implementasyonuna geçilmesidir; bu, ayrı bir çalışma/karar gerektirir ve bu depoda henüz başlamamıştır. Alınan tüm kararlar `docs/15_DECISION_LOG.md` içinde kayıt altına alınmaya devam edecektir.
+`docs/02_MVP_SCOPE.md` ile `docs/14_TEST_STRATEGY.md` arasındaki ana sistem belgeleri, teknik mimari kararı ve `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` içinde tanımlanan altı teknik doğrulama spike'ının (headless 10 sezon, determinizm, SQLite kayıt/migration, 500 futbolculuk arayüz, Windows export, CI doğrulaması) tamamı kesinleşmiş ve tamamlanmıştır (bkz. `docs/18_SPIKE_EXECUTION_PLAN.md`). Gerçek 14 bounded context domain modelinin üretim implementasyonuna geçiş için ilk planlama çalışması da tamamlanmıştır: `docs/19_PRODUCTION_IMPLEMENTATION_PLAN.md`, ilk üretim dikey kesitini (`World & Calendar` bounded context'i), açık kararları ve küçük çalışma kartlarını tanımlar. Bu planın kartlarından (Production Kart 0–6) hiçbiri bu depoda henüz başlatılmamıştır. Alınan tüm kararlar `docs/15_DECISION_LOG.md` içinde kayıt altına alınmaya devam edecektir.
 
 ## Klasör Yapısı
 

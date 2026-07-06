@@ -1,6 +1,6 @@
 # Proje Dokümantasyon Endeksi
 
-**Durum:** Ana sistem dokümantasyonu kesinleşti; uygulama öncesi teknik doğrulama (altı spike, `18_SPIKE_EXECUTION_PLAN.md`) tamamlandı
+**Durum:** Teknik spike aşaması tamamlandı; üretim implementasyonu planlama aşaması başladı (`19_PRODUCTION_IMPLEMENTATION_PLAN.md`)
 
 ## Amaç
 
@@ -35,6 +35,7 @@ Tüm kararların başlangıç noktası:
 | `16_INITIAL_ANALYSIS.md` | Ana belgeye dayanan kapsamlı başlangıç analizi | Tamamlandı (ilk sürüm) |
 | `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` | Teknoloji yığını ve yüksek seviyeli mimari kararı | Kesinleşti |
 | `18_SPIKE_EXECUTION_PLAN.md` | Altı teknik doğrulama spike'ının uygulama sırası ve çalışma kartları | Kesinleşti |
+| `19_PRODUCTION_IMPLEMENTATION_PLAN.md` | Spike/placeholder aşamasından gerçek üretim domain implementasyonuna geçiş planı; ilk üretim dikey kesiti (World & Calendar) | Kesinleşti (planlama düzeyinde) |
 
 ## Henüz Hazırlanmayan Belgeler
 
@@ -54,7 +55,8 @@ Ayrıntılı tasarımı henüz hazırlanmamış belge bulunmamaktadır.
 10. Test stratejisinin hazırlanması — Tamamlandı
 11. Teknoloji ve mimari seçimi — Tamamlandı
 12. Küçük prototiplerin (teknik doğrulama spike'larının) geliştirilmesi — **Tamamlandı**. `18_SPIKE_EXECUTION_PLAN.md`'deki Kart 0–8'in tamamı ve altı teknik spike'ın (headless 10 sezon, determinizm, SQLite save/load/migration, 500 futbolculuk Godot UI listesi, Windows x64 export, CI'da saf .NET + Godot headless doğrulaması) tamamı somut kanıtla kapatılmıştır (bkz. `15_DECISION_LOG.md` D-331–D-340)
+13. Üretim implementasyon planlamasının hazırlanması — **Tamamlandı (planlama düzeyinde)**. `19_PRODUCTION_IMPLEMENTATION_PLAN.md`, ilk üretim dikey kesitini (`World & Calendar`), açık kararları, bounded context implementasyon sırasını, placeholder geçiş stratejisini ve küçük çalışma kartlarını tanımlar. Bu belge hiçbir üretim kodu içermez.
 
 Bu sıra, `01_GAME_DESIGN_DOCUMENT.md` Bölüm 36 (Geliştirme Yaklaşımı) ile tutarlıdır: önce tasarım, sonra veri modeli, sonra kod.
 
-Madde 1–11 kapsamındaki bütün ana sistem belgeleri (`02_MVP_SCOPE.md`–`14_TEST_STRATEGY.md` ve `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md`) kesinleşmiştir (bkz. `15_DECISION_LOG.md`, özellikle D-328). Madde 12, yani `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16'da tanımlanan ve `18_SPIKE_EXECUTION_PLAN.md` içinde sıraya konan altı teknik doğrulama spike'ı da dokuz çalışma kartının (Kart 0–8) tamamı yürütülerek tamamlanmıştır (bkz. `15_DECISION_LOG.md` D-331–D-340). Bu aşamada yalnızca `18_SPIKE_EXECUTION_PLAN.md`'de tanımlanan yer tutucu/kanıt niteliğindeki kod (`Spike1Placeholder`, `Spike4Placeholder`, minimal Godot kabuğu) oluşturulmuştur; gerçek 14 bounded context domain modelinin üretim implementasyonu henüz başlamamıştır ve ayrı bir çalışma/karar gerektirir.
+Madde 1–11 kapsamındaki bütün ana sistem belgeleri (`02_MVP_SCOPE.md`–`14_TEST_STRATEGY.md` ve `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md`) kesinleşmiştir (bkz. `15_DECISION_LOG.md`, özellikle D-328). Madde 12, yani `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` Bölüm 16'da tanımlanan ve `18_SPIKE_EXECUTION_PLAN.md` içinde sıraya konan altı teknik doğrulama spike'ı da dokuz çalışma kartının (Kart 0–8) tamamı yürütülerek tamamlanmıştır (bkz. `15_DECISION_LOG.md` D-331–D-340). Madde 13 ile birlikte proje artık `19_PRODUCTION_IMPLEMENTATION_PLAN.md`'de tanımlanan üretim çalışma kartlarının (Production Kart 0–6) yürütülmesi aşamasına geçebilir; ancak bu kartların hiçbiri henüz başlatılmamıştır. Bu aşamaya kadar yalnızca `18_SPIKE_EXECUTION_PLAN.md`'de tanımlanan yer tutucu/kanıt niteliğindeki kod (`Spike1Placeholder`, `Spike4Placeholder`, minimal Godot kabuğu) oluşturulmuştur; gerçek 14 bounded context domain modelinin üretim implementasyonu henüz başlamamıştır.
