@@ -29,5 +29,13 @@ public sealed class PlanningPeriod
     internal PlanningPeriod WithStatus(PlanningPeriodStatus status, GameDate? completedAt = null) =>
         new(Id, StartDate, ExpectedEndDate, status, completedAt ?? CompletedAt);
 
+    public static PlanningPeriod Rehydrate(
+        PlanningPeriodId id,
+        GameDate startDate,
+        GameDate? expectedEndDate,
+        PlanningPeriodStatus status,
+        GameDate? completedAt) =>
+        new(id, startDate, expectedEndDate, status, completedAt);
+
     public bool IsActive => Status is not (PlanningPeriodStatus.Completed or PlanningPeriodStatus.Archived);
 }

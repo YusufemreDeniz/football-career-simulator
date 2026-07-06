@@ -142,4 +142,23 @@ public sealed class WorldTimeline
     }
 
     public void ClearUncommittedEvents() => _uncommittedEvents.Clear();
+
+    public static WorldTimeline Rehydrate(
+        GameDate currentDate,
+        SimulationStepId lastCommittedStepId,
+        int rootSeed,
+        string rngVersion,
+        int rngDrawCount,
+        PlanningPeriod? activePlanningPeriod)
+    {
+        var timeline = new WorldTimeline(currentDate, lastCommittedStepId, rootSeed, rngVersion);
+
+        for (var i = 0; i < rngDrawCount; i++)
+        {
+            timeline.RecordRngDraw();
+        }
+
+        timeline.ActivePlanningPeriod = activePlanningPeriod;
+        return timeline;
+    }
 }
