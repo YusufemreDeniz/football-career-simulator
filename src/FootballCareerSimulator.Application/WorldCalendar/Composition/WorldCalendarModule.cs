@@ -32,9 +32,11 @@ public sealed class WorldCalendarModule
 
     public static WorldCalendarModule Create(
         GameDate startingDate,
+        int rootSeed = 0,
+        string rngVersion = "1",
         IEnumerable<ITimeAdvanceBlockerSource>? blockerSources = null)
     {
-        var timeline = WorldTimeline.Create(startingDate);
+        var timeline = WorldTimeline.Create(startingDate, rootSeed, rngVersion);
         var store = new InMemoryWorldTimelineStore(timeline);
         var sources = blockerSources?.ToArray() ?? Array.Empty<ITimeAdvanceBlockerSource>();
         var aggregator = new TimeAdvanceBlockerAggregator(sources);

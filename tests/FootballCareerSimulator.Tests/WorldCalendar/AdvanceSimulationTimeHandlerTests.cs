@@ -49,7 +49,7 @@ public class AdvanceSimulationTimeHandlerTests
             "TeamPreparation",
             new TimeAdvanceBlockerDescriptor("MissingMatchSquad", "SquadIncomplete", IsHardBlocker: true));
 
-        var module = WorldCalendarModule.Create(StartDate, [blocker]);
+        var module = WorldCalendarModule.Create(StartDate, blockerSources: [blocker]);
         var target = GameDate.FromCalendarDate(2026, 7, 2);
 
         var result = module.AdvanceSimulationTime.Handle(
@@ -84,7 +84,7 @@ public class AdvanceSimulationTimeHandlerTests
             "InteractionNarrative",
             new TimeAdvanceBlockerDescriptor("PendingDecision", "BoardMeetingRequired", IsHardBlocker: true));
 
-        var module = WorldCalendarModule.Create(StartDate, [blocker]);
+        var module = WorldCalendarModule.Create(StartDate, blockerSources: [blocker]);
 
         var eligibility = module.Queries.GetTimeAdvanceEligibility();
 

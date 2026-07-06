@@ -16,15 +16,26 @@ public sealed class WorldTimeline
 
     public PlanningPeriod? ActivePlanningPeriod { get; private set; }
 
+    public int RootSeed { get; }
+
+    public string RngVersion { get; }
+
+    public int RngDrawCount { get; private set; }
+
     public IReadOnlyList<WorldCalendarDomainEvent> UncommittedEvents => _uncommittedEvents;
 
-    private WorldTimeline(GameDate startingDate, SimulationStepId lastCommittedStepId)
+    private WorldTimeline(GameDate startingDate, SimulationStepId lastCommittedStepId, int rootSeed, string rngVersion)
     {
         CurrentDate = startingDate;
         LastCommittedStepId = lastCommittedStepId;
+        RootSeed = rootSeed;
+        RngVersion = rngVersion;
     }
 
-    public static WorldTimeline Create(GameDate startingDate) => new(startingDate, SimulationStepId.Zero);
+    public static WorldTimeline Create(GameDate startingDate, int rootSeed = 0, string rngVersion = "1") =>
+        new(startingDate, SimulationStepId.Zero, rootSeed, rngVersion);
+
+    public void RecordRngDraw() => RngDrawCount++;
 
     public WorldTimelineAdvancementResult AdvanceOneDay() => AdvanceTo(CurrentDate.NextDay());
 
