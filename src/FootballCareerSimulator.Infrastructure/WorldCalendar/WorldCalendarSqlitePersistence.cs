@@ -1,6 +1,8 @@
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure.Career;
 
@@ -15,11 +17,18 @@ public sealed class WorldCalendarSqlitePersistence : IWorldCalendarPersistence
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
 
+        var managerCareer = ManagerCareer.StartNewCareer(
+            new ManagerId(1),
+            "Teknik Direktör",
+            new ClubId(1),
+            timeline.CurrentDate);
+
         _careerPersistence.Save(
             filePath,
             timeline,
             new LeagueCompetition(new CompetitionId(1)),
-            LeagueClubRegistry.CreateMvpLeague());
+            LeagueClubRegistry.CreateMvpLeague(),
+            managerCareer);
     }
 
     public WorldCalendarLoadResult Load(string filePath)

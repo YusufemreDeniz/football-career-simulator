@@ -4,6 +4,8 @@ using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure.Career;
 using FootballCareerSimulator.Simulation.Career;
@@ -49,6 +51,13 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         }
     }
 
+    private static ManagerCareer DefaultManager(GameDate startDate) =>
+        ManagerCareer.StartNewCareer(
+            new ManagerId(1),
+            "Teknik Direktör",
+            new ClubId(1),
+            startDate);
+
     private static (WorldCalendarModule World, CompetitionModule Competition) CreateCareerState()
     {
         var world = WorldCalendarModule.Create(PreseasonStart, rootSeed: 42);
@@ -82,16 +91,18 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         var timeline = world.TimelineStore.Timeline;
         var league = competition.Store.League;
         var clubs = LeagueClubRegistry.CreateMvpLeague();
+        var manager = DefaultManager(timeline.CurrentDate);
         var path = GetSavePath("career-roundtrip.db");
-        var expectedHash = CareerCanonicalStateHasher.ComputeHash(timeline, league, clubs);
+        var expectedHash = CareerCanonicalStateHasher.ComputeHash(timeline, league, clubs, manager);
 
-        _persistence.Save(path, timeline, league, clubs);
+        _persistence.Save(path, timeline, league, clubs, manager);
         var loaded = _persistence.Load(path);
 
         Assert.False(loaded.WasMigrated);
         Assert.Equal(
             expectedHash,
-            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, loaded.League, loaded.ClubRegistry));
+            CareerCanonicalStateHasher.ComputeHash(
+                loaded.Timeline, loaded.League, loaded.ClubRegistry, loaded.ManagerCareer));
         Assert.Equal(timeline.CurrentDate, loaded.Timeline.CurrentDate);
         Assert.Equal(
             CompetitionMvpConstraints.TotalLeagueFixtures,
@@ -123,12 +134,14 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         var loaded = _persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(5, loaded.SchemaVersion);
+        Assert.Equal(6, loaded.SchemaVersion);
         Assert.Empty(loaded.League.Seasons);
         Assert.Equal(1, loaded.League.CompetitionId.Value);
         Assert.Equal(
-            CareerCanonicalStateHasher.ComputeHash(timeline, loaded.League, loaded.ClubRegistry),
-            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, loaded.League, loaded.ClubRegistry));
+            CareerCanonicalStateHasher.ComputeHash(
+                timeline, loaded.League, loaded.ClubRegistry, loaded.ManagerCareer),
+            CareerCanonicalStateHasher.ComputeHash(
+                loaded.Timeline, loaded.League, loaded.ClubRegistry, loaded.ManagerCareer));
         Assert.Equal(CompetitionMvpConstraints.LeagueTeamCount, loaded.ClubRegistry.Clubs.Count);
         Assert.True(File.Exists(path + ".bak"));
     }

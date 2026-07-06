@@ -4,6 +4,7 @@ using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -42,7 +43,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
     private CareerGameSessionService CreateSession(
         WorldCalendarModule world,
         CompetitionModule competition,
-        ClubGovernanceModule clubs)
+        ClubGovernanceModule clubs,
+        ManagerCareerModule manager)
     {
         var idempotencyResets = new List<ICommandIdempotencyReset>
         {
@@ -56,6 +58,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             world.TimelineStore,
             competition.Store,
             clubs.Store,
+            manager.Store,
             _persistence,
             idempotencyResets);
     }
@@ -74,8 +77,9 @@ public sealed class CareerGameSessionServiceTests : IDisposable
     {
         var world = WorldCalendarModule.Create(PreseasonStart, rootSeed: 7);
         var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var manager = ManagerCareerModule.CreateNewCareer(PreseasonStart);
         var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
-        var session = CreateSession(world, competition, clubs);
+        var session = CreateSession(world, competition, clubs, manager);
         const long seasonId = 1;
 
         world.AdvanceSimulationTime.Handle(

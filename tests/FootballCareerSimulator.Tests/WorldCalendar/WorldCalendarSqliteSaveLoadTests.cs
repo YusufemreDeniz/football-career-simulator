@@ -2,6 +2,8 @@ using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure;
 using FootballCareerSimulator.Infrastructure.WorldCalendar;
@@ -38,6 +40,13 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
 
     private static LeagueClubRegistry DefaultClubs() => LeagueClubRegistry.CreateMvpLeague();
 
+    private static ManagerCareer DefaultManager(GameDate startDate) =>
+        ManagerCareer.StartNewCareer(
+            new ManagerId(1),
+            "Teknik Direktör",
+            new ClubId(1),
+            startDate);
+
     [Fact]
     public void SaveAndLoad_RoundTrip_PreservesCanonicalState()
     {
@@ -50,7 +59,8 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
 
         var path = GetSavePath("roundtrip.db");
         var timeline = module.TimelineStore.Timeline;
-        var expectedHash = CareerCanonicalStateHasher.ComputeHash(timeline, EmptyLeague(), DefaultClubs());
+        var expectedHash = CareerCanonicalStateHasher.ComputeHash(
+            timeline, EmptyLeague(), DefaultClubs(), DefaultManager(timeline.CurrentDate));
 
         _persistence.Save(path, timeline);
         var loaded = _persistence.Load(path);
@@ -58,7 +68,8 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
         Assert.False(loaded.WasMigrated);
         Assert.Equal(
             expectedHash,
-            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, EmptyLeague(), DefaultClubs()));
+            CareerCanonicalStateHasher.ComputeHash(
+                loaded.Timeline, EmptyLeague(), DefaultClubs(), DefaultManager(loaded.Timeline.CurrentDate)));
         Assert.Equal(timeline.CurrentDate, loaded.Timeline.CurrentDate);
         Assert.Equal(timeline.LastCommittedStepId, loaded.Timeline.LastCommittedStepId);
         Assert.Equal(timeline.RngDrawCount, loaded.Timeline.RngDrawCount);
@@ -109,8 +120,10 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
         Assert.Equal(timeline.CurrentDate, loaded.Timeline.CurrentDate);
         Assert.Equal(timeline.LastCommittedStepId, loaded.Timeline.LastCommittedStepId);
         Assert.Equal(
-            CareerCanonicalStateHasher.ComputeHash(timeline, EmptyLeague(), DefaultClubs()),
-            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, EmptyLeague(), DefaultClubs()));
+            CareerCanonicalStateHasher.ComputeHash(
+                timeline, EmptyLeague(), DefaultClubs(), DefaultManager(timeline.CurrentDate)),
+            CareerCanonicalStateHasher.ComputeHash(
+                loaded.Timeline, EmptyLeague(), DefaultClubs(), DefaultManager(loaded.Timeline.CurrentDate)));
         Assert.True(File.Exists(path + ".bak"));
     }
 

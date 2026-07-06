@@ -21,9 +21,12 @@ public partial class TimeControlScreen : Control
     private Label _periodLabel = null!;
     private Label _blockerLabel = null!;
     private Label _seasonLabel = null!;
+    private Label _seasonProgressLabel = null!;
+    private Label _managerLabel = null!;
     private Label _standingsLabel = null!;
     private SpinBox _roundSelector = null!;
     private ItemList _fixtureList = null!;
+    private ItemList _squadList = null!;
     private Label _statusLabel = null!;
 
     public override void _Ready()
@@ -63,6 +66,12 @@ public partial class TimeControlScreen : Control
         _seasonLabel = new Label { Name = "SeasonLabel" };
         layout.AddChild(_seasonLabel);
 
+        _seasonProgressLabel = new Label { Name = "SeasonProgressLabel" };
+        layout.AddChild(_seasonProgressLabel);
+
+        _managerLabel = new Label { Name = "ManagerLabel" };
+        layout.AddChild(_managerLabel);
+
         _standingsLabel = new Label { Name = "StandingsLabel" };
         layout.AddChild(_standingsLabel);
 
@@ -85,6 +94,13 @@ public partial class TimeControlScreen : Control
         };
         layout.AddChild(_fixtureList);
 
+        _squadList = new ItemList
+        {
+            Name = "SquadList",
+            CustomMinimumSize = new Vector2(0, 100),
+        };
+        layout.AddChild(_squadList);
+
         var playTodayButton = new Button { Text = "Bugünün Maçlarını Oyna" };
         playTodayButton.Pressed += PlayTodayMatches;
         layout.AddChild(playTodayButton);
@@ -100,6 +116,18 @@ public partial class TimeControlScreen : Control
         var setupLeagueButton = new Button { Text = "Lig Sezonu Kur (20 takım + fikstür)" };
         setupLeagueButton.Pressed += SetupLeagueSeason;
         layout.AddChild(setupLeagueButton);
+
+        var completeSeasonButton = new Button { Text = "Sezonu Kapat" };
+        completeSeasonButton.Pressed += CompleteSeason;
+        layout.AddChild(completeSeasonButton);
+
+        var archiveSeasonButton = new Button { Text = "Sezonu Arşivle" };
+        archiveSeasonButton.Pressed += ArchiveSeason;
+        layout.AddChild(archiveSeasonButton);
+
+        var newSeasonButton = new Button { Text = "Yeni Sezon Başlat" };
+        newSeasonButton.Pressed += StartNewSeason;
+        layout.AddChild(newSeasonButton);
 
         var saveButton = new Button { Text = "Kaydet" };
         saveButton.Pressed += SaveGame;
@@ -254,6 +282,113 @@ public partial class TimeControlScreen : Control
         }
     }
 
+    private void CompleteSeason()
+    {
+        try
+        {
+            var competition = _host.CompetitionModule;
+            var world = _host.WorldModule;
+            var season = competition.Queries.GetCurrentSeason()
+                ?? throw new InvalidOperationException("Aktif sezon yok.");
+
+            var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
+            competition.CompleteSeason.Handle(
+                new CompleteSeasonCommand(Guid.NewGuid(), season.SeasonId, currentDay));
+
+            _statusLabel.Text = $"Sezon #{season.SeasonId} kapatıldı.";
+            RefreshUi();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Sezon kapatma hatası: {ex.Message}";
+        }
+    }
+
+    private void ArchiveSeason()
+    {
+        try
+        {
+            var competition = _host.CompetitionModule;
+            var world = _host.WorldModule;
+            var season = competition.Queries.GetCurrentSeason()
+                ?? throw new InvalidOperationException("Aktif sezon yok.");
+
+            var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
+            competition.ArchiveSeason.Handle(
+                new ArchiveSeasonCommand(Guid.NewGuid(), season.SeasonId, currentDay));
+
+            _statusLabel.Text = $"Sezon #{season.SeasonId} arşivlendi.";
+            RefreshUi();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Sezon arşivleme hatası: {ex.Message}";
+        }
+    }
+
+    private void StartNewSeason()
+    {
+        try
+        {
+            var competition = _host.CompetitionModule;
+            var world = _host.WorldModule;
+            var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
+            var nextSeasonId = competition.Queries.GetCurrentSeason()?.SeasonId + 1 ?? DefaultSeasonId;
+
+            competition.CreateSeason.Handle(
+                new CreateSeasonCommand(Guid.NewGuid(), nextSeasonId, currentDay));
+
+            for (var clubId = 1L; clubId <= CompetitionMvpConstraints.LeagueTeamCount; clubId++)
+            {
+                competition.RegisterSeasonParticipant.Handle(
+                    new RegisterSeasonParticipantCommand(Guid.NewGuid(), nextSeasonId, clubId));
+            }
+
+            competition.StartSeason.Handle(
+                new StartSeasonCommand(Guid.NewGuid(), nextSeasonId, currentDay));
+
+            var firstMatchday = ComputeFirstMatchdayDayNumber(currentDay);
+            competition.PlanLeagueFixtures.Handle(
+                new PlanLeagueFixturesCommand(
+                    Guid.NewGuid(),
+                    nextSeasonId,
+                    firstMatchday,
+                    StartingFixtureId: 1));
+
+            _statusLabel.Text = $"Yeni sezon #{nextSeasonId} başlatıldı.";
+            RefreshUi();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Yeni sezon hatası: {ex.Message}";
+        }
+    }
+
+    private void RefreshSquadList()
+    {
+        _squadList.Clear();
+
+        var manager = _host.ManagerModule.Queries.GetCareer();
+        if (manager.EmployedClubId is not long clubId)
+        {
+            return;
+        }
+
+        var rootSeed = _host.WorldModule.TimelineStore.Timeline.RootSeed;
+        var squad = _host.SquadQueries.GetClubSquad(clubId, rootSeed);
+        var clubName = GetClubDisplayName(clubId);
+
+        foreach (var player in squad.Take(10))
+        {
+            _squadList.AddItem($"{player.SquadNumber}. {player.DisplayName}");
+        }
+
+        if (squad.Count > 10)
+        {
+            _squadList.AddItem($"... ve {squad.Count - 10} oyuncu daha ({clubName})");
+        }
+    }
+
     private string GetClubDisplayName(long clubId) =>
         _host.ClubModule.Queries.GetClub(clubId)?.DisplayName ?? $"Kulüp {clubId}";
 
@@ -383,6 +518,7 @@ public partial class TimeControlScreen : Control
         var eligibility = world.Queries.GetTimeAdvanceEligibility();
         var period = world.Queries.GetCurrentPlanningPeriod();
         var season = competition.Queries.GetCurrentSeason();
+        var manager = _host.ManagerModule.Queries.GetCareer();
 
         _dateLabel.Text = $"Güncel tarih: {current.IsoDate} (DayNumber {current.DayNumber})";
         _periodLabel.Text = period is null
@@ -392,9 +528,18 @@ public partial class TimeControlScreen : Control
             ? "İlerletme engeli: yok"
             : $"İlerletme engeli: {eligibility.Blockers[0].SourceContext} / {eligibility.Blockers[0].DescriptionCode}";
 
+        var clubName = manager.EmployedClubId is long clubId
+            ? GetClubDisplayName(clubId)
+            : "—";
+        _managerLabel.Text =
+            $"Menajer: {manager.DisplayName} — Kulüp: {clubName}";
+
+        RefreshSquadList();
+
         if (season is null)
         {
             _seasonLabel.Text = "Lig sezonu: yok";
+            _seasonProgressLabel.Text = "Sezon ilerlemesi: —";
             _standingsLabel.Text = "Puan durumu: —";
             _fixtureList.Clear();
             return;
@@ -402,6 +547,13 @@ public partial class TimeControlScreen : Control
 
         _seasonLabel.Text =
             $"Lig sezonu: #{season.SeasonId} ({season.Status}) — {season.ParticipantCount} takım, {season.FixtureCount} maç";
+
+        var progress = competition.Queries.GetSeasonProgress(season.SeasonId);
+        _seasonProgressLabel.Text = progress is null
+            ? "Sezon ilerlemesi: —"
+            : $"Sezon ilerlemesi: {progress.AcceptedFixtureCount}/{progress.TotalFixtureCount} maç sonuçlandı"
+              + (progress.CanComplete ? " — kapatılabilir" : string.Empty)
+              + (progress.CanArchive ? " — arşivlenebilir" : string.Empty);
 
         if (season.FixtureCount == 0)
         {

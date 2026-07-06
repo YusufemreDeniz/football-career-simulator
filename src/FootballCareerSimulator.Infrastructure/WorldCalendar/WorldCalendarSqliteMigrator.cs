@@ -282,6 +282,87 @@ internal static class WorldCalendarSqliteMigrator
         using var updateCommand = connection.CreateCommand();
         updateCommand.Transaction = updateTransaction;
         updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 5);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
+    public static void MigrateV5ToV6InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV5ToV6(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V5 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.Move(workingCopyPath, filePath, overwrite: true);
+    }
+
+    private static void MigrateV5ToV6(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        int currentDayNumber = 1;
+        using (var dayCommand = connection.CreateCommand())
+        {
+            dayCommand.CommandText = "SELECT CurrentDayNumber FROM WorldTimelineState WHERE SingletonId = 1;";
+            var scalar = dayCommand.ExecuteScalar();
+            if (scalar is not null)
+            {
+                currentDayNumber = Convert.ToInt32(scalar);
+            }
+        }
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                CREATE TABLE ManagerCareerState (
+                    SingletonId INTEGER PRIMARY KEY CHECK (SingletonId = 1),
+                    ManagerId INTEGER NOT NULL,
+                    DisplayName TEXT NOT NULL,
+                    EmployedClubId INTEGER NOT NULL,
+                    EmploymentStartedDayNumber INTEGER NOT NULL
+                );
+                """);
+
+            using var insertCommand = connection.CreateCommand();
+            insertCommand.Transaction = alterTransaction;
+            insertCommand.CommandText = """
+                INSERT INTO ManagerCareerState (
+                    SingletonId, ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber)
+                VALUES (1, 1, 'Teknik Direktör', 1, $startedDay);
+                """;
+            insertCommand.Parameters.AddWithValue("$startedDay", currentDayNumber);
+            insertCommand.ExecuteNonQuery();
+
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
         updateCommand.Parameters.AddWithValue("$version", ProductionWorldCalendarSaveSchema.CurrentVersion);
         updateCommand.ExecuteNonQuery();
         updateTransaction.Commit();
