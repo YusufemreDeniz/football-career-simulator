@@ -28,3 +28,11 @@ public sealed record SeasonArchived(
     CompetitionId CompetitionId,
     SeasonId SeasonId)
     : CompetitionDomainEvent(OccurredAtGameTime);
+
+public sealed record LeagueFixturesPlanned(
+    GameDate OccurredAtGameTime,
+    CompetitionId CompetitionId,
+    SeasonId SeasonId,
+    int FixtureCount,
+    GameDate FirstMatchdayDate)
+    : CompetitionDomainEvent(OccurredAtGameTime);

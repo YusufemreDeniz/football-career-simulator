@@ -10,6 +10,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 public sealed class CompetitionSeason
 {
     private readonly List<SeasonParticipant> _participants = new();
+    private readonly List<Fixture> _fixtures = new();
     private readonly List<CompetitionDomainEvent> _uncommittedEvents = new();
 
     private CompetitionSeason(
@@ -20,7 +21,8 @@ public sealed class CompetitionSeason
         GameDate? activeStartedAt,
         GameDate? completedAt,
         GameDate? archivedAt,
-        IEnumerable<SeasonParticipant> participants)
+        IEnumerable<SeasonParticipant> participants,
+        IEnumerable<Fixture> fixtures)
     {
         CompetitionId = competitionId;
         SeasonId = seasonId;
@@ -30,6 +32,7 @@ public sealed class CompetitionSeason
         CompletedAt = completedAt;
         ArchivedAt = archivedAt;
         _participants.AddRange(participants);
+        _fixtures.AddRange(fixtures);
     }
 
     public CompetitionId CompetitionId { get; }
@@ -48,6 +51,8 @@ public sealed class CompetitionSeason
 
     public IReadOnlyList<SeasonParticipant> Participants => _participants;
 
+    public IReadOnlyList<Fixture> Fixtures => _fixtures;
+
     public IReadOnlyList<CompetitionDomainEvent> UncommittedEvents => _uncommittedEvents;
 
     public static CompetitionSeason Create(
@@ -62,7 +67,8 @@ public sealed class CompetitionSeason
             activeStartedAt: null,
             completedAt: null,
             archivedAt: null,
-            participants: Array.Empty<SeasonParticipant>());
+            participants: Array.Empty<SeasonParticipant>(),
+            fixtures: Array.Empty<Fixture>());
 
     public void RegisterParticipant(ClubId clubId)
     {
@@ -107,6 +113,41 @@ public sealed class CompetitionSeason
         _uncommittedEvents.Add(new SeasonStarted(occurredAt, CompetitionId, SeasonId));
     }
 
+    public void PlanLeagueFixtures(
+        GameDate firstMatchdayDate,
+        FixtureId startingFixtureId,
+        int daysBetweenRounds = CompetitionMvpConstraints.DefaultDaysBetweenRounds)
+    {
+        if (Status is not SeasonStatus.Active)
+        {
+            throw new CompetitionInvariantViolationException(
+                "League fixtures can only be planned for an active season.");
+        }
+
+        if (_fixtures.Count > 0)
+        {
+            throw new CompetitionInvariantViolationException(
+                "League fixtures have already been planned for this season.");
+        }
+
+        var generated = LeagueFixtureGenerator.GenerateDoubleRoundRobin(
+            CompetitionId,
+            SeasonId,
+            _participants.Select(participant => participant.ClubId).ToArray(),
+            firstMatchdayDate,
+            daysBetweenRounds,
+            startingFixtureId);
+
+        _fixtures.AddRange(generated);
+        _uncommittedEvents.Add(
+            new LeagueFixturesPlanned(
+                firstMatchdayDate,
+                CompetitionId,
+                SeasonId,
+                generated.Count,
+                firstMatchdayDate));
+    }
+
     public void CompleteSeason(GameDate occurredAt)
     {
         if (Status is not SeasonStatus.Active)
@@ -143,7 +184,8 @@ public sealed class CompetitionSeason
         GameDate? activeStartedAt,
         GameDate? completedAt,
         GameDate? archivedAt,
-        IEnumerable<SeasonParticipant> participants) =>
+        IEnumerable<SeasonParticipant> participants,
+        IEnumerable<Fixture>? fixtures = null) =>
         new(
             competitionId,
             seasonId,
@@ -152,5 +194,6 @@ public sealed class CompetitionSeason
             activeStartedAt,
             completedAt,
             archivedAt,
-            participants);
+            participants,
+            fixtures ?? Array.Empty<Fixture>());
 }

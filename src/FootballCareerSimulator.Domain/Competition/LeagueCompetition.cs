@@ -75,6 +75,18 @@ public sealed class LeagueCompetition
         GetSeasonOrThrow(seasonId).ArchiveSeason(occurredAt);
     }
 
+    public void PlanLeagueFixtures(
+        SeasonId seasonId,
+        GameDate firstMatchdayDate,
+        FixtureId startingFixtureId,
+        int daysBetweenRounds = CompetitionMvpConstraints.DefaultDaysBetweenRounds)
+    {
+        GetSeasonOrThrow(seasonId).PlanLeagueFixtures(
+            firstMatchdayDate,
+            startingFixtureId,
+            daysBetweenRounds);
+    }
+
     public static LeagueCompetition Rehydrate(
         CompetitionId competitionId,
         IEnumerable<CompetitionSeason> seasons)
