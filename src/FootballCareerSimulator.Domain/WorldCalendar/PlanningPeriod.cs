@@ -29,5 +29,5 @@ public sealed class PlanningPeriod
     internal PlanningPeriod WithStatus(PlanningPeriodStatus status, GameDate? completedAt = null) =>
         new(Id, StartDate, ExpectedEndDate, status, completedAt ?? CompletedAt);
 
-    internal bool IsActive => Status is not (PlanningPeriodStatus.Completed or PlanningPeriodStatus.Archived);
+    public bool IsActive => Status is not (PlanningPeriodStatus.Completed or PlanningPeriodStatus.Archived);
 }
