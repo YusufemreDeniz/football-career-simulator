@@ -6,17 +6,18 @@ using FootballCareerSimulator.Application.WorldCalendar.Ports;
 public sealed class WorldCalendarGameSessionService
 {
     private readonly IWorldTimelineStore _timelineStore;
-    private readonly AdvanceSimulationTimeHandler _advanceSimulationTime;
     private readonly IWorldCalendarPersistence _persistence;
+    private readonly IReadOnlyList<ICommandIdempotencyReset> _idempotencyResets;
 
     public WorldCalendarGameSessionService(
         IWorldTimelineStore timelineStore,
-        AdvanceSimulationTimeHandler advanceSimulationTime,
-        IWorldCalendarPersistence persistence)
+        IWorldCalendarPersistence persistence,
+        IEnumerable<ICommandIdempotencyReset> idempotencyResets)
     {
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
-        _advanceSimulationTime = advanceSimulationTime ?? throw new ArgumentNullException(nameof(advanceSimulationTime));
         _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
+        _idempotencyResets = idempotencyResets?.ToArray()
+            ?? throw new ArgumentNullException(nameof(idempotencyResets));
     }
 
     public SaveWorldCalendarGameResult Save(string filePath)
@@ -38,7 +39,11 @@ public sealed class WorldCalendarGameSessionService
 
         var loaded = _persistence.Load(filePath);
         _timelineStore.Replace(loaded.Timeline);
-        _advanceSimulationTime.ResetIdempotencyCache();
+
+        foreach (var reset in _idempotencyResets)
+        {
+            reset.ResetIdempotencyCache();
+        }
 
         return new LoadWorldCalendarGameResult(
             Succeeded: true,

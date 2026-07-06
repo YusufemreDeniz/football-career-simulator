@@ -5,7 +5,7 @@ using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Domain.WorldCalendar.Events;
 
-public sealed class AdvanceSimulationTimeHandler
+public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
 {
     private readonly IWorldTimelineStore _timelineStore;
     private readonly TimeAdvanceBlockerAggregator _blockerAggregator;

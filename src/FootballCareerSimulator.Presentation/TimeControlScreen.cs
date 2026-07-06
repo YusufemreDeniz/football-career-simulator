@@ -12,6 +12,7 @@ public partial class TimeControlScreen : Control
 {
     private WorldCalendarPresentationHost _host = null!;
     private WorldCalendarModule _module = null!;
+    private long _nextPlanningPeriodId = 1;
     private Label _dateLabel = null!;
     private Label _periodLabel = null!;
     private Label _blockerLabel = null!;
@@ -68,6 +69,14 @@ public partial class TimeControlScreen : Control
         loadButton.Pressed += LoadGame;
         layout.AddChild(loadButton);
 
+        var openPeriodButton = new Button { Text = "Planlama Dönemi Aç" };
+        openPeriodButton.Pressed += OpenPlanningPeriod;
+        layout.AddChild(openPeriodButton);
+
+        var completePeriodButton = new Button { Text = "Planlama Dönemini Tamamla" };
+        completePeriodButton.Pressed += CompletePlanningPeriod;
+        layout.AddChild(completePeriodButton);
+
         _statusLabel = new Label { Name = "StatusLabel" };
         layout.AddChild(_statusLabel);
     }
@@ -120,6 +129,45 @@ public partial class TimeControlScreen : Control
         catch (Exception ex)
         {
             _statusLabel.Text = $"Yükleme hatası: {ex.Message}";
+        }
+    }
+
+    private void OpenPlanningPeriod()
+    {
+        try
+        {
+            var current = _module.Queries.GetCurrentGameDate();
+            var result = _module.OpenPlanningPeriod.Handle(
+                new OpenPlanningPeriodCommand(
+                    Guid.NewGuid(),
+                    _nextPlanningPeriodId,
+                    current.DayNumber));
+
+            _nextPlanningPeriodId++;
+            _statusLabel.Text =
+                $"Planlama dönemi açıldı: #{result.PlanningPeriodId} ({result.Status})";
+            RefreshUi();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Planlama dönemi açılamadı: {ex.Message}";
+        }
+    }
+
+    private void CompletePlanningPeriod()
+    {
+        try
+        {
+            var result = _module.CompletePlanningPeriod.Handle(
+                new CompletePlanningPeriodCommand(Guid.NewGuid()));
+
+            _statusLabel.Text =
+                $"Planlama dönemi tamamlandı: #{result.PlanningPeriodId} (gün {result.CompletedAtDayNumber})";
+            RefreshUi();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Planlama dönemi tamamlanamadı: {ex.Message}";
         }
     }
 
@@ -176,6 +224,27 @@ public partial class TimeControlScreen : Control
         catch (Exception ex)
         {
             GD.Print($"[SelfCheck] BAŞARISIZ: Kayıt/yükleme — {ex.Message}.");
+            passed = false;
+        }
+
+        try
+        {
+            var current = _module.Queries.GetCurrentGameDate();
+            var openResult = _module.OpenPlanningPeriod.Handle(
+                new OpenPlanningPeriodCommand(Guid.NewGuid(), 99, current.DayNumber));
+            passed &= LogCheck("Planlama dönemi aç", openResult.Succeeded);
+
+            var period = _module.Queries.GetCurrentPlanningPeriod();
+            passed &= LogCheck("Aktif dönem query", period is not null && period.PlanningPeriodId == 99);
+
+            var completeResult = _module.CompletePlanningPeriod.Handle(
+                new CompletePlanningPeriodCommand(Guid.NewGuid()));
+            passed &= LogCheck("Planlama dönemi tamamla", completeResult.Succeeded);
+            passed &= LogCheck("Tamamlama sonrası aktif dönem yok", _module.Queries.GetCurrentPlanningPeriod() is null);
+        }
+        catch (Exception ex)
+        {
+            GD.Print($"[SelfCheck] BAŞARISIZ: Planlama dönemi — {ex.Message}.");
             passed = false;
         }
 
