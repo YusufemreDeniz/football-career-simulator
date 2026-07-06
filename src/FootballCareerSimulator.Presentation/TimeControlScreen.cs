@@ -21,7 +21,9 @@ public partial class TimeControlScreen : Control
     private Label _periodLabel = null!;
     private Label _blockerLabel = null!;
     private Label _seasonLabel = null!;
-    private Label _fixtureLabel = null!;
+    private Label _standingsLabel = null!;
+    private SpinBox _roundSelector = null!;
+    private ItemList _fixtureList = null!;
     private Label _statusLabel = null!;
 
     public override void _Ready()
@@ -61,8 +63,31 @@ public partial class TimeControlScreen : Control
         _seasonLabel = new Label { Name = "SeasonLabel" };
         layout.AddChild(_seasonLabel);
 
-        _fixtureLabel = new Label { Name = "FixtureLabel" };
-        layout.AddChild(_fixtureLabel);
+        _standingsLabel = new Label { Name = "StandingsLabel" };
+        layout.AddChild(_standingsLabel);
+
+        var roundRow = new HBoxContainer();
+        roundRow.AddChild(new Label { Text = "Hafta:" });
+        _roundSelector = new SpinBox
+        {
+            MinValue = 1,
+            MaxValue = CompetitionMvpConstraints.MaxLeagueFixtureRound,
+            Value = 1,
+        };
+        _roundSelector.ValueChanged += _ => RefreshFixtureList();
+        roundRow.AddChild(_roundSelector);
+        layout.AddChild(roundRow);
+
+        _fixtureList = new ItemList
+        {
+            Name = "FixtureList",
+            CustomMinimumSize = new Vector2(0, 140),
+        };
+        layout.AddChild(_fixtureList);
+
+        var playTodayButton = new Button { Text = "Bugünün Maçlarını Oyna" };
+        playTodayButton.Pressed += PlayTodayMatches;
+        layout.AddChild(playTodayButton);
 
         var advanceDayButton = new Button { Text = "1 Gün İlerlet" };
         advanceDayButton.Pressed += () => AdvanceDays(1);
@@ -182,6 +207,105 @@ public partial class TimeControlScreen : Control
         }
     }
 
+    private void PlayTodayMatches()
+    {
+        try
+        {
+            var competition = _host.CompetitionModule;
+            var world = _host.WorldModule;
+            var playHandler = competition.PlayFixtureMatch
+                ?? throw new InvalidOperationException("Maç oynatma servisi bağlı değil.");
+
+            var season = competition.Queries.GetCurrentSeason()
+                ?? throw new InvalidOperationException("Aktif sezon yok.");
+
+            var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
+            var dueFixtures = competition.Queries
+                .GetSeasonFixtures(season.SeasonId)
+                .Where(fixture =>
+                    fixture.ScheduledDayNumber <= currentDay
+                    && string.Equals(fixture.Status, nameof(FixtureStatus.Planned), StringComparison.Ordinal))
+                .ToArray();
+
+            if (dueFixtures.Length == 0)
+            {
+                _statusLabel.Text = "Bugün oynanacak planlı maç yok.";
+                return;
+            }
+
+            var played = 0;
+            foreach (var fixture in dueFixtures)
+            {
+                playHandler.Handle(
+                    new PlayFixtureMatchCommand(
+                        Guid.NewGuid(),
+                        season.SeasonId,
+                        fixture.FixtureId,
+                        currentDay));
+                played++;
+            }
+
+            _statusLabel.Text = $"{played} maç oynandı (gün {currentDay}).";
+            RefreshUi();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Maç oynatma hatası: {ex.Message}";
+        }
+    }
+
+    private string GetClubDisplayName(long clubId) =>
+        _host.ClubModule.Queries.GetClub(clubId)?.DisplayName ?? $"Kulüp {clubId}";
+
+    private void RefreshFixtureList()
+    {
+        _fixtureList.Clear();
+
+        var season = _host.CompetitionModule.Queries.GetCurrentSeason();
+        if (season is null || season.FixtureCount == 0)
+        {
+            return;
+        }
+
+        var round = (int)_roundSelector.Value;
+        var fixtures = _host.CompetitionModule.Queries.GetFixturesByRound(season.SeasonId, round);
+
+        foreach (var fixture in fixtures)
+        {
+            var home = GetClubDisplayName(fixture.HomeClubId);
+            var away = GetClubDisplayName(fixture.AwayClubId);
+            var score = fixture.HomeGoals is int homeGoals && fixture.AwayGoals is int awayGoals
+                ? $" {homeGoals}-{awayGoals}"
+                : string.Empty;
+            _fixtureList.AddItem(
+                $"{home} vs {away}{score} ({fixture.ScheduledIsoDate}, {fixture.Status})");
+        }
+    }
+
+    private void RefreshStandings()
+    {
+        var season = _host.CompetitionModule.Queries.GetCurrentSeason();
+        if (season is null || season.FixtureCount == 0)
+        {
+            _standingsLabel.Text = "Puan durumu: —";
+            return;
+        }
+
+        var standings = _host.CompetitionModule.Queries.GetStandings(season.SeasonId);
+        if (standings.Count == 0)
+        {
+            _standingsLabel.Text = "Puan durumu: henüz maç oynanmadı";
+            return;
+        }
+
+        var preview = string.Join(
+            " | ",
+            standings.Take(5).Select((entry, index) =>
+                $"{index + 1}. {GetClubDisplayName(entry.ClubId)} {entry.Points}p ({entry.Played}M)"));
+
+        _standingsLabel.Text = $"Puan durumu (ilk 5): {preview}";
+    }
+
     private void SaveGame()
     {
         try
@@ -271,7 +395,8 @@ public partial class TimeControlScreen : Control
         if (season is null)
         {
             _seasonLabel.Text = "Lig sezonu: yok";
-            _fixtureLabel.Text = "Fikstür: —";
+            _standingsLabel.Text = "Puan durumu: —";
+            _fixtureList.Clear();
             return;
         }
 
@@ -280,16 +405,13 @@ public partial class TimeControlScreen : Control
 
         if (season.FixtureCount == 0)
         {
-            _fixtureLabel.Text = "Fikstür: henüz planlanmadı";
+            _standingsLabel.Text = "Puan durumu: —";
+            _fixtureList.Clear();
             return;
         }
 
-        var roundOne = competition.Queries.GetFixturesByRound(season.SeasonId, round: 1);
-        var preview = string.Join(
-            ", ",
-            roundOne.Take(4).Select(fixture => $"{fixture.HomeClubId}-{fixture.AwayClubId}"));
-        _fixtureLabel.Text =
-            $"1. hafta ({roundOne.Count} maç): {preview}{(roundOne.Count > 4 ? ", …" : string.Empty)}";
+        RefreshStandings();
+        RefreshFixtureList();
     }
 
     private static int ComputeFirstMatchdayDayNumber(int currentDayNumber) =>
@@ -393,6 +515,20 @@ public partial class TimeControlScreen : Control
             passed &= LogCheck(
                 "1. hafta maç sayısı",
                 roundOne.Count == CompetitionMvpConstraints.LeagueFixturesPerRound);
+
+            var firstMatchday = roundOne[0].ScheduledDayNumber;
+            world.AdvanceSimulationTime.Handle(
+                new AdvanceSimulationTimeCommand(Guid.NewGuid(), firstMatchday));
+            var playResult = competition.PlayFixtureMatch!.Handle(
+                new PlayFixtureMatchCommand(
+                    Guid.NewGuid(),
+                    DefaultSeasonId,
+                    roundOne[0].FixtureId,
+                    firstMatchday));
+            passed &= LogCheck("Maç oynatma", playResult.Succeeded);
+            passed &= LogCheck(
+                "Puan durumu güncellendi",
+                competition.Queries.GetStandings(DefaultSeasonId).Count(entry => entry.Played > 0) == 2);
         }
         catch (Exception ex)
         {

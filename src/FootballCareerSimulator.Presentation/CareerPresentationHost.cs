@@ -41,10 +41,10 @@ public sealed class CareerPresentationHost
     public static CareerPresentationHost CreateDefault(string? defaultSavePath = null)
     {
         var worldModule = WorldCalendarModule.CreateNewGame();
+        var clubModule = ClubGovernanceModule.CreateMvpLeague();
         var competitionModule = CompetitionModule.CreateForCareer(
             worldModule.TimelineStore,
             clubModule.Store);
-        var clubModule = ClubGovernanceModule.CreateMvpLeague();
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =
