@@ -151,6 +151,81 @@ internal static class WorldCalendarSqliteMigrator
         using var updateCommand = connection.CreateCommand();
         updateCommand.Transaction = updateTransaction;
         updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 3);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
+    public static void MigrateV3ToV4InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV3ToV4(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V3 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.Move(workingCopyPath, filePath, overwrite: true);
+    }
+
+    private static void MigrateV3ToV4(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                CREATE TABLE ClubState (
+                    ClubId INTEGER PRIMARY KEY,
+                    DisplayName TEXT NOT NULL,
+                    ClubCode TEXT NOT NULL,
+                    SportiveStrength INTEGER NOT NULL
+                );
+                """);
+
+            var defaultRegistry = FootballCareerSimulator.Domain.ClubGovernance.LeagueClubRegistry.CreateMvpLeague();
+            foreach (var club in defaultRegistry.Clubs)
+            {
+                using var insertCommand = connection.CreateCommand();
+                insertCommand.Transaction = alterTransaction;
+                insertCommand.CommandText = """
+                    INSERT INTO ClubState (ClubId, DisplayName, ClubCode, SportiveStrength)
+                    VALUES ($clubId, $displayName, $clubCode, $sportiveStrength);
+                    """;
+                insertCommand.Parameters.AddWithValue("$clubId", club.Id.Value);
+                insertCommand.Parameters.AddWithValue("$displayName", club.DisplayName);
+                insertCommand.Parameters.AddWithValue("$clubCode", club.Code.Value);
+                insertCommand.Parameters.AddWithValue("$sportiveStrength", club.SportiveStrength);
+                insertCommand.ExecuteNonQuery();
+            }
+
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
         updateCommand.Parameters.AddWithValue("$version", ProductionWorldCalendarSaveSchema.CurrentVersion);
         updateCommand.ExecuteNonQuery();
         updateTransaction.Commit();

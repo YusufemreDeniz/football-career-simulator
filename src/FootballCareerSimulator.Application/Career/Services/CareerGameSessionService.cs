@@ -3,23 +3,27 @@ namespace FootballCareerSimulator.Application.Career.Services;
 using FootballCareerSimulator.Application.Career.Commands;
 using FootballCareerSimulator.Application.Career.Ports;
 using FootballCareerSimulator.Application.Competition.Ports;
+using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 
 public sealed class CareerGameSessionService
 {
     private readonly IWorldTimelineStore _timelineStore;
     private readonly ILeagueCompetitionStore _competitionStore;
+    private readonly IClubRegistryStore _clubRegistryStore;
     private readonly ICareerPersistence _persistence;
     private readonly IReadOnlyList<ICommandIdempotencyReset> _idempotencyResets;
 
     public CareerGameSessionService(
         IWorldTimelineStore timelineStore,
         ILeagueCompetitionStore competitionStore,
+        IClubRegistryStore clubRegistryStore,
         ICareerPersistence persistence,
         IEnumerable<ICommandIdempotencyReset> idempotencyResets)
     {
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
+        _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
         _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
         _idempotencyResets = idempotencyResets?.ToArray()
             ?? throw new ArgumentNullException(nameof(idempotencyResets));
@@ -31,7 +35,8 @@ public sealed class CareerGameSessionService
 
         var timeline = _timelineStore.Timeline;
         var league = _competitionStore.League;
-        _persistence.Save(filePath, timeline, league);
+        var clubRegistry = _clubRegistryStore.Registry;
+        _persistence.Save(filePath, timeline, league, clubRegistry);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -49,6 +54,7 @@ public sealed class CareerGameSessionService
         var loaded = _persistence.Load(filePath);
         _timelineStore.Replace(loaded.Timeline);
         _competitionStore.Replace(loaded.League);
+        _clubRegistryStore.Replace(loaded.ClubRegistry);
 
         foreach (var reset in _idempotencyResets)
         {

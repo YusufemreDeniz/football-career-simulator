@@ -2,6 +2,7 @@ using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure.Career;
@@ -80,14 +81,17 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         var (world, competition) = CreateCareerState();
         var timeline = world.TimelineStore.Timeline;
         var league = competition.Store.League;
+        var clubs = LeagueClubRegistry.CreateMvpLeague();
         var path = GetSavePath("career-roundtrip.db");
-        var expectedHash = CareerCanonicalStateHasher.ComputeHash(timeline, league);
+        var expectedHash = CareerCanonicalStateHasher.ComputeHash(timeline, league, clubs);
 
-        _persistence.Save(path, timeline, league);
+        _persistence.Save(path, timeline, league, clubs);
         var loaded = _persistence.Load(path);
 
         Assert.False(loaded.WasMigrated);
-        Assert.Equal(expectedHash, CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, loaded.League));
+        Assert.Equal(
+            expectedHash,
+            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, loaded.League, loaded.ClubRegistry));
         Assert.Equal(timeline.CurrentDate, loaded.Timeline.CurrentDate);
         Assert.Equal(
             CompetitionMvpConstraints.TotalLeagueFixtures,
@@ -119,12 +123,13 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         var loaded = _persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(3, loaded.SchemaVersion);
+        Assert.Equal(4, loaded.SchemaVersion);
         Assert.Empty(loaded.League.Seasons);
         Assert.Equal(1, loaded.League.CompetitionId.Value);
         Assert.Equal(
-            CareerCanonicalStateHasher.ComputeHash(timeline, loaded.League),
-            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, loaded.League));
+            CareerCanonicalStateHasher.ComputeHash(timeline, loaded.League, loaded.ClubRegistry),
+            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, loaded.League, loaded.ClubRegistry));
+        Assert.Equal(CompetitionMvpConstraints.LeagueTeamCount, loaded.ClubRegistry.Clubs.Count);
         Assert.True(File.Exists(path + ".bak"));
     }
 }

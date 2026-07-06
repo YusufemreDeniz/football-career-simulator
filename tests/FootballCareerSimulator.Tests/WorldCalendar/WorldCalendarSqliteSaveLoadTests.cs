@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure;
@@ -35,6 +36,8 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
 
     private static LeagueCompetition EmptyLeague() => new(new CompetitionId(1));
 
+    private static LeagueClubRegistry DefaultClubs() => LeagueClubRegistry.CreateMvpLeague();
+
     [Fact]
     public void SaveAndLoad_RoundTrip_PreservesCanonicalState()
     {
@@ -47,7 +50,7 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
 
         var path = GetSavePath("roundtrip.db");
         var timeline = module.TimelineStore.Timeline;
-        var expectedHash = CareerCanonicalStateHasher.ComputeHash(timeline, EmptyLeague());
+        var expectedHash = CareerCanonicalStateHasher.ComputeHash(timeline, EmptyLeague(), DefaultClubs());
 
         _persistence.Save(path, timeline);
         var loaded = _persistence.Load(path);
@@ -55,7 +58,7 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
         Assert.False(loaded.WasMigrated);
         Assert.Equal(
             expectedHash,
-            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, EmptyLeague()));
+            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, EmptyLeague(), DefaultClubs()));
         Assert.Equal(timeline.CurrentDate, loaded.Timeline.CurrentDate);
         Assert.Equal(timeline.LastCommittedStepId, loaded.Timeline.LastCommittedStepId);
         Assert.Equal(timeline.RngDrawCount, loaded.Timeline.RngDrawCount);
@@ -106,8 +109,8 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
         Assert.Equal(timeline.CurrentDate, loaded.Timeline.CurrentDate);
         Assert.Equal(timeline.LastCommittedStepId, loaded.Timeline.LastCommittedStepId);
         Assert.Equal(
-            CareerCanonicalStateHasher.ComputeHash(timeline, EmptyLeague()),
-            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, EmptyLeague()));
+            CareerCanonicalStateHasher.ComputeHash(timeline, EmptyLeague(), DefaultClubs()),
+            CareerCanonicalStateHasher.ComputeHash(loaded.Timeline, EmptyLeague(), DefaultClubs()));
         Assert.True(File.Exists(path + ".bak"));
     }
 

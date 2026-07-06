@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure.Career;
@@ -17,7 +18,8 @@ public sealed class WorldCalendarSqlitePersistence : IWorldCalendarPersistence
         _careerPersistence.Save(
             filePath,
             timeline,
-            new LeagueCompetition(new CompetitionId(1)));
+            new LeagueCompetition(new CompetitionId(1)),
+            LeagueClubRegistry.CreateMvpLeague());
     }
 
     public WorldCalendarLoadResult Load(string filePath)
