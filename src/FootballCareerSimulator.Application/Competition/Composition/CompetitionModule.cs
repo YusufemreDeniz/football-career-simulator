@@ -100,6 +100,14 @@ public sealed class CompetitionModule
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
         var store = new InMemoryLeagueCompetitionStore(league);
+        return CreateForCareerFromStore(store, timelineStore, clubRegistryStore);
+    }
+
+    public static CompetitionModule CreateForCareerFromStore(
+        ILeagueCompetitionStore store,
+        IWorldTimelineStore timelineStore,
+        IClubRegistryStore clubRegistryStore)
+    {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
         var startSeason = new StartSeasonHandler(store);

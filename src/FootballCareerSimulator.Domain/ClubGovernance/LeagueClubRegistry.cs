@@ -22,22 +22,8 @@ public sealed class LeagueClubRegistry
         _clubs.FirstOrDefault(club => club.Id == clubId)
         ?? throw new ClubGovernanceInvariantViolationException($"Club {clubId.Value} was not found.");
 
-    public static LeagueClubRegistry CreateMvpLeague()
-    {
-        var clubs = new List<Club>(CompetitionMvpConstraints.LeagueTeamCount);
-        for (var index = 1; index <= CompetitionMvpConstraints.LeagueTeamCount; index++)
-        {
-            var id = new ClubId(index);
-            var strength = 45 + (index * 2 % 46);
-            clubs.Add(Club.Create(
-                id,
-                displayName: $"Kulüp {index:D2}",
-                code: new ClubCode($"K{index:D2}"),
-                sportiveStrength: strength));
-        }
-
-        return new LeagueClubRegistry(clubs);
-    }
+    public static LeagueClubRegistry CreateMvpLeague() =>
+        new LeagueClubRegistry(MvpLeagueCatalog.CreateClubs());
 
     public static LeagueClubRegistry Rehydrate(IEnumerable<Club> clubs) => new(clubs);
 

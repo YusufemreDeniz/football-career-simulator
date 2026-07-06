@@ -24,8 +24,8 @@ public sealed class ClubRegistryTests
         var club = registry.GetClubOrThrow(new ClubId(5));
 
         Assert.Equal(5, club.Id.Value);
-        Assert.Equal("K05", club.Code.Value);
-        Assert.Contains("05", club.DisplayName);
+        Assert.Equal("AKD", club.Code.Value);
+        Assert.Equal("Akdeniz United", club.DisplayName);
     }
 
     [Fact]
