@@ -1,27 +1,32 @@
+using FootballCareerSimulator.Application.Competition.Commands;
+using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.WorldCalendar;
 using Godot;
 
 namespace FootballCareerSimulator.Presentation;
 
 /// <summary>
-/// Production Kart 6: yalnızca Application command/query contract'ları üzerinden çalışan minimum
-/// zaman kontrol ekranı.
+/// Production Kart 6 + Competition Kart C6: Application command/query contract'ları üzerinden
+/// zaman kontrolü, planlama dönemi ve lig sezonu/fikstür görüntüleme.
 /// </summary>
 public partial class TimeControlScreen : Control
 {
-    private WorldCalendarPresentationHost _host = null!;
-    private WorldCalendarModule _module = null!;
+    private CareerPresentationHost _host = null!;
     private long _nextPlanningPeriodId = 1;
+    private const long DefaultSeasonId = 1;
     private Label _dateLabel = null!;
     private Label _periodLabel = null!;
     private Label _blockerLabel = null!;
+    private Label _seasonLabel = null!;
+    private Label _fixtureLabel = null!;
     private Label _statusLabel = null!;
 
     public override void _Ready()
     {
-        _host = WorldCalendarPresentationHost.CreateDefault();
-        _module = _host.Module;
+        _host = CareerPresentationHost.CreateDefault();
         BuildLayout();
         RefreshUi();
 
@@ -53,6 +58,12 @@ public partial class TimeControlScreen : Control
         _blockerLabel = new Label { Name = "BlockerLabel" };
         layout.AddChild(_blockerLabel);
 
+        _seasonLabel = new Label { Name = "SeasonLabel" };
+        layout.AddChild(_seasonLabel);
+
+        _fixtureLabel = new Label { Name = "FixtureLabel" };
+        layout.AddChild(_fixtureLabel);
+
         var advanceDayButton = new Button { Text = "1 Gün İlerlet" };
         advanceDayButton.Pressed += () => AdvanceDays(1);
         layout.AddChild(advanceDayButton);
@@ -60,6 +71,10 @@ public partial class TimeControlScreen : Control
         var advanceWeekButton = new Button { Text = "7 Gün İlerlet" };
         advanceWeekButton.Pressed += () => AdvanceDays(7);
         layout.AddChild(advanceWeekButton);
+
+        var setupLeagueButton = new Button { Text = "Lig Sezonu Kur (20 takım + fikstür)" };
+        setupLeagueButton.Pressed += SetupLeagueSeason;
+        layout.AddChild(setupLeagueButton);
 
         var saveButton = new Button { Text = "Kaydet" };
         saveButton.Pressed += SaveGame;
@@ -83,8 +98,9 @@ public partial class TimeControlScreen : Control
 
     private void AdvanceDays(int dayCount)
     {
-        var current = _module.Queries.GetCurrentGameDate();
-        var result = _module.AdvanceSimulationTime.Handle(
+        var world = _host.WorldModule;
+        var current = world.Queries.GetCurrentGameDate();
+        var result = world.AdvanceSimulationTime.Handle(
             new AdvanceSimulationTimeCommand(Guid.NewGuid(), current.DayNumber + dayCount));
 
         if (result.WasBlocked)
@@ -102,13 +118,77 @@ public partial class TimeControlScreen : Control
         RefreshUi();
     }
 
+    private void SetupLeagueSeason()
+    {
+        try
+        {
+            var competition = _host.CompetitionModule;
+            var world = _host.WorldModule;
+            var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
+            var season = competition.Queries.GetCurrentSeason();
+
+            if (season is null)
+            {
+                competition.CreateSeason.Handle(
+                    new CreateSeasonCommand(Guid.NewGuid(), DefaultSeasonId, currentDay));
+                season = competition.Queries.GetCurrentSeason();
+            }
+
+            if (season is null)
+            {
+                throw new InvalidOperationException("Sezon oluşturulamadı.");
+            }
+
+            if (season.ParticipantCount < CompetitionMvpConstraints.LeagueTeamCount)
+            {
+                for (var clubId = season.ParticipantCount + 1L;
+                     clubId <= CompetitionMvpConstraints.LeagueTeamCount;
+                     clubId++)
+                {
+                    competition.RegisterSeasonParticipant.Handle(
+                        new RegisterSeasonParticipantCommand(Guid.NewGuid(), DefaultSeasonId, clubId));
+                }
+
+                season = competition.Queries.GetCurrentSeason()!;
+            }
+
+            if (string.Equals(season.Status, nameof(SeasonStatus.Preseason), StringComparison.Ordinal))
+            {
+                competition.StartSeason.Handle(
+                    new StartSeasonCommand(Guid.NewGuid(), DefaultSeasonId, currentDay));
+                season = competition.Queries.GetCurrentSeason()!;
+            }
+
+            if (season.FixtureCount == 0)
+            {
+                var firstMatchday = ComputeFirstMatchdayDayNumber(currentDay);
+                competition.PlanLeagueFixtures.Handle(
+                    new PlanLeagueFixturesCommand(
+                        Guid.NewGuid(),
+                        DefaultSeasonId,
+                        firstMatchday,
+                        StartingFixtureId: 1));
+
+                season = competition.Queries.GetCurrentSeason()!;
+            }
+
+            _statusLabel.Text =
+                $"Lig hazır: sezon #{season.SeasonId}, {season.ParticipantCount} takım, {season.FixtureCount} maç.";
+            RefreshUi();
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"Lig kurulumu başarısız: {ex.Message}";
+        }
+    }
+
     private void SaveGame()
     {
         try
         {
             var result = _host.GameSession.Save(_host.DefaultSavePath);
             _statusLabel.Text =
-                $"Kayıt tamamlandı: gün {result.SavedDayNumber} ({result.SavePath})";
+                $"Kayıt tamamlandı: gün {result.SavedDayNumber}, {result.SavedFixtureCount} maç ({result.SavePath})";
         }
         catch (Exception ex)
         {
@@ -122,8 +202,8 @@ public partial class TimeControlScreen : Control
         {
             var result = _host.GameSession.Load(_host.DefaultSavePath);
             _statusLabel.Text = result.WasMigrated
-                ? $"Yükleme tamamlandı (migrate): gün {result.LoadedDayNumber}"
-                : $"Yükleme tamamlandı: gün {result.LoadedDayNumber}";
+                ? $"Yükleme tamamlandı (migrate): gün {result.LoadedDayNumber}, {result.LoadedFixtureCount} maç"
+                : $"Yükleme tamamlandı: gün {result.LoadedDayNumber}, {result.LoadedFixtureCount} maç";
             RefreshUi();
         }
         catch (Exception ex)
@@ -136,8 +216,8 @@ public partial class TimeControlScreen : Control
     {
         try
         {
-            var current = _module.Queries.GetCurrentGameDate();
-            var result = _module.OpenPlanningPeriod.Handle(
+            var current = _host.WorldModule.Queries.GetCurrentGameDate();
+            var result = _host.WorldModule.OpenPlanningPeriod.Handle(
                 new OpenPlanningPeriodCommand(
                     Guid.NewGuid(),
                     _nextPlanningPeriodId,
@@ -158,7 +238,7 @@ public partial class TimeControlScreen : Control
     {
         try
         {
-            var result = _module.CompletePlanningPeriod.Handle(
+            var result = _host.WorldModule.CompletePlanningPeriod.Handle(
                 new CompletePlanningPeriodCommand(Guid.NewGuid()));
 
             _statusLabel.Text =
@@ -173,9 +253,12 @@ public partial class TimeControlScreen : Control
 
     private void RefreshUi()
     {
-        var current = _module.Queries.GetCurrentGameDate();
-        var eligibility = _module.Queries.GetTimeAdvanceEligibility();
-        var period = _module.Queries.GetCurrentPlanningPeriod();
+        var world = _host.WorldModule;
+        var competition = _host.CompetitionModule;
+        var current = world.Queries.GetCurrentGameDate();
+        var eligibility = world.Queries.GetTimeAdvanceEligibility();
+        var period = world.Queries.GetCurrentPlanningPeriod();
+        var season = competition.Queries.GetCurrentSeason();
 
         _dateLabel.Text = $"Güncel tarih: {current.IsoDate} (DayNumber {current.DayNumber})";
         _periodLabel.Text = period is null
@@ -184,42 +267,70 @@ public partial class TimeControlScreen : Control
         _blockerLabel.Text = eligibility.CanAdvance
             ? "İlerletme engeli: yok"
             : $"İlerletme engeli: {eligibility.Blockers[0].SourceContext} / {eligibility.Blockers[0].DescriptionCode}";
+
+        if (season is null)
+        {
+            _seasonLabel.Text = "Lig sezonu: yok";
+            _fixtureLabel.Text = "Fikstür: —";
+            return;
+        }
+
+        _seasonLabel.Text =
+            $"Lig sezonu: #{season.SeasonId} ({season.Status}) — {season.ParticipantCount} takım, {season.FixtureCount} maç";
+
+        if (season.FixtureCount == 0)
+        {
+            _fixtureLabel.Text = "Fikstür: henüz planlanmadı";
+            return;
+        }
+
+        var roundOne = competition.Queries.GetFixturesByRound(season.SeasonId, round: 1);
+        var preview = string.Join(
+            ", ",
+            roundOne.Take(4).Select(fixture => $"{fixture.HomeClubId}-{fixture.AwayClubId}"));
+        _fixtureLabel.Text =
+            $"1. hafta ({roundOne.Count} maç): {preview}{(roundOne.Count > 4 ? ", …" : string.Empty)}";
     }
+
+    private static int ComputeFirstMatchdayDayNumber(int currentDayNumber) =>
+        GameDate.FromDayNumber(currentDayNumber).AddDays(30).DayNumber;
 
     private void RunSelfCheck()
     {
         var passed = true;
+        var world = _host.WorldModule;
+        var competition = _host.CompetitionModule;
 
-        var before = _module.Queries.GetCurrentGameDate();
+        var before = world.Queries.GetCurrentGameDate();
         passed &= LogCheck("Başlangıç tarihi", before.DayNumber > 0);
 
-        var result = _module.AdvanceSimulationTime.Handle(
+        var result = world.AdvanceSimulationTime.Handle(
             new AdvanceSimulationTimeCommand(Guid.NewGuid(), before.DayNumber + 1));
         passed &= LogCheck("1 gün ilerletme", result.Succeeded && result.NewDayNumber == before.DayNumber + 1);
 
-        var after = _module.Queries.GetCurrentGameDate();
+        var after = world.Queries.GetCurrentGameDate();
         passed &= LogCheck("Query güncel tarih", after.DayNumber == before.DayNumber + 1);
 
-        var selfCheckSavePath = Path.Combine(OS.GetUserDataDir(), "world_calendar_selfcheck.db");
+        var selfCheckSavePath = Path.Combine(OS.GetUserDataDir(), "career_ui_selfcheck.db");
         try
         {
             var checkpointDay = after.DayNumber;
             var saveResult = _host.GameSession.Save(selfCheckSavePath);
-            passed &= LogCheck("Kayıt", saveResult.Succeeded && saveResult.SavedDayNumber == checkpointDay);
+            passed &= LogCheck("Career kayıt", saveResult.Succeeded && saveResult.SavedDayNumber == checkpointDay);
 
-            _module.AdvanceSimulationTime.Handle(
+            world.AdvanceSimulationTime.Handle(
                 new AdvanceSimulationTimeCommand(Guid.NewGuid(), checkpointDay + 3));
             passed &= LogCheck(
                 "İlerletme sonrası tarih değişti",
-                _module.Queries.GetCurrentGameDate().DayNumber == checkpointDay + 3);
+                world.Queries.GetCurrentGameDate().DayNumber == checkpointDay + 3);
 
             var loadResult = _host.GameSession.Load(selfCheckSavePath);
             passed &= LogCheck(
-                "Yükleme checkpoint",
+                "Career yükleme checkpoint",
                 loadResult.Succeeded && loadResult.LoadedDayNumber == checkpointDay);
             passed &= LogCheck(
                 "Yükleme sonrası query",
-                _module.Queries.GetCurrentGameDate().DayNumber == checkpointDay);
+                world.Queries.GetCurrentGameDate().DayNumber == checkpointDay);
         }
         catch (Exception ex)
         {
@@ -229,18 +340,18 @@ public partial class TimeControlScreen : Control
 
         try
         {
-            var current = _module.Queries.GetCurrentGameDate();
-            var openResult = _module.OpenPlanningPeriod.Handle(
+            var current = world.Queries.GetCurrentGameDate();
+            var openResult = world.OpenPlanningPeriod.Handle(
                 new OpenPlanningPeriodCommand(Guid.NewGuid(), 99, current.DayNumber));
             passed &= LogCheck("Planlama dönemi aç", openResult.Succeeded);
 
-            var period = _module.Queries.GetCurrentPlanningPeriod();
+            var period = world.Queries.GetCurrentPlanningPeriod();
             passed &= LogCheck("Aktif dönem query", period is not null && period.PlanningPeriodId == 99);
 
-            var completeResult = _module.CompletePlanningPeriod.Handle(
+            var completeResult = world.CompletePlanningPeriod.Handle(
                 new CompletePlanningPeriodCommand(Guid.NewGuid()));
             passed &= LogCheck("Planlama dönemi tamamla", completeResult.Succeeded);
-            passed &= LogCheck("Tamamlama sonrası aktif dönem yok", _module.Queries.GetCurrentPlanningPeriod() is null);
+            passed &= LogCheck("Tamamlama sonrası aktif dönem yok", world.Queries.GetCurrentPlanningPeriod() is null);
         }
         catch (Exception ex)
         {
@@ -248,9 +359,80 @@ public partial class TimeControlScreen : Control
             passed = false;
         }
 
+        try
+        {
+            SetupLeagueSeasonForSelfCheck(competition, world);
+            var season = competition.Queries.GetCurrentSeason();
+            passed &= LogCheck(
+                "Lig sezonu kurulumu",
+                season is not null
+                && season.ParticipantCount == CompetitionMvpConstraints.LeagueTeamCount
+                && season.FixtureCount == CompetitionMvpConstraints.TotalLeagueFixtures);
+
+            var leagueSavePath = Path.Combine(OS.GetUserDataDir(), "career_league_selfcheck.db");
+            var saveResult = _host.GameSession.Save(leagueSavePath);
+            passed &= LogCheck(
+                "Lig kayıt fixture sayısı",
+                saveResult.SavedFixtureCount == CompetitionMvpConstraints.TotalLeagueFixtures);
+
+            world.AdvanceSimulationTime.Handle(
+                new AdvanceSimulationTimeCommand(
+                    Guid.NewGuid(),
+                    world.Queries.GetCurrentGameDate().DayNumber + 5));
+
+            var loadResult = _host.GameSession.Load(leagueSavePath);
+            passed &= LogCheck(
+                "Lig yükleme fixture sayısı",
+                loadResult.LoadedFixtureCount == CompetitionMvpConstraints.TotalLeagueFixtures);
+            passed &= LogCheck(
+                "Yükleme sonrası sezon query",
+                competition.Queries.GetCurrentSeason()?.FixtureCount
+                == CompetitionMvpConstraints.TotalLeagueFixtures);
+
+            var roundOne = competition.Queries.GetFixturesByRound(DefaultSeasonId, round: 1);
+            passed &= LogCheck(
+                "1. hafta maç sayısı",
+                roundOne.Count == CompetitionMvpConstraints.LeagueFixturesPerRound);
+        }
+        catch (Exception ex)
+        {
+            GD.Print($"[SelfCheck] BAŞARISIZ: Lig sezonu — {ex.Message}.");
+            passed = false;
+        }
+
         GD.Print(passed ? "[SelfCheck] TÜMÜ BAŞARILI." : "[SelfCheck] BİR VEYA DAHA FAZLA KONTROL BAŞARISIZ.");
         GD.Print(passed ? "WORLD_CALENDAR_UI_SMOKE_TEST_RESULT=PASS" : "WORLD_CALENDAR_UI_SMOKE_TEST_RESULT=FAIL");
+        GD.Print(passed ? "CAREER_UI_SMOKE_TEST_RESULT=PASS" : "CAREER_UI_SMOKE_TEST_RESULT=FAIL");
         GD.Print(passed ? "SPIKE5_SMOKE_TEST_RESULT=PASS" : "SPIKE5_SMOKE_TEST_RESULT=FAIL");
+    }
+
+    private static void SetupLeagueSeasonForSelfCheck(
+        CompetitionModule competition,
+        WorldCalendarModule world)
+    {
+        var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
+
+        if (competition.Queries.GetCurrentSeason() is null)
+        {
+            competition.CreateSeason.Handle(
+                new CreateSeasonCommand(Guid.NewGuid(), DefaultSeasonId, currentDay));
+        }
+
+        for (var clubId = 1L; clubId <= CompetitionMvpConstraints.LeagueTeamCount; clubId++)
+        {
+            competition.RegisterSeasonParticipant.Handle(
+                new RegisterSeasonParticipantCommand(Guid.NewGuid(), DefaultSeasonId, clubId));
+        }
+
+        competition.StartSeason.Handle(
+            new StartSeasonCommand(Guid.NewGuid(), DefaultSeasonId, currentDay));
+
+        competition.PlanLeagueFixtures.Handle(
+            new PlanLeagueFixturesCommand(
+                Guid.NewGuid(),
+                DefaultSeasonId,
+                ComputeFirstMatchdayDayNumber(currentDay),
+                StartingFixtureId: 1));
     }
 
     private static bool LogCheck(string name, bool ok)
