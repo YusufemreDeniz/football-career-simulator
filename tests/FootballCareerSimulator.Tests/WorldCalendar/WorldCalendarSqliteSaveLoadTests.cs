@@ -3,7 +3,6 @@ using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure;
 using FootballCareerSimulator.Infrastructure.WorldCalendar;
-using FootballCareerSimulator.Simulation.Spike1Placeholder;
 using FootballCareerSimulator.Simulation.WorldCalendar;
 using Microsoft.Data.Sqlite;
 
@@ -106,8 +105,7 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
     public void Load_SpikePlaceholderSave_IsRejected()
     {
         var path = GetSavePath("spike.db");
-        var (world, _) = HeadlessSimulationRunner.CreateWorld(seed: 42);
-        SqliteSaveWriter.Save(path, world, 42, "1");
+        LegacySpikeSaveFixture.CreateMinimalFile(path);
 
         Assert.Throws<UnsupportedLegacySpikeSaveException>(() => _persistence.Load(path));
     }
