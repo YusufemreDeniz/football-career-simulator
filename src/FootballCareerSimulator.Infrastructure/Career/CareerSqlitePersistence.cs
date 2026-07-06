@@ -89,6 +89,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 4;
         }
 
+        if (version == 4 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 5)
+        {
+            WorldCalendarSqliteMigrator.MigrateV4ToV5InPlace(filePath);
+            wasMigrated = true;
+            version = 5;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -165,7 +172,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 AwayClubId INTEGER NOT NULL,
                 Round INTEGER NOT NULL,
                 ScheduledDayNumber INTEGER NOT NULL,
-                Status INTEGER NOT NULL
+                Status INTEGER NOT NULL,
+                HomeGoals INTEGER NULL,
+                AwayGoals INTEGER NULL
             );
             """);
 
@@ -282,9 +291,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 fixtureCommand.Transaction = transaction;
                 fixtureCommand.CommandText = """
                     INSERT INTO FixtureState (
-                        FixtureId, SeasonId, HomeClubId, AwayClubId, Round, ScheduledDayNumber, Status)
+                        FixtureId, SeasonId, HomeClubId, AwayClubId, Round, ScheduledDayNumber, Status, HomeGoals, AwayGoals)
                     VALUES (
-                        $fixtureId, $seasonId, $homeClubId, $awayClubId, $round, $scheduledDayNumber, $status);
+                        $fixtureId, $seasonId, $homeClubId, $awayClubId, $round, $scheduledDayNumber, $status, $homeGoals, $awayGoals);
                     """;
                 fixtureCommand.Parameters.AddWithValue("$fixtureId", fixture.Id.Value);
                 fixtureCommand.Parameters.AddWithValue("$seasonId", season.SeasonId.Value);
@@ -293,6 +302,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 fixtureCommand.Parameters.AddWithValue("$round", fixture.Round.Value);
                 fixtureCommand.Parameters.AddWithValue("$scheduledDayNumber", fixture.ScheduledDate.DayNumber);
                 fixtureCommand.Parameters.AddWithValue("$status", (int)fixture.Status);
+                fixtureCommand.Parameters.AddWithValue("$homeGoals", (object?)fixture.HomeGoals ?? DBNull.Value);
+                fixtureCommand.Parameters.AddWithValue("$awayGoals", (object?)fixture.AwayGoals ?? DBNull.Value);
                 fixtureCommand.ExecuteNonQuery();
             }
         }
@@ -565,7 +576,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         {
             using var command = connection.CreateCommand();
             command.CommandText = """
-                SELECT FixtureId, SeasonId, HomeClubId, AwayClubId, Round, ScheduledDayNumber, Status
+                SELECT FixtureId, SeasonId, HomeClubId, AwayClubId, Round, ScheduledDayNumber, Status, HomeGoals, AwayGoals
                 FROM FixtureState
                 ORDER BY FixtureId;
                 """;
@@ -579,7 +590,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                     reader.GetInt64(3),
                     reader.GetInt32(4),
                     reader.GetInt32(5),
-                    reader.GetInt32(6)));
+                    reader.GetInt32(6),
+                    reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                    reader.IsDBNull(8) ? null : reader.GetInt32(8)));
             }
         }
 

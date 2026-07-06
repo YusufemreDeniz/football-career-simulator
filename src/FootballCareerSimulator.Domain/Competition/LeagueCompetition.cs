@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Domain.Competition;
 
+using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 /// <summary>
@@ -86,6 +87,13 @@ public sealed class LeagueCompetition
             startingFixtureId,
             daysBetweenRounds);
     }
+
+    public void AcceptFixtureResult(
+        SeasonId seasonId,
+        FixtureId fixtureId,
+        MatchScore score,
+        GameDate occurredAt) =>
+        GetSeasonOrThrow(seasonId).AcceptFixtureResult(fixtureId, score, occurredAt);
 
     public static LeagueCompetition Rehydrate(
         CompetitionId competitionId,

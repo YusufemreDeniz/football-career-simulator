@@ -63,3 +63,17 @@ public sealed record ArchiveSeasonResult(
     bool Succeeded,
     long SeasonId,
     string Status);
+
+public sealed record PlayFixtureMatchCommand(
+    Guid CommandId,
+    long SeasonId,
+    long FixtureId,
+    int OccurredAtDayNumber);
+
+public sealed record PlayFixtureMatchResult(
+    bool Succeeded,
+    long SeasonId,
+    long FixtureId,
+    int HomeGoals,
+    int AwayGoals,
+    string Status);

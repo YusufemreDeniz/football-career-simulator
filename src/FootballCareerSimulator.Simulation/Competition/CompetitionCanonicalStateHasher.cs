@@ -44,6 +44,8 @@ public static class CompetitionCanonicalStateHasher
                 builder.Append("Round=").Append(fixture.Round.Value).Append(';');
                 builder.Append("ScheduledDayNumber=").Append(fixture.ScheduledDate.DayNumber).Append(';');
                 builder.Append("FixtureStatus=").Append(fixture.Status).Append(';');
+                builder.Append("HomeGoals=").Append(fixture.HomeGoals).Append(';');
+                builder.Append("AwayGoals=").Append(fixture.AwayGoals).Append(';');
             }
         }
 

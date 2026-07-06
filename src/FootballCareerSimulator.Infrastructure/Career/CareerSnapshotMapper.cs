@@ -33,7 +33,9 @@ internal static class CareerSnapshotMapper
                         new ClubId(fixture.AwayClubId),
                         new FixtureRound(fixture.Round),
                         GameDate.FromDayNumber(fixture.ScheduledDayNumber),
-                        (FixtureStatus)fixture.Status))
+                        (FixtureStatus)fixture.Status,
+                        fixture.HomeGoals,
+                        fixture.AwayGoals))
                     .ToArray();
 
                 return CompetitionSeason.Rehydrate(
@@ -75,5 +77,7 @@ internal static class CareerSnapshotMapper
         long AwayClubId,
         int Round,
         int ScheduledDayNumber,
-        int Status);
+        int Status,
+        int? HomeGoals,
+        int? AwayGoals);
 }

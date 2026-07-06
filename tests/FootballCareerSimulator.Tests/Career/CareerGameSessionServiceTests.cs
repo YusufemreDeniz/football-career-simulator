@@ -73,8 +73,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
     public void SaveAndLoad_RoundTrip_RestoresTimelineAndFixturesInStores()
     {
         var world = WorldCalendarModule.Create(PreseasonStart, rootSeed: 7);
-        var competition = CompetitionModule.CreateNewLeague();
         var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
         var session = CreateSession(world, competition, clubs);
         const long seasonId = 1;
 

@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Domain.Competition;
 
+using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
@@ -16,7 +17,9 @@ public sealed class Fixture
         ClubId awayClubId,
         FixtureRound round,
         GameDate scheduledDate,
-        FixtureStatus status)
+        FixtureStatus status,
+        int? homeGoals = null,
+        int? awayGoals = null)
     {
         if (homeClubId == awayClubId)
         {
@@ -32,6 +35,8 @@ public sealed class Fixture
         Round = round;
         ScheduledDate = scheduledDate;
         Status = status;
+        HomeGoals = homeGoals;
+        AwayGoals = awayGoals;
     }
 
     public FixtureId Id { get; }
@@ -48,7 +53,24 @@ public sealed class Fixture
 
     public GameDate ScheduledDate { get; }
 
-    public FixtureStatus Status { get; }
+    public FixtureStatus Status { get; private set; }
+
+    public int? HomeGoals { get; private set; }
+
+    public int? AwayGoals { get; private set; }
+
+    public void AcceptResult(MatchScore score)
+    {
+        if (Status is not FixtureStatus.Planned)
+        {
+            throw new CompetitionInvariantViolationException(
+                "Only a planned fixture can accept a match result.");
+        }
+
+        HomeGoals = score.HomeGoals;
+        AwayGoals = score.AwayGoals;
+        Status = FixtureStatus.ResultAccepted;
+    }
 
     public static Fixture Rehydrate(
         FixtureId id,
@@ -58,6 +80,8 @@ public sealed class Fixture
         ClubId awayClubId,
         FixtureRound round,
         GameDate scheduledDate,
-        FixtureStatus status) =>
-        new(id, competitionId, seasonId, homeClubId, awayClubId, round, scheduledDate, status);
+        FixtureStatus status,
+        int? homeGoals = null,
+        int? awayGoals = null) =>
+        new(id, competitionId, seasonId, homeClubId, awayClubId, round, scheduledDate, status, homeGoals, awayGoals);
 }

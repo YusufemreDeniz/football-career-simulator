@@ -19,4 +19,17 @@ public sealed record FixtureReadModel(
     int Round,
     int ScheduledDayNumber,
     string ScheduledIsoDate,
-    string Status);
+    string Status,
+    int? HomeGoals,
+    int? AwayGoals);
+
+public sealed record StandingEntryReadModel(
+    long ClubId,
+    int Played,
+    int Won,
+    int Drawn,
+    int Lost,
+    int GoalsFor,
+    int GoalsAgainst,
+    int Points,
+    int GoalDifference);

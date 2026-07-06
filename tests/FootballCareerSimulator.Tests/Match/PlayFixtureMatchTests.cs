@@ -1,0 +1,152 @@
+using FootballCareerSimulator.Application.ClubGovernance.Composition;
+using FootballCareerSimulator.Application.Competition.Commands;
+using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.Match;
+using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.Match;
+
+namespace FootballCareerSimulator.Tests.Match;
+
+public sealed class MvpFixtureMatchSimulatorTests
+{
+    [Fact]
+    public void Simulate_SameInputs_ProducesDeterministicScore()
+    {
+        var first = MvpFixtureMatchSimulator.Simulate(42, fixtureId: 7, homeStrength: 70, awayStrength: 55);
+        var second = MvpFixtureMatchSimulator.Simulate(42, fixtureId: 7, homeStrength: 70, awayStrength: 55);
+
+        Assert.Equal(first, second);
+    }
+
+    [Fact]
+    public void Simulate_ProducesGoalsWithinMvpRange()
+    {
+        var score = MvpFixtureMatchSimulator.Simulate(42, fixtureId: 5, homeStrength: 60, awayStrength: 60);
+
+        Assert.InRange(score.HomeGoals, 0, 6);
+        Assert.InRange(score.AwayGoals, 0, 6);
+    }
+}
+
+public sealed class PlayFixtureMatchHandlerTests
+{
+    private static readonly GameDate PreseasonStart = GameDate.FromCalendarDate(2026, 7, 1);
+    private static readonly GameDate FirstMatchday = GameDate.FromCalendarDate(2026, 8, 1);
+
+    private static CompetitionModule CreateModule(int rootSeed = 42)
+    {
+        var world = WorldCalendarModule.Create(PreseasonStart, rootSeed: rootSeed);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        return CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
+    }
+
+    private static void RegisterFullLeague(CompetitionModule module, long seasonId)
+    {
+        for (var club = 1L; club <= CompetitionMvpConstraints.LeagueTeamCount; club++)
+        {
+            module.RegisterSeasonParticipant.Handle(
+                new RegisterSeasonParticipantCommand(Guid.NewGuid(), seasonId, club));
+        }
+    }
+
+    private static void SetupActiveSeasonWithFixtures(CompetitionModule module, long seasonId)
+    {
+        module.CreateSeason.Handle(
+            new CreateSeasonCommand(Guid.NewGuid(), seasonId, PreseasonStart.DayNumber));
+        RegisterFullLeague(module, seasonId);
+        module.StartSeason.Handle(
+            new StartSeasonCommand(Guid.NewGuid(), seasonId, PreseasonStart.DayNumber));
+        module.PlanLeagueFixtures.Handle(
+            new PlanLeagueFixturesCommand(
+                Guid.NewGuid(),
+                seasonId,
+                FirstMatchday.DayNumber,
+                StartingFixtureId: 1));
+    }
+
+    [Fact]
+    public void PlayFixtureMatch_UpdatesFixtureStatusAndStandings()
+    {
+        var world = WorldCalendarModule.Create(PreseasonStart, rootSeed: 99);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var module = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
+        const long seasonId = 1;
+        SetupActiveSeasonWithFixtures(module, seasonId);
+
+        var result = module.PlayFixtureMatch!.Handle(
+            new PlayFixtureMatchCommand(
+                Guid.NewGuid(),
+                seasonId,
+                1,
+                FirstMatchday.DayNumber));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(nameof(FixtureStatus.ResultAccepted), result.Status);
+
+        var fixture = module.Queries.GetSeasonFixtures(seasonId)[0];
+        Assert.Equal(result.HomeGoals, fixture.HomeGoals);
+        Assert.Equal(result.AwayGoals, fixture.AwayGoals);
+
+        var standings = module.Queries.GetStandings(seasonId);
+        Assert.Equal(2, standings.Count(entry => entry.Played > 0));
+        Assert.Equal(2, standings.Sum(entry => entry.Played));
+    }
+
+    [Fact]
+    public void PlayFixtureMatch_SameCommandId_IsIdempotent()
+    {
+        var world = WorldCalendarModule.Create(PreseasonStart, rootSeed: 11);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var module = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
+        const long seasonId = 1;
+        var commandId = Guid.NewGuid();
+        SetupActiveSeasonWithFixtures(module, seasonId);
+
+        var command = new PlayFixtureMatchCommand(
+            commandId,
+            seasonId,
+            1,
+            FirstMatchday.DayNumber);
+
+        var first = module.PlayFixtureMatch!.Handle(command);
+        var second = module.PlayFixtureMatch.Handle(command);
+
+        Assert.Equal(first, second);
+    }
+}
+
+public sealed class SeasonStandingsTests
+{
+    [Fact]
+    public void Rebuild_OrdersByPointsGoalDifferenceAndGoalsFor()
+    {
+        var participants = new[]
+        {
+            SeasonParticipant.Rehydrate(new Domain.Shared.ClubId(1)),
+            SeasonParticipant.Rehydrate(new Domain.Shared.ClubId(2)),
+        };
+        var fixtures = new[]
+        {
+            Fixture.Rehydrate(
+                new FixtureId(1),
+                new CompetitionId(1),
+                new SeasonId(1),
+                new Domain.Shared.ClubId(1),
+                new Domain.Shared.ClubId(2),
+                new FixtureRound(1),
+                GameDate.FromCalendarDate(2026, 8, 1),
+                FixtureStatus.ResultAccepted,
+                homeGoals: 2,
+                awayGoals: 1),
+        };
+
+        var standings = SeasonStandings.Rebuild(participants.Select(participant => participant.ClubId), fixtures);
+
+        Assert.Equal(2, standings.Entries.Count);
+        Assert.Equal(1, standings.Entries[0].ClubId.Value);
+        Assert.Equal(3, standings.Entries[0].Points.Value);
+        Assert.Equal(0, standings.Entries[1].Points.Value);
+    }
+}

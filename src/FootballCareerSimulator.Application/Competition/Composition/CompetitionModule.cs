@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Application.Competition.Composition;
 
+using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.Competition.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.Competition.Services;
@@ -19,6 +20,7 @@ public sealed class CompetitionModule
         PlanLeagueFixturesHandler planLeagueFixtures,
         CompleteSeasonHandler completeSeason,
         ArchiveSeasonHandler archiveSeason,
+        PlayFixtureMatchHandler? playFixtureMatch,
         CompetitionQueryService queries)
     {
         Store = store;
@@ -28,16 +30,24 @@ public sealed class CompetitionModule
         PlanLeagueFixtures = planLeagueFixtures;
         CompleteSeason = completeSeason;
         ArchiveSeason = archiveSeason;
+        PlayFixtureMatch = playFixtureMatch;
         Queries = queries;
-        IdempotencyResets =
-        [
+        var resets = new List<ICommandIdempotencyReset>
+        {
             createSeason,
             registerSeasonParticipant,
             startSeason,
             planLeagueFixtures,
             completeSeason,
             archiveSeason,
-        ];
+        };
+
+        if (playFixtureMatch is not null)
+        {
+            resets.Add(playFixtureMatch);
+        }
+
+        IdempotencyResets = resets;
     }
 
     public ILeagueCompetitionStore Store { get; }
@@ -53,6 +63,8 @@ public sealed class CompetitionModule
     public CompleteSeasonHandler CompleteSeason { get; }
 
     public ArchiveSeasonHandler ArchiveSeason { get; }
+
+    public PlayFixtureMatchHandler? PlayFixtureMatch { get; }
 
     public CompetitionQueryService Queries { get; }
 
@@ -77,6 +89,34 @@ public sealed class CompetitionModule
             planLeagueFixtures,
             completeSeason,
             archiveSeason,
+            playFixtureMatch: null,
+            new CompetitionQueryService(store));
+    }
+
+    public static CompetitionModule CreateForCareer(
+        IWorldTimelineStore timelineStore,
+        IClubRegistryStore clubRegistryStore,
+        long competitionId = 1)
+    {
+        var league = new LeagueCompetition(new CompetitionId(competitionId));
+        var store = new InMemoryLeagueCompetitionStore(league);
+        var createSeason = new CreateSeasonHandler(store);
+        var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
+        var startSeason = new StartSeasonHandler(store);
+        var planLeagueFixtures = new PlanLeagueFixturesHandler(store);
+        var completeSeason = new CompleteSeasonHandler(store);
+        var archiveSeason = new ArchiveSeasonHandler(store);
+        var playFixtureMatch = new PlayFixtureMatchHandler(store, clubRegistryStore, timelineStore);
+
+        return new CompetitionModule(
+            store,
+            createSeason,
+            registerSeasonParticipant,
+            startSeason,
+            planLeagueFixtures,
+            completeSeason,
+            archiveSeason,
+            playFixtureMatch,
             new CompetitionQueryService(store));
     }
 }

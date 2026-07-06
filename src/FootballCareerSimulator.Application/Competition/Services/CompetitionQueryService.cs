@@ -52,6 +52,23 @@ public sealed class CompetitionQueryService
             .ToArray();
     }
 
+    public IReadOnlyList<StandingEntryReadModel> GetStandings(long seasonId)
+    {
+        var season = GetSeasonOrThrow(seasonId);
+        return season.Standings.Entries
+            .Select(entry => new StandingEntryReadModel(
+                entry.ClubId.Value,
+                entry.Played,
+                entry.Won,
+                entry.Drawn,
+                entry.Lost,
+                entry.GoalsFor,
+                entry.GoalsAgainst,
+                entry.Points.Value,
+                entry.GoalDifference))
+            .ToArray();
+    }
+
     private CompetitionSeason GetSeasonOrThrow(long seasonId) =>
         FindSeason(seasonId)
         ?? throw new CompetitionInvariantViolationException($"Season {seasonId} was not found.");
@@ -78,5 +95,7 @@ public sealed class CompetitionQueryService
             fixture.Round.Value,
             fixture.ScheduledDate.DayNumber,
             fixture.ScheduledDate.ToIsoDateString(),
-            fixture.Status.ToString());
+            fixture.Status.ToString(),
+            fixture.HomeGoals,
+            fixture.AwayGoals);
 }

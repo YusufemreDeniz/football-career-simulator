@@ -41,7 +41,9 @@ public sealed class CareerPresentationHost
     public static CareerPresentationHost CreateDefault(string? defaultSavePath = null)
     {
         var worldModule = WorldCalendarModule.CreateNewGame();
-        var competitionModule = CompetitionModule.CreateNewLeague();
+        var competitionModule = CompetitionModule.CreateForCareer(
+            worldModule.TimelineStore,
+            clubModule.Store);
         var clubModule = ClubGovernanceModule.CreateMvpLeague();
         var persistence = new CareerSqlitePersistence();
 

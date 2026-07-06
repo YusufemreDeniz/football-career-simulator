@@ -36,3 +36,12 @@ public sealed record LeagueFixturesPlanned(
     int FixtureCount,
     GameDate FirstMatchdayDate)
     : CompetitionDomainEvent(OccurredAtGameTime);
+
+public sealed record FixtureResultAccepted(
+    GameDate OccurredAtGameTime,
+    CompetitionId CompetitionId,
+    SeasonId SeasonId,
+    FixtureId FixtureId,
+    int HomeGoals,
+    int AwayGoals)
+    : CompetitionDomainEvent(OccurredAtGameTime);

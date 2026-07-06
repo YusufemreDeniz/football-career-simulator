@@ -1,6 +1,7 @@
 namespace FootballCareerSimulator.Domain.Competition;
 
 using FootballCareerSimulator.Domain.Competition.Events;
+using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
@@ -12,6 +13,7 @@ public sealed class CompetitionSeason
     private readonly List<SeasonParticipant> _participants = new();
     private readonly List<Fixture> _fixtures = new();
     private readonly List<CompetitionDomainEvent> _uncommittedEvents = new();
+    private SeasonStandings _standings = SeasonStandings.Empty;
 
     private CompetitionSeason(
         CompetitionId competitionId,
@@ -52,6 +54,8 @@ public sealed class CompetitionSeason
     public IReadOnlyList<SeasonParticipant> Participants => _participants;
 
     public IReadOnlyList<Fixture> Fixtures => _fixtures;
+
+    public SeasonStandings Standings => _standings;
 
     public IReadOnlyList<CompetitionDomainEvent> UncommittedEvents => _uncommittedEvents;
 
@@ -148,6 +152,29 @@ public sealed class CompetitionSeason
                 firstMatchdayDate));
     }
 
+    public void AcceptFixtureResult(FixtureId fixtureId, MatchScore score, GameDate occurredAt)
+    {
+        if (Status is not SeasonStatus.Active)
+        {
+            throw new CompetitionInvariantViolationException(
+                "Fixture results can only be accepted for an active season.");
+        }
+
+        var fixture = _fixtures.FirstOrDefault(candidate => candidate.Id == fixtureId)
+            ?? throw new CompetitionInvariantViolationException($"Fixture {fixtureId.Value} was not found.");
+
+        fixture.AcceptResult(score);
+        RefreshStandings();
+        _uncommittedEvents.Add(
+            new FixtureResultAccepted(
+                occurredAt,
+                CompetitionId,
+                SeasonId,
+                fixtureId,
+                score.HomeGoals,
+                score.AwayGoals));
+    }
+
     public void CompleteSeason(GameDate occurredAt)
     {
         if (Status is not SeasonStatus.Active)
@@ -186,7 +213,7 @@ public sealed class CompetitionSeason
         GameDate? archivedAt,
         IEnumerable<SeasonParticipant> participants,
         IEnumerable<Fixture>? fixtures = null) =>
-        new(
+        RehydrateWithStandings(
             competitionId,
             seasonId,
             preseasonStartDate,
@@ -196,4 +223,34 @@ public sealed class CompetitionSeason
             archivedAt,
             participants,
             fixtures ?? Array.Empty<Fixture>());
+
+    private static CompetitionSeason RehydrateWithStandings(
+        CompetitionId competitionId,
+        SeasonId seasonId,
+        GameDate preseasonStartDate,
+        SeasonStatus status,
+        GameDate? activeStartedAt,
+        GameDate? completedAt,
+        GameDate? archivedAt,
+        IEnumerable<SeasonParticipant> participants,
+        IEnumerable<Fixture> fixtures)
+    {
+        var season = new CompetitionSeason(
+            competitionId,
+            seasonId,
+            preseasonStartDate,
+            status,
+            activeStartedAt,
+            completedAt,
+            archivedAt,
+            participants,
+            fixtures);
+        season.RefreshStandings();
+        return season;
+    }
+
+    private void RefreshStandings() =>
+        _standings = SeasonStandings.Rebuild(
+            _participants.Select(participant => participant.ClubId),
+            _fixtures);
 }
