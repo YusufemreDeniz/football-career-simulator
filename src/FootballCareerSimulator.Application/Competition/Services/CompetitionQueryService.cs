@@ -69,6 +69,25 @@ public sealed class CompetitionQueryService
             .ToArray();
     }
 
+    public SeasonProgressReadModel? GetSeasonProgress(long seasonId)
+    {
+        var season = FindSeason(seasonId);
+        if (season is null)
+        {
+            return null;
+        }
+
+        var accepted = season.CountAcceptedFixtures();
+        var total = season.Fixtures.Count;
+        return new SeasonProgressReadModel(
+            season.SeasonId.Value,
+            season.Status.ToString(),
+            accepted,
+            total,
+            CanComplete: season.Status is SeasonStatus.Active && total > 0 && accepted == total,
+            CanArchive: season.Status is SeasonStatus.Completed);
+    }
+
     private CompetitionSeason GetSeasonOrThrow(long seasonId) =>
         FindSeason(seasonId)
         ?? throw new CompetitionInvariantViolationException($"Season {seasonId} was not found.");

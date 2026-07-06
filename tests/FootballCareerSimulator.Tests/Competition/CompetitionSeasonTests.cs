@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Competition.Events;
+using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
@@ -76,12 +77,27 @@ public class CompetitionSeasonTests
         Assert.Contains(season.UncommittedEvents, e => e is SeasonStarted);
     }
 
+    private static void PlanAndFinishAllFixtures(CompetitionSeason season, GameDate firstMatchday)
+    {
+        season.PlanLeagueFixtures(firstMatchday, new FixtureId(1));
+        foreach (var fixture in season.Fixtures)
+        {
+            season.AcceptFixtureResult(fixture.Id, new MatchScore(1, 0), fixture.ScheduledDate);
+        }
+    }
+
+    private static void ActivateSeasonWithFixtures(CompetitionSeason season, GameDate firstMatchday)
+    {
+        RegisterFullLeague(season);
+        season.StartActiveSeason(PreseasonStart);
+        PlanAndFinishAllFixtures(season, firstMatchday);
+    }
+
     [Fact]
     public void CompleteSeason_TransitionsFromActiveToCompleted()
     {
         var season = CreateSeason();
-        RegisterFullLeague(season);
-        season.StartActiveSeason(PreseasonStart);
+        ActivateSeasonWithFixtures(season, GameDate.FromCalendarDate(2026, 8, 1));
 
         var completedAt = GameDate.FromCalendarDate(2027, 5, 1);
         season.CompleteSeason(completedAt);
@@ -95,8 +111,7 @@ public class CompetitionSeasonTests
     public void ArchiveSeason_TransitionsFromCompletedToArchived()
     {
         var season = CreateSeason();
-        RegisterFullLeague(season);
-        season.StartActiveSeason(PreseasonStart);
+        ActivateSeasonWithFixtures(season, GameDate.FromCalendarDate(2026, 8, 1));
         season.CompleteSeason(GameDate.FromCalendarDate(2027, 5, 1));
 
         var archivedAt = GameDate.FromCalendarDate(2027, 6, 1);

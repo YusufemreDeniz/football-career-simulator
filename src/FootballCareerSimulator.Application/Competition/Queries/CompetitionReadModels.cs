@@ -33,3 +33,11 @@ public sealed record StandingEntryReadModel(
     int GoalsAgainst,
     int Points,
     int GoalDifference);
+
+public sealed record SeasonProgressReadModel(
+    long SeasonId,
+    string Status,
+    int AcceptedFixtureCount,
+    int TotalFixtureCount,
+    bool CanComplete,
+    bool CanArchive);

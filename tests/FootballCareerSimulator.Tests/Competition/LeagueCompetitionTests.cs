@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
@@ -70,6 +71,16 @@ public class LeagueCompetitionTests
             league.StartSeason(new SeasonId(99), PreseasonStart));
     }
 
+    private static void PlanAndFinishAllFixtures(LeagueCompetition league, SeasonId seasonId, GameDate firstMatchday)
+    {
+        league.PlanLeagueFixtures(seasonId, firstMatchday, new FixtureId(1));
+        var season = league.Seasons.Single(existing => existing.SeasonId == seasonId);
+        foreach (var fixture in season.Fixtures)
+        {
+            league.AcceptFixtureResult(seasonId, fixture.Id, new MatchScore(1, 0), fixture.ScheduledDate);
+        }
+    }
+
     [Fact]
     public void CreateSeason_AllowsNewSeasonAfterPreviousIsArchived()
     {
@@ -77,6 +88,7 @@ public class LeagueCompetitionTests
         var first = league.CreateSeason(new SeasonId(1), PreseasonStart);
         RegisterFullLeague(first);
         league.StartSeason(new SeasonId(1), PreseasonStart);
+        PlanAndFinishAllFixtures(league, new SeasonId(1), GameDate.FromCalendarDate(2026, 8, 1));
         league.CompleteSeason(new SeasonId(1), GameDate.FromCalendarDate(2027, 5, 1));
         league.ArchiveSeason(new SeasonId(1), GameDate.FromCalendarDate(2027, 6, 1));
 
@@ -93,6 +105,7 @@ public class LeagueCompetitionTests
         var first = league.CreateSeason(new SeasonId(1), PreseasonStart);
         RegisterFullLeague(first);
         league.StartSeason(new SeasonId(1), PreseasonStart);
+        PlanAndFinishAllFixtures(league, new SeasonId(1), GameDate.FromCalendarDate(2026, 8, 1));
         league.CompleteSeason(new SeasonId(1), GameDate.FromCalendarDate(2027, 5, 1));
 
         Assert.Throws<CompetitionInvariantViolationException>(() =>

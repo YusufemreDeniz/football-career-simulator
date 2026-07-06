@@ -183,10 +183,26 @@ public sealed class CompetitionSeason
                 "Only an active season can be completed.");
         }
 
+        var pendingFixtures = _fixtures.Count(fixture => fixture.Status is not FixtureStatus.ResultAccepted);
+        if (pendingFixtures > 0)
+        {
+            throw new CompetitionInvariantViolationException(
+                $"Cannot complete season while {pendingFixtures} fixtures are still pending.");
+        }
+
+        if (_fixtures.Count == 0)
+        {
+            throw new CompetitionInvariantViolationException(
+                "Cannot complete a season without fixtures.");
+        }
+
         Status = SeasonStatus.Completed;
         CompletedAt = occurredAt;
         _uncommittedEvents.Add(new SeasonCompleted(occurredAt, CompetitionId, SeasonId));
     }
+
+    public int CountAcceptedFixtures() =>
+        _fixtures.Count(fixture => fixture.Status is FixtureStatus.ResultAccepted);
 
     public void ArchiveSeason(GameDate occurredAt)
     {
