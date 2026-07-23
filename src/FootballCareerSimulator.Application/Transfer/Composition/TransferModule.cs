@@ -11,17 +11,29 @@ public sealed class TransferModule
 {
     public TransferModule(
         ITransferNeedStore needStore,
+        IShortlistStore shortlistStore,
+        ITransferTargetStore targetStore,
         TransferNeedService needs,
+        ShortlistTargetService shortlistTargets,
         TransferNeedQueryService queries)
     {
         NeedStore = needStore;
+        ShortlistStore = shortlistStore;
+        TargetStore = targetStore;
         Needs = needs;
+        ShortlistTargets = shortlistTargets;
         Queries = queries;
     }
 
     public ITransferNeedStore NeedStore { get; }
 
+    public IShortlistStore ShortlistStore { get; }
+
+    public ITransferTargetStore TargetStore { get; }
+
     public TransferNeedService Needs { get; }
+
+    public ShortlistTargetService ShortlistTargets { get; }
 
     public TransferNeedQueryService Queries { get; }
 
@@ -29,12 +41,19 @@ public sealed class TransferModule
         IContractStore contractStore,
         IClubSquadStore squadStore,
         IManagerCareerStore managerCareerStore,
-        ITransferNeedStore? needStore = null)
+        ITransferNeedStore? needStore = null,
+        IShortlistStore? shortlistStore = null,
+        ITransferTargetStore? targetStore = null)
     {
-        var store = needStore ?? new InMemoryTransferNeedStore();
+        var needs = needStore ?? new InMemoryTransferNeedStore();
+        var shortlist = shortlistStore ?? new InMemoryShortlistStore();
+        var targets = targetStore ?? new InMemoryTransferTargetStore();
         return new TransferModule(
-            store,
-            new TransferNeedService(store, contractStore, squadStore),
-            new TransferNeedQueryService(store, managerCareerStore));
+            needs,
+            shortlist,
+            targets,
+            new TransferNeedService(needs, contractStore, squadStore),
+            new ShortlistTargetService(shortlist, targets, needs),
+            new TransferNeedQueryService(needs, shortlist, targets, managerCareerStore));
     }
 }

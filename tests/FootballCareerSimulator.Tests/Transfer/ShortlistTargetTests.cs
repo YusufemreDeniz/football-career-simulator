@@ -20,16 +20,16 @@ using Microsoft.Data.Sqlite;
 
 namespace FootballCareerSimulator.Tests.Transfer;
 
-public sealed class TransferNeedTests : IDisposable
+public sealed class ShortlistTargetTests : IDisposable
 {
     private static readonly GameDate Day = GameDate.FromCalendarDate(2026, 7, 1);
 
     private readonly string _tempDirectory = Path.Combine(
         Path.GetTempPath(),
-        "fcs-transfer-need",
+        "fcs-shortlist-target",
         Guid.NewGuid().ToString("N"));
 
-    public TransferNeedTests() => Directory.CreateDirectory(_tempDirectory);
+    public ShortlistTargetTests() => Directory.CreateDirectory(_tempDirectory);
 
     public void Dispose()
     {
@@ -41,87 +41,70 @@ public sealed class TransferNeedTests : IDisposable
     }
 
     [Fact]
-    public void Declare_CreatesOpenPositionGapNeed()
-    {
-        var modules = CreateModules();
-        var need = modules.Transfer.Needs.Declare(
-            new ClubId(1),
-            TransferNeedKind.PositionGap,
-            priority: 4,
-            "ManualPositionGap",
-            Day);
-
-        Assert.True(need.IsOpen);
-        Assert.Equal(TransferNeedKind.PositionGap, need.Kind);
-        Assert.Equal(1, modules.Transfer.Queries.GetManagedClubNeeds().OpenCount);
-        Assert.Equal("Pozisyon açığı", modules.Transfer.Queries.GetManagedClubNeeds().OpenNeeds[0].KindName);
-    }
-
-    [Fact]
-    public void Declare_SameKind_IsIdempotent()
-    {
-        var modules = CreateModules();
-        var first = modules.Transfer.Needs.Declare(
-            new ClubId(1),
-            TransferNeedKind.PositionGap,
-            priority: 4,
-            "ManualPositionGap",
-            Day);
-        var second = modules.Transfer.Needs.Declare(
-            new ClubId(1),
-            TransferNeedKind.PositionGap,
-            priority: 5,
-            "ManualPositionGap",
-            Day.AddDays(1));
-
-        Assert.Equal(first.NeedId, second.NeedId);
-        Assert.Single(modules.Transfer.NeedStore.Needs);
-    }
-
-    [Fact]
-    public void RefreshSuggestions_CreatesSquadDepthWhenThin()
-    {
-        var modules = CreateModules();
-        var clubId = new ClubId(1);
-        var thinMembers = Enumerable.Range(0, 11)
-            .Select(slot => SquadMember.Create(PlayerId.FromClubSlot(1, slot), slot, Day))
-            .ToArray();
-        modules.TeamPrep.SquadStore.Upsert(ClubSquad.Rehydrate(clubId, thinMembers));
-
-        var suggested = modules.Transfer.Needs.RefreshSuggestions(clubId, Day);
-        Assert.Contains(suggested, n => n.Kind == TransferNeedKind.SquadDepth);
-        Assert.Equal("ThinSquad", suggested.Single(n => n.Kind == TransferNeedKind.SquadDepth).ReasonCode);
-    }
-
-    [Fact]
-    public void Close_MarksNeedClosed()
-    {
-        var modules = CreateModules();
-        var need = modules.Transfer.Needs.Declare(
-            new ClubId(1),
-            TransferNeedKind.TacticalRequirement,
-            priority: 2,
-            "ManualTactical",
-            Day);
-
-        var closed = modules.Transfer.Needs.Close(need.NeedId, Day.AddDays(2));
-        Assert.Equal(TransferNeedStatus.Closed, closed.Status);
-        Assert.Equal(0, modules.Transfer.Queries.GetManagedClubNeeds().OpenCount);
-    }
-
-    [Fact]
-    public void SaveLoad_PreservesTransferNeedAtSchemaV19()
+    public void SuggestAndList_CreatesShortlistAndTargetWithoutProcess()
     {
         var modules = CreateModules();
         modules.Transfer.Needs.Declare(
             new ClubId(1),
-            TransferNeedKind.ExpiringContract,
-            priority: 3,
-            "ExpiringContracts",
+            TransferNeedKind.PositionGap,
+            priority: 4,
+            "ManualPositionGap",
             Day);
 
+        var target = modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(
+            new ClubId(1),
+            Day);
+
+        Assert.True(target.IsListed);
+        Assert.Equal(PlayerId.FromClubSlot(2, 0), target.PlayerId);
+        Assert.Equal(1, modules.Transfer.Queries.GetManagedClubShortlistTargets().ActiveShortlistCount);
+        Assert.Equal(1, modules.Transfer.Queries.GetManagedClubShortlistTargets().ListedTargetCount);
+    }
+
+    [Fact]
+    public void AddTransferTarget_RequiresOpenNeed()
+    {
+        var modules = CreateModules();
+        Assert.Throws<TransferInvariantViolationException>(() =>
+            modules.Transfer.ShortlistTargets.AddTransferTarget(
+                new TransferNeedId(99),
+                PlayerId.FromClubSlot(2, 0),
+                shortlistEntryId: null,
+                Day));
+    }
+
+    [Fact]
+    public void Drop_RemovesFromListedQuery()
+    {
+        var modules = CreateModules();
+        modules.Transfer.Needs.Declare(
+            new ClubId(1),
+            TransferNeedKind.SquadDepth,
+            priority: 2,
+            "ThinSquad",
+            Day);
+        var target = modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(
+            new ClubId(1),
+            Day);
+
+        modules.Transfer.ShortlistTargets.DropTransferTarget(target.TargetId, Day.AddDays(1));
+        Assert.Equal(0, modules.Transfer.Queries.GetManagedClubShortlistTargets().ListedTargetCount);
+    }
+
+    [Fact]
+    public void SaveLoad_PreservesShortlistAndTargetAtSchemaV20()
+    {
+        var modules = CreateModules();
+        modules.Transfer.Needs.Declare(
+            new ClubId(1),
+            TransferNeedKind.PositionGap,
+            priority: 3,
+            "ManualPositionGap",
+            Day);
+        modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(new ClubId(1), Day);
+
         var persistence = new CareerSqlitePersistence();
-        var path = Path.Combine(_tempDirectory, "needs.db");
+        var path = Path.Combine(_tempDirectory, "targets.db");
         persistence.Save(
             path,
             modules.World.TimelineStore.Timeline,
@@ -137,25 +120,24 @@ public sealed class TransferNeedTests : IDisposable
             Array.Empty<Domain.ContractRegistration.PlayerFreeAgency>(),
             Array.Empty<TacticPlan>(),
             modules.Transfer.NeedStore.Needs,
-            Array.Empty<ShortlistEntry>(),
-            Array.Empty<TransferTarget>());
+            modules.Transfer.ShortlistStore.Entries,
+            modules.Transfer.TargetStore.Targets);
 
         var loaded = persistence.Load(path);
         Assert.Equal(20, loaded.SchemaVersion);
-        Assert.Single(loaded.TransferNeeds);
-        Assert.Equal(TransferNeedKind.ExpiringContract, loaded.TransferNeeds[0].Kind);
-        Assert.Equal(TransferNeedStatus.Open, loaded.TransferNeeds[0].Status);
-        Assert.Equal("ExpiringContracts", loaded.TransferNeeds[0].ReasonCode);
+        Assert.Single(loaded.ShortlistEntries);
+        Assert.Single(loaded.TransferTargets);
+        Assert.Equal(TransferTargetStatus.Listed, loaded.TransferTargets[0].Status);
+        Assert.NotNull(loaded.TransferTargets[0].ShortlistEntryId);
     }
 
     private static (
         WorldCalendarModule World,
         ClubGovernanceModule Clubs,
         ManagerCareerModule Manager,
-        TeamPreparationModule TeamPrep,
         TransferModule Transfer) CreateModules()
     {
-        var world = WorldCalendarModule.Create(Day, rootSeed: 11);
+        var world = WorldCalendarModule.Create(Day, rootSeed: 21);
         var clubs = ClubGovernanceModule.CreateMvpLeague();
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
@@ -179,6 +161,6 @@ public sealed class TransferNeedTests : IDisposable
             contractStore: contracts.Store,
             playerCareerStore: playerStore);
         var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store);
-        return (world, clubs, manager, teamPrep, transfer);
+        return (world, clubs, manager, transfer);
     }
 }

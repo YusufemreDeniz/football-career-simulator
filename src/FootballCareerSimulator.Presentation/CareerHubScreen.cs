@@ -19,6 +19,7 @@ public partial class CareerHubScreen : Control
     private Label _developmentLabel = null!;
     private Label _contractLabel = null!;
     private Label _transferNeedLabel = null!;
+    private Label _shortlistTargetLabel = null!;
     private Label _tacticLabel = null!;
     private Label _squadStatusLabel = null!;
     private Label _standingsLabel = null!;
@@ -33,6 +34,8 @@ public partial class CareerHubScreen : Control
     private Button _refreshTransferNeedsButton = null!;
     private Button _declareTransferNeedButton = null!;
     private Button _closeTransferNeedButton = null!;
+    private Button _suggestTargetButton = null!;
+    private Button _dropTargetButton = null!;
     private Button _trainLowButton = null!;
     private Button _trainMediumButton = null!;
     private Button _trainHighButton = null!;
@@ -216,6 +219,21 @@ public partial class CareerHubScreen : Control
         _closeTransferNeedButton = SecondaryButton("İhtiyacı Kapat");
         _closeTransferNeedButton.Pressed += () => Apply(_controller.CloseOldestOpenTransferNeed());
         needRow.AddChild(_closeTransferNeedButton);
+
+        _shortlistTargetLabel = BodyLabel("ShortlistTargetLabel", autowrap: true);
+        clubCol.AddChild(_shortlistTargetLabel);
+
+        var targetRow = new HBoxContainer();
+        targetRow.AddThemeConstantOverride("separation", 8);
+        clubCol.AddChild(targetRow);
+
+        _suggestTargetButton = SecondaryButton("Hedef Öner");
+        _suggestTargetButton.Pressed += () => Apply(_controller.SuggestTransferTarget());
+        targetRow.AddChild(_suggestTargetButton);
+
+        _dropTargetButton = SecondaryButton("Hedefi Düşür");
+        _dropTargetButton.Pressed += () => Apply(_controller.DropOldestListedTransferTarget());
+        targetRow.AddChild(_dropTargetButton);
 
         var prepCol = new VBoxContainer
         {
@@ -496,6 +514,7 @@ public partial class CareerHubScreen : Control
             RefreshDevelopmentStatus();
             RefreshContractStatus();
             RefreshTransferNeedStatus();
+            RefreshShortlistTargetStatus();
             RefreshTacticStatus();
             RefreshSquadList();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
@@ -523,6 +542,7 @@ public partial class CareerHubScreen : Control
         RefreshDevelopmentStatus();
         RefreshContractStatus();
         RefreshTransferNeedStatus();
+        RefreshShortlistTargetStatus();
         RefreshTacticStatus();
         RefreshStandings();
         RefreshFixtureList();
@@ -539,6 +559,29 @@ public partial class CareerHubScreen : Control
         UpdateTransferNeedButtons(manager);
         UpdateTrainingButtons(manager);
         UpdateTacticButtons(manager);
+    }
+
+    private void RefreshShortlistTargetStatus()
+    {
+        var view = _controller.Host.TransferModule.Queries.GetManagedClubShortlistTargets();
+        if (view.ClubId is null)
+        {
+            _shortlistTargetLabel.Text = "Shortlist/hedef: işsiz — kayıt yok.";
+            return;
+        }
+
+        if (view.ActiveShortlistCount == 0 && view.ListedTargetCount == 0)
+        {
+            _shortlistTargetLabel.Text = "Shortlist/hedef: boş — hedef öner (Process açılmaz).";
+            return;
+        }
+
+        var targetPreview = view.ListedTargets.Take(2)
+            .Select(t => $"T#{t.TargetId} P{t.PlayerId}")
+            .ToArray();
+        _shortlistTargetLabel.Text =
+            $"Shortlist {view.ActiveShortlistCount} · hedef {view.ListedTargetCount}"
+            + (targetPreview.Length == 0 ? string.Empty : $" · {string.Join(" · ", targetPreview)}");
     }
 
     private void RefreshTransferNeedStatus()
@@ -571,9 +614,14 @@ public partial class CareerHubScreen : Control
         var openCount = employed
             ? _controller.Host.TransferModule.Queries.GetManagedClubNeeds().OpenCount
             : 0;
+        var listedCount = employed
+            ? _controller.Host.TransferModule.Queries.GetManagedClubShortlistTargets().ListedTargetCount
+            : 0;
         _refreshTransferNeedsButton.Disabled = !employed;
         _declareTransferNeedButton.Disabled = !employed;
         _closeTransferNeedButton.Disabled = !employed || openCount == 0;
+        _suggestTargetButton.Disabled = !employed;
+        _dropTargetButton.Disabled = !employed || listedCount == 0;
     }
 
     private void RefreshTrainingStatus()

@@ -121,10 +121,12 @@ public sealed class JobOfferTests : IDisposable
             Array.Empty<Domain.TeamPreparation.ClubSquad>(),
             Array.Empty<Domain.ContractRegistration.PlayerFreeAgency>(),
             Array.Empty<Domain.TeamPreparation.TacticPlan>(),
-            Array.Empty<Domain.Transfer.TransferNeed>());
+            Array.Empty<Domain.Transfer.TransferNeed>(),
+            Array.Empty<Domain.Transfer.ShortlistEntry>(),
+            Array.Empty<Domain.Transfer.TransferTarget>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(19, loaded.SchemaVersion);
+        Assert.Equal(20, loaded.SchemaVersion);
         Assert.NotNull(loaded.ManagerCareer.PendingJobOffer);
         Assert.Equal(
             module.Store.Career.PendingJobOffer!.ClubId.Value,

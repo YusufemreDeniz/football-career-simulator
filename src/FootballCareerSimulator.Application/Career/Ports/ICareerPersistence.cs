@@ -26,7 +26,9 @@ public interface ICareerPersistence
         IReadOnlyList<ClubSquad> clubSquads,
         IReadOnlyList<PlayerFreeAgency> freeAgents,
         IReadOnlyList<TacticPlan> tacticPlans,
-        IReadOnlyList<TransferNeed> transferNeeds);
+        IReadOnlyList<TransferNeed> transferNeeds,
+        IReadOnlyList<ShortlistEntry> shortlistEntries,
+        IReadOnlyList<TransferTarget> transferTargets);
 
     CareerLoadResult Load(string filePath);
 }
@@ -45,5 +47,7 @@ public sealed record CareerLoadResult(
     IReadOnlyList<PlayerFreeAgency> FreeAgents,
     IReadOnlyList<TacticPlan> TacticPlans,
     IReadOnlyList<TransferNeed> TransferNeeds,
+    IReadOnlyList<ShortlistEntry> ShortlistEntries,
+    IReadOnlyList<TransferTarget> TransferTargets,
     int SchemaVersion,
     bool WasMigrated);

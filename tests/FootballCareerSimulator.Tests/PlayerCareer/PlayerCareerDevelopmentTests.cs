@@ -126,10 +126,12 @@ public sealed class PlayerCareerDevelopmentTests : IDisposable
             Array.Empty<Domain.TeamPreparation.ClubSquad>(),
             Array.Empty<Domain.ContractRegistration.PlayerFreeAgency>(),
             Array.Empty<Domain.TeamPreparation.TacticPlan>(),
-            Array.Empty<Domain.Transfer.TransferNeed>());
+            Array.Empty<Domain.Transfer.TransferNeed>(),
+            Array.Empty<Domain.Transfer.ShortlistEntry>(),
+            Array.Empty<Domain.Transfer.TransferTarget>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(19, loaded.SchemaVersion);
+        Assert.Equal(20, loaded.SchemaVersion);
         Assert.Equal(25, loaded.PlayerCareers.Count);
         var loadedFirst = loaded.PlayerCareers.Single(c => c.SlotIndex == 0);
         Assert.Equal(aged.BirthYear, loadedFirst.BirthYear);

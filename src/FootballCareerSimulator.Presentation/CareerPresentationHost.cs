@@ -153,6 +153,8 @@ public sealed class CareerPresentationHost
             teamPreparation.SquadStore,
             teamPreparation.TacticPlanStore,
             transferModule.NeedStore,
+            transferModule.ShortlistStore,
+            transferModule.TargetStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,

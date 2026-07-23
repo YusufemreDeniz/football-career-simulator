@@ -12,3 +12,24 @@ public sealed record ManagedClubTransferNeedsReadModel(
     long? ClubId,
     int OpenCount,
     IReadOnlyList<TransferNeedLineReadModel> OpenNeeds);
+
+public sealed record ShortlistLineReadModel(
+    long EntryId,
+    long PlayerId,
+    long? NeedId,
+    int Priority,
+    string StatusName);
+
+public sealed record TransferTargetLineReadModel(
+    long TargetId,
+    long NeedId,
+    long PlayerId,
+    long? ShortlistEntryId,
+    string StatusName);
+
+public sealed record ManagedClubShortlistTargetsReadModel(
+    long? ClubId,
+    int ActiveShortlistCount,
+    int ListedTargetCount,
+    IReadOnlyList<ShortlistLineReadModel> ActiveShortlist,
+    IReadOnlyList<TransferTargetLineReadModel> ListedTargets);

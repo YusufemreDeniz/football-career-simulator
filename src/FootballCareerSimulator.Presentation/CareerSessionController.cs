@@ -353,6 +353,64 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult SuggestTransferTarget()
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var id = new Domain.Shared.ClubId(clubId);
+            if (Host.TransferModule.Queries.GetManagedClubNeeds().OpenCount == 0)
+            {
+                Host.TransferModule.Needs.Declare(
+                    id,
+                    TransferNeedKind.PositionGap,
+                    priority: 3,
+                    "AutoForTarget",
+                    day);
+            }
+
+            var target = Host.TransferModule.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(id, day);
+            return UiActionResult.Ok(
+                $"Hedef listelendi: #{target.TargetId.Value} oyuncu {target.PlayerId.Value}"
+                + $" · ihtiyaç #{target.NeedId.Value}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Hedef eklenemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Hedef hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult DropOldestListedTransferTarget()
+    {
+        try
+        {
+            var listed = Host.TransferModule.Queries.GetManagedClubShortlistTargets().ListedTargets
+                .OrderBy(t => t.TargetId)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("Düşürülecek hedef yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TransferModule.ShortlistTargets.DropTransferTarget(
+                new TransferTargetId(listed.TargetId),
+                day);
+            return UiActionResult.Ok(
+                $"Hedef düşürüldü: #{listed.TargetId} (oyuncu {listed.PlayerId}).");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Hedef düşürülemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Hedef düşürme hatası: {ex.Message}");
+        }
+    }
+
     public UiActionResult SetWeeklyTraining(TrainingIntensity intensity)
     {
         try

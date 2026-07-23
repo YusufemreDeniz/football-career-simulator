@@ -22,6 +22,8 @@ public sealed class CareerGameSessionService
     private readonly IClubSquadStore _clubSquadStore;
     private readonly ITacticPlanStore _tacticPlanStore;
     private readonly ITransferNeedStore _transferNeedStore;
+    private readonly IShortlistStore _shortlistStore;
+    private readonly ITransferTargetStore _transferTargetStore;
     private readonly ITrainingPhysicalStateStore _trainingStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly IContractStore _contractStore;
@@ -38,6 +40,8 @@ public sealed class CareerGameSessionService
         IClubSquadStore clubSquadStore,
         ITacticPlanStore tacticPlanStore,
         ITransferNeedStore transferNeedStore,
+        IShortlistStore shortlistStore,
+        ITransferTargetStore transferTargetStore,
         ITrainingPhysicalStateStore trainingStore,
         IPlayerCareerStore playerCareerStore,
         IContractStore contractStore,
@@ -53,6 +57,8 @@ public sealed class CareerGameSessionService
         _clubSquadStore = clubSquadStore ?? throw new ArgumentNullException(nameof(clubSquadStore));
         _tacticPlanStore = tacticPlanStore ?? throw new ArgumentNullException(nameof(tacticPlanStore));
         _transferNeedStore = transferNeedStore ?? throw new ArgumentNullException(nameof(transferNeedStore));
+        _shortlistStore = shortlistStore ?? throw new ArgumentNullException(nameof(shortlistStore));
+        _transferTargetStore = transferTargetStore ?? throw new ArgumentNullException(nameof(transferTargetStore));
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
         _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
@@ -85,7 +91,9 @@ public sealed class CareerGameSessionService
             _clubSquadStore.Squads,
             _freeAgentStore.FreeAgents,
             _tacticPlanStore.Plans,
-            _transferNeedStore.Needs);
+            _transferNeedStore.Needs,
+            _shortlistStore.Entries,
+            _transferTargetStore.Targets);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -113,6 +121,8 @@ public sealed class CareerGameSessionService
         _freeAgentStore.ReplaceAll(loaded.FreeAgents);
         _tacticPlanStore.ReplaceAll(loaded.TacticPlans);
         _transferNeedStore.ReplaceAll(loaded.TransferNeeds);
+        _shortlistStore.ReplaceAll(loaded.ShortlistEntries);
+        _transferTargetStore.ReplaceAll(loaded.TransferTargets);
 
         foreach (var reset in _idempotencyResets)
         {

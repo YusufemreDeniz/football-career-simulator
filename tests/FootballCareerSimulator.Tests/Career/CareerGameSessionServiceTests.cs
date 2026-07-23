@@ -65,6 +65,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         idempotencyResets.Add(training.IdempotencyReset);
 
         var transferNeeds = new Application.Transfer.Infrastructure.InMemoryTransferNeedStore();
+        var shortlist = new Application.Transfer.Infrastructure.InMemoryShortlistStore();
+        var targets = new Application.Transfer.Infrastructure.InMemoryTransferTargetStore();
         return new CareerGameSessionService(
             world.TimelineStore,
             competition.Store,
@@ -74,6 +76,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             teamPreparation.SquadStore,
             teamPreparation.TacticPlanStore,
             transferNeeds,
+            shortlist,
+            targets,
             training.Store,
             playerCareer.Store,
             contracts.Store,
