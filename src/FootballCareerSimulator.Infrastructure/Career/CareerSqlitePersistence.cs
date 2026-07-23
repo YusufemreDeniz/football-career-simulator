@@ -27,7 +27,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
         IReadOnlyList<PlayerPhysicalState> physicalStates,
         IReadOnlyList<PlayerCareerAggregate> playerCareers,
-        IReadOnlyList<PlayerContract> contracts)
+        IReadOnlyList<PlayerContract> contracts,
+        IReadOnlyList<ClubSquad> clubSquads)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -39,6 +40,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(physicalStates);
         ArgumentNullException.ThrowIfNull(playerCareers);
         ArgumentNullException.ThrowIfNull(contracts);
+        ArgumentNullException.ThrowIfNull(clubSquads);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -49,7 +51,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             trainingPlans,
             physicalStates,
             playerCareers,
-            contracts);
+            contracts,
+            clubSquads);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -73,6 +76,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertPhysicalStates(connection, transaction, physicalStates);
             InsertPlayerCareers(connection, transaction, playerCareers);
             InsertContracts(connection, transaction, contracts);
+            InsertClubSquads(connection, transaction, clubSquads);
 
             transaction.Commit();
         }
@@ -202,6 +206,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV14ToV15InPlace(filePath);
             wasMigrated = true;
             version = 15;
+        }
+
+        if (version == 15 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 16)
+        {
+            WorldCalendarSqliteMigrator.MigrateV15ToV16InPlace(filePath);
+            wasMigrated = true;
+            version = 16;
         }
 
         if (wasMigrated)
@@ -375,6 +386,16 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 EndDayNumber INTEGER NOT NULL,
                 WeeklyWage INTEGER NOT NULL,
                 Status INTEGER NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE ClubSquadMemberState (
+                ClubId INTEGER NOT NULL,
+                PlayerId INTEGER NOT NULL,
+                SlotIndex INTEGER NOT NULL,
+                JoinedDayNumber INTEGER NOT NULL,
+                PRIMARY KEY (ClubId, PlayerId)
             );
             """);
     }
@@ -739,6 +760,31 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertClubSquads(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<ClubSquad> clubSquads)
+    {
+        foreach (var squad in clubSquads)
+        {
+            foreach (var member in squad.Members)
+            {
+                using var command = connection.CreateCommand();
+                command.Transaction = transaction;
+                command.CommandText = """
+                    INSERT INTO ClubSquadMemberState (
+                        ClubId, PlayerId, SlotIndex, JoinedDayNumber)
+                    VALUES ($clubId, $playerId, $slot, $joined);
+                    """;
+                command.Parameters.AddWithValue("$clubId", squad.ClubId.Value);
+                command.Parameters.AddWithValue("$playerId", member.PlayerId.Value);
+                command.Parameters.AddWithValue("$slot", member.SlotIndex);
+                command.Parameters.AddWithValue("$joined", member.JoinedOn.DayNumber);
+                command.ExecuteNonQuery();
+            }
+        }
+    }
+
     private static (int Version, bool IsLegacySpikeSave) ReadSchemaMetadata(string filePath)
     {
         try
@@ -803,6 +849,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var physicalStates = ReadPhysicalStates(connection);
         var playerCareers = ReadPlayerCareers(connection);
         var contracts = ReadContracts(connection);
+        var clubSquads = ReadClubSquads(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -812,7 +859,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             trainingPlans,
             physicalStates,
             playerCareers,
-            contracts);
+            contracts,
+            clubSquads);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -844,6 +892,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<PlayerPhysicalState> physicalStates;
             IReadOnlyList<PlayerCareerAggregate> playerCareers;
             IReadOnlyList<PlayerContract> contracts;
+            IReadOnlyList<ClubSquad> clubSquads;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -864,6 +913,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 physicalStates = ReadPhysicalStates(connection);
                 playerCareers = ReadPlayerCareers(connection);
                 contracts = ReadContracts(connection);
+                clubSquads = ReadClubSquads(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -877,7 +927,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 trainingPlans,
                 physicalStates,
                 playerCareers,
-                contracts);
+                contracts,
+                clubSquads);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -894,6 +945,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 physicalStates,
                 playerCareers,
                 contracts,
+                clubSquads,
                 schemaVersion,
                 wasMigrated);
         }
@@ -1294,6 +1346,42 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return contracts;
+    }
+
+    private static IReadOnlyList<ClubSquad> ReadClubSquads(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "ClubSquadMemberState"))
+        {
+            return Array.Empty<ClubSquad>();
+        }
+
+        var membersByClub = new Dictionary<long, List<SquadMember>>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ClubId, PlayerId, SlotIndex, JoinedDayNumber
+            FROM ClubSquadMemberState
+            ORDER BY ClubId, SlotIndex, PlayerId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var clubId = reader.GetInt64(0);
+            if (!membersByClub.TryGetValue(clubId, out var members))
+            {
+                members = new List<SquadMember>();
+                membersByClub[clubId] = members;
+            }
+
+            members.Add(SquadMember.Rehydrate(
+                new PlayerId(reader.GetInt64(1)),
+                reader.GetInt32(2),
+                GameDate.FromDayNumber(reader.GetInt32(3))));
+        }
+
+        return membersByClub
+            .OrderBy(pair => pair.Key)
+            .Select(pair => ClubSquad.Rehydrate(new ClubId(pair.Key), pair.Value))
+            .ToArray();
     }
 
     private static IReadOnlyList<int> ParseSlotCsv(string csv)

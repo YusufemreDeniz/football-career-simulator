@@ -18,6 +18,7 @@ public sealed class CareerGameSessionService
     private readonly IClubRegistryStore _clubRegistryStore;
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly IMatchSelectionStore _matchSelectionStore;
+    private readonly IClubSquadStore _clubSquadStore;
     private readonly ITrainingPhysicalStateStore _trainingStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly IContractStore _contractStore;
@@ -30,6 +31,7 @@ public sealed class CareerGameSessionService
         IClubRegistryStore clubRegistryStore,
         IManagerCareerStore managerCareerStore,
         IMatchSelectionStore matchSelectionStore,
+        IClubSquadStore clubSquadStore,
         ITrainingPhysicalStateStore trainingStore,
         IPlayerCareerStore playerCareerStore,
         IContractStore contractStore,
@@ -41,6 +43,7 @@ public sealed class CareerGameSessionService
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
         _managerCareerStore = managerCareerStore ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _matchSelectionStore = matchSelectionStore ?? throw new ArgumentNullException(nameof(matchSelectionStore));
+        _clubSquadStore = clubSquadStore ?? throw new ArgumentNullException(nameof(clubSquadStore));
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
         _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
@@ -68,7 +71,8 @@ public sealed class CareerGameSessionService
             _trainingStore.Plans,
             _trainingStore.PhysicalStates,
             _playerCareerStore.Careers,
-            _contractStore.Contracts);
+            _contractStore.Contracts,
+            _clubSquadStore.Squads);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -92,6 +96,7 @@ public sealed class CareerGameSessionService
         _trainingStore.ReplaceAll(loaded.TrainingPlans, loaded.PhysicalStates);
         _playerCareerStore.ReplaceAll(loaded.PlayerCareers);
         _contractStore.ReplaceAll(loaded.Contracts);
+        _clubSquadStore.ReplaceAll(loaded.ClubSquads);
 
         foreach (var reset in _idempotencyResets)
         {

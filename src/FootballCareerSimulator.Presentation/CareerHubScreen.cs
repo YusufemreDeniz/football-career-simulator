@@ -17,6 +17,7 @@ public partial class CareerHubScreen : Control
     private Label _trainingLabel = null!;
     private Label _developmentLabel = null!;
     private Label _contractLabel = null!;
+    private Label _squadStatusLabel = null!;
     private Label _standingsLabel = null!;
     private Label _statusLabel = null!;
     private SpinBox _roundSelector = null!;
@@ -223,6 +224,14 @@ public partial class CareerHubScreen : Control
             CustomMinimumSize = new Vector2(0, 140),
         };
         layout.AddChild(_fixtureList);
+
+        _squadStatusLabel = new Label
+        {
+            Name = "SquadStatusLabel",
+            Text = "A takım: —",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        layout.AddChild(_squadStatusLabel);
 
         layout.AddChild(new Label { Text = "Kadro (özet)" });
         _squadList = new ItemList
@@ -514,12 +523,18 @@ public partial class CareerHubScreen : Control
         var manager = _controller.Host.ManagerModule.Queries.GetCareer();
         if (manager.EmployedClubId is not long clubId)
         {
+            _squadStatusLabel.Text = "A takım: işsiz — kayıt yok.";
             return;
         }
 
         var rootSeed = _controller.Host.WorldModule.TimelineStore.Timeline.RootSeed;
         var squad = _controller.Host.TeamPreparationModule.SquadQueries.GetClubSquad(clubId, rootSeed);
+        var persisted = _controller.Host.TeamPreparationModule.SquadStore.Get(
+            new Domain.Shared.ClubId(clubId));
         var clubName = _controller.GetClubDisplayName(clubId);
+        _squadStatusLabel.Text = persisted is null || persisted.Members.Count == 0
+            ? "A takım: henüz yok — lig kur / gün ilerle / antrenman ile oluşur."
+            : $"A takım: {persisted.Members.Count} üye · {clubName}";
 
         foreach (var player in squad.Take(11))
         {

@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Services;
@@ -31,7 +32,8 @@ public sealed class TrainingPhysicalStateModule
         IManagerCareerStore managerCareerStore,
         IWorldTimelineStore timelineStore,
         ITrainingPhysicalStateStore? store = null,
-        PlayerCareerDevelopmentService? playerDevelopment = null)
+        PlayerCareerDevelopmentService? playerDevelopment = null,
+        ClubSquadService? clubSquadService = null)
     {
         var trainingStore = store ?? new InMemoryTrainingPhysicalStateStore();
         return new TrainingPhysicalStateModule(
@@ -40,7 +42,8 @@ public sealed class TrainingPhysicalStateModule
                 trainingStore,
                 managerCareerStore,
                 timelineStore,
-                playerDevelopment),
+                playerDevelopment,
+                clubSquadService),
             new TrainingQueryService(trainingStore, managerCareerStore, timelineStore));
     }
 }

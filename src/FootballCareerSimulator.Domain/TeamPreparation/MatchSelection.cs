@@ -46,7 +46,8 @@ public sealed class MatchSelection
         FixtureId fixtureId,
         ClubId clubId,
         IReadOnlyList<int> startingSlotIndices,
-        IReadOnlyList<int> benchSlotIndices)
+        IReadOnlyList<int> benchSlotIndices,
+        ClubSquad? clubSquad = null)
     {
         ArgumentNullException.ThrowIfNull(startingSlotIndices);
         ArgumentNullException.ThrowIfNull(benchSlotIndices);
@@ -79,6 +80,27 @@ public sealed class MatchSelection
             }
         }
 
+        if (clubSquad is not null)
+        {
+            if (clubSquad.ClubId != clubId)
+            {
+                throw new TeamPreparationInvariantViolationException(
+                    "Match selection club does not match club squad.");
+            }
+
+            if (clubSquad.Members.Count > 0)
+            {
+                foreach (var slot in allSlots)
+                {
+                    if (!clubSquad.ContainsSlot(slot))
+                    {
+                        throw new TeamPreparationInvariantViolationException(
+                            $"Slot {slot} is not in club {clubId.Value} A-team squad.");
+                    }
+                }
+            }
+        }
+
         return new MatchSelection(
             fixtureId,
             clubId,
@@ -87,12 +109,16 @@ public sealed class MatchSelection
             MatchSelectionStatus.Approved);
     }
 
-    public static MatchSelection ApproveDefault(FixtureId fixtureId, ClubId clubId) =>
+    public static MatchSelection ApproveDefault(
+        FixtureId fixtureId,
+        ClubId clubId,
+        ClubSquad? clubSquad = null) =>
         Approve(
             fixtureId,
             clubId,
             Enumerable.Range(0, StartingXiSize).ToArray(),
-            Enumerable.Range(StartingXiSize, MaxBenchSize).ToArray());
+            Enumerable.Range(StartingXiSize, MaxBenchSize).ToArray(),
+            clubSquad);
 
     public static MatchSelection Rehydrate(
         FixtureId fixtureId,

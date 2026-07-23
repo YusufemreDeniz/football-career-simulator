@@ -88,10 +88,12 @@ public sealed class CareerSessionController
             if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
             {
                 var day = Host.WorldModule.Queries.GetCurrentGameDate();
+                var id = new Domain.Shared.ClubId(clubId);
                 Host.PlayerCareerModule.Development.EnsureClub(
-                    new Domain.Shared.ClubId(clubId),
+                    id,
                     Host.WorldModule.TimelineStore.Timeline.RootSeed,
                     day);
+                Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, day);
             }
 
             return UiActionResult.Ok(
@@ -302,10 +304,12 @@ public sealed class CareerSessionController
         var expired = Host.ContractModule.Registration.ExpireDueContracts(day);
         if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
         {
+            var id = new Domain.Shared.ClubId(clubId);
             Host.PlayerCareerModule.Development.EnsureClub(
-                new Domain.Shared.ClubId(clubId),
+                id,
                 Host.WorldModule.TimelineStore.Timeline.RootSeed,
                 day);
+            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, day);
         }
 
         var extras = new List<string>();

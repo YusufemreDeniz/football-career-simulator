@@ -99,16 +99,19 @@ public sealed class CareerPresentationHost
             trainingStore,
             playerStore,
             contractModule.Registration);
+        var teamPreparation = TeamPreparationModule.Create(
+            competitionStore,
+            managerModule.Store,
+            trainingStore: trainingStore,
+            timelineStore: worldModule.TimelineStore,
+            contractStore: contractModule.Store,
+            playerCareerStore: playerStore);
         var training = TrainingPhysicalStateModule.Create(
             managerModule.Store,
             worldModule.TimelineStore,
             trainingStore,
-            playerCareer.Development);
-        var teamPreparation = TeamPreparationModule.Create(
-            competitionStore,
-            managerModule.Store,
-            trainingStore: training.Store,
-            timelineStore: worldModule.TimelineStore);
+            playerCareer.Development,
+            teamPreparation.ClubSquad);
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,
@@ -138,6 +141,7 @@ public sealed class CareerPresentationHost
             clubModule.Store,
             managerModule.Store,
             teamPreparation.SelectionStore,
+            teamPreparation.SquadStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,

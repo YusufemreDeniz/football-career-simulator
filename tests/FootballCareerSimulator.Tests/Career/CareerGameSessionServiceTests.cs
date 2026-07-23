@@ -70,6 +70,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             clubs.Store,
             manager.Store,
             teamPreparation.SelectionStore,
+            teamPreparation.SquadStore,
             training.Store,
             playerCareer.Store,
             contracts.Store,

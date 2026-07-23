@@ -16,18 +16,21 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
     private readonly ILeagueCompetitionStore _competitionStore;
     private readonly ITrainingPhysicalStateStore? _trainingStore;
     private readonly IWorldTimelineStore? _timelineStore;
+    private readonly IClubSquadStore? _squadStore;
     private readonly Dictionary<Guid, ApproveDefaultMatchSelectionResult> _completedCommands = new();
 
     public ApproveDefaultMatchSelectionHandler(
         IMatchSelectionStore selectionStore,
         ILeagueCompetitionStore competitionStore,
         ITrainingPhysicalStateStore? trainingStore = null,
-        IWorldTimelineStore? timelineStore = null)
+        IWorldTimelineStore? timelineStore = null,
+        IClubSquadStore? squadStore = null)
     {
         _selectionStore = selectionStore ?? throw new ArgumentNullException(nameof(selectionStore));
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _trainingStore = trainingStore;
         _timelineStore = timelineStore;
+        _squadStore = squadStore;
     }
 
     public ApproveDefaultMatchSelectionResult Handle(ApproveDefaultMatchSelectionCommand command)
@@ -55,6 +58,8 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
                 $"Club {command.ClubId} does not participate in fixture {command.FixtureId}.");
         }
 
+        var clubSquad = _squadStore?.Get(clubId);
+
         MatchSelection selection;
         if (_trainingStore is not null && _timelineStore is not null)
         {
@@ -62,11 +67,12 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
                 fixtureId,
                 clubId,
                 _timelineStore.Timeline.CurrentDate,
-                _trainingStore.PhysicalBySlot);
+                _trainingStore.PhysicalBySlot,
+                clubSquad);
         }
         else
         {
-            selection = MatchSelection.ApproveDefault(fixtureId, clubId);
+            selection = MatchSelection.ApproveDefault(fixtureId, clubId, clubSquad);
         }
 
         _selectionStore.Upsert(selection);
