@@ -5,8 +5,8 @@ config_version=5
 
 [application]
 
-config/name="Football Career Simulator - Presentation Shell"
-run/main_scene="res://TimeControlScreen.tscn"
+config/name="Football Career Simulator"
+run/main_scene="res://CareerAppRoot.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [dotnet]
