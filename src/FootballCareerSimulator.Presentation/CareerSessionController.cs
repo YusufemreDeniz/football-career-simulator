@@ -461,6 +461,98 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult RequestSportingApprovalForOldestProcess()
+    {
+        try
+        {
+            var processId = ResolveOldestActiveProcessId();
+            var updated = Host.TransferModule.Processes.RequestSportingApproval(
+                new TransferProcessId(processId));
+            return UiActionResult.Ok(
+                $"Sportif onay istendi: süreç #{updated.ProcessId.Value} · {TranslateProcessStatus(updated.Status)}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Sportif onay istenemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Sportif onay hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult GrantSportingApprovalForOldestPendingProcess()
+    {
+        try
+        {
+            var pending = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+                .Where(p => p.StatusCode == (int)TransferProcessStatus.SportingApprovalPending)
+                .OrderBy(p => p.ProcessId)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("Onay bekleyen süreç yok.");
+            var updated = Host.TransferModule.Processes.GrantSportingApproval(
+                new TransferProcessId(pending.ProcessId));
+            return UiActionResult.Ok(
+                $"Sportif onay verildi: süreç #{updated.ProcessId.Value} · oyuncu {updated.PlayerId.Value}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Sportif onay verilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Sportif onay hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult RejectSportingApprovalForOldestPendingProcess()
+    {
+        try
+        {
+            var pending = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+                .Where(p => p.StatusCode == (int)TransferProcessStatus.SportingApprovalPending)
+                .OrderBy(p => p.ProcessId)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("Reddedilecek onay bekleyen süreç yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var updated = Host.TransferModule.Processes.RejectSportingApproval(
+                new TransferProcessId(pending.ProcessId),
+                "SportingRejected",
+                day);
+            return UiActionResult.Ok($"Sportif red: süreç #{updated.ProcessId.Value}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Sportif red başarısız: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Sportif red hatası: {ex.Message}");
+        }
+    }
+
+    private long ResolveOldestActiveProcessId()
+    {
+        var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+            .OrderBy(p => p.ProcessId)
+            .FirstOrDefault()
+            ?? throw new InvalidOperationException("Aktif transfer süreci yok.");
+        return active.ProcessId;
+    }
+
+    private static string TranslateProcessStatus(TransferProcessStatus status) =>
+        status switch
+        {
+            TransferProcessStatus.UnderEvaluation => "Değerlendirmede",
+            TransferProcessStatus.SportingApprovalPending => "Sportif onay bekliyor",
+            TransferProcessStatus.SportingApproved => "Sportif onaylı",
+            TransferProcessStatus.Rejected => "Reddedildi",
+            TransferProcessStatus.Withdrawn => "Geri çekildi",
+            TransferProcessStatus.Failed => "Başarısız",
+            TransferProcessStatus.Archived => "Arşiv",
+            _ => status.ToString(),
+        };
+
     public UiActionResult SetWeeklyTraining(TrainingIntensity intensity)
     {
         try

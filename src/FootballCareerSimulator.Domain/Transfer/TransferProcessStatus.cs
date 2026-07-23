@@ -1,7 +1,7 @@
 namespace FootballCareerSimulator.Domain.Transfer;
 
 /// <summary>
-/// Transfer Process iskelet durumları (müzakere / approval / completion yok).
+/// Transfer Process durumları (müzakere / financial / completion henüz yok).
 /// </summary>
 public enum TransferProcessStatus
 {
@@ -9,4 +9,7 @@ public enum TransferProcessStatus
     Withdrawn = 2,
     Failed = 3,
     Archived = 4,
+    SportingApprovalPending = 5,
+    SportingApproved = 6,
+    Rejected = 7,
 }

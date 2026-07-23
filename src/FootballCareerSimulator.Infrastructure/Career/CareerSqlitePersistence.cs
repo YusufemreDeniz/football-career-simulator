@@ -275,6 +275,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 21;
         }
 
+        if (version == 21 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 22)
+        {
+            WorldCalendarSqliteMigrator.MigrateV21ToV22InPlace(filePath);
+            wasMigrated = true;
+            version = 22;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);

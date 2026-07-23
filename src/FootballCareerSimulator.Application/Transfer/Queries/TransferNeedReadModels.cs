@@ -38,6 +38,7 @@ public sealed record TransferProcessLineReadModel(
     long ProcessId,
     long TargetId,
     long PlayerId,
+    int StatusCode,
     string StatusName,
     string? FailureReasonCode);
 

@@ -5,7 +5,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.Transfer;
 
 /// <summary>
-/// Aktif transfer süreci iskeleti. Offer / Approval / Completion içermez.
+/// Transfer süreci: değerlendirme + Sporting Approval. Offer / Financial / Completion yok.
 /// </summary>
 public sealed class TransferProcess
 {
@@ -57,12 +57,13 @@ public sealed class TransferProcess
 
     public GameDate? TerminalOn { get; }
 
-    public bool IsActive => Status == TransferProcessStatus.UnderEvaluation;
+    public bool IsActive => IsActiveStatus(Status);
 
-    public bool IsTerminal =>
-        Status is TransferProcessStatus.Withdrawn
-            or TransferProcessStatus.Failed
-            or TransferProcessStatus.Archived;
+    public bool IsTerminal => !IsActive;
+
+    public bool AwaitsSportingDecision => Status == TransferProcessStatus.SportingApprovalPending;
+
+    public bool HasSportingApproval => Status == TransferProcessStatus.SportingApproved;
 
     public static TransferProcess OpenFromTarget(
         TransferProcessId processId,
@@ -118,19 +119,21 @@ public sealed class TransferProcess
             throw new TransferInvariantViolationException($"Unknown transfer process status: {status}.");
         }
 
-        if (status == TransferProcessStatus.UnderEvaluation && terminalOn is not null)
+        if (IsActiveStatus(status) && terminalOn is not null)
         {
             throw new TransferInvariantViolationException("Active process cannot have TerminalOn.");
         }
 
-        if (status != TransferProcessStatus.UnderEvaluation && terminalOn is null)
+        if (!IsActiveStatus(status) && terminalOn is null)
         {
             throw new TransferInvariantViolationException("Terminal process requires TerminalOn.");
         }
 
-        if (status == TransferProcessStatus.Failed && string.IsNullOrWhiteSpace(failureReasonCode))
+        if (status is TransferProcessStatus.Failed or TransferProcessStatus.Rejected
+            && string.IsNullOrWhiteSpace(failureReasonCode))
         {
-            throw new TransferInvariantViolationException("Failed process requires FailureReasonCode.");
+            throw new TransferInvariantViolationException(
+                $"{status} process requires FailureReasonCode.");
         }
 
         return new TransferProcess(
@@ -147,10 +150,97 @@ public sealed class TransferProcess
             terminalOn);
     }
 
+    public TransferProcess RequestSportingApproval()
+    {
+        if (Status == TransferProcessStatus.SportingApprovalPending)
+        {
+            return this;
+        }
+
+        if (Status == TransferProcessStatus.SportingApproved)
+        {
+            throw new TransferInvariantViolationException(
+                "Sporting approval already granted; cannot request again.");
+        }
+
+        EnsureActive();
+        if (Status != TransferProcessStatus.UnderEvaluation)
+        {
+            throw new TransferInvariantViolationException(
+                $"Cannot request sporting approval from {Status}.");
+        }
+
+        return WithStatus(TransferProcessStatus.SportingApprovalPending, FailureReasonCode, terminalOn: null);
+    }
+
+    public TransferProcess GrantSportingApproval()
+    {
+        if (Status == TransferProcessStatus.SportingApproved)
+        {
+            return this;
+        }
+
+        if (Status != TransferProcessStatus.SportingApprovalPending)
+        {
+            throw new TransferInvariantViolationException(
+                "Sporting approval can only be granted while pending.");
+        }
+
+        return WithStatus(TransferProcessStatus.SportingApproved, FailureReasonCode, terminalOn: null);
+    }
+
+    public TransferProcess RejectSportingApproval(string reasonCode, GameDate day)
+    {
+        if (Status == TransferProcessStatus.Rejected)
+        {
+            return this;
+        }
+
+        if (Status != TransferProcessStatus.SportingApprovalPending)
+        {
+            throw new TransferInvariantViolationException(
+                "Sporting rejection can only occur while approval is pending.");
+        }
+
+        return WithStatus(
+            TransferProcessStatus.Rejected,
+            RequireReason(reasonCode),
+            day);
+    }
+
     public TransferProcess Withdraw(GameDate day)
     {
         EnsureActive();
-        return new TransferProcess(
+        return WithStatus(TransferProcessStatus.Withdrawn, FailureReasonCode, day);
+    }
+
+    public TransferProcess Fail(string reasonCode, GameDate day)
+    {
+        EnsureActive();
+        return WithStatus(TransferProcessStatus.Failed, RequireReason(reasonCode), day);
+    }
+
+    public TransferProcess Archive(GameDate day)
+    {
+        if (Status == TransferProcessStatus.Archived)
+        {
+            return this;
+        }
+
+        if (IsActive)
+        {
+            throw new TransferInvariantViolationException(
+                "Active process cannot be archived; withdraw, fail, or reject first.");
+        }
+
+        return WithStatus(TransferProcessStatus.Archived, FailureReasonCode, day);
+    }
+
+    private TransferProcess WithStatus(
+        TransferProcessStatus status,
+        string? failureReasonCode,
+        GameDate? terminalOn) =>
+        new(
             ProcessId,
             NeedId,
             TargetId,
@@ -158,15 +248,27 @@ public sealed class TransferProcess
             PlayerId,
             SellingClubId,
             IsFreeAgent,
-            TransferProcessStatus.Withdrawn,
-            FailureReasonCode,
+            status,
+            failureReasonCode,
             OpenedOn,
-            day);
+            terminalOn);
+
+    private void EnsureActive()
+    {
+        if (!IsActive)
+        {
+            throw new TransferInvariantViolationException(
+                $"Process #{ProcessId.Value} is terminal ({Status}) and cannot transition.");
+        }
     }
 
-    public TransferProcess Fail(string reasonCode, GameDate day)
+    private static bool IsActiveStatus(TransferProcessStatus status) =>
+        status is TransferProcessStatus.UnderEvaluation
+            or TransferProcessStatus.SportingApprovalPending
+            or TransferProcessStatus.SportingApproved;
+
+    private static string RequireReason(string reasonCode)
     {
-        EnsureActive();
         if (string.IsNullOrWhiteSpace(reasonCode))
         {
             throw new TransferInvariantViolationException("Failure reason is required.");
@@ -177,53 +279,6 @@ public sealed class TransferProcess
             throw new TransferInvariantViolationException("Failure reason max length is 64.");
         }
 
-        return new TransferProcess(
-            ProcessId,
-            NeedId,
-            TargetId,
-            BuyingClubId,
-            PlayerId,
-            SellingClubId,
-            IsFreeAgent,
-            TransferProcessStatus.Failed,
-            reasonCode.Trim(),
-            OpenedOn,
-            day);
-    }
-
-    public TransferProcess Archive(GameDate day)
-    {
-        if (Status == TransferProcessStatus.Archived)
-        {
-            return this;
-        }
-
-        if (Status == TransferProcessStatus.UnderEvaluation)
-        {
-            throw new TransferInvariantViolationException(
-                "Active process cannot be archived; withdraw or fail first.");
-        }
-
-        return new TransferProcess(
-            ProcessId,
-            NeedId,
-            TargetId,
-            BuyingClubId,
-            PlayerId,
-            SellingClubId,
-            IsFreeAgent,
-            TransferProcessStatus.Archived,
-            FailureReasonCode,
-            OpenedOn,
-            day);
-    }
-
-    private void EnsureActive()
-    {
-        if (!IsActive)
-        {
-            throw new TransferInvariantViolationException(
-                $"Process #{ProcessId.Value} is terminal ({Status}) and cannot transition.");
-        }
+        return reasonCode.Trim();
     }
 }

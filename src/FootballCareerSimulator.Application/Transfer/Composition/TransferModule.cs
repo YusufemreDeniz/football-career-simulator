@@ -65,7 +65,7 @@ public sealed class TransferModule
             processes,
             new TransferNeedService(needs, contractStore, squadStore),
             new ShortlistTargetService(shortlist, targets, needs),
-            new TransferProcessService(processes, targets, needs),
+            new TransferProcessService(processes, targets, needs, managerCareerStore),
             new TransferNeedQueryService(needs, shortlist, targets, processes, managerCareerStore));
     }
 }

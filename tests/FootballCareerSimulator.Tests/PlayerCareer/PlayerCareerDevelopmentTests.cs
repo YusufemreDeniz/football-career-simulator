@@ -132,7 +132,7 @@ public sealed class PlayerCareerDevelopmentTests : IDisposable
             Array.Empty<Domain.Transfer.TransferProcess>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(21, loaded.SchemaVersion);
+        Assert.Equal(22, loaded.SchemaVersion);
         Assert.Equal(25, loaded.PlayerCareers.Count);
         var loadedFirst = loaded.PlayerCareers.Single(c => c.SlotIndex == 0);
         Assert.Equal(aged.BirthYear, loadedFirst.BirthYear);

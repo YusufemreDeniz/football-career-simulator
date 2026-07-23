@@ -142,7 +142,7 @@ public sealed class TransferNeedTests : IDisposable
             Array.Empty<TransferProcess>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(21, loaded.SchemaVersion);
+        Assert.Equal(22, loaded.SchemaVersion);
         Assert.Single(loaded.TransferNeeds);
         Assert.Equal(TransferNeedKind.ExpiringContract, loaded.TransferNeeds[0].Kind);
         Assert.Equal(TransferNeedStatus.Open, loaded.TransferNeeds[0].Status);

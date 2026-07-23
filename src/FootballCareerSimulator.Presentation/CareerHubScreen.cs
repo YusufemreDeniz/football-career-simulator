@@ -39,6 +39,9 @@ public partial class CareerHubScreen : Control
     private Button _dropTargetButton = null!;
     private Button _openProcessButton = null!;
     private Button _withdrawProcessButton = null!;
+    private Button _requestSportingApprovalButton = null!;
+    private Button _grantSportingApprovalButton = null!;
+    private Button _rejectSportingApprovalButton = null!;
     private Button _trainLowButton = null!;
     private Button _trainMediumButton = null!;
     private Button _trainHighButton = null!;
@@ -252,6 +255,25 @@ public partial class CareerHubScreen : Control
         _withdrawProcessButton = SecondaryButton("Süreci Geri Çek");
         _withdrawProcessButton.Pressed += () => Apply(_controller.WithdrawOldestActiveTransferProcess());
         processRow.AddChild(_withdrawProcessButton);
+
+        var sportingRow = new HBoxContainer();
+        sportingRow.AddThemeConstantOverride("separation", 8);
+        clubCol.AddChild(sportingRow);
+
+        _requestSportingApprovalButton = SecondaryButton("Sportif Onay İste");
+        _requestSportingApprovalButton.Pressed += () =>
+            Apply(_controller.RequestSportingApprovalForOldestProcess());
+        sportingRow.AddChild(_requestSportingApprovalButton);
+
+        _grantSportingApprovalButton = SecondaryButton("Onayla");
+        _grantSportingApprovalButton.Pressed += () =>
+            Apply(_controller.GrantSportingApprovalForOldestPendingProcess());
+        sportingRow.AddChild(_grantSportingApprovalButton);
+
+        _rejectSportingApprovalButton = SecondaryButton("Reddet");
+        _rejectSportingApprovalButton.Pressed += () =>
+            Apply(_controller.RejectSportingApprovalForOldestPendingProcess());
+        sportingRow.AddChild(_rejectSportingApprovalButton);
 
         var prepCol = new VBoxContainer
         {
@@ -666,8 +688,18 @@ public partial class CareerHubScreen : Control
             : 0;
         _suggestTargetButton.Disabled = !employed;
         _dropTargetButton.Disabled = !employed || listedCount == 0;
+        var processes = employed
+            ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+            : [];
+        var pendingSporting = processes.Any(p =>
+            p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.SportingApprovalPending);
+        var canRequestSporting = processes.Any(p =>
+            p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.UnderEvaluation);
         _openProcessButton.Disabled = !employed;
         _withdrawProcessButton.Disabled = !employed || activeProcessCount == 0;
+        _requestSportingApprovalButton.Disabled = !canRequestSporting;
+        _grantSportingApprovalButton.Disabled = !pendingSporting;
+        _rejectSportingApprovalButton.Disabled = !pendingSporting;
     }
 
     private void RefreshTrainingStatus()

@@ -168,7 +168,7 @@ public sealed class ContractRegistrationTests : IDisposable
             Array.Empty<Domain.Transfer.TransferProcess>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(21, loaded.SchemaVersion);
+        Assert.Equal(22, loaded.SchemaVersion);
         Assert.Equal(25, loaded.Contracts.Count);
         Assert.All(loaded.Contracts, c => Assert.Equal(ContractStatus.Active, c.Status));
 

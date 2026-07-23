@@ -99,6 +99,7 @@ public sealed class TransferNeedQueryService
                 p.ProcessId.Value,
                 p.TargetId.Value,
                 p.PlayerId.Value,
+                (int)p.Status,
                 TranslateProcessStatus(p.Status),
                 p.FailureReasonCode))
             .ToArray();
@@ -131,6 +132,9 @@ public sealed class TransferNeedQueryService
         status switch
         {
             TransferProcessStatus.UnderEvaluation => "Değerlendirmede",
+            TransferProcessStatus.SportingApprovalPending => "Sportif onay bekliyor",
+            TransferProcessStatus.SportingApproved => "Sportif onaylı",
+            TransferProcessStatus.Rejected => "Reddedildi",
             TransferProcessStatus.Withdrawn => "Geri çekildi",
             TransferProcessStatus.Failed => "Başarısız",
             TransferProcessStatus.Archived => "Arşiv",

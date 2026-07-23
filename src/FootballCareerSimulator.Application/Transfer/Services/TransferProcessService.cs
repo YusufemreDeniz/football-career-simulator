@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
@@ -7,23 +8,26 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.Transfer.Services;
 
 /// <summary>
-/// Transfer Process iskeleti: aç / geri çek / başarısız / arşivle.
-/// Müzakere, approval ve completion yok.
+/// Transfer Process: açılış + Sporting Approval. Müzakere / financial / completion yok.
 /// </summary>
 public sealed class TransferProcessService
 {
     private readonly ITransferProcessStore _processStore;
     private readonly ITransferTargetStore _targetStore;
     private readonly ITransferNeedStore _needStore;
+    private readonly IManagerCareerStore _managerCareerStore;
 
     public TransferProcessService(
         ITransferProcessStore processStore,
         ITransferTargetStore targetStore,
-        ITransferNeedStore needStore)
+        ITransferNeedStore needStore,
+        IManagerCareerStore managerCareerStore)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _targetStore = targetStore ?? throw new ArgumentNullException(nameof(targetStore));
         _needStore = needStore ?? throw new ArgumentNullException(nameof(needStore));
+        _managerCareerStore = managerCareerStore
+            ?? throw new ArgumentNullException(nameof(managerCareerStore));
     }
 
     public TransferProcess OpenFromListedTarget(TransferTargetId targetId, GameDate day)
@@ -87,6 +91,33 @@ public sealed class TransferProcessService
         return OpenFromListedTarget(target.TargetId, day);
     }
 
+    public TransferProcess RequestSportingApproval(TransferProcessId processId)
+    {
+        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        var updated = Require(processId).RequestSportingApproval();
+        _processStore.Upsert(updated);
+        return updated;
+    }
+
+    public TransferProcess GrantSportingApproval(TransferProcessId processId)
+    {
+        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        var updated = Require(processId).GrantSportingApproval();
+        _processStore.Upsert(updated);
+        return updated;
+    }
+
+    public TransferProcess RejectSportingApproval(
+        TransferProcessId processId,
+        string reasonCode,
+        GameDate day)
+    {
+        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        var updated = Require(processId).RejectSportingApproval(reasonCode, day);
+        _processStore.Upsert(updated);
+        return updated;
+    }
+
     public TransferProcess Withdraw(TransferProcessId processId, GameDate day)
     {
         var process = Require(processId);
@@ -115,9 +146,16 @@ public sealed class TransferProcessService
         _processStore.Get(processId)
         ?? throw new TransferInvariantViolationException($"Transfer process #{processId.Value} not found.");
 
-    /// <summary>
-    /// MVP sentetik PlayerId.FromClubSlot çözümlemesi; bilinmeyen kimlik free-agent sayılır.
-    /// </summary>
+    private void EnsureManagerCanDecide(ClubId buyingClubId)
+    {
+        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId }
+            || clubId.Value != buyingClubId.Value)
+        {
+            throw new TransferInvariantViolationException(
+                "Only the employed manager of the buying club can make sporting decisions.");
+        }
+    }
+
     private static ClubId? DecodeSyntheticClubId(PlayerId playerId)
     {
         var value = playerId.Value;
