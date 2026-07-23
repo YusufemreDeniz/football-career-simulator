@@ -165,7 +165,9 @@ public sealed class MatchSelectionTests : IDisposable
             competition.Store.League,
             clubs.Store.Registry,
             manager.Store.Career,
-            selectionStore.Selections);
+            selectionStore.Selections,
+            Array.Empty<Domain.TrainingPhysicalState.WeeklyTrainingPlan>(),
+            Array.Empty<Domain.TrainingPhysicalState.PlayerPhysicalState>());
 
         var loaded = persistence.Load(path);
         Assert.Single(loaded.MatchSelections);

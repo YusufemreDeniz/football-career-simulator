@@ -2,11 +2,14 @@ using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Commands;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Presentation;
@@ -171,6 +174,33 @@ public sealed class CareerSessionController
         catch (Exception ex)
         {
             return UiActionResult.Fail($"Teklif kabul hatası: {ex.Message}");
+        }
+    }
+
+    public ClubTrainingSummaryReadModel GetTrainingSummary() =>
+        Host.TrainingModule.Queries.GetManagedClubSummary();
+
+    public UiActionResult SetWeeklyTraining(TrainingIntensity intensity)
+    {
+        try
+        {
+            var result = Host.TrainingModule.SetWeeklyPlan.Handle(
+                new SetWeeklyTrainingPlanCommand(
+                    Guid.NewGuid(),
+                    (int)TrainingFocus.General,
+                    (int)intensity,
+                    (int)RestApproach.Normal));
+
+            return UiActionResult.Ok(
+                $"Antrenman uygulandı ({intensity}): yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}.");
+        }
+        catch (TrainingPhysicalStateInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Antrenman uygulanamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Antrenman hatası: {ex.Message}");
         }
     }
 

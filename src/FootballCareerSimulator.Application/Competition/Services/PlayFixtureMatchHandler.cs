@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
@@ -14,6 +15,7 @@ using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.Match;
 using FootballCareerSimulator.Simulation.TeamPreparation;
+using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 {
@@ -22,6 +24,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly IWorldTimelineStore _timelineStore;
     private readonly IManagerCareerStore? _managerCareerStore;
     private readonly IMatchSelectionStore? _matchSelectionStore;
+    private readonly ITrainingPhysicalStateStore? _trainingStore;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -29,13 +32,15 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         IClubRegistryStore clubRegistryStore,
         IWorldTimelineStore timelineStore,
         IManagerCareerStore? managerCareerStore = null,
-        IMatchSelectionStore? matchSelectionStore = null)
+        IMatchSelectionStore? matchSelectionStore = null,
+        ITrainingPhysicalStateStore? trainingStore = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _managerCareerStore = managerCareerStore;
         _matchSelectionStore = matchSelectionStore;
+        _trainingStore = trainingStore;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -68,8 +73,10 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var awayClub = _clubRegistryStore.Registry.GetClubOrThrow(fixture.AwayClubId);
         var rootSeed = _timelineStore.Timeline.RootSeed;
 
-        var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed);
-        var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed);
+        var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed)
+            + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId);
+        var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed)
+            + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId);
 
         var score = MvpFixtureMatchSimulator.Simulate(
             rootSeed,
@@ -191,5 +198,29 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         }
 
         return MvpSquadStrengthCalculator.ComputeDefaultLineupBonus(clubId, rootSeed);
+    }
+
+    private int ResolvePhysicalModifier(FixtureId fixtureId, ClubId clubId)
+    {
+        if (_trainingStore is null || _trainingStore.GetPlan(clubId) is null)
+        {
+            return 0;
+        }
+
+        IReadOnlyList<int> startingSlots;
+        var selection = _matchSelectionStore?.Get(fixtureId, clubId);
+        if (selection is not null)
+        {
+            startingSlots = selection.StartingSlotIndices;
+        }
+        else
+        {
+            startingSlots = Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
+        }
+
+        return MvpPhysicalMatchModifier.ComputeLineupModifier(
+            clubId,
+            startingSlots,
+            _trainingStore.PhysicalBySlot);
     }
 }

@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using Godot;
 
 namespace FootballCareerSimulator.Presentation;
@@ -13,6 +14,7 @@ public partial class CareerHubScreen : Control
     private Label _progressLabel = null!;
     private Label _blockerLabel = null!;
     private Label _selectionLabel = null!;
+    private Label _trainingLabel = null!;
     private Label _standingsLabel = null!;
     private Label _statusLabel = null!;
     private SpinBox _roundSelector = null!;
@@ -21,6 +23,9 @@ public partial class CareerHubScreen : Control
     private Button _approveSelectionButton = null!;
     private Button _generateOfferButton = null!;
     private Button _acceptOfferButton = null!;
+    private Button _trainLowButton = null!;
+    private Button _trainMediumButton = null!;
+    private Button _trainHighButton = null!;
     private Button _playButton = null!;
     private Button _advanceDayButton = null!;
     private Button _advanceWeekButton = null!;
@@ -97,6 +102,13 @@ public partial class CareerHubScreen : Control
         };
         layout.AddChild(_selectionLabel);
 
+        _trainingLabel = new Label
+        {
+            Name = "TrainingLabel",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        layout.AddChild(_trainingLabel);
+
         _standingsLabel = new Label
         {
             Name = "StandingsLabel",
@@ -125,6 +137,22 @@ public partial class CareerHubScreen : Control
         _advanceWeekButton = new Button { Text = "7 Gün İlerlet" };
         _advanceWeekButton.Pressed += () => Apply(_controller.AdvanceDays(7));
         primaryRow.AddChild(_advanceWeekButton);
+
+        var trainingRow = new HBoxContainer();
+        trainingRow.AddThemeConstantOverride("separation", 8);
+        layout.AddChild(trainingRow);
+
+        _trainLowButton = new Button { Text = "Antrenman: Hafif" };
+        _trainLowButton.Pressed += () => Apply(_controller.SetWeeklyTraining(TrainingIntensity.Low));
+        trainingRow.AddChild(_trainLowButton);
+
+        _trainMediumButton = new Button { Text = "Antrenman: Orta" };
+        _trainMediumButton.Pressed += () => Apply(_controller.SetWeeklyTraining(TrainingIntensity.Medium));
+        trainingRow.AddChild(_trainMediumButton);
+
+        _trainHighButton = new Button { Text = "Antrenman: Yoğun" };
+        _trainHighButton.Pressed += () => Apply(_controller.SetWeeklyTraining(TrainingIntensity.High));
+        trainingRow.AddChild(_trainHighButton);
 
         var jobRow = new HBoxContainer();
         jobRow.AddThemeConstantOverride("separation", 8);
@@ -285,9 +313,11 @@ public partial class CareerHubScreen : Control
             _fixtureList.Clear();
             _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
             RefreshSelectionStatus();
+            RefreshTrainingStatus();
             RefreshSquadList();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
             UpdateJobOfferButtons(manager);
+            UpdateTrainingButtons(manager);
             return;
         }
 
@@ -304,6 +334,7 @@ public partial class CareerHubScreen : Control
 
         _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
         RefreshSelectionStatus();
+        RefreshTrainingStatus();
         RefreshStandings();
         RefreshFixtureList();
         RefreshSquadList();
@@ -316,6 +347,36 @@ public partial class CareerHubScreen : Control
 
         UpdatePrimaryHints(dueCount, world.Queries.GetTimeAdvanceEligibility().CanAdvance);
         UpdateJobOfferButtons(manager);
+        UpdateTrainingButtons(manager);
+    }
+
+    private void RefreshTrainingStatus()
+    {
+        var training = _controller.GetTrainingSummary();
+        if (training.ClubId is null)
+        {
+            _trainingLabel.Text = "Antrenman: işsiz — plan uygulanamaz.";
+            return;
+        }
+
+        if (!training.HasPlan)
+        {
+            _trainingLabel.Text = "Antrenman: plan yok — hafif/orta/yoğun uygula (maç gücünü etkiler).";
+            return;
+        }
+
+        _trainingLabel.Text =
+            $"Antrenman: {training.IntensityName}/{training.FocusName} · Dinlenme {training.RestApproachName}"
+            + $" · XI yorgunluk {training.AverageFatigue} · fitness {training.AverageFitness}";
+    }
+
+    private void UpdateTrainingButtons(
+        Application.ManagerCareer.Queries.ManagerCareerReadModel manager)
+    {
+        var employed = string.Equals(manager.EmploymentStatus, "Employed", StringComparison.Ordinal);
+        _trainLowButton.Disabled = !employed;
+        _trainMediumButton.Disabled = !employed;
+        _trainHighButton.Disabled = !employed;
     }
 
     private void UpdateJobOfferButtons(

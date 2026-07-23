@@ -158,10 +158,12 @@ public sealed class BoardConfidenceTests : IDisposable
             new LeagueCompetition(new CompetitionId(1)),
             clubs.Store.Registry,
             manager.Store.Career,
-            Array.Empty<Domain.TeamPreparation.MatchSelection>());
+            Array.Empty<Domain.TeamPreparation.MatchSelection>(),
+            Array.Empty<Domain.TrainingPhysicalState.WeeklyTrainingPlan>(),
+            Array.Empty<Domain.TrainingPhysicalState.PlayerPhysicalState>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(10, loaded.SchemaVersion);
+        Assert.Equal(11, loaded.SchemaVersion);
         Assert.Equal(
             assessed.Career.ActiveEmployment!.BoardConfidence.Value,
             loaded.ManagerCareer.ActiveEmployment!.BoardConfidence.Value);

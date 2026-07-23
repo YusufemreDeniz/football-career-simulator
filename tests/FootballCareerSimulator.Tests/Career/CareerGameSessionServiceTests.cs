@@ -6,6 +6,7 @@ using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -46,7 +47,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         CompetitionModule competition,
         ClubGovernanceModule clubs,
         ManagerCareerModule manager,
-        TeamPreparationModule teamPreparation)
+        TeamPreparationModule teamPreparation,
+        TrainingPhysicalStateModule training)
     {
         var idempotencyResets = new List<ICommandIdempotencyReset>
         {
@@ -56,6 +58,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         };
         idempotencyResets.AddRange(competition.IdempotencyResets);
         idempotencyResets.Add(teamPreparation.IdempotencyReset);
+        idempotencyResets.Add(training.IdempotencyReset);
 
         return new CareerGameSessionService(
             world.TimelineStore,
@@ -63,6 +66,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             clubs.Store,
             manager.Store,
             teamPreparation.SelectionStore,
+            training.Store,
             _persistence,
             idempotencyResets);
     }
@@ -84,7 +88,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         var manager = ManagerCareerModule.CreateNewCareer(PreseasonStart);
         var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
         var teamPreparation = TeamPreparationModule.Create(competition.Store, manager.Store);
-        var session = CreateSession(world, competition, clubs, manager, teamPreparation);
+        var training = TrainingPhysicalStateModule.Create(manager.Store, world.TimelineStore);
+        var session = CreateSession(world, competition, clubs, manager, teamPreparation, training);
         const long seasonId = 1;
 
         world.AdvanceSimulationTime.Handle(

@@ -6,6 +6,7 @@ using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.Competition.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 
@@ -100,6 +101,7 @@ public sealed class CompetitionModule
         IClubRegistryStore clubRegistryStore,
         IManagerCareerStore? managerCareerStore = null,
         IMatchSelectionStore? matchSelectionStore = null,
+        ITrainingPhysicalStateStore? trainingStore = null,
         long competitionId = 1)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
@@ -109,7 +111,8 @@ public sealed class CompetitionModule
             timelineStore,
             clubRegistryStore,
             managerCareerStore,
-            matchSelectionStore);
+            matchSelectionStore,
+            trainingStore);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
@@ -117,7 +120,8 @@ public sealed class CompetitionModule
         IWorldTimelineStore timelineStore,
         IClubRegistryStore clubRegistryStore,
         IManagerCareerStore? managerCareerStore = null,
-        IMatchSelectionStore? matchSelectionStore = null)
+        IMatchSelectionStore? matchSelectionStore = null,
+        ITrainingPhysicalStateStore? trainingStore = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
@@ -130,7 +134,8 @@ public sealed class CompetitionModule
             clubRegistryStore,
             timelineStore,
             managerCareerStore,
-            matchSelectionStore);
+            matchSelectionStore,
+            trainingStore);
 
         return new CompetitionModule(
             store,
