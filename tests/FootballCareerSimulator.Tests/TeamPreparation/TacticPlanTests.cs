@@ -102,10 +102,11 @@ public sealed class TacticPlanTests : IDisposable
             Array.Empty<Domain.ContractRegistration.PlayerContract>(),
             Array.Empty<ClubSquad>(),
             Array.Empty<Domain.ContractRegistration.PlayerFreeAgency>(),
-            teamPrep.TacticPlanStore.Plans);
+            teamPrep.TacticPlanStore.Plans,
+            Array.Empty<Domain.Transfer.TransferNeed>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(18, loaded.SchemaVersion);
+        Assert.Equal(19, loaded.SchemaVersion);
         Assert.Single(loaded.TacticPlans);
         Assert.Equal(Formation.F433, loaded.TacticPlans[0].Formation);
         Assert.Equal(TacticalApproach.Attacking, loaded.TacticPlans[0].Approach);

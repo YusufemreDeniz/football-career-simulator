@@ -168,10 +168,11 @@ public sealed class FreeAgencyTests : IDisposable
             contracts.Store.Contracts,
             Array.Empty<ClubSquad>(),
             contracts.FreeAgentStore.FreeAgents,
-            Array.Empty<TacticPlan>());
+            Array.Empty<TacticPlan>(),
+            Array.Empty<Domain.Transfer.TransferNeed>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(18, loaded.SchemaVersion);
+        Assert.Equal(19, loaded.SchemaVersion);
         Assert.Single(loaded.FreeAgents);
         Assert.Equal(playerId, loaded.FreeAgents[0].PlayerId);
         Assert.Equal(1, loaded.FreeAgents[0].LastClubId.Value);

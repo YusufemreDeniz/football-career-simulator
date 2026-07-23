@@ -10,6 +10,7 @@ using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
+using FootballCareerSimulator.Application.Transfer.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -33,6 +34,7 @@ public sealed class CareerPresentationHost
         TrainingPhysicalStateModule trainingModule,
         PlayerCareerModule playerCareerModule,
         ContractRegistrationModule contractModule,
+        TransferModule transferModule,
         CareerGameSessionService gameSession,
         string defaultSavePath)
     {
@@ -46,6 +48,7 @@ public sealed class CareerPresentationHost
         PlayerCareerModule = playerCareerModule
             ?? throw new ArgumentNullException(nameof(playerCareerModule));
         ContractModule = contractModule ?? throw new ArgumentNullException(nameof(contractModule));
+        TransferModule = transferModule ?? throw new ArgumentNullException(nameof(transferModule));
         GameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
         DefaultSavePath = defaultSavePath ?? throw new ArgumentNullException(nameof(defaultSavePath));
     }
@@ -58,6 +61,7 @@ public sealed class CareerPresentationHost
     public TrainingPhysicalStateModule TrainingModule { get; }
     public PlayerCareerModule PlayerCareerModule { get; }
     public ContractRegistrationModule ContractModule { get; }
+    public TransferModule TransferModule { get; }
     public CareerGameSessionService GameSession { get; }
     public string DefaultSavePath { get; }
 
@@ -123,6 +127,10 @@ public sealed class CareerPresentationHost
             playerCareer.Store,
             playerCareer.Development,
             teamPreparation.TacticPlanStore);
+        var transferModule = TransferModule.Create(
+            contractModule.Store,
+            teamPreparation.SquadStore,
+            managerModule.Store);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =
@@ -144,6 +152,7 @@ public sealed class CareerPresentationHost
             teamPreparation.SelectionStore,
             teamPreparation.SquadStore,
             teamPreparation.TacticPlanStore,
+            transferModule.NeedStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,
@@ -161,6 +170,7 @@ public sealed class CareerPresentationHost
             training,
             playerCareer,
             contractModule,
+            transferModule,
             gameSession,
             savePath);
     }

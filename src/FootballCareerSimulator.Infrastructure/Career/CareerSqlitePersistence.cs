@@ -6,6 +6,7 @@ using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
 using FootballCareerSimulator.Domain.PlayerCareer;
@@ -30,7 +31,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<PlayerContract> contracts,
         IReadOnlyList<ClubSquad> clubSquads,
         IReadOnlyList<PlayerFreeAgency> freeAgents,
-        IReadOnlyList<TacticPlan> tacticPlans)
+        IReadOnlyList<TacticPlan> tacticPlans,
+        IReadOnlyList<TransferNeed> transferNeeds)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -45,6 +47,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(clubSquads);
         ArgumentNullException.ThrowIfNull(freeAgents);
         ArgumentNullException.ThrowIfNull(tacticPlans);
+        ArgumentNullException.ThrowIfNull(transferNeeds);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -58,7 +61,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             contracts,
             clubSquads,
             freeAgents,
-            tacticPlans);
+            tacticPlans,
+            transferNeeds);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -85,6 +89,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertClubSquads(connection, transaction, clubSquads);
             InsertFreeAgents(connection, transaction, freeAgents);
             InsertTacticPlans(connection, transaction, tacticPlans);
+            InsertTransferNeeds(connection, transaction, transferNeeds);
 
             transaction.Commit();
         }
@@ -235,6 +240,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV17ToV18InPlace(filePath);
             wasMigrated = true;
             version = 18;
+        }
+
+        if (version == 18 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 19)
+        {
+            WorldCalendarSqliteMigrator.MigrateV18ToV19InPlace(filePath);
+            wasMigrated = true;
+            version = 19;
         }
 
         if (wasMigrated)
@@ -435,6 +447,19 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 Formation INTEGER NOT NULL,
                 Approach INTEGER NOT NULL,
                 LastUpdatedDayNumber INTEGER NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE TransferNeedState (
+                NeedId INTEGER PRIMARY KEY,
+                ClubId INTEGER NOT NULL,
+                Kind INTEGER NOT NULL,
+                Status INTEGER NOT NULL,
+                Priority INTEGER NOT NULL,
+                ReasonCode TEXT NOT NULL,
+                IdentifiedDayNumber INTEGER NOT NULL,
+                ClosedDayNumber INTEGER NULL
             );
             """);
     }
@@ -867,6 +892,37 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertTransferNeeds(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<TransferNeed> transferNeeds)
+    {
+        foreach (var need in transferNeeds)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO TransferNeedState (
+                    NeedId, ClubId, Kind, Status, Priority, ReasonCode,
+                    IdentifiedDayNumber, ClosedDayNumber)
+                VALUES (
+                    $needId, $clubId, $kind, $status, $priority, $reason,
+                    $identified, $closed);
+                """;
+            command.Parameters.AddWithValue("$needId", need.NeedId.Value);
+            command.Parameters.AddWithValue("$clubId", need.ClubId.Value);
+            command.Parameters.AddWithValue("$kind", (int)need.Kind);
+            command.Parameters.AddWithValue("$status", (int)need.Status);
+            command.Parameters.AddWithValue("$priority", need.Priority);
+            command.Parameters.AddWithValue("$reason", need.ReasonCode);
+            command.Parameters.AddWithValue("$identified", need.IdentifiedOn.DayNumber);
+            command.Parameters.AddWithValue(
+                "$closed",
+                need.ClosedOn is GameDate closed ? closed.DayNumber : DBNull.Value);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static (int Version, bool IsLegacySpikeSave) ReadSchemaMetadata(string filePath)
     {
         try
@@ -934,6 +990,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var clubSquads = ReadClubSquads(connection);
         var freeAgents = ReadFreeAgents(connection);
         var tacticPlans = ReadTacticPlans(connection);
+        var transferNeeds = ReadTransferNeeds(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -946,7 +1003,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             contracts,
             clubSquads,
             freeAgents,
-            tacticPlans);
+            tacticPlans,
+            transferNeeds);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -981,6 +1039,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<ClubSquad> clubSquads;
             IReadOnlyList<PlayerFreeAgency> freeAgents;
             IReadOnlyList<TacticPlan> tacticPlans;
+            IReadOnlyList<TransferNeed> transferNeeds;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1004,6 +1063,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 clubSquads = ReadClubSquads(connection);
                 freeAgents = ReadFreeAgents(connection);
                 tacticPlans = ReadTacticPlans(connection);
+                transferNeeds = ReadTransferNeeds(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1020,7 +1080,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 contracts,
                 clubSquads,
                 freeAgents,
-                tacticPlans);
+                tacticPlans,
+                transferNeeds);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1040,6 +1101,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 clubSquads,
                 freeAgents,
                 tacticPlans,
+                transferNeeds,
                 schemaVersion,
                 wasMigrated);
         }
@@ -1529,6 +1591,41 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return plans;
+    }
+
+    private static IReadOnlyList<TransferNeed> ReadTransferNeeds(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "TransferNeedState"))
+        {
+            return Array.Empty<TransferNeed>();
+        }
+
+        var needs = new List<TransferNeed>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT NeedId, ClubId, Kind, Status, Priority, ReasonCode,
+                   IdentifiedDayNumber, ClosedDayNumber
+            FROM TransferNeedState
+            ORDER BY NeedId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            GameDate? closedOn = reader.IsDBNull(7)
+                ? null
+                : GameDate.FromDayNumber(reader.GetInt32(7));
+            needs.Add(TransferNeed.Rehydrate(
+                new TransferNeedId(reader.GetInt64(0)),
+                new ClubId(reader.GetInt64(1)),
+                (TransferNeedKind)reader.GetInt32(2),
+                (TransferNeedStatus)reader.GetInt32(3),
+                reader.GetInt32(4),
+                reader.GetString(5),
+                GameDate.FromDayNumber(reader.GetInt32(6)),
+                closedOn));
+        }
+
+        return needs;
     }
 
     private static IReadOnlyList<int> ParseSlotCsv(string csv)

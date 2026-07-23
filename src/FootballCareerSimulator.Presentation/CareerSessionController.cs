@@ -12,6 +12,7 @@ using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Presentation;
@@ -276,6 +277,79 @@ public sealed class CareerSessionController
         catch (Exception ex)
         {
             return UiActionResult.Fail($"Formasyon hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult RefreshTransferNeedSuggestions()
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var refreshed = Host.TransferModule.Needs.RefreshSuggestions(
+                new Domain.Shared.ClubId(clubId),
+                day);
+            var summary = Host.TransferModule.Queries.GetManagedClubNeeds();
+            return UiActionResult.Ok(
+                refreshed.Count == 0
+                    ? $"Transfer ihtiyacı önerisi yok · açık {summary.OpenCount}."
+                    : $"Transfer ihtiyacı güncellendi: {refreshed.Count} kayıt · açık {summary.OpenCount}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Transfer ihtiyacı güncellenemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Transfer ihtiyacı hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult DeclarePositionGapNeed()
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var need = Host.TransferModule.Needs.Declare(
+                new Domain.Shared.ClubId(clubId),
+                TransferNeedKind.PositionGap,
+                priority: 4,
+                "ManualPositionGap",
+                day);
+            return UiActionResult.Ok(
+                $"Transfer ihtiyacı: #{need.NeedId.Value} pozisyon açığı (öncelik {need.Priority}).");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"İhtiyaç tanımlanamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"İhtiyaç hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult CloseOldestOpenTransferNeed()
+    {
+        try
+        {
+            var summary = Host.TransferModule.Queries.GetManagedClubNeeds();
+            var oldest = summary.OpenNeeds.OrderBy(n => n.NeedId).FirstOrDefault()
+                ?? throw new InvalidOperationException("Kapatılacak açık ihtiyaç yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TransferModule.Needs.Close(new TransferNeedId(oldest.NeedId), day);
+            return UiActionResult.Ok($"Transfer ihtiyacı kapatıldı: #{oldest.NeedId} ({oldest.KindName}).");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"İhtiyaç kapatılamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"İhtiyaç kapatma hatası: {ex.Message}");
         }
     }
 

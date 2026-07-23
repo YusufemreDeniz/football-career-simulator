@@ -9,6 +9,7 @@ using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
+using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 
 public sealed class CareerGameSessionService
@@ -20,6 +21,7 @@ public sealed class CareerGameSessionService
     private readonly IMatchSelectionStore _matchSelectionStore;
     private readonly IClubSquadStore _clubSquadStore;
     private readonly ITacticPlanStore _tacticPlanStore;
+    private readonly ITransferNeedStore _transferNeedStore;
     private readonly ITrainingPhysicalStateStore _trainingStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly IContractStore _contractStore;
@@ -35,6 +37,7 @@ public sealed class CareerGameSessionService
         IMatchSelectionStore matchSelectionStore,
         IClubSquadStore clubSquadStore,
         ITacticPlanStore tacticPlanStore,
+        ITransferNeedStore transferNeedStore,
         ITrainingPhysicalStateStore trainingStore,
         IPlayerCareerStore playerCareerStore,
         IContractStore contractStore,
@@ -49,6 +52,7 @@ public sealed class CareerGameSessionService
         _matchSelectionStore = matchSelectionStore ?? throw new ArgumentNullException(nameof(matchSelectionStore));
         _clubSquadStore = clubSquadStore ?? throw new ArgumentNullException(nameof(clubSquadStore));
         _tacticPlanStore = tacticPlanStore ?? throw new ArgumentNullException(nameof(tacticPlanStore));
+        _transferNeedStore = transferNeedStore ?? throw new ArgumentNullException(nameof(transferNeedStore));
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
         _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
@@ -80,7 +84,8 @@ public sealed class CareerGameSessionService
             _contractStore.Contracts,
             _clubSquadStore.Squads,
             _freeAgentStore.FreeAgents,
-            _tacticPlanStore.Plans);
+            _tacticPlanStore.Plans,
+            _transferNeedStore.Needs);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -107,6 +112,7 @@ public sealed class CareerGameSessionService
         _clubSquadStore.ReplaceAll(loaded.ClubSquads);
         _freeAgentStore.ReplaceAll(loaded.FreeAgents);
         _tacticPlanStore.ReplaceAll(loaded.TacticPlans);
+        _transferNeedStore.ReplaceAll(loaded.TransferNeeds);
 
         foreach (var reset in _idempotencyResets)
         {
