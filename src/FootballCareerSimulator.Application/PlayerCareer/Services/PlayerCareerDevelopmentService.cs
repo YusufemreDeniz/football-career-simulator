@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Domain.Shared;
@@ -14,13 +15,16 @@ public sealed class PlayerCareerDevelopmentService
 {
     private readonly IPlayerCareerStore _store;
     private readonly ITrainingPhysicalStateStore? _trainingStore;
+    private readonly ContractRegistrationService? _contracts;
 
     public PlayerCareerDevelopmentService(
         IPlayerCareerStore store,
-        ITrainingPhysicalStateStore? trainingStore = null)
+        ITrainingPhysicalStateStore? trainingStore = null,
+        ContractRegistrationService? contracts = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _trainingStore = trainingStore;
+        _contracts = contracts;
     }
 
     public void EnsureClub(ClubId clubId, int rootSeed, GameDate day)
@@ -31,6 +35,7 @@ public sealed class PlayerCareerDevelopmentService
             day,
             _store.ByClubSlot);
         _store.ReplaceClub(clubId, squad);
+        _contracts?.EnsureClubContracts(clubId, day);
     }
 
     public int ApplyDueAging(GameDate day)
@@ -68,6 +73,8 @@ public sealed class PlayerCareerDevelopmentService
         }
 
         _store.ReplaceClub(clubId, updated);
+        _contracts?.EnsureClubContracts(clubId, day);
+        _contracts?.ExpireDueContracts(day);
     }
 
     public void EnsureAndApplyMatchAppearances(

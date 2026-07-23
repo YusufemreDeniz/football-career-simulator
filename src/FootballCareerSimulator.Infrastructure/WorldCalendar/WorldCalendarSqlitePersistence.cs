@@ -6,6 +6,7 @@ using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Domain.ContractRegistration;
 using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
 using FootballCareerSimulator.Infrastructure.Career;
 
@@ -36,7 +37,8 @@ public sealed class WorldCalendarSqlitePersistence : IWorldCalendarPersistence
             Array.Empty<MatchSelection>(),
             Array.Empty<WeeklyTrainingPlan>(),
             Array.Empty<PlayerPhysicalState>(),
-            Array.Empty<PlayerCareerAggregate>());
+            Array.Empty<PlayerCareerAggregate>(),
+            Array.Empty<PlayerContract>());
     }
 
     public WorldCalendarLoadResult Load(string filePath)

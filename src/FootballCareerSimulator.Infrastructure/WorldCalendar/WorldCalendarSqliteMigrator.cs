@@ -892,6 +892,67 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV14ToV15InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV14ToV15(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V14 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.Move(workingCopyPath, filePath, overwrite: true);
+    }
+
+    private static void MigrateV14ToV15(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                CREATE TABLE IF NOT EXISTS PlayerContractState (
+                    ContractId INTEGER PRIMARY KEY,
+                    PlayerId INTEGER NOT NULL,
+                    ClubId INTEGER NOT NULL,
+                    StartDayNumber INTEGER NOT NULL,
+                    EndDayNumber INTEGER NOT NULL,
+                    WeeklyWage INTEGER NOT NULL,
+                    Status INTEGER NOT NULL
+                );
+                """);
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 15);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void TryDelete(string path)
     {
         try

@@ -85,6 +85,15 @@ public sealed class CareerSessionController
                 season = competition.Queries.GetCurrentSeason()!;
             }
 
+            if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
+            {
+                var day = Host.WorldModule.Queries.GetCurrentGameDate();
+                Host.PlayerCareerModule.Development.EnsureClub(
+                    new Domain.Shared.ClubId(clubId),
+                    Host.WorldModule.TimelineStore.Timeline.RootSeed,
+                    day);
+            }
+
             return UiActionResult.Ok(
                 $"Lig hazır: sezon #{season.SeasonId}, {season.ParticipantCount} takım, {season.FixtureCount} maç.");
         }
@@ -290,9 +299,29 @@ public sealed class CareerSessionController
 
         var day = Host.WorldModule.Queries.GetCurrentGameDate();
         var declined = Host.PlayerCareerModule.Development.ApplyDueAging(day);
-        var agingText = declined > 0 ? $" · yaşlanma: {declined} oyuncu düştü" : string.Empty;
+        var expired = Host.ContractModule.Registration.ExpireDueContracts(day);
+        if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
+        {
+            Host.PlayerCareerModule.Development.EnsureClub(
+                new Domain.Shared.ClubId(clubId),
+                Host.WorldModule.TimelineStore.Timeline.RootSeed,
+                day);
+        }
+
+        var extras = new List<string>();
+        if (declined > 0)
+        {
+            extras.Add($"yaşlanma: {declined}");
+        }
+
+        if (expired > 0)
+        {
+            extras.Add($"sözleşme bitti: {expired}");
+        }
+
+        var suffix = extras.Count == 0 ? string.Empty : " · " + string.Join(" · ", extras);
         return UiActionResult.Ok(
-            $"Tarih ilerledi: gün {result.PreviousDayNumber} → {result.NewDayNumber}{agingText}.");
+            $"Tarih ilerledi: gün {result.PreviousDayNumber} → {result.NewDayNumber}{suffix}.");
     }
 
     public UiActionResult CompleteSeason()

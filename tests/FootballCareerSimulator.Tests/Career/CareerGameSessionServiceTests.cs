@@ -6,6 +6,7 @@ using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
+using FootballCareerSimulator.Application.ContractRegistration.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -50,7 +51,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         ManagerCareerModule manager,
         TeamPreparationModule teamPreparation,
         TrainingPhysicalStateModule training,
-        PlayerCareerModule playerCareer)
+        PlayerCareerModule playerCareer,
+        ContractRegistrationModule contracts)
     {
         var idempotencyResets = new List<ICommandIdempotencyReset>
         {
@@ -70,6 +72,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             teamPreparation.SelectionStore,
             training.Store,
             playerCareer.Store,
+            contracts.Store,
             _persistence,
             idempotencyResets);
     }
@@ -93,8 +96,12 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         var teamPreparation = TeamPreparationModule.Create(competition.Store, manager.Store);
         var training = TrainingPhysicalStateModule.Create(manager.Store, world.TimelineStore);
         var playerCareer = PlayerCareerModule.Create(manager.Store, world.TimelineStore, training.Store);
+        var contracts = ContractRegistrationModule.Create(
+            playerCareer.Store,
+            manager.Store,
+            world.TimelineStore);
         var session = CreateSession(
-            world, competition, clubs, manager, teamPreparation, training, playerCareer);
+            world, competition, clubs, manager, teamPreparation, training, playerCareer, contracts);
         const long seasonId = 1;
 
         world.AdvanceSimulationTime.Handle(

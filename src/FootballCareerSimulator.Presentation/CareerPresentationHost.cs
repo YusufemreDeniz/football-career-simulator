@@ -3,8 +3,10 @@ using FootballCareerSimulator.Application.ClubGovernance.Composition;
 using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.Competition.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Services;
+using FootballCareerSimulator.Application.ContractRegistration.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
@@ -20,9 +22,6 @@ using Godot;
 
 namespace FootballCareerSimulator.Presentation;
 
-/// <summary>
-/// World Calendar + Competition + TeamPreparation + Training + PlayerCareer composition root.
-/// </summary>
 public sealed class CareerPresentationHost
 {
     public CareerPresentationHost(
@@ -33,6 +32,7 @@ public sealed class CareerPresentationHost
         TeamPreparationModule teamPreparationModule,
         TrainingPhysicalStateModule trainingModule,
         PlayerCareerModule playerCareerModule,
+        ContractRegistrationModule contractModule,
         CareerGameSessionService gameSession,
         string defaultSavePath)
     {
@@ -45,26 +45,20 @@ public sealed class CareerPresentationHost
         TrainingModule = trainingModule ?? throw new ArgumentNullException(nameof(trainingModule));
         PlayerCareerModule = playerCareerModule
             ?? throw new ArgumentNullException(nameof(playerCareerModule));
+        ContractModule = contractModule ?? throw new ArgumentNullException(nameof(contractModule));
         GameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
         DefaultSavePath = defaultSavePath ?? throw new ArgumentNullException(nameof(defaultSavePath));
     }
 
     public WorldCalendarModule WorldModule { get; }
-
     public CompetitionModule CompetitionModule { get; }
-
     public ClubGovernanceModule ClubModule { get; }
-
     public ManagerCareerModule ManagerModule { get; }
-
     public TeamPreparationModule TeamPreparationModule { get; }
-
     public TrainingPhysicalStateModule TrainingModule { get; }
-
     public PlayerCareerModule PlayerCareerModule { get; }
-
+    public ContractRegistrationModule ContractModule { get; }
     public CareerGameSessionService GameSession { get; }
-
     public string DefaultSavePath { get; }
 
     public static CareerPresentationHost CreateDefault(string? defaultSavePath = null)
@@ -94,10 +88,17 @@ public sealed class CareerPresentationHost
             clubSportiveStrength: startingStrength);
 
         var trainingStore = new InMemoryTrainingPhysicalStateStore();
+        var playerStore = new InMemoryPlayerCareerStore();
+        var contractModule = ContractRegistrationModule.Create(
+            playerStore,
+            managerModule.Store,
+            worldModule.TimelineStore);
         var playerCareer = PlayerCareerModule.Create(
             managerModule.Store,
             worldModule.TimelineStore,
-            trainingStore);
+            trainingStore,
+            playerStore,
+            contractModule.Registration);
         var training = TrainingPhysicalStateModule.Create(
             managerModule.Store,
             worldModule.TimelineStore,
@@ -139,6 +140,7 @@ public sealed class CareerPresentationHost
             teamPreparation.SelectionStore,
             training.Store,
             playerCareer.Store,
+            contractModule.Store,
             persistence,
             idempotencyResets);
 
@@ -151,6 +153,7 @@ public sealed class CareerPresentationHost
             teamPreparation,
             training,
             playerCareer,
+            contractModule,
             gameSession,
             savePath);
     }

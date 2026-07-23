@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -9,6 +10,7 @@ using ManagerCareerState = FootballCareerSimulator.Domain.ManagerCareer.ManagerC
 using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
 using FootballCareerSimulator.Simulation.ClubGovernance;
 using FootballCareerSimulator.Simulation.Competition;
+using FootballCareerSimulator.Simulation.ContractRegistration;
 using FootballCareerSimulator.Simulation.ManagerCareer;
 using FootballCareerSimulator.Simulation.PlayerCareer;
 using FootballCareerSimulator.Simulation.TeamPreparation;
@@ -32,7 +34,8 @@ public static class CareerCanonicalStateHasher
             Array.Empty<MatchSelection>(),
             Array.Empty<WeeklyTrainingPlan>(),
             Array.Empty<PlayerPhysicalState>(),
-            Array.Empty<PlayerCareerAggregate>());
+            Array.Empty<PlayerCareerAggregate>(),
+            Array.Empty<PlayerContract>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -48,7 +51,8 @@ public static class CareerCanonicalStateHasher
             matchSelections,
             Array.Empty<WeeklyTrainingPlan>(),
             Array.Empty<PlayerPhysicalState>(),
-            Array.Empty<PlayerCareerAggregate>());
+            Array.Empty<PlayerCareerAggregate>(),
+            Array.Empty<PlayerContract>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -66,7 +70,8 @@ public static class CareerCanonicalStateHasher
             matchSelections,
             trainingPlans,
             physicalStates,
-            Array.Empty<PlayerCareerAggregate>());
+            Array.Empty<PlayerCareerAggregate>(),
+            Array.Empty<PlayerContract>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -76,7 +81,28 @@ public static class CareerCanonicalStateHasher
         IReadOnlyList<MatchSelection> matchSelections,
         IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
         IReadOnlyList<PlayerPhysicalState> physicalStates,
-        IReadOnlyList<PlayerCareerAggregate> playerCareers)
+        IReadOnlyList<PlayerCareerAggregate> playerCareers) =>
+        ComputeHash(
+            timeline,
+            league,
+            clubRegistry,
+            managerCareer,
+            matchSelections,
+            trainingPlans,
+            physicalStates,
+            playerCareers,
+            Array.Empty<PlayerContract>());
+
+    public static string ComputeHash(
+        WorldTimeline timeline,
+        LeagueCompetition league,
+        LeagueClubRegistry clubRegistry,
+        ManagerCareerState managerCareer,
+        IReadOnlyList<MatchSelection> matchSelections,
+        IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
+        IReadOnlyList<PlayerPhysicalState> physicalStates,
+        IReadOnlyList<PlayerCareerAggregate> playerCareers,
+        IReadOnlyList<PlayerContract> contracts)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -86,6 +112,7 @@ public static class CareerCanonicalStateHasher
         ArgumentNullException.ThrowIfNull(trainingPlans);
         ArgumentNullException.ThrowIfNull(physicalStates);
         ArgumentNullException.ThrowIfNull(playerCareers);
+        ArgumentNullException.ThrowIfNull(contracts);
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -100,7 +127,9 @@ public static class CareerCanonicalStateHasher
             "|",
             TrainingPhysicalStateCanonicalStateHasher.BuildCanonicalText(trainingPlans, physicalStates),
             "|",
-            PlayerCareerCanonicalStateHasher.BuildCanonicalText(playerCareers));
+            PlayerCareerCanonicalStateHasher.BuildCanonicalText(playerCareers),
+            "|",
+            ContractRegistrationCanonicalStateHasher.BuildCanonicalText(contracts));
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

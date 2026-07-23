@@ -173,10 +173,11 @@ public sealed class TrainingPhysicalStateTests : IDisposable
             Array.Empty<Domain.TeamPreparation.MatchSelection>(),
             training.Store.Plans,
             training.Store.PhysicalStates,
-            Array.Empty<Domain.PlayerCareer.PlayerCareer>());
+            Array.Empty<Domain.PlayerCareer.PlayerCareer>(),
+            Array.Empty<Domain.ContractRegistration.PlayerContract>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(14, loaded.SchemaVersion);
+        Assert.Equal(15, loaded.SchemaVersion);
         Assert.Single(loaded.TrainingPlans);
         Assert.Equal(TrainingIntensity.Medium, loaded.TrainingPlans[0].Intensity);
         Assert.Equal(25, loaded.PhysicalStates.Count);

@@ -2,6 +2,7 @@ namespace FootballCareerSimulator.Application.Career.Ports;
 
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
@@ -19,7 +20,8 @@ public interface ICareerPersistence
         IReadOnlyList<MatchSelection> matchSelections,
         IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
         IReadOnlyList<PlayerPhysicalState> physicalStates,
-        IReadOnlyList<PlayerCareerAggregate> playerCareers);
+        IReadOnlyList<PlayerCareerAggregate> playerCareers,
+        IReadOnlyList<PlayerContract> contracts);
 
     CareerLoadResult Load(string filePath);
 }
@@ -33,5 +35,6 @@ public sealed record CareerLoadResult(
     IReadOnlyList<WeeklyTrainingPlan> TrainingPlans,
     IReadOnlyList<PlayerPhysicalState> PhysicalStates,
     IReadOnlyList<PlayerCareerAggregate> PlayerCareers,
+    IReadOnlyList<PlayerContract> Contracts,
     int SchemaVersion,
     bool WasMigrated);

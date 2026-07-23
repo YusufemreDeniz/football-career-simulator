@@ -107,7 +107,8 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
             selections,
             Array.Empty<Domain.TrainingPhysicalState.WeeklyTrainingPlan>(),
             Array.Empty<Domain.TrainingPhysicalState.PlayerPhysicalState>(),
-            Array.Empty<Domain.PlayerCareer.PlayerCareer>());
+            Array.Empty<Domain.PlayerCareer.PlayerCareer>(),
+            Array.Empty<Domain.ContractRegistration.PlayerContract>());
         var loaded = _persistence.Load(path);
 
         Assert.False(loaded.WasMigrated);
@@ -121,7 +122,8 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
                 loaded.MatchSelections,
                 loaded.TrainingPlans,
                 loaded.PhysicalStates,
-                loaded.PlayerCareers));
+                loaded.PlayerCareers,
+                loaded.Contracts));
         Assert.Equal(timeline.CurrentDate, loaded.Timeline.CurrentDate);
         Assert.Equal(
             CompetitionMvpConstraints.TotalLeagueFixtures,
@@ -153,7 +155,7 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         var loaded = _persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(14, loaded.SchemaVersion);
+        Assert.Equal(15, loaded.SchemaVersion);
         Assert.Empty(loaded.League.Seasons);
         Assert.Equal(1, loaded.League.CompetitionId.Value);
         Assert.Equal(

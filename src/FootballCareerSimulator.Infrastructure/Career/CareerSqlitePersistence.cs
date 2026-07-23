@@ -4,6 +4,7 @@ using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
@@ -25,7 +26,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<MatchSelection> matchSelections,
         IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
         IReadOnlyList<PlayerPhysicalState> physicalStates,
-        IReadOnlyList<PlayerCareerAggregate> playerCareers)
+        IReadOnlyList<PlayerCareerAggregate> playerCareers,
+        IReadOnlyList<PlayerContract> contracts)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -36,6 +38,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(trainingPlans);
         ArgumentNullException.ThrowIfNull(physicalStates);
         ArgumentNullException.ThrowIfNull(playerCareers);
+        ArgumentNullException.ThrowIfNull(contracts);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -45,7 +48,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             matchSelections,
             trainingPlans,
             physicalStates,
-            playerCareers);
+            playerCareers,
+            contracts);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -68,6 +72,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertTrainingPlans(connection, transaction, trainingPlans);
             InsertPhysicalStates(connection, transaction, physicalStates);
             InsertPlayerCareers(connection, transaction, playerCareers);
+            InsertContracts(connection, transaction, contracts);
 
             transaction.Commit();
         }
@@ -190,6 +195,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV13ToV14InPlace(filePath);
             wasMigrated = true;
             version = 14;
+        }
+
+        if (version == 14 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 15)
+        {
+            WorldCalendarSqliteMigrator.MigrateV14ToV15InPlace(filePath);
+            wasMigrated = true;
+            version = 15;
         }
 
         if (wasMigrated)
@@ -351,6 +363,18 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 LastDevelopedDayNumber INTEGER NULL,
                 BirthYear INTEGER NOT NULL,
                 LastAgedCalendarYear INTEGER NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE PlayerContractState (
+                ContractId INTEGER PRIMARY KEY,
+                PlayerId INTEGER NOT NULL,
+                ClubId INTEGER NOT NULL,
+                StartDayNumber INTEGER NOT NULL,
+                EndDayNumber INTEGER NOT NULL,
+                WeeklyWage INTEGER NOT NULL,
+                Status INTEGER NOT NULL
             );
             """);
     }
@@ -690,6 +714,31 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertContracts(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<PlayerContract> contracts)
+    {
+        foreach (var contract in contracts)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO PlayerContractState (
+                    ContractId, PlayerId, ClubId, StartDayNumber, EndDayNumber, WeeklyWage, Status)
+                VALUES ($id, $playerId, $clubId, $start, $end, $wage, $status);
+                """;
+            command.Parameters.AddWithValue("$id", contract.Id.Value);
+            command.Parameters.AddWithValue("$playerId", contract.PlayerId.Value);
+            command.Parameters.AddWithValue("$clubId", contract.ClubId.Value);
+            command.Parameters.AddWithValue("$start", contract.StartDate.DayNumber);
+            command.Parameters.AddWithValue("$end", contract.EndDate.DayNumber);
+            command.Parameters.AddWithValue("$wage", contract.WeeklyWage);
+            command.Parameters.AddWithValue("$status", (int)contract.Status);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static (int Version, bool IsLegacySpikeSave) ReadSchemaMetadata(string filePath)
     {
         try
@@ -753,6 +802,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var trainingPlans = ReadTrainingPlans(connection);
         var physicalStates = ReadPhysicalStates(connection);
         var playerCareers = ReadPlayerCareers(connection);
+        var contracts = ReadContracts(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -761,7 +811,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             matchSelections,
             trainingPlans,
             physicalStates,
-            playerCareers);
+            playerCareers,
+            contracts);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -792,6 +843,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<WeeklyTrainingPlan> trainingPlans;
             IReadOnlyList<PlayerPhysicalState> physicalStates;
             IReadOnlyList<PlayerCareerAggregate> playerCareers;
+            IReadOnlyList<PlayerContract> contracts;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -811,6 +863,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 trainingPlans = ReadTrainingPlans(connection);
                 physicalStates = ReadPhysicalStates(connection);
                 playerCareers = ReadPlayerCareers(connection);
+                contracts = ReadContracts(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -823,7 +876,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 matchSelections,
                 trainingPlans,
                 physicalStates,
-                playerCareers);
+                playerCareers,
+                contracts);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -839,6 +893,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 trainingPlans,
                 physicalStates,
                 playerCareers,
+                contracts,
                 schemaVersion,
                 wasMigrated);
         }
@@ -1209,6 +1264,36 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return careers;
+    }
+
+    private static IReadOnlyList<PlayerContract> ReadContracts(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "PlayerContractState"))
+        {
+            return Array.Empty<PlayerContract>();
+        }
+
+        var contracts = new List<PlayerContract>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ContractId, PlayerId, ClubId, StartDayNumber, EndDayNumber, WeeklyWage, Status
+            FROM PlayerContractState
+            ORDER BY ContractId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            contracts.Add(PlayerContract.Rehydrate(
+                new ContractId(reader.GetInt64(0)),
+                new PlayerId(reader.GetInt64(1)),
+                new ClubId(reader.GetInt64(2)),
+                GameDate.FromDayNumber(reader.GetInt32(3)),
+                GameDate.FromDayNumber(reader.GetInt32(4)),
+                reader.GetInt32(5),
+                (ContractStatus)reader.GetInt32(6)));
+        }
+
+        return contracts;
     }
 
     private static IReadOnlyList<int> ParseSlotCsv(string csv)

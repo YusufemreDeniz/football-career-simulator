@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
@@ -29,12 +30,13 @@ public sealed class PlayerCareerModule
         IManagerCareerStore managerCareerStore,
         IWorldTimelineStore timelineStore,
         ITrainingPhysicalStateStore? trainingStore = null,
-        IPlayerCareerStore? store = null)
+        IPlayerCareerStore? store = null,
+        ContractRegistrationService? contracts = null)
     {
         var careerStore = store ?? new InMemoryPlayerCareerStore();
         return new PlayerCareerModule(
             careerStore,
-            new PlayerCareerDevelopmentService(careerStore, trainingStore),
+            new PlayerCareerDevelopmentService(careerStore, trainingStore, contracts),
             new PlayerCareerQueryService(careerStore, managerCareerStore, timelineStore));
     }
 }

@@ -16,6 +16,7 @@ public partial class CareerHubScreen : Control
     private Label _selectionLabel = null!;
     private Label _trainingLabel = null!;
     private Label _developmentLabel = null!;
+    private Label _contractLabel = null!;
     private Label _standingsLabel = null!;
     private Label _statusLabel = null!;
     private SpinBox _roundSelector = null!;
@@ -106,6 +107,7 @@ public partial class CareerHubScreen : Control
         _trainingLabel = new Label
         {
             Name = "TrainingLabel",
+            Text = "Antrenman: —",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         layout.AddChild(_trainingLabel);
@@ -113,9 +115,18 @@ public partial class CareerHubScreen : Control
         _developmentLabel = new Label
         {
             Name = "DevelopmentLabel",
+            Text = "Gelişim: —",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         layout.AddChild(_developmentLabel);
+
+        _contractLabel = new Label
+        {
+            Name = "ContractLabel",
+            Text = "Sözleşme: —",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        layout.AddChild(_contractLabel);
 
         _standingsLabel = new Label
         {
@@ -124,27 +135,7 @@ public partial class CareerHubScreen : Control
         };
         layout.AddChild(_standingsLabel);
 
-        layout.AddChild(new Label { Text = "Birincil eylemler" });
-
-        var primaryRow = new HBoxContainer();
-        primaryRow.AddThemeConstantOverride("separation", 8);
-        layout.AddChild(primaryRow);
-
-        _approveSelectionButton = new Button { Text = "Kadro Onayla" };
-        _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
-        primaryRow.AddChild(_approveSelectionButton);
-
-        _playButton = new Button { Text = "Bugünün Maçlarını Oyna" };
-        _playButton.Pressed += OnPlayMatches;
-        primaryRow.AddChild(_playButton);
-
-        _advanceDayButton = new Button { Text = "1 Gün İlerlet" };
-        _advanceDayButton.Pressed += () => Apply(_controller.AdvanceDays(1));
-        primaryRow.AddChild(_advanceDayButton);
-
-        _advanceWeekButton = new Button { Text = "7 Gün İlerlet" };
-        _advanceWeekButton.Pressed += () => Apply(_controller.AdvanceDays(7));
-        primaryRow.AddChild(_advanceWeekButton);
+        layout.AddChild(new Label { Text = "Antrenman / iş" });
 
         var trainingRow = new HBoxContainer();
         trainingRow.AddThemeConstantOverride("separation", 8);
@@ -173,6 +164,28 @@ public partial class CareerHubScreen : Control
         _acceptOfferButton = new Button { Text = "Teklifi Kabul Et" };
         _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
         jobRow.AddChild(_acceptOfferButton);
+
+        layout.AddChild(new Label { Text = "Birincil eylemler" });
+
+        var primaryRow = new HBoxContainer();
+        primaryRow.AddThemeConstantOverride("separation", 8);
+        layout.AddChild(primaryRow);
+
+        _approveSelectionButton = new Button { Text = "Kadro Onayla" };
+        _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
+        primaryRow.AddChild(_approveSelectionButton);
+
+        _playButton = new Button { Text = "Bugünün Maçlarını Oyna" };
+        _playButton.Pressed += OnPlayMatches;
+        primaryRow.AddChild(_playButton);
+
+        _advanceDayButton = new Button { Text = "1 Gün İlerlet" };
+        _advanceDayButton.Pressed += () => Apply(_controller.AdvanceDays(1));
+        primaryRow.AddChild(_advanceDayButton);
+
+        _advanceWeekButton = new Button { Text = "7 Gün İlerlet" };
+        _advanceWeekButton.Pressed += () => Apply(_controller.AdvanceDays(7));
+        primaryRow.AddChild(_advanceWeekButton);
 
         var saveLoadRow = new HBoxContainer();
         saveLoadRow.AddThemeConstantOverride("separation", 8);
@@ -323,6 +336,7 @@ public partial class CareerHubScreen : Control
             RefreshSelectionStatus();
             RefreshTrainingStatus();
             RefreshDevelopmentStatus();
+            RefreshContractStatus();
             RefreshSquadList();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
             UpdateJobOfferButtons(manager);
@@ -345,6 +359,7 @@ public partial class CareerHubScreen : Control
         RefreshSelectionStatus();
         RefreshTrainingStatus();
         RefreshDevelopmentStatus();
+        RefreshContractStatus();
         RefreshStandings();
         RefreshFixtureList();
         RefreshSquadList();
@@ -418,6 +433,29 @@ public partial class CareerHubScreen : Control
             + (development.DecliningCount > 0 ? $" · düşüşte {development.DecliningCount}" : string.Empty)
             + (development.DevelopedThisWeekCount > 0
                 ? $" · bugün gelişen {development.DevelopedThisWeekCount}"
+                : string.Empty);
+    }
+
+    private void RefreshContractStatus()
+    {
+        var contracts = _controller.Host.ContractModule.Queries.GetManagedClubSummary();
+        if (contracts.ClubId is null)
+        {
+            _contractLabel.Text = "Sözleşme: işsiz — kayıt yok.";
+            return;
+        }
+
+        if (contracts.ActiveCount == 0)
+        {
+            _contractLabel.Text = "Sözleşme: aktif yok — antrenman/gün ilerletme ile oluşur.";
+            return;
+        }
+
+        _contractLabel.Text =
+            $"Sözleşme: {contracts.ActiveCount} aktif"
+            + $" · ort. ücret {contracts.AverageWeeklyWage}"
+            + (contracts.ExpiringWithinYearCount > 0
+                ? $" · 1 yıl içinde biten {contracts.ExpiringWithinYearCount}"
                 : string.Empty);
     }
 
