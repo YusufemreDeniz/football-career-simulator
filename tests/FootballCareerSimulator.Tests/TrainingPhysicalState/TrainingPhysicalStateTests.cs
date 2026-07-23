@@ -59,7 +59,12 @@ public sealed class TrainingPhysicalStateTests : IDisposable
             manager.Store,
             selectionStore,
             training.Store);
-        var teamPrep = TeamPreparationModule.Create(competition.Store, manager.Store, selectionStore);
+        var teamPrep = TeamPreparationModule.Create(
+            competition.Store,
+            manager.Store,
+            selectionStore,
+            training.Store,
+            world.TimelineStore);
         return (world, clubs, competition, manager, teamPrep, training);
     }
 
@@ -170,7 +175,7 @@ public sealed class TrainingPhysicalStateTests : IDisposable
             training.Store.PhysicalStates);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(11, loaded.SchemaVersion);
+        Assert.Equal(12, loaded.SchemaVersion);
         Assert.Single(loaded.TrainingPlans);
         Assert.Equal(TrainingIntensity.Medium, loaded.TrainingPlans[0].Intensity);
         Assert.Equal(25, loaded.PhysicalStates.Count);

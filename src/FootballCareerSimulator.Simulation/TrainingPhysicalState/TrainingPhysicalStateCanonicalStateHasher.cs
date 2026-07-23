@@ -32,6 +32,8 @@ public static class TrainingPhysicalStateCanonicalStateHasher
                 .Append(";S=").Append(state.SlotIndex)
                 .Append(";Fat=").Append(state.Fatigue)
                 .Append(";Fit=").Append(state.Fitness)
+                .Append(";Inj=").Append((int)state.InjurySeverity)
+                .Append(";Until=").Append(state.InjuredUntilDayNumber?.ToString() ?? "-")
                 .Append('|');
         }
 

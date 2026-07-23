@@ -35,6 +35,6 @@ public sealed class TrainingPhysicalStateModule
         return new TrainingPhysicalStateModule(
             trainingStore,
             new SetWeeklyTrainingPlanHandler(trainingStore, managerCareerStore, timelineStore),
-            new TrainingQueryService(trainingStore, managerCareerStore));
+            new TrainingQueryService(trainingStore, managerCareerStore, timelineStore));
     }
 }

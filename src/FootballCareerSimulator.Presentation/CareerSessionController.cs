@@ -191,8 +191,11 @@ public sealed class CareerSessionController
                     (int)intensity,
                     (int)RestApproach.Normal));
 
+            var injuryText = result.InjuredSlotCount > 0
+                ? $" · sakat {result.InjuredSlotCount}"
+                : string.Empty;
             return UiActionResult.Ok(
-                $"Antrenman uygulandı ({intensity}): yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}.");
+                $"Antrenman uygulandı ({intensity}): yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}.");
         }
         catch (TrainingPhysicalStateInvariantViolationException ex)
         {

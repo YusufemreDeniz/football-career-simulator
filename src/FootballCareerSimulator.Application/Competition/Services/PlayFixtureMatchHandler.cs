@@ -73,10 +73,12 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var awayClub = _clubRegistryStore.Registry.GetClubOrThrow(fixture.AwayClubId);
         var rootSeed = _timelineStore.Timeline.RootSeed;
 
+        RecoverInjuriesToDate(occurredAt);
+
         var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed)
-            + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId);
+            + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt);
         var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed)
-            + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId);
+            + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt);
 
         var score = MvpFixtureMatchSimulator.Simulate(
             rootSeed,
@@ -92,6 +94,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             score,
             occurredAt);
 
+        ApplyMatchPhysicalConsequences(fixture, occurredAt, rootSeed);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
@@ -200,9 +203,10 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         return MvpSquadStrengthCalculator.ComputeDefaultLineupBonus(clubId, rootSeed);
     }
 
-    private int ResolvePhysicalModifier(FixtureId fixtureId, ClubId clubId)
+    private int ResolvePhysicalModifier(FixtureId fixtureId, ClubId clubId, GameDate day)
     {
-        if (_trainingStore is null || _trainingStore.GetPlan(clubId) is null)
+        if (_trainingStore is null
+            || !_trainingStore.PhysicalStates.Any(state => state.ClubId == clubId))
         {
             return 0;
         }
@@ -221,6 +225,68 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         return MvpPhysicalMatchModifier.ComputeLineupModifier(
             clubId,
             startingSlots,
-            _trainingStore.PhysicalBySlot);
+            _trainingStore.PhysicalBySlot,
+            day);
+    }
+
+    private void RecoverInjuriesToDate(GameDate day)
+    {
+        if (_trainingStore is null)
+        {
+            return;
+        }
+
+        foreach (var group in _trainingStore.PhysicalStates.GroupBy(state => state.ClubId))
+        {
+            var recovered = group.Select(state => state.RecoverIfDue(day)).ToArray();
+            _trainingStore.ReplacePhysicalStatesForClub(group.Key, recovered);
+        }
+    }
+
+    private void ApplyMatchPhysicalConsequences(Fixture fixture, GameDate day, int rootSeed)
+    {
+        if (_trainingStore is null)
+        {
+            return;
+        }
+
+        ApplyMatchLoadForClub(fixture.HomeClubId, fixture.Id, day, rootSeed);
+        ApplyMatchLoadForClub(fixture.AwayClubId, fixture.Id, day, rootSeed);
+    }
+
+    private void ApplyMatchLoadForClub(ClubId clubId, FixtureId fixtureId, GameDate day, int rootSeed)
+    {
+        var existing = _trainingStore!.PhysicalStates
+            .Where(state => state.ClubId == clubId)
+            .Select(state => state.RecoverIfDue(day))
+            .ToDictionary(state => state.SlotIndex);
+
+        if (existing.Count == 0)
+        {
+            return;
+        }
+
+        IReadOnlyList<int> startingSlots;
+        var selection = _matchSelectionStore?.Get(fixtureId, clubId);
+        startingSlots = selection?.StartingSlotIndices
+            ?? Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
+
+        foreach (var slot in startingSlots)
+        {
+            if (!existing.TryGetValue(slot, out var state) || !state.IsAvailableOn(day))
+            {
+                continue;
+            }
+
+            existing[slot] = MvpInjuryRiskEvaluator.MaybeInjureFromMatch(
+                state,
+                rootSeed,
+                fixtureId.Value,
+                day);
+        }
+
+        _trainingStore.ReplacePhysicalStatesForClub(
+            clubId,
+            existing.Values.OrderBy(state => state.SlotIndex));
     }
 }

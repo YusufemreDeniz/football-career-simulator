@@ -49,9 +49,13 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
         var intensity = (TrainingIntensity)command.Intensity;
         var rest = (RestApproach)command.RestApproach;
         var day = _timelineStore.Timeline.CurrentDate;
+        var rootSeed = _timelineStore.Timeline.RootSeed;
 
         var plan = WeeklyTrainingPlan.Set(clubId, focus, intensity, rest, day);
-        var physical = MvpTrainingLoadApplier.ApplyPlanToSquad(plan);
+        var physical = MvpTrainingLoadApplier.ApplyPlanToSquad(
+            plan,
+            rootSeed,
+            _store.PhysicalBySlot);
 
         _store.UpsertPlan(plan);
         _store.ReplacePhysicalStatesForClub(clubId, physical);
@@ -64,7 +68,8 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
             (int)intensity,
             (int)rest,
             (int)Math.Round(xi.Average(s => s.Fatigue), MidpointRounding.AwayFromZero),
-            (int)Math.Round(xi.Average(s => s.Fitness), MidpointRounding.AwayFromZero));
+            (int)Math.Round(xi.Average(s => s.Fitness), MidpointRounding.AwayFromZero),
+            physical.Count(s => s.IsInjured));
 
         _completed[command.CommandId] = result;
         return result;

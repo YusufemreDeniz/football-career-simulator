@@ -3,6 +3,7 @@ using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Infrastructure;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 
 namespace FootballCareerSimulator.Application.TeamPreparation.Composition;
@@ -34,12 +35,18 @@ public sealed class TeamPreparationModule
     public static TeamPreparationModule Create(
         ILeagueCompetitionStore competitionStore,
         IManagerCareerStore managerCareerStore,
-        IMatchSelectionStore? selectionStore = null)
+        IMatchSelectionStore? selectionStore = null,
+        ITrainingPhysicalStateStore? trainingStore = null,
+        IWorldTimelineStore? timelineStore = null)
     {
         var store = selectionStore ?? new InMemoryMatchSelectionStore();
         return new TeamPreparationModule(
             store,
-            new ApproveDefaultMatchSelectionHandler(store, competitionStore),
+            new ApproveDefaultMatchSelectionHandler(
+                store,
+                competitionStore,
+                trainingStore,
+                timelineStore),
             new MatchSelectionQueryService(store, competitionStore, managerCareerStore),
             new SquadQueryService());
     }

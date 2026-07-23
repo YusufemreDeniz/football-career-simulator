@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
+using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 
@@ -10,14 +11,17 @@ public sealed class TrainingQueryService
 {
     private readonly ITrainingPhysicalStateStore _store;
     private readonly IManagerCareerStore _managerCareerStore;
+    private readonly IWorldTimelineStore _timelineStore;
 
     public TrainingQueryService(
         ITrainingPhysicalStateStore store,
-        IManagerCareerStore managerCareerStore)
+        IManagerCareerStore managerCareerStore,
+        IWorldTimelineStore timelineStore)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
+        _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
     }
 
     public ClubTrainingSummaryReadModel GetManagedClubSummary()
@@ -26,7 +30,7 @@ public sealed class TrainingQueryService
         if (clubId is null)
         {
             return new ClubTrainingSummaryReadModel(
-                null, null, null, null, null, null, null, null, null, null, false);
+                null, null, null, null, null, null, null, null, null, null, false, 0, 0);
         }
 
         return GetClubSummary(clubId.Value);
@@ -34,7 +38,12 @@ public sealed class TrainingQueryService
 
     public ClubTrainingSummaryReadModel GetClubSummary(ClubId clubId)
     {
+        var day = _timelineStore.Timeline.CurrentDate;
         var plan = _store.GetPlan(clubId);
+        var allForClub = _store.PhysicalStates.Where(s => s.ClubId == clubId).ToArray();
+        var injured = allForClub.Count(s => s.IsInjured);
+        var unavailable = allForClub.Count(s => !s.IsAvailableOn(day));
+
         var slots = Enumerable.Range(MatchSelection.MinSquadSlot, MatchSelection.StartingXiSize)
             .Select(slot => _store.GetPhysical(clubId, slot))
             .Where(state => state is not null)
@@ -61,7 +70,9 @@ public sealed class TrainingQueryService
                 null,
                 avgFatigue,
                 avgFitness,
-                false);
+                false,
+                injured,
+                unavailable);
         }
 
         return new ClubTrainingSummaryReadModel(
@@ -75,6 +86,8 @@ public sealed class TrainingQueryService
             plan.SetAt.DayNumber,
             avgFatigue,
             avgFitness,
-            true);
+            true,
+            injured,
+            unavailable);
     }
 }

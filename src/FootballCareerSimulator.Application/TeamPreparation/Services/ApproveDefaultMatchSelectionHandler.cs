@@ -1,10 +1,12 @@
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 namespace FootballCareerSimulator.Application.TeamPreparation.Services;
 
@@ -12,14 +14,20 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
 {
     private readonly IMatchSelectionStore _selectionStore;
     private readonly ILeagueCompetitionStore _competitionStore;
+    private readonly ITrainingPhysicalStateStore? _trainingStore;
+    private readonly IWorldTimelineStore? _timelineStore;
     private readonly Dictionary<Guid, ApproveDefaultMatchSelectionResult> _completedCommands = new();
 
     public ApproveDefaultMatchSelectionHandler(
         IMatchSelectionStore selectionStore,
-        ILeagueCompetitionStore competitionStore)
+        ILeagueCompetitionStore competitionStore,
+        ITrainingPhysicalStateStore? trainingStore = null,
+        IWorldTimelineStore? timelineStore = null)
     {
         _selectionStore = selectionStore ?? throw new ArgumentNullException(nameof(selectionStore));
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
+        _trainingStore = trainingStore;
+        _timelineStore = timelineStore;
     }
 
     public ApproveDefaultMatchSelectionResult Handle(ApproveDefaultMatchSelectionCommand command)
@@ -47,7 +55,20 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
                 $"Club {command.ClubId} does not participate in fixture {command.FixtureId}.");
         }
 
-        var selection = MatchSelection.ApproveDefault(fixtureId, clubId);
+        MatchSelection selection;
+        if (_trainingStore is not null && _timelineStore is not null)
+        {
+            selection = MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+                fixtureId,
+                clubId,
+                _timelineStore.Timeline.CurrentDate,
+                _trainingStore.PhysicalBySlot);
+        }
+        else
+        {
+            selection = MatchSelection.ApproveDefault(fixtureId, clubId);
+        }
+
         _selectionStore.Upsert(selection);
 
         var result = new ApproveDefaultMatchSelectionResult(

@@ -11,4 +11,6 @@ public sealed record ClubTrainingSummaryReadModel(
     int? SetAtDayNumber,
     int? AverageFatigue,
     int? AverageFitness,
-    bool HasPlan);
+    bool HasPlan,
+    int InjuredSlotCount,
+    int UnavailableSlotCount);

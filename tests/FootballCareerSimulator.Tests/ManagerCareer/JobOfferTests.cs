@@ -118,7 +118,7 @@ public sealed class JobOfferTests : IDisposable
             Array.Empty<Domain.TrainingPhysicalState.PlayerPhysicalState>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(11, loaded.SchemaVersion);
+        Assert.Equal(12, loaded.SchemaVersion);
         Assert.NotNull(loaded.ManagerCareer.PendingJobOffer);
         Assert.Equal(
             module.Store.Career.PendingJobOffer!.ClubId.Value,

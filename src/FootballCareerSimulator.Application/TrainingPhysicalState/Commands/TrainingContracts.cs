@@ -13,4 +13,5 @@ public sealed record SetWeeklyTrainingPlanResult(
     int Intensity,
     int RestApproach,
     int AverageFatigue,
-    int AverageFitness);
+    int AverageFitness,
+    int InjuredSlotCount);

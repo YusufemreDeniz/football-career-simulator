@@ -163,7 +163,7 @@ public sealed class BoardConfidenceTests : IDisposable
             Array.Empty<Domain.TrainingPhysicalState.PlayerPhysicalState>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(11, loaded.SchemaVersion);
+        Assert.Equal(12, loaded.SchemaVersion);
         Assert.Equal(
             assessed.Career.ActiveEmployment!.BoardConfidence.Value,
             loaded.ManagerCareer.ActiveEmployment!.BoardConfidence.Value);

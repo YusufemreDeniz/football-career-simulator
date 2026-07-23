@@ -165,6 +165,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 11;
         }
 
+        if (version == 11 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 12)
+        {
+            WorldCalendarSqliteMigrator.MigrateV11ToV12InPlace(filePath);
+            wasMigrated = true;
+            version = 12;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -307,6 +314,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 SlotIndex INTEGER NOT NULL,
                 Fatigue INTEGER NOT NULL,
                 Fitness INTEGER NOT NULL,
+                InjurySeverity INTEGER NOT NULL,
+                InjuredUntilDayNumber INTEGER NULL,
                 PRIMARY KEY (ClubId, SlotIndex)
             );
             """);
@@ -600,13 +609,17 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             command.Transaction = transaction;
             command.CommandText = """
                 INSERT INTO PlayerPhysicalState (
-                    ClubId, SlotIndex, Fatigue, Fitness)
-                VALUES ($clubId, $slotIndex, $fatigue, $fitness);
+                    ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity, InjuredUntilDayNumber)
+                VALUES ($clubId, $slotIndex, $fatigue, $fitness, $injurySeverity, $injuredUntil);
                 """;
             command.Parameters.AddWithValue("$clubId", state.ClubId.Value);
             command.Parameters.AddWithValue("$slotIndex", state.SlotIndex);
             command.Parameters.AddWithValue("$fatigue", state.Fatigue);
             command.Parameters.AddWithValue("$fitness", state.Fitness);
+            command.Parameters.AddWithValue("$injurySeverity", (int)state.InjurySeverity);
+            command.Parameters.AddWithValue(
+                "$injuredUntil",
+                state.InjuredUntilDayNumber is int until ? until : DBNull.Value);
             command.ExecuteNonQuery();
         }
     }
@@ -1066,18 +1079,26 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var states = new List<PlayerPhysicalState>();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT ClubId, SlotIndex, Fatigue, Fitness
+            SELECT ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity, InjuredUntilDayNumber
             FROM PlayerPhysicalState
             ORDER BY ClubId, SlotIndex;
             """;
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
+            var injurySeverity = reader.FieldCount > 4
+                ? (InjurySeverity)reader.GetInt32(4)
+                : InjurySeverity.None;
+            int? injuredUntil = reader.FieldCount > 5 && !reader.IsDBNull(5)
+                ? reader.GetInt32(5)
+                : null;
             states.Add(PlayerPhysicalState.Rehydrate(
                 new ClubId(reader.GetInt64(0)),
                 reader.GetInt32(1),
                 reader.GetInt32(2),
-                reader.GetInt32(3)));
+                reader.GetInt32(3),
+                injurySeverity,
+                injuredUntil));
         }
 
         return states;

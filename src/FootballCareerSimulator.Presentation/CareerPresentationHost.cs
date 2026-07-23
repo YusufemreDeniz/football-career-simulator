@@ -85,10 +85,14 @@ public sealed class CareerPresentationHost
             worldModule.TimelineStore,
             startingClubId: startingClubId,
             clubSportiveStrength: startingStrength);
-        var teamPreparation = TeamPreparationModule.Create(competitionStore, managerModule.Store);
         var training = TrainingPhysicalStateModule.Create(
             managerModule.Store,
             worldModule.TimelineStore);
+        var teamPreparation = TeamPreparationModule.Create(
+            competitionStore,
+            managerModule.Store,
+            trainingStore: training.Store,
+            timelineStore: worldModule.TimelineStore);
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,

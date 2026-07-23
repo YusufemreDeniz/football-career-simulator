@@ -361,13 +361,20 @@ public partial class CareerHubScreen : Control
 
         if (!training.HasPlan)
         {
-            _trainingLabel.Text = "Antrenman: plan yok — hafif/orta/yoğun uygula (maç gücünü etkiler).";
+            var injuryHint = training.InjuredSlotCount > 0
+                ? $" · sakat {training.InjuredSlotCount} (uygun değil {training.UnavailableSlotCount})"
+                : string.Empty;
+            _trainingLabel.Text =
+                $"Antrenman: plan yok — hafif/orta/yoğun uygula (maç gücünü etkiler){injuryHint}.";
             return;
         }
 
+        var injuryText = training.InjuredSlotCount > 0
+            ? $" · sakat {training.InjuredSlotCount} (uygun değil {training.UnavailableSlotCount})"
+            : string.Empty;
         _trainingLabel.Text =
             $"Antrenman: {training.IntensityName}/{training.FocusName} · Dinlenme {training.RestApproachName}"
-            + $" · XI yorgunluk {training.AverageFatigue} · fitness {training.AverageFitness}";
+            + $" · XI yorgunluk {training.AverageFatigue} · fitness {training.AverageFitness}{injuryText}";
     }
 
     private void UpdateTrainingButtons(
