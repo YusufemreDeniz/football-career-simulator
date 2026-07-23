@@ -40,12 +40,13 @@ public sealed class WorldCalendarSqliteSaveLoadTests : IDisposable
 
     private static LeagueClubRegistry DefaultClubs() => LeagueClubRegistry.CreateMvpLeague();
 
-    private static ManagerCareer DefaultManager(GameDate startDate) =>
-        ManagerCareer.StartNewCareer(
+    private static Domain.ManagerCareer.ManagerCareer DefaultManager(GameDate startDate) =>
+        Domain.ManagerCareer.ManagerCareer.StartNewCareerForClubStrength(
             new ManagerId(1),
             "Teknik Direktör",
             new ClubId(1),
-            startDate);
+            startDate,
+            clubSportiveStrength: 50);
 
     [Fact]
     public void SaveAndLoad_RoundTrip_PreservesCanonicalState()

@@ -23,13 +23,15 @@ public sealed class ManagerCareerModule
         GameDate startDate,
         long managerId = 1,
         string displayName = "Teknik Direktör",
-        long startingClubId = 1)
+        long startingClubId = 1,
+        int clubSportiveStrength = 50)
     {
-        var career = ManagerCareer.StartNewCareer(
+        var career = ManagerCareer.StartNewCareerForClubStrength(
             new ManagerId(managerId),
             displayName,
             new ClubId(startingClubId),
-            startDate);
+            startDate,
+            clubSportiveStrength);
         var store = new InMemoryManagerCareerStore(career);
         return new ManagerCareerModule(store, new ManagerCareerQueryService(store));
     }

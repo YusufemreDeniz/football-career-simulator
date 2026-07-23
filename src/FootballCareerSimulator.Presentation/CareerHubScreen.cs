@@ -236,7 +236,14 @@ public partial class CareerHubScreen : Control
         var clubName = manager.EmployedClubId is long clubId
             ? _controller.GetClubDisplayName(clubId)
             : "—";
-        _managerLabel.Text = $"Menajer: {manager.DisplayName} · Kulüp: {clubName}";
+        var boardText = manager.BoardConfidence is int confidence
+            ? $" · Yönetim: {confidence} ({TranslateRisk(manager.EmploymentRiskBand)}) · Beklenti: {TranslateExpectation(manager.SeasonExpectation)}"
+            : string.Empty;
+        var reasonText = string.IsNullOrWhiteSpace(manager.LastAssessmentReasonCode)
+            ? string.Empty
+            : $" · Son değerlendirme: {TranslateReason(manager.LastAssessmentReasonCode)}";
+        _managerLabel.Text =
+            $"Menajer: {manager.DisplayName} · Kulüp: {clubName}{boardText}{reasonText}";
 
         var periodText = period is null
             ? "Planlama dönemi: yok"
@@ -391,4 +398,37 @@ public partial class CareerHubScreen : Control
 
         _standingsLabel.Text = $"Puan durumu (ilk 5): {preview}";
     }
+
+    private static string TranslateExpectation(string? code) =>
+        code switch
+        {
+            "TitleChallenge" => "Şampiyonluk",
+            "UpperHalf" => "Üst yarı",
+            "MidTable" => "Orta sıra",
+            "LowerHalf" => "Alt yarı",
+            "Survival" => "Küme kurtarma",
+            _ => code ?? "—",
+        };
+
+    private static string TranslateRisk(string? code) =>
+        code switch
+        {
+            "Secure" => "güvende",
+            "Stable" => "stabil",
+            "UnderReview" => "incelemede",
+            "Critical" => "kritik",
+            _ => code ?? "—",
+        };
+
+    private static string TranslateReason(string? code) =>
+        code switch
+        {
+            "WinOnTrack" => "galibiyet (hedefte)",
+            "WinBehindExpectation" => "galibiyet (hedefin gerisinde)",
+            "DrawOnTrack" => "beraberlik (hedefte)",
+            "DrawBehindExpectation" => "beraberlik (hedefin gerisinde)",
+            "LossOnTrack" => "mağlubiyet (hedefte)",
+            "LossBehindExpectation" => "mağlubiyet (hedefin gerisinde)",
+            _ => code ?? "—",
+        };
 }

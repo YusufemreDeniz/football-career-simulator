@@ -7,6 +7,7 @@ using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
@@ -84,7 +85,12 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             occurredAt);
 
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
-        season.ClearUncommittedEvents();
+
+        var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
+            _competitionStore,
+            command.SeasonId);
+        TryApplyBoardAssessment(fixture, score, updatedSeason);
+        updatedSeason.ClearUncommittedEvents();
 
         var result = new PlayFixtureMatchResult(
             true,
@@ -99,6 +105,55 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     }
 
     public void ResetIdempotencyCache() => _completedCommands.Clear();
+
+    private void TryApplyBoardAssessment(Fixture fixture, MatchScore score, CompetitionSeason season)
+    {
+        if (_managerCareerStore is null)
+        {
+            return;
+        }
+
+        var employment = _managerCareerStore.Career.ActiveEmployment;
+        if (employment is null)
+        {
+            return;
+        }
+
+        var managedClubId = employment.ClubId;
+        if (fixture.HomeClubId != managedClubId && fixture.AwayClubId != managedClubId)
+        {
+            return;
+        }
+
+        var isHome = fixture.HomeClubId == managedClubId;
+        var managedGoals = isHome ? score.HomeGoals : score.AwayGoals;
+        var opponentGoals = isHome ? score.AwayGoals : score.HomeGoals;
+        var outcome = managedGoals > opponentGoals
+            ? MatchOutcomeForManagedClub.Win
+            : managedGoals == opponentGoals
+                ? MatchOutcomeForManagedClub.Draw
+                : MatchOutcomeForManagedClub.Loss;
+
+        var standings = season.Standings.Entries;
+        var leagueSize = standings.Count > 0 ? standings.Count : season.Participants.Count;
+        var position = 1;
+        for (var i = 0; i < standings.Count; i++)
+        {
+            if (standings[i].ClubId == managedClubId)
+            {
+                position = i + 1;
+                break;
+            }
+        }
+
+        var assessment = _managerCareerStore.Career.ApplyMatchBoardAssessment(
+            fixture.Id,
+            outcome,
+            position,
+            Math.Max(leagueSize, 1));
+
+        _managerCareerStore.Replace(assessment.Career);
+    }
 
     private int ResolveLineupBonus(FixtureId fixtureId, ClubId clubId, int rootSeed)
     {

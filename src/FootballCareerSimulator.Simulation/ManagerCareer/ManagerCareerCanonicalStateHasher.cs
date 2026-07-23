@@ -17,11 +17,25 @@ public static class ManagerCareerCanonicalStateHasher
         {
             builder.Append("EmployedClubId=").Append(employment.ClubId.Value).Append(';');
             builder.Append("EmploymentStartedAt=").Append(employment.StartedAt.DayNumber).Append(';');
+            builder.Append("SeasonExpectation=").Append((int)employment.SeasonExpectation).Append(';');
+            builder.Append("BoardConfidence=").Append(employment.BoardConfidence.Value).Append(';');
+            builder.Append("RiskBand=").Append((int)employment.RiskBand).Append(';');
+            builder.Append("LastAssessedFixtureId=")
+                .Append(employment.LastAssessedFixtureId?.Value.ToString() ?? string.Empty)
+                .Append(';');
+            builder.Append("LastAssessmentReasonCode=")
+                .Append(employment.LastAssessmentReasonCode ?? string.Empty)
+                .Append(';');
         }
         else
         {
             builder.Append("EmployedClubId=").Append(';');
             builder.Append("EmploymentStartedAt=").Append(';');
+            builder.Append("SeasonExpectation=").Append(';');
+            builder.Append("BoardConfidence=").Append(';');
+            builder.Append("RiskBand=").Append(';');
+            builder.Append("LastAssessedFixtureId=").Append(';');
+            builder.Append("LastAssessmentReasonCode=").Append(';');
         }
 
         return builder.ToString();

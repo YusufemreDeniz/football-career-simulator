@@ -18,11 +18,12 @@ public sealed class WorldCalendarSqlitePersistence : IWorldCalendarPersistence
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
 
-        var managerCareer = ManagerCareer.StartNewCareer(
+        var managerCareer = ManagerCareer.StartNewCareerForClubStrength(
             new ManagerId(1),
             "Teknik Direktör",
             new ClubId(1),
-            timeline.CurrentDate);
+            timeline.CurrentDate,
+            clubSportiveStrength: 50);
 
         _careerPersistence.Save(
             filePath,

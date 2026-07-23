@@ -124,6 +124,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 7;
         }
 
+        if (version == 7 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 8)
+        {
+            WorldCalendarSqliteMigrator.MigrateV7ToV8InPlace(filePath);
+            wasMigrated = true;
+            version = 8;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -221,7 +228,12 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ManagerId INTEGER NOT NULL,
                 DisplayName TEXT NOT NULL,
                 EmployedClubId INTEGER NOT NULL,
-                EmploymentStartedDayNumber INTEGER NOT NULL
+                EmploymentStartedDayNumber INTEGER NOT NULL,
+                SeasonExpectation INTEGER NOT NULL,
+                BoardConfidence INTEGER NOT NULL,
+                EmploymentRiskBand INTEGER NOT NULL,
+                LastAssessedFixtureId INTEGER NULL,
+                LastAssessmentReasonCode TEXT NULL
             );
             """);
 
@@ -391,13 +403,29 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         command.Transaction = transaction;
         command.CommandText = """
             INSERT INTO ManagerCareerState (
-                SingletonId, ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber)
-            VALUES (1, $managerId, $displayName, $employedClubId, $employmentStartedDayNumber);
+                SingletonId, ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber,
+                SeasonExpectation, BoardConfidence, EmploymentRiskBand,
+                LastAssessedFixtureId, LastAssessmentReasonCode)
+            VALUES (
+                1, $managerId, $displayName, $employedClubId, $employmentStartedDayNumber,
+                $seasonExpectation, $boardConfidence, $riskBand,
+                $lastAssessedFixtureId, $lastAssessmentReasonCode);
             """;
         command.Parameters.AddWithValue("$managerId", managerCareer.ManagerId.Value);
         command.Parameters.AddWithValue("$displayName", managerCareer.DisplayName);
         command.Parameters.AddWithValue("$employedClubId", employment.ClubId.Value);
         command.Parameters.AddWithValue("$employmentStartedDayNumber", employment.StartedAt.DayNumber);
+        command.Parameters.AddWithValue("$seasonExpectation", (int)employment.SeasonExpectation);
+        command.Parameters.AddWithValue("$boardConfidence", employment.BoardConfidence.Value);
+        command.Parameters.AddWithValue("$riskBand", (int)employment.RiskBand);
+        command.Parameters.AddWithValue(
+            "$lastAssessedFixtureId",
+            employment.LastAssessedFixtureId is FixtureId fixture
+                ? fixture.Value
+                : DBNull.Value);
+        command.Parameters.AddWithValue(
+            "$lastAssessmentReasonCode",
+            (object?)employment.LastAssessmentReasonCode ?? DBNull.Value);
         command.ExecuteNonQuery();
     }
 
@@ -743,35 +771,45 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
     {
         if (!TableExists(connection, "ManagerCareerState"))
         {
-            return ManagerCareer.StartNewCareer(
+            return ManagerCareer.StartNewCareerForClubStrength(
                 new ManagerId(1),
                 "Teknik Direktör",
                 new Domain.Shared.ClubId(1),
-                fallbackStartDate);
+                fallbackStartDate,
+                clubSportiveStrength: 50);
         }
 
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber
+            SELECT ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber,
+                   SeasonExpectation, BoardConfidence, EmploymentRiskBand,
+                   LastAssessedFixtureId, LastAssessmentReasonCode
             FROM ManagerCareerState
             WHERE SingletonId = 1;
             """;
         using var reader = command.ExecuteReader();
         if (!reader.Read())
         {
-            return ManagerCareer.StartNewCareer(
+            return ManagerCareer.StartNewCareerForClubStrength(
                 new ManagerId(1),
                 "Teknik Direktör",
                 new Domain.Shared.ClubId(1),
-                fallbackStartDate);
+                fallbackStartDate,
+                clubSportiveStrength: 50);
         }
 
+        var hasBoardColumns = reader.FieldCount >= 9;
         return ManagerSnapshotMapper.ToDomain(
             reader.GetInt64(0),
             reader.GetString(1),
             reader.GetInt64(2),
             reader.GetInt32(3),
-            fallbackStartDate);
+            fallbackStartDate,
+            seasonExpectation: hasBoardColumns && !reader.IsDBNull(4) ? reader.GetInt32(4) : null,
+            boardConfidence: hasBoardColumns && !reader.IsDBNull(5) ? reader.GetInt32(5) : null,
+            riskBand: hasBoardColumns && !reader.IsDBNull(6) ? reader.GetInt32(6) : null,
+            lastAssessedFixtureId: hasBoardColumns && !reader.IsDBNull(7) ? reader.GetInt64(7) : null,
+            lastAssessmentReasonCode: hasBoardColumns && !reader.IsDBNull(8) ? reader.GetString(8) : null);
     }
 
     private static IReadOnlyList<MatchSelection> ReadMatchSelections(SqliteConnection connection)

@@ -51,12 +51,13 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         }
     }
 
-    private static ManagerCareer DefaultManager(GameDate startDate) =>
-        ManagerCareer.StartNewCareer(
+    private static Domain.ManagerCareer.ManagerCareer DefaultManager(GameDate startDate) =>
+        Domain.ManagerCareer.ManagerCareer.StartNewCareerForClubStrength(
             new ManagerId(1),
             "Teknik Direktör",
             new ClubId(1),
-            startDate);
+            startDate,
+            clubSportiveStrength: 50);
 
     private static (WorldCalendarModule World, CompetitionModule Competition) CreateCareerState()
     {
@@ -140,7 +141,7 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         var loaded = _persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(7, loaded.SchemaVersion);
+        Assert.Equal(8, loaded.SchemaVersion);
         Assert.Empty(loaded.League.Seasons);
         Assert.Equal(1, loaded.League.CompetitionId.Value);
         Assert.Equal(

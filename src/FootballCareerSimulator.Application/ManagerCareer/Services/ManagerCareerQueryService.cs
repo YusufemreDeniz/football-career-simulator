@@ -15,10 +15,16 @@ public sealed class ManagerCareerQueryService
     public ManagerCareerReadModel GetCareer()
     {
         var career = _store.Career;
+        var employment = career.ActiveEmployment;
         return new ManagerCareerReadModel(
             career.ManagerId.Value,
             career.DisplayName,
-            career.ActiveEmployment?.ClubId.Value,
-            career.ActiveEmployment?.StartedAt.DayNumber);
+            employment?.ClubId.Value,
+            employment?.StartedAt.DayNumber,
+            employment?.SeasonExpectation.ToString(),
+            employment?.BoardConfidence.Value,
+            employment?.RiskBand.ToString(),
+            employment?.LastAssessmentReasonCode,
+            employment?.LastAssessedFixtureId?.Value);
     }
 }

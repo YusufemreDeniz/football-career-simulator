@@ -63,7 +63,12 @@ public sealed class CareerPresentationHost
         var competitionStore = new InMemoryLeagueCompetitionStore(
             new LeagueCompetition(new CompetitionId(MvpLeagueIdentity.DefaultCompetitionId)));
         var clubModule = ClubGovernanceModule.CreateMvpLeague();
-        var managerModule = ManagerCareerModule.CreateNewCareer(startDate);
+        const long startingClubId = 1;
+        var startingStrength = clubModule.Queries.GetClub(startingClubId)?.SportiveStrength ?? 50;
+        var managerModule = ManagerCareerModule.CreateNewCareer(
+            startDate,
+            startingClubId: startingClubId,
+            clubSportiveStrength: startingStrength);
         var teamPreparation = TeamPreparationModule.Create(competitionStore, managerModule.Store);
 
         var worldModule = WorldCalendarModule.Create(
