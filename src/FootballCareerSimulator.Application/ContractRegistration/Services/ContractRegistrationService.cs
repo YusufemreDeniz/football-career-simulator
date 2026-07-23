@@ -83,4 +83,52 @@ public sealed class ContractRegistrationService
             affectedClubs.OrderBy(id => id).ToArray(),
             freeAgentPlayers);
     }
+
+    /// <summary>
+    /// Transfer olmadan MVP: serbest ajanı yalnızca son kulübüne geri imzalar.
+    /// </summary>
+    public FreeAgentResignResult SignFreeAgentToLastClub(
+        PlayerId playerId,
+        ClubId clubId,
+        GameDate day,
+        int contractYears = 2)
+    {
+        if (contractYears < 1 || contractYears > 5)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                "Contract years must be between 1 and 5.");
+        }
+
+        var freeAgency = _freeAgentStore.Get(playerId)
+            ?? throw new ContractRegistrationInvariantViolationException(
+                $"Player {playerId.Value} is not a free agent.");
+
+        if (freeAgency.LastClubId != clubId)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                "MVP free-agent resign is only allowed back to the last club (no transfer).");
+        }
+
+        if (GetActiveClub(playerId, day) is not null)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                $"Player {playerId.Value} already has an active club.");
+        }
+
+        var career = _playerCareerStore.Careers.FirstOrDefault(c => c.Id == playerId)
+            ?? throw new ContractRegistrationInvariantViolationException(
+                $"Player career {playerId.Value} was not found.");
+
+        var endDate = GameDate.FromCalendarDate(day.Year + contractYears, day.Month, day.Day);
+        var wage = Math.Max(500, career.CurrentAbility * 120);
+        var contract = PlayerContract.Activate(playerId, clubId, day, endDate, wage);
+        _store.Upsert(contract);
+        _freeAgentStore.Remove(playerId);
+
+        return new FreeAgentResignResult(
+            playerId.Value,
+            clubId.Value,
+            wage,
+            endDate.DayNumber);
+    }
 }

@@ -26,6 +26,7 @@ public partial class CareerHubScreen : Control
     private Button _approveSelectionButton = null!;
     private Button _generateOfferButton = null!;
     private Button _acceptOfferButton = null!;
+    private Button _signFreeAgentButton = null!;
     private Button _trainLowButton = null!;
     private Button _trainMediumButton = null!;
     private Button _trainHighButton = null!;
@@ -165,6 +166,10 @@ public partial class CareerHubScreen : Control
         _acceptOfferButton = new Button { Text = "Teklifi Kabul Et" };
         _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
         jobRow.AddChild(_acceptOfferButton);
+
+        _signFreeAgentButton = new Button { Text = "Serbesti Geri İmzala" };
+        _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
+        jobRow.AddChild(_signFreeAgentButton);
 
         layout.AddChild(new Label { Text = "Birincil eylemler" });
 
@@ -479,6 +484,10 @@ public partial class CareerHubScreen : Control
         var unemployed = string.Equals(manager.EmploymentStatus, "Unemployed", StringComparison.Ordinal);
         _generateOfferButton.Disabled = !unemployed;
         _acceptOfferButton.Disabled = !unemployed || manager.PendingOfferId is null;
+
+        var signable = !unemployed
+            && _controller.Host.ContractModule.Queries.GetNextSignableFreeAgentForManagedClub() is not null;
+        _signFreeAgentButton.Disabled = !signable;
     }
 
     private string GetClubDisplayNameSafe(long clubId) => _controller.GetClubDisplayName(clubId);

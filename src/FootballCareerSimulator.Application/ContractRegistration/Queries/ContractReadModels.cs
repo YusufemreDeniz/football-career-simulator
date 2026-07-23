@@ -12,3 +12,14 @@ public sealed record FreeAgencyExpiryResult(
     int ExpiredCount,
     IReadOnlyList<long> AffectedClubIds,
     IReadOnlyList<long> FreeAgentPlayerIds);
+
+public sealed record FreeAgentResignResult(
+    long PlayerId,
+    long ClubId,
+    int WeeklyWage,
+    int EndDayNumber);
+
+public sealed record SignableFreeAgentReadModel(
+    long PlayerId,
+    long LastClubId,
+    int BecameFreeAgentDayNumber);

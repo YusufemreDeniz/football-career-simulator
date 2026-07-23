@@ -54,4 +54,24 @@ public sealed class ContractQueryService
     }
 
     public bool IsFreeAgent(PlayerId playerId) => _freeAgentStore.Get(playerId) is not null;
+
+    public SignableFreeAgentReadModel? GetNextSignableFreeAgentForManagedClub()
+    {
+        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId })
+        {
+            return null;
+        }
+
+        var entry = _freeAgentStore.GetReleasedFromClub(clubId)
+            .OrderBy(f => f.BecameFreeAgentOn.DayNumber)
+            .ThenBy(f => f.PlayerId.Value)
+            .FirstOrDefault();
+
+        return entry is null
+            ? null
+            : new SignableFreeAgentReadModel(
+                entry.PlayerId.Value,
+                entry.LastClubId.Value,
+                entry.BecameFreeAgentOn.DayNumber);
+    }
 }

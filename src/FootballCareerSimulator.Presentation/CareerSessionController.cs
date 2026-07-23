@@ -7,7 +7,9 @@ using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -188,6 +190,39 @@ public sealed class CareerSessionController
         catch (Exception ex)
         {
             return UiActionResult.Fail($"Teklif kabul hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult SignNextFreeAgentToManagedClub()
+    {
+        try
+        {
+            var signable = Host.ContractModule.Queries.GetNextSignableFreeAgentForManagedClub()
+                ?? throw new InvalidOperationException("İmzalanacak serbest oyuncu yok.");
+
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var id = new Domain.Shared.ClubId(clubId);
+            var result = Host.ContractModule.Registration.SignFreeAgentToLastClub(
+                new PlayerId(signable.PlayerId),
+                id,
+                day);
+            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, day);
+
+            return UiActionResult.Ok(
+                $"Serbest oyuncu imzalandı: #{result.PlayerId}"
+                + $" · ücret {result.WeeklyWage}"
+                + $" · bitiş gün {result.EndDayNumber}.");
+        }
+        catch (ContractRegistrationInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Serbest imza başarısız: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Serbest imza hatası: {ex.Message}");
         }
     }
 
