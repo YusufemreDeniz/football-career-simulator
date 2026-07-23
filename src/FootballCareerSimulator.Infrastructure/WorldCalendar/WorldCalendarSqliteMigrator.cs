@@ -493,6 +493,98 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV8ToV9InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV8ToV9(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V8 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.Move(workingCopyPath, filePath, overwrite: true);
+    }
+
+    private static void MigrateV8ToV9(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                CREATE TABLE ManagerCareerState_v9 (
+                    SingletonId INTEGER PRIMARY KEY CHECK (SingletonId = 1),
+                    ManagerId INTEGER NOT NULL,
+                    DisplayName TEXT NOT NULL,
+                    EmployedClubId INTEGER NULL,
+                    EmploymentStartedDayNumber INTEGER NULL,
+                    SeasonExpectation INTEGER NULL,
+                    BoardConfidence INTEGER NULL,
+                    EmploymentRiskBand INTEGER NULL,
+                    LastAssessedFixtureId INTEGER NULL,
+                    LastAssessmentReasonCode TEXT NULL,
+                    EmploymentStatus INTEGER NOT NULL,
+                    EmploymentEndReason INTEGER NULL,
+                    LastClubId INTEGER NULL,
+                    DismissedDueToFixtureId INTEGER NULL,
+                    DismissedAtDayNumber INTEGER NULL
+                );
+                """);
+
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                INSERT INTO ManagerCareerState_v9 (
+                    SingletonId, ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber,
+                    SeasonExpectation, BoardConfidence, EmploymentRiskBand,
+                    LastAssessedFixtureId, LastAssessmentReasonCode,
+                    EmploymentStatus, EmploymentEndReason, LastClubId,
+                    DismissedDueToFixtureId, DismissedAtDayNumber)
+                SELECT
+                    SingletonId, ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber,
+                    SeasonExpectation, BoardConfidence, EmploymentRiskBand,
+                    LastAssessedFixtureId, LastAssessmentReasonCode,
+                    1, NULL, EmployedClubId,
+                    NULL, NULL
+                FROM ManagerCareerState;
+                """);
+
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                DROP TABLE ManagerCareerState;
+                """);
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                ALTER TABLE ManagerCareerState_v9 RENAME TO ManagerCareerState;
+                """);
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 9);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void TryDelete(string path)
     {
         try

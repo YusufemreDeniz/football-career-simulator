@@ -131,6 +131,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 8;
         }
 
+        if (version == 8 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 9)
+        {
+            WorldCalendarSqliteMigrator.MigrateV8ToV9InPlace(filePath);
+            wasMigrated = true;
+            version = 9;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -227,13 +234,18 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 SingletonId INTEGER PRIMARY KEY CHECK (SingletonId = 1),
                 ManagerId INTEGER NOT NULL,
                 DisplayName TEXT NOT NULL,
-                EmployedClubId INTEGER NOT NULL,
-                EmploymentStartedDayNumber INTEGER NOT NULL,
-                SeasonExpectation INTEGER NOT NULL,
-                BoardConfidence INTEGER NOT NULL,
-                EmploymentRiskBand INTEGER NOT NULL,
+                EmployedClubId INTEGER NULL,
+                EmploymentStartedDayNumber INTEGER NULL,
+                SeasonExpectation INTEGER NULL,
+                BoardConfidence INTEGER NULL,
+                EmploymentRiskBand INTEGER NULL,
                 LastAssessedFixtureId INTEGER NULL,
-                LastAssessmentReasonCode TEXT NULL
+                LastAssessmentReasonCode TEXT NULL,
+                EmploymentStatus INTEGER NOT NULL,
+                EmploymentEndReason INTEGER NULL,
+                LastClubId INTEGER NULL,
+                DismissedDueToFixtureId INTEGER NULL,
+                DismissedAtDayNumber INTEGER NULL
             );
             """);
 
@@ -396,8 +408,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         SqliteTransaction transaction,
         ManagerCareer managerCareer)
     {
-        var employment = managerCareer.ActiveEmployment
-            ?? throw new SaveCorruptionException("Manager career must have active employment to save.");
+        var employment = managerCareer.ActiveEmployment;
 
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -405,27 +416,60 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             INSERT INTO ManagerCareerState (
                 SingletonId, ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber,
                 SeasonExpectation, BoardConfidence, EmploymentRiskBand,
-                LastAssessedFixtureId, LastAssessmentReasonCode)
+                LastAssessedFixtureId, LastAssessmentReasonCode,
+                EmploymentStatus, EmploymentEndReason, LastClubId,
+                DismissedDueToFixtureId, DismissedAtDayNumber)
             VALUES (
                 1, $managerId, $displayName, $employedClubId, $employmentStartedDayNumber,
                 $seasonExpectation, $boardConfidence, $riskBand,
-                $lastAssessedFixtureId, $lastAssessmentReasonCode);
+                $lastAssessedFixtureId, $lastAssessmentReasonCode,
+                $employmentStatus, $employmentEndReason, $lastClubId,
+                $dismissedDueToFixtureId, $dismissedAtDayNumber);
             """;
         command.Parameters.AddWithValue("$managerId", managerCareer.ManagerId.Value);
         command.Parameters.AddWithValue("$displayName", managerCareer.DisplayName);
-        command.Parameters.AddWithValue("$employedClubId", employment.ClubId.Value);
-        command.Parameters.AddWithValue("$employmentStartedDayNumber", employment.StartedAt.DayNumber);
-        command.Parameters.AddWithValue("$seasonExpectation", (int)employment.SeasonExpectation);
-        command.Parameters.AddWithValue("$boardConfidence", employment.BoardConfidence.Value);
-        command.Parameters.AddWithValue("$riskBand", (int)employment.RiskBand);
+        command.Parameters.AddWithValue(
+            "$employedClubId",
+            employment is null ? DBNull.Value : employment.ClubId.Value);
+        command.Parameters.AddWithValue(
+            "$employmentStartedDayNumber",
+            employment is null ? DBNull.Value : employment.StartedAt.DayNumber);
+        command.Parameters.AddWithValue(
+            "$seasonExpectation",
+            employment is null ? DBNull.Value : (int)employment.SeasonExpectation);
+        command.Parameters.AddWithValue(
+            "$boardConfidence",
+            employment is null ? DBNull.Value : employment.BoardConfidence.Value);
+        command.Parameters.AddWithValue(
+            "$riskBand",
+            employment is null ? DBNull.Value : (int)employment.RiskBand);
         command.Parameters.AddWithValue(
             "$lastAssessedFixtureId",
-            employment.LastAssessedFixtureId is FixtureId fixture
+            employment?.LastAssessedFixtureId is FixtureId fixture
                 ? fixture.Value
                 : DBNull.Value);
         command.Parameters.AddWithValue(
             "$lastAssessmentReasonCode",
-            (object?)employment.LastAssessmentReasonCode ?? DBNull.Value);
+            (object?)employment?.LastAssessmentReasonCode ?? DBNull.Value);
+        command.Parameters.AddWithValue("$employmentStatus", (int)managerCareer.EmploymentStatus);
+        command.Parameters.AddWithValue(
+            "$employmentEndReason",
+            managerCareer.TerminationReason is { } endReason
+                ? (int)endReason
+                : DBNull.Value);
+        command.Parameters.AddWithValue(
+            "$lastClubId",
+            managerCareer.LastClubId is ClubId lastClub ? lastClub.Value : DBNull.Value);
+        command.Parameters.AddWithValue(
+            "$dismissedDueToFixtureId",
+            managerCareer.DismissedDueToFixtureId is FixtureId dismissedFixture
+                ? dismissedFixture.Value
+                : DBNull.Value);
+        command.Parameters.AddWithValue(
+            "$dismissedAtDayNumber",
+            managerCareer.DismissedAt is GameDate dismissedAt
+                ? dismissedAt.DayNumber
+                : DBNull.Value);
         command.ExecuteNonQuery();
     }
 
@@ -783,7 +827,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         command.CommandText = """
             SELECT ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber,
                    SeasonExpectation, BoardConfidence, EmploymentRiskBand,
-                   LastAssessedFixtureId, LastAssessmentReasonCode
+                   LastAssessedFixtureId, LastAssessmentReasonCode,
+                   EmploymentStatus, EmploymentEndReason, LastClubId,
+                   DismissedDueToFixtureId, DismissedAtDayNumber
             FROM ManagerCareerState
             WHERE SingletonId = 1;
             """;
@@ -798,18 +844,22 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 clubSportiveStrength: 50);
         }
 
-        var hasBoardColumns = reader.FieldCount >= 9;
         return ManagerSnapshotMapper.ToDomain(
             reader.GetInt64(0),
             reader.GetString(1),
-            reader.GetInt64(2),
-            reader.GetInt32(3),
+            reader.IsDBNull(2) ? null : reader.GetInt64(2),
+            reader.IsDBNull(3) ? null : reader.GetInt32(3),
             fallbackStartDate,
-            seasonExpectation: hasBoardColumns && !reader.IsDBNull(4) ? reader.GetInt32(4) : null,
-            boardConfidence: hasBoardColumns && !reader.IsDBNull(5) ? reader.GetInt32(5) : null,
-            riskBand: hasBoardColumns && !reader.IsDBNull(6) ? reader.GetInt32(6) : null,
-            lastAssessedFixtureId: hasBoardColumns && !reader.IsDBNull(7) ? reader.GetInt64(7) : null,
-            lastAssessmentReasonCode: hasBoardColumns && !reader.IsDBNull(8) ? reader.GetString(8) : null);
+            seasonExpectation: reader.IsDBNull(4) ? null : reader.GetInt32(4),
+            boardConfidence: reader.IsDBNull(5) ? null : reader.GetInt32(5),
+            riskBand: reader.IsDBNull(6) ? null : reader.GetInt32(6),
+            lastAssessedFixtureId: reader.IsDBNull(7) ? null : reader.GetInt64(7),
+            lastAssessmentReasonCode: reader.IsDBNull(8) ? null : reader.GetString(8),
+            employmentStatus: reader.IsDBNull(9) ? null : reader.GetInt32(9),
+            employmentEndReason: reader.IsDBNull(10) ? null : reader.GetInt32(10),
+            lastClubId: reader.IsDBNull(11) ? null : reader.GetInt64(11),
+            dismissedDueToFixtureId: reader.IsDBNull(12) ? null : reader.GetInt64(12),
+            dismissedAtDayNumber: reader.IsDBNull(13) ? null : reader.GetInt32(13));
     }
 
     private static IReadOnlyList<MatchSelection> ReadMatchSelections(SqliteConnection connection)

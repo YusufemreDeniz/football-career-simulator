@@ -19,12 +19,17 @@ public sealed class ManagerCareerQueryService
         return new ManagerCareerReadModel(
             career.ManagerId.Value,
             career.DisplayName,
+            career.EmploymentStatus.ToString(),
             employment?.ClubId.Value,
             employment?.StartedAt.DayNumber,
             employment?.SeasonExpectation.ToString(),
             employment?.BoardConfidence.Value,
             employment?.RiskBand.ToString(),
             employment?.LastAssessmentReasonCode,
-            employment?.LastAssessedFixtureId?.Value);
+            employment?.LastAssessedFixtureId?.Value,
+            career.TerminationReason?.ToString(),
+            career.LastClubId?.Value,
+            career.DismissedDueToFixtureId?.Value,
+            career.DismissedAt?.DayNumber);
     }
 }

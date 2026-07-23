@@ -11,6 +11,7 @@ using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.Match;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 
@@ -89,7 +90,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
             _competitionStore,
             command.SeasonId);
-        TryApplyBoardAssessment(fixture, score, updatedSeason);
+        TryApplyBoardAssessment(fixture, score, updatedSeason, occurredAt);
         updatedSeason.ClearUncommittedEvents();
 
         var result = new PlayFixtureMatchResult(
@@ -106,7 +107,11 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
     public void ResetIdempotencyCache() => _completedCommands.Clear();
 
-    private void TryApplyBoardAssessment(Fixture fixture, MatchScore score, CompetitionSeason season)
+    private void TryApplyBoardAssessment(
+        Fixture fixture,
+        MatchScore score,
+        CompetitionSeason season,
+        GameDate occurredAt)
     {
         if (_managerCareerStore is null)
         {
@@ -152,7 +157,14 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             position,
             Math.Max(leagueSize, 1));
 
-        _managerCareerStore.Replace(assessment.Career);
+        var career = assessment.Career;
+        if (assessment.WasApplied && assessment.RiskBand == EmploymentRiskBand.Critical)
+        {
+            var dismissal = career.DismissDueToBoardConfidence(fixture.Id, occurredAt);
+            career = dismissal.Career;
+        }
+
+        _managerCareerStore.Replace(career);
     }
 
     private int ResolveLineupBonus(FixtureId fixtureId, ClubId clubId, int rootSeed)

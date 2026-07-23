@@ -12,6 +12,19 @@ public static class ManagerCareerCanonicalStateHasher
         var builder = new StringBuilder();
         builder.Append("ManagerId=").Append(career.ManagerId.Value).Append(';');
         builder.Append("DisplayName=").Append(career.DisplayName).Append(';');
+        builder.Append("EmploymentStatus=").Append((int)career.EmploymentStatus).Append(';');
+        builder.Append("EmploymentEndReason=")
+            .Append(career.TerminationReason is { } reason ? ((int)reason).ToString() : string.Empty)
+            .Append(';');
+        builder.Append("LastClubId=")
+            .Append(career.LastClubId?.Value.ToString() ?? string.Empty)
+            .Append(';');
+        builder.Append("DismissedDueToFixtureId=")
+            .Append(career.DismissedDueToFixtureId?.Value.ToString() ?? string.Empty)
+            .Append(';');
+        builder.Append("DismissedAt=")
+            .Append(career.DismissedAt?.DayNumber.ToString() ?? string.Empty)
+            .Append(';');
 
         if (career.ActiveEmployment is { } employment)
         {

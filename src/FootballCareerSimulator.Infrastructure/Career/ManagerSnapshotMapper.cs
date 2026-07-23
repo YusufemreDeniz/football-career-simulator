@@ -17,14 +17,44 @@ internal static class ManagerSnapshotMapper
         int? boardConfidence = null,
         int? riskBand = null,
         long? lastAssessedFixtureId = null,
-        string? lastAssessmentReasonCode = null)
+        string? lastAssessmentReasonCode = null,
+        int? employmentStatus = null,
+        int? employmentEndReason = null,
+        long? lastClubId = null,
+        long? dismissedDueToFixtureId = null,
+        int? dismissedAtDayNumber = null)
     {
-        if (employedClubId is null || employmentStartedDayNumber is null)
+        var status = employmentStatus is int statusValue
+            ? (ManagerEmploymentStatus)statusValue
+            : employedClubId is null
+                ? ManagerEmploymentStatus.Unemployed
+                : ManagerEmploymentStatus.Employed;
+
+        if (status == ManagerEmploymentStatus.Unemployed || employedClubId is null)
+        {
+            return ManagerCareer.Rehydrate(
+                new ManagerId(managerId),
+                displayName,
+                activeEmployment: null,
+                ManagerEmploymentStatus.Unemployed,
+                terminationReason: employmentEndReason is int endReason
+                    ? (EmploymentEndReason)endReason
+                    : EmploymentEndReason.Dismissed,
+                lastClubId: lastClubId is long club ? new ClubId(club) : null,
+                dismissedDueToFixtureId: dismissedDueToFixtureId is long dismissedFixture
+                    ? new FixtureId(dismissedFixture)
+                    : null,
+                dismissedAt: dismissedAtDayNumber is int day
+                    ? GameDate.FromDayNumber(day)
+                    : null);
+        }
+
+        if (employmentStartedDayNumber is null)
         {
             return ManagerCareer.StartNewCareerForClubStrength(
                 new ManagerId(managerId),
                 displayName,
-                new ClubId(1),
+                new ClubId(employedClubId.Value),
                 fallbackStartDate,
                 clubSportiveStrength: 50);
         }
@@ -49,6 +79,14 @@ internal static class ManagerSnapshotMapper
             fixtureId,
             lastAssessmentReasonCode);
 
-        return ManagerCareer.Rehydrate(new ManagerId(managerId), displayName, employment);
+        return ManagerCareer.Rehydrate(
+            new ManagerId(managerId),
+            displayName,
+            employment,
+            ManagerEmploymentStatus.Employed,
+            terminationReason: null,
+            lastClubId: employment.ClubId,
+            dismissedDueToFixtureId: null,
+            dismissedAt: null);
     }
 }

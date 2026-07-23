@@ -6,11 +6,24 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 
 public sealed class ManagerCareer
 {
-    private ManagerCareer(ManagerId managerId, string displayName, ClubEmployment? activeEmployment)
+    private ManagerCareer(
+        ManagerId managerId,
+        string displayName,
+        ClubEmployment? activeEmployment,
+        ManagerEmploymentStatus employmentStatus,
+        EmploymentEndReason? terminationReason,
+        ClubId? lastClubId,
+        FixtureId? dismissedDueToFixtureId,
+        GameDate? dismissedAt)
     {
         ManagerId = managerId;
         DisplayName = displayName;
         ActiveEmployment = activeEmployment;
+        EmploymentStatus = employmentStatus;
+        TerminationReason = terminationReason;
+        LastClubId = lastClubId;
+        DismissedDueToFixtureId = dismissedDueToFixtureId;
+        DismissedAt = dismissedAt;
     }
 
     public ManagerId ManagerId { get; }
@@ -18,6 +31,19 @@ public sealed class ManagerCareer
     public string DisplayName { get; }
 
     public ClubEmployment? ActiveEmployment { get; }
+
+    public ManagerEmploymentStatus EmploymentStatus { get; }
+
+    public EmploymentEndReason? TerminationReason { get; }
+
+    public ClubId? LastClubId { get; }
+
+    public FixtureId? DismissedDueToFixtureId { get; }
+
+    public GameDate? DismissedAt { get; }
+
+    public bool IsEmployed =>
+        EmploymentStatus == ManagerEmploymentStatus.Employed && ActiveEmployment is not null;
 
     public static ManagerCareer StartNewCareer(
         ManagerId managerId,
@@ -39,12 +65,14 @@ public sealed class ManagerCareer
                 startingClubId,
                 startedAt,
                 seasonExpectation,
-                new BoardConfidence(initialBoardConfidence)));
+                new BoardConfidence(initialBoardConfidence)),
+            ManagerEmploymentStatus.Employed,
+            terminationReason: null,
+            lastClubId: startingClubId,
+            dismissedDueToFixtureId: null,
+            dismissedAt: null);
     }
 
-    /// <summary>
-    /// Kulüp gücünden beklenti türeten kolay başlatıcı.
-    /// </summary>
     public static ManagerCareer StartNewCareerForClubStrength(
         ManagerId managerId,
         string displayName,
@@ -63,12 +91,63 @@ public sealed class ManagerCareer
     public static ManagerCareer Rehydrate(
         ManagerId managerId,
         string displayName,
-        ClubEmployment? activeEmployment) =>
-        new(managerId, displayName, activeEmployment);
+        ClubEmployment? activeEmployment,
+        ManagerEmploymentStatus employmentStatus,
+        EmploymentEndReason? terminationReason,
+        ClubId? lastClubId,
+        FixtureId? dismissedDueToFixtureId,
+        GameDate? dismissedAt)
+    {
+        if (employmentStatus == ManagerEmploymentStatus.Employed && activeEmployment is null)
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "Employed manager career requires active employment.");
+        }
+
+        if (employmentStatus == ManagerEmploymentStatus.Unemployed && activeEmployment is not null)
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "Unemployed manager career cannot keep active employment.");
+        }
+
+        return new ManagerCareer(
+            managerId,
+            displayName,
+            activeEmployment,
+            employmentStatus,
+            terminationReason,
+            lastClubId,
+            dismissedDueToFixtureId,
+            dismissedAt);
+    }
 
     /// <summary>
-    /// Managed kulüp maçı sonrası board assessment. Aynı fixture ikinci kez uygulanmaz.
+    /// Geriye dönük rehydrate: istihdam varsa Employed kabul edilir.
     /// </summary>
+    public static ManagerCareer Rehydrate(
+        ManagerId managerId,
+        string displayName,
+        ClubEmployment? activeEmployment) =>
+        activeEmployment is null
+            ? Rehydrate(
+                managerId,
+                displayName,
+                activeEmployment: null,
+                ManagerEmploymentStatus.Unemployed,
+                terminationReason: EmploymentEndReason.Dismissed,
+                lastClubId: null,
+                dismissedDueToFixtureId: null,
+                dismissedAt: null)
+            : Rehydrate(
+                managerId,
+                displayName,
+                activeEmployment,
+                ManagerEmploymentStatus.Employed,
+                terminationReason: null,
+                lastClubId: activeEmployment.ClubId,
+                dismissedDueToFixtureId: null,
+                dismissedAt: null);
+
     public BoardAssessmentResult ApplyMatchBoardAssessment(
         FixtureId fixtureId,
         MatchOutcomeForManagedClub matchOutcome,
@@ -94,9 +173,52 @@ public sealed class ManagerCareer
         var (delta, reasonCode) = ComputeDelta(matchOutcome, meetsExpectation);
         var newConfidence = ActiveEmployment.BoardConfidence.Adjust(delta);
         var updatedEmployment = ActiveEmployment.WithBoardAssessment(fixtureId, newConfidence, reasonCode);
-        var updatedCareer = new ManagerCareer(ManagerId, DisplayName, updatedEmployment);
+        var updatedCareer = new ManagerCareer(
+            ManagerId,
+            DisplayName,
+            updatedEmployment,
+            ManagerEmploymentStatus.Employed,
+            terminationReason: null,
+            lastClubId: updatedEmployment.ClubId,
+            dismissedDueToFixtureId: null,
+            dismissedAt: null);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
+    }
+
+    /// <summary>
+    /// Critical risk sonrası kovulma. Aynı fixture causation ikinci kez no-op.
+    /// </summary>
+    public DismissalResult DismissDueToBoardConfidence(FixtureId causationFixtureId, GameDate dismissedAt)
+    {
+        if (DismissedDueToFixtureId == causationFixtureId
+            && EmploymentStatus == ManagerEmploymentStatus.Unemployed)
+        {
+            return DismissalResult.AlreadyApplied(this);
+        }
+
+        if (!IsEmployed || ActiveEmployment is null)
+        {
+            return DismissalResult.AlreadyApplied(this);
+        }
+
+        if (ActiveEmployment.RiskBand != EmploymentRiskBand.Critical)
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "Dismissal requires Critical employment risk band.");
+        }
+
+        var unemployed = new ManagerCareer(
+            ManagerId,
+            DisplayName,
+            activeEmployment: null,
+            ManagerEmploymentStatus.Unemployed,
+            terminationReason: EmploymentEndReason.Dismissed,
+            lastClubId: ActiveEmployment.ClubId,
+            dismissedDueToFixtureId: causationFixtureId,
+            dismissedAt: dismissedAt);
+
+        return DismissalResult.Applied(unemployed, ActiveEmployment.ClubId, causationFixtureId);
     }
 
     private static (int Delta, string ReasonCode) ComputeDelta(
@@ -156,4 +278,21 @@ public sealed record BoardAssessmentResult(
             employment.RiskBand,
             employment.SeasonExpectation,
             reasonCode);
+}
+
+public sealed record DismissalResult(
+    bool WasApplied,
+    bool WasAlreadyApplied,
+    ManagerCareer Career,
+    long? DismissedFromClubId,
+    long? CausationFixtureId)
+{
+    public static DismissalResult AlreadyApplied(ManagerCareer career) =>
+        new(false, true, career, career.LastClubId?.Value, career.DismissedDueToFixtureId?.Value);
+
+    public static DismissalResult Applied(
+        ManagerCareer career,
+        ClubId fromClubId,
+        FixtureId causationFixtureId) =>
+        new(true, false, career, fromClubId.Value, causationFixtureId.Value);
 }

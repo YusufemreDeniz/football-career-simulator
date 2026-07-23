@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + `MatchSelection` + **Board Confidence v1** (sezon beklentisi, maç sonrası yönetim değerlendirmesi, SQLite v8) kilitlenmiştir. Sıradaki aday: antrenman derinliği veya dismissal/iş riski — transfer/ilişki/diyalog/medya henüz açılmamalıdır.
+İnce kariyer döngüsü + `MatchSelection` + Board Confidence + **Dismissal→Unemployment v1** (Critical risk sonrası kovulma, SQLite v9) kilitlenmiştir. Sıradaki aday: işsizlik sonrası yeniden istihdam (basit) veya antrenman — transfer/ilişki/diyalog/medya henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

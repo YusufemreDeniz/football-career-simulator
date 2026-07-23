@@ -233,17 +233,31 @@ public partial class CareerHubScreen : Control
 
         _dateLabel.Text = $"Tarih: {current.IsoDate} (gün {current.DayNumber})";
 
-        var clubName = manager.EmployedClubId is long clubId
-            ? _controller.GetClubDisplayName(clubId)
-            : "—";
-        var boardText = manager.BoardConfidence is int confidence
-            ? $" · Yönetim: {confidence} ({TranslateRisk(manager.EmploymentRiskBand)}) · Beklenti: {TranslateExpectation(manager.SeasonExpectation)}"
-            : string.Empty;
-        var reasonText = string.IsNullOrWhiteSpace(manager.LastAssessmentReasonCode)
-            ? string.Empty
-            : $" · Son değerlendirme: {TranslateReason(manager.LastAssessmentReasonCode)}";
-        _managerLabel.Text =
-            $"Menajer: {manager.DisplayName} · Kulüp: {clubName}{boardText}{reasonText}";
+        if (string.Equals(manager.EmploymentStatus, "Unemployed", StringComparison.Ordinal))
+        {
+            var lastClub = manager.LastClubId is long lastClubId
+                ? _controller.GetClubDisplayName(lastClubId)
+                : "—";
+            _managerLabel.Text =
+                $"Menajer: {manager.DisplayName} · İŞSİZ (kovuldu: {lastClub})"
+                + (manager.DismissedDueToFixtureId is long fixture
+                    ? $" · fikstür #{fixture}"
+                    : string.Empty);
+        }
+        else
+        {
+            var clubName = manager.EmployedClubId is long clubId
+                ? _controller.GetClubDisplayName(clubId)
+                : "—";
+            var boardText = manager.BoardConfidence is int confidence
+                ? $" · Yönetim: {confidence} ({TranslateRisk(manager.EmploymentRiskBand)}) · Beklenti: {TranslateExpectation(manager.SeasonExpectation)}"
+                : string.Empty;
+            var reasonText = string.IsNullOrWhiteSpace(manager.LastAssessmentReasonCode)
+                ? string.Empty
+                : $" · Son değerlendirme: {TranslateReason(manager.LastAssessmentReasonCode)}";
+            _managerLabel.Text =
+                $"Menajer: {manager.DisplayName} · Kulüp: {clubName}{boardText}{reasonText}";
+        }
 
         var periodText = period is null
             ? "Planlama dönemi: yok"
