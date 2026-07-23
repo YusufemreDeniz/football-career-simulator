@@ -22,6 +22,7 @@ public sealed class CareerGameSessionService
     private readonly ITrainingPhysicalStateStore _trainingStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly IContractStore _contractStore;
+    private readonly IFreeAgentStore _freeAgentStore;
     private readonly ICareerPersistence _persistence;
     private readonly IReadOnlyList<ICommandIdempotencyReset> _idempotencyResets;
 
@@ -35,6 +36,7 @@ public sealed class CareerGameSessionService
         ITrainingPhysicalStateStore trainingStore,
         IPlayerCareerStore playerCareerStore,
         IContractStore contractStore,
+        IFreeAgentStore freeAgentStore,
         ICareerPersistence persistence,
         IEnumerable<ICommandIdempotencyReset> idempotencyResets)
     {
@@ -47,6 +49,7 @@ public sealed class CareerGameSessionService
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
         _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
+        _freeAgentStore = freeAgentStore ?? throw new ArgumentNullException(nameof(freeAgentStore));
         _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
         _idempotencyResets = idempotencyResets?.ToArray()
             ?? throw new ArgumentNullException(nameof(idempotencyResets));
@@ -72,7 +75,8 @@ public sealed class CareerGameSessionService
             _trainingStore.PhysicalStates,
             _playerCareerStore.Careers,
             _contractStore.Contracts,
-            _clubSquadStore.Squads);
+            _clubSquadStore.Squads,
+            _freeAgentStore.FreeAgents);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -97,6 +101,7 @@ public sealed class CareerGameSessionService
         _playerCareerStore.ReplaceAll(loaded.PlayerCareers);
         _contractStore.ReplaceAll(loaded.Contracts);
         _clubSquadStore.ReplaceAll(loaded.ClubSquads);
+        _freeAgentStore.ReplaceAll(loaded.FreeAgents);
 
         foreach (var reset in _idempotencyResets)
         {

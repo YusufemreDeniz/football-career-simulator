@@ -456,7 +456,9 @@ public partial class CareerHubScreen : Control
 
         if (contracts.ActiveCount == 0)
         {
-            _contractLabel.Text = "Sözleşme: aktif yok — antrenman/gün ilerletme ile oluşur.";
+            _contractLabel.Text = contracts.FreeAgentReleasedCount > 0
+                ? $"Sözleşme: aktif yok · serbest {contracts.FreeAgentReleasedCount}"
+                : "Sözleşme: aktif yok — antrenman/gün ilerletme ile oluşur.";
             return;
         }
 
@@ -465,6 +467,9 @@ public partial class CareerHubScreen : Control
             + $" · ort. ücret {contracts.AverageWeeklyWage}"
             + (contracts.ExpiringWithinYearCount > 0
                 ? $" · 1 yıl içinde biten {contracts.ExpiringWithinYearCount}"
+                : string.Empty)
+            + (contracts.FreeAgentReleasedCount > 0
+                ? $" · serbest {contracts.FreeAgentReleasedCount}"
                 : string.Empty);
     }
 

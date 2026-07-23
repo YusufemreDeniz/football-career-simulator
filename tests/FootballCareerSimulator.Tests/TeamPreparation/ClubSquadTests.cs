@@ -169,10 +169,11 @@ public sealed class ClubSquadTests : IDisposable
             Array.Empty<PlayerPhysicalState>(),
             players.Store.Careers,
             contracts.Store.Contracts,
-            teamPrep.SquadStore.Squads);
+            teamPrep.SquadStore.Squads,
+            Array.Empty<PlayerFreeAgency>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(16, loaded.SchemaVersion);
+        Assert.Equal(17, loaded.SchemaVersion);
         Assert.Single(loaded.ClubSquads);
         Assert.Equal(25, loaded.ClubSquads[0].Members.Count);
         Assert.Equal(1, loaded.ClubSquads[0].ClubId.Value);

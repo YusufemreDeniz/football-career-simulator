@@ -39,7 +39,8 @@ public sealed class WorldCalendarSqlitePersistence : IWorldCalendarPersistence
             Array.Empty<PlayerPhysicalState>(),
             Array.Empty<PlayerCareerAggregate>(),
             Array.Empty<PlayerContract>(),
-            Array.Empty<ClubSquad>());
+            Array.Empty<ClubSquad>(),
+            Array.Empty<PlayerFreeAgency>());
     }
 
     public WorldCalendarLoadResult Load(string filePath)

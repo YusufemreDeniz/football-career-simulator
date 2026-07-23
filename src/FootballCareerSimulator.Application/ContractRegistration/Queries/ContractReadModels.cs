@@ -5,4 +5,10 @@ public sealed record ClubContractSummaryReadModel(
     int ActiveCount,
     int ExpiredCount,
     int ExpiringWithinYearCount,
-    int AverageWeeklyWage);
+    int AverageWeeklyWage,
+    int FreeAgentReleasedCount);
+
+public sealed record FreeAgencyExpiryResult(
+    int ExpiredCount,
+    IReadOnlyList<long> AffectedClubIds,
+    IReadOnlyList<long> FreeAgentPlayerIds);

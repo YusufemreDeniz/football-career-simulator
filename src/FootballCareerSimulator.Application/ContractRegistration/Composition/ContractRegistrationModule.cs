@@ -11,15 +11,19 @@ public sealed class ContractRegistrationModule
 {
     public ContractRegistrationModule(
         IContractStore store,
+        IFreeAgentStore freeAgentStore,
         ContractRegistrationService registration,
         ContractQueryService queries)
     {
         Store = store;
+        FreeAgentStore = freeAgentStore;
         Registration = registration;
         Queries = queries;
     }
 
     public IContractStore Store { get; }
+
+    public IFreeAgentStore FreeAgentStore { get; }
 
     public ContractRegistrationService Registration { get; }
 
@@ -29,12 +33,15 @@ public sealed class ContractRegistrationModule
         IPlayerCareerStore playerCareerStore,
         IManagerCareerStore managerCareerStore,
         IWorldTimelineStore timelineStore,
-        IContractStore? store = null)
+        IContractStore? store = null,
+        IFreeAgentStore? freeAgentStore = null)
     {
         var contractStore = store ?? new InMemoryContractStore();
+        var agents = freeAgentStore ?? new InMemoryFreeAgentStore();
         return new ContractRegistrationModule(
             contractStore,
-            new ContractRegistrationService(contractStore, playerCareerStore),
-            new ContractQueryService(contractStore, managerCareerStore, timelineStore));
+            agents,
+            new ContractRegistrationService(contractStore, agents, playerCareerStore),
+            new ContractQueryService(contractStore, agents, managerCareerStore, timelineStore));
     }
 }

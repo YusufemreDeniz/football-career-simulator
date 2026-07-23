@@ -36,7 +36,8 @@ public static class CareerCanonicalStateHasher
             Array.Empty<PlayerPhysicalState>(),
             Array.Empty<PlayerCareerAggregate>(),
             Array.Empty<PlayerContract>(),
-            Array.Empty<ClubSquad>());
+            Array.Empty<ClubSquad>(),
+            Array.Empty<PlayerFreeAgency>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -54,7 +55,8 @@ public static class CareerCanonicalStateHasher
             Array.Empty<PlayerPhysicalState>(),
             Array.Empty<PlayerCareerAggregate>(),
             Array.Empty<PlayerContract>(),
-            Array.Empty<ClubSquad>());
+            Array.Empty<ClubSquad>(),
+            Array.Empty<PlayerFreeAgency>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -74,7 +76,8 @@ public static class CareerCanonicalStateHasher
             physicalStates,
             Array.Empty<PlayerCareerAggregate>(),
             Array.Empty<PlayerContract>(),
-            Array.Empty<ClubSquad>());
+            Array.Empty<ClubSquad>(),
+            Array.Empty<PlayerFreeAgency>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -95,7 +98,8 @@ public static class CareerCanonicalStateHasher
             physicalStates,
             playerCareers,
             Array.Empty<PlayerContract>(),
-            Array.Empty<ClubSquad>());
+            Array.Empty<ClubSquad>(),
+            Array.Empty<PlayerFreeAgency>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -117,7 +121,8 @@ public static class CareerCanonicalStateHasher
             physicalStates,
             playerCareers,
             contracts,
-            Array.Empty<ClubSquad>());
+            Array.Empty<ClubSquad>(),
+            Array.Empty<PlayerFreeAgency>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -129,7 +134,32 @@ public static class CareerCanonicalStateHasher
         IReadOnlyList<PlayerPhysicalState> physicalStates,
         IReadOnlyList<PlayerCareerAggregate> playerCareers,
         IReadOnlyList<PlayerContract> contracts,
-        IReadOnlyList<ClubSquad> clubSquads)
+        IReadOnlyList<ClubSquad> clubSquads) =>
+        ComputeHash(
+            timeline,
+            league,
+            clubRegistry,
+            managerCareer,
+            matchSelections,
+            trainingPlans,
+            physicalStates,
+            playerCareers,
+            contracts,
+            clubSquads,
+            Array.Empty<PlayerFreeAgency>());
+
+    public static string ComputeHash(
+        WorldTimeline timeline,
+        LeagueCompetition league,
+        LeagueClubRegistry clubRegistry,
+        ManagerCareerState managerCareer,
+        IReadOnlyList<MatchSelection> matchSelections,
+        IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
+        IReadOnlyList<PlayerPhysicalState> physicalStates,
+        IReadOnlyList<PlayerCareerAggregate> playerCareers,
+        IReadOnlyList<PlayerContract> contracts,
+        IReadOnlyList<ClubSquad> clubSquads,
+        IReadOnlyList<PlayerFreeAgency> freeAgents)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -141,6 +171,7 @@ public static class CareerCanonicalStateHasher
         ArgumentNullException.ThrowIfNull(playerCareers);
         ArgumentNullException.ThrowIfNull(contracts);
         ArgumentNullException.ThrowIfNull(clubSquads);
+        ArgumentNullException.ThrowIfNull(freeAgents);
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -159,7 +190,9 @@ public static class CareerCanonicalStateHasher
             "|",
             ContractRegistrationCanonicalStateHasher.BuildCanonicalText(contracts),
             "|",
-            ClubSquadCanonicalStateHasher.BuildCanonicalText(clubSquads));
+            ClubSquadCanonicalStateHasher.BuildCanonicalText(clubSquads),
+            "|",
+            FreeAgencyCanonicalStateHasher.BuildCanonicalText(freeAgents));
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

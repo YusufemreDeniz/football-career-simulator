@@ -74,6 +74,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             training.Store,
             playerCareer.Store,
             contracts.Store,
+            contracts.FreeAgentStore,
             _persistence,
             idempotencyResets);
     }

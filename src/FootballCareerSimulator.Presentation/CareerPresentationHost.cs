@@ -145,6 +145,7 @@ public sealed class CareerPresentationHost
             training.Store,
             playerCareer.Store,
             contractModule.Store,
+            contractModule.FreeAgentStore,
             persistence,
             idempotencyResets);
 

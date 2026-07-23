@@ -51,4 +51,14 @@ public sealed class ClubSquadService
         _squadStore.Upsert(squad);
         return squad;
     }
+
+    public void SyncClubs(IEnumerable<long> clubIds, GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(clubIds);
+        foreach (var clubId in clubIds.Distinct())
+        {
+            SyncFromActiveContracts(new ClubId(clubId), day);
+        }
+    }
 }
+

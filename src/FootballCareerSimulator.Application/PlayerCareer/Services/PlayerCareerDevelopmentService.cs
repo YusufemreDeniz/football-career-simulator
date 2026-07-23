@@ -68,13 +68,19 @@ public sealed class PlayerCareerDevelopmentService
         var updated = new List<Domain.PlayerCareer.PlayerCareer>(squad.Count);
         foreach (var career in squad)
         {
+            if (_contracts is not null && _contracts.IsFreeAgent(career.Id))
+            {
+                updated.Add(career);
+                continue;
+            }
+
             var physical = _trainingStore?.GetPhysical(clubId, career.SlotIndex);
             updated.Add(MvpPlayerDevelopmentApplier.ApplyWeeklyTraining(career, plan, physical, day));
         }
 
         _store.ReplaceClub(clubId, updated);
         _contracts?.EnsureClubContracts(clubId, day);
-        _contracts?.ExpireDueContracts(day);
+        _ = _contracts?.ExpireDueContracts(day);
     }
 
     public void EnsureAndApplyMatchAppearances(
@@ -96,6 +102,11 @@ public sealed class PlayerCareerDevelopmentService
         foreach (var slot in startingSlotIndices)
         {
             if (!squad.TryGetValue(slot, out var career))
+            {
+                continue;
+            }
+
+            if (_contracts is not null && _contracts.IsFreeAgent(career.Id))
             {
                 continue;
             }
