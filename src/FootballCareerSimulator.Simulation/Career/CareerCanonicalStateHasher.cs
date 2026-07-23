@@ -6,9 +6,11 @@ using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using ManagerCareerState = FootballCareerSimulator.Domain.ManagerCareer.ManagerCareer;
+using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
 using FootballCareerSimulator.Simulation.ClubGovernance;
 using FootballCareerSimulator.Simulation.Competition;
 using FootballCareerSimulator.Simulation.ManagerCareer;
+using FootballCareerSimulator.Simulation.PlayerCareer;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 using FootballCareerSimulator.Simulation.WorldCalendar;
@@ -29,7 +31,8 @@ public static class CareerCanonicalStateHasher
             managerCareer,
             Array.Empty<MatchSelection>(),
             Array.Empty<WeeklyTrainingPlan>(),
-            Array.Empty<PlayerPhysicalState>());
+            Array.Empty<PlayerPhysicalState>(),
+            Array.Empty<PlayerCareerAggregate>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -44,7 +47,8 @@ public static class CareerCanonicalStateHasher
             managerCareer,
             matchSelections,
             Array.Empty<WeeklyTrainingPlan>(),
-            Array.Empty<PlayerPhysicalState>());
+            Array.Empty<PlayerPhysicalState>(),
+            Array.Empty<PlayerCareerAggregate>());
 
     public static string ComputeHash(
         WorldTimeline timeline,
@@ -53,7 +57,26 @@ public static class CareerCanonicalStateHasher
         ManagerCareerState managerCareer,
         IReadOnlyList<MatchSelection> matchSelections,
         IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
-        IReadOnlyList<PlayerPhysicalState> physicalStates)
+        IReadOnlyList<PlayerPhysicalState> physicalStates) =>
+        ComputeHash(
+            timeline,
+            league,
+            clubRegistry,
+            managerCareer,
+            matchSelections,
+            trainingPlans,
+            physicalStates,
+            Array.Empty<PlayerCareerAggregate>());
+
+    public static string ComputeHash(
+        WorldTimeline timeline,
+        LeagueCompetition league,
+        LeagueClubRegistry clubRegistry,
+        ManagerCareerState managerCareer,
+        IReadOnlyList<MatchSelection> matchSelections,
+        IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
+        IReadOnlyList<PlayerPhysicalState> physicalStates,
+        IReadOnlyList<PlayerCareerAggregate> playerCareers)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -62,6 +85,7 @@ public static class CareerCanonicalStateHasher
         ArgumentNullException.ThrowIfNull(matchSelections);
         ArgumentNullException.ThrowIfNull(trainingPlans);
         ArgumentNullException.ThrowIfNull(physicalStates);
+        ArgumentNullException.ThrowIfNull(playerCareers);
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -74,7 +98,9 @@ public static class CareerCanonicalStateHasher
             "|",
             MatchSelectionCanonicalStateHasher.BuildCanonicalText(matchSelections),
             "|",
-            TrainingPhysicalStateCanonicalStateHasher.BuildCanonicalText(trainingPlans, physicalStates));
+            TrainingPhysicalStateCanonicalStateHasher.BuildCanonicalText(trainingPlans, physicalStates),
+            "|",
+            PlayerCareerCanonicalStateHasher.BuildCanonicalText(playerCareers));
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

@@ -4,8 +4,10 @@ using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.Competition.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -19,7 +21,7 @@ using Godot;
 namespace FootballCareerSimulator.Presentation;
 
 /// <summary>
-/// World Calendar + Competition + TeamPreparation + Training birleşik Godot composition root.
+/// World Calendar + Competition + TeamPreparation + Training + PlayerCareer composition root.
 /// </summary>
 public sealed class CareerPresentationHost
 {
@@ -30,6 +32,7 @@ public sealed class CareerPresentationHost
         ManagerCareerModule managerModule,
         TeamPreparationModule teamPreparationModule,
         TrainingPhysicalStateModule trainingModule,
+        PlayerCareerModule playerCareerModule,
         CareerGameSessionService gameSession,
         string defaultSavePath)
     {
@@ -40,6 +43,8 @@ public sealed class CareerPresentationHost
         TeamPreparationModule = teamPreparationModule
             ?? throw new ArgumentNullException(nameof(teamPreparationModule));
         TrainingModule = trainingModule ?? throw new ArgumentNullException(nameof(trainingModule));
+        PlayerCareerModule = playerCareerModule
+            ?? throw new ArgumentNullException(nameof(playerCareerModule));
         GameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
         DefaultSavePath = defaultSavePath ?? throw new ArgumentNullException(nameof(defaultSavePath));
     }
@@ -55,6 +60,8 @@ public sealed class CareerPresentationHost
     public TeamPreparationModule TeamPreparationModule { get; }
 
     public TrainingPhysicalStateModule TrainingModule { get; }
+
+    public PlayerCareerModule PlayerCareerModule { get; }
 
     public CareerGameSessionService GameSession { get; }
 
@@ -85,9 +92,17 @@ public sealed class CareerPresentationHost
             worldModule.TimelineStore,
             startingClubId: startingClubId,
             clubSportiveStrength: startingStrength);
+
+        var trainingStore = new InMemoryTrainingPhysicalStateStore();
+        var playerCareer = PlayerCareerModule.Create(
+            managerModule.Store,
+            worldModule.TimelineStore,
+            trainingStore);
         var training = TrainingPhysicalStateModule.Create(
             managerModule.Store,
-            worldModule.TimelineStore);
+            worldModule.TimelineStore,
+            trainingStore,
+            playerCareer.Development);
         var teamPreparation = TeamPreparationModule.Create(
             competitionStore,
             managerModule.Store,
@@ -100,7 +115,9 @@ public sealed class CareerPresentationHost
             clubModule.Store,
             managerModule.Store,
             teamPreparation.SelectionStore,
-            training.Store);
+            training.Store,
+            playerCareer.Store,
+            playerCareer.Development);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =
@@ -121,6 +138,7 @@ public sealed class CareerPresentationHost
             managerModule.Store,
             teamPreparation.SelectionStore,
             training.Store,
+            playerCareer.Store,
             persistence,
             idempotencyResets);
 
@@ -132,6 +150,7 @@ public sealed class CareerPresentationHost
             managerModule,
             teamPreparation,
             training,
+            playerCareer,
             gameSession,
             savePath);
     }

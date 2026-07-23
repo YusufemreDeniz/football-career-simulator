@@ -160,10 +160,11 @@ public sealed class BoardConfidenceTests : IDisposable
             manager.Store.Career,
             Array.Empty<Domain.TeamPreparation.MatchSelection>(),
             Array.Empty<Domain.TrainingPhysicalState.WeeklyTrainingPlan>(),
-            Array.Empty<Domain.TrainingPhysicalState.PlayerPhysicalState>());
+            Array.Empty<Domain.TrainingPhysicalState.PlayerPhysicalState>(),
+            Array.Empty<Domain.PlayerCareer.PlayerCareer>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(12, loaded.SchemaVersion);
+        Assert.Equal(13, loaded.SchemaVersion);
         Assert.Equal(
             assessed.Career.ActiveEmployment!.BoardConfidence.Value,
             loaded.ManagerCareer.ActiveEmployment!.BoardConfidence.Value);

@@ -6,6 +6,7 @@ using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
@@ -48,7 +49,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         ClubGovernanceModule clubs,
         ManagerCareerModule manager,
         TeamPreparationModule teamPreparation,
-        TrainingPhysicalStateModule training)
+        TrainingPhysicalStateModule training,
+        PlayerCareerModule playerCareer)
     {
         var idempotencyResets = new List<ICommandIdempotencyReset>
         {
@@ -67,6 +69,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             manager.Store,
             teamPreparation.SelectionStore,
             training.Store,
+            playerCareer.Store,
             _persistence,
             idempotencyResets);
     }
@@ -89,7 +92,9 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
         var teamPreparation = TeamPreparationModule.Create(competition.Store, manager.Store);
         var training = TrainingPhysicalStateModule.Create(manager.Store, world.TimelineStore);
-        var session = CreateSession(world, competition, clubs, manager, teamPreparation, training);
+        var playerCareer = PlayerCareerModule.Create(manager.Store, world.TimelineStore, training.Store);
+        var session = CreateSession(
+            world, competition, clubs, manager, teamPreparation, training, playerCareer);
         const long seasonId = 1;
 
         world.AdvanceSimulationTime.Handle(

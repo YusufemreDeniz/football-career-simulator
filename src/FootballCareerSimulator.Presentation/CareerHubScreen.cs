@@ -15,6 +15,7 @@ public partial class CareerHubScreen : Control
     private Label _blockerLabel = null!;
     private Label _selectionLabel = null!;
     private Label _trainingLabel = null!;
+    private Label _developmentLabel = null!;
     private Label _standingsLabel = null!;
     private Label _statusLabel = null!;
     private SpinBox _roundSelector = null!;
@@ -108,6 +109,13 @@ public partial class CareerHubScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         layout.AddChild(_trainingLabel);
+
+        _developmentLabel = new Label
+        {
+            Name = "DevelopmentLabel",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        layout.AddChild(_developmentLabel);
 
         _standingsLabel = new Label
         {
@@ -314,6 +322,7 @@ public partial class CareerHubScreen : Control
             _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
             RefreshSelectionStatus();
             RefreshTrainingStatus();
+            RefreshDevelopmentStatus();
             RefreshSquadList();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
             UpdateJobOfferButtons(manager);
@@ -335,6 +344,7 @@ public partial class CareerHubScreen : Control
         _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
         RefreshSelectionStatus();
         RefreshTrainingStatus();
+        RefreshDevelopmentStatus();
         RefreshStandings();
         RefreshFixtureList();
         RefreshSquadList();
@@ -384,6 +394,29 @@ public partial class CareerHubScreen : Control
         _trainLowButton.Disabled = !employed;
         _trainMediumButton.Disabled = !employed;
         _trainHighButton.Disabled = !employed;
+    }
+
+    private void RefreshDevelopmentStatus()
+    {
+        var development = _controller.Host.PlayerCareerModule.Queries.GetManagedClubSummary();
+        if (development.ClubId is null)
+        {
+            _developmentLabel.Text = "Gelişim: işsiz — kadro profili yok.";
+            return;
+        }
+
+        if (development.PlayerCount == 0)
+        {
+            _developmentLabel.Text = "Gelişim: henüz yok — antrenman veya maç sonrası oluşur.";
+            return;
+        }
+
+        _developmentLabel.Text =
+            $"Gelişim: ort. CA {development.AverageCurrentAbility} / PA {development.AveragePotentialAbility}"
+            + $" · {development.PlayerCount} oyuncu"
+            + (development.DevelopedThisWeekCount > 0
+                ? $" · bugün gelişen {development.DevelopedThisWeekCount}"
+                : string.Empty);
     }
 
     private void UpdateJobOfferButtons(

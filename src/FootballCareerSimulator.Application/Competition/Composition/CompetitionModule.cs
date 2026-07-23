@@ -5,6 +5,8 @@ using FootballCareerSimulator.Application.Competition.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.Competition.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -102,6 +104,8 @@ public sealed class CompetitionModule
         IManagerCareerStore? managerCareerStore = null,
         IMatchSelectionStore? matchSelectionStore = null,
         ITrainingPhysicalStateStore? trainingStore = null,
+        IPlayerCareerStore? playerCareerStore = null,
+        PlayerCareerDevelopmentService? playerDevelopment = null,
         long competitionId = 1)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
@@ -112,7 +116,9 @@ public sealed class CompetitionModule
             clubRegistryStore,
             managerCareerStore,
             matchSelectionStore,
-            trainingStore);
+            trainingStore,
+            playerCareerStore,
+            playerDevelopment);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
@@ -121,7 +127,9 @@ public sealed class CompetitionModule
         IClubRegistryStore clubRegistryStore,
         IManagerCareerStore? managerCareerStore = null,
         IMatchSelectionStore? matchSelectionStore = null,
-        ITrainingPhysicalStateStore? trainingStore = null)
+        ITrainingPhysicalStateStore? trainingStore = null,
+        IPlayerCareerStore? playerCareerStore = null,
+        PlayerCareerDevelopmentService? playerDevelopment = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
@@ -135,7 +143,9 @@ public sealed class CompetitionModule
             timelineStore,
             managerCareerStore,
             matchSelectionStore,
-            trainingStore);
+            trainingStore,
+            playerCareerStore,
+            playerDevelopment);
 
         return new CompetitionModule(
             store,

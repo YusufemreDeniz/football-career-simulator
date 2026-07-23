@@ -6,6 +6,7 @@ using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
 
 public interface ICareerPersistence
 {
@@ -17,7 +18,8 @@ public interface ICareerPersistence
         ManagerCareer managerCareer,
         IReadOnlyList<MatchSelection> matchSelections,
         IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
-        IReadOnlyList<PlayerPhysicalState> physicalStates);
+        IReadOnlyList<PlayerPhysicalState> physicalStates,
+        IReadOnlyList<PlayerCareerAggregate> playerCareers);
 
     CareerLoadResult Load(string filePath);
 }
@@ -30,5 +32,6 @@ public sealed record CareerLoadResult(
     IReadOnlyList<MatchSelection> MatchSelections,
     IReadOnlyList<WeeklyTrainingPlan> TrainingPlans,
     IReadOnlyList<PlayerPhysicalState> PhysicalStates,
+    IReadOnlyList<PlayerCareerAggregate> PlayerCareers,
     int SchemaVersion,
     bool WasMigrated);

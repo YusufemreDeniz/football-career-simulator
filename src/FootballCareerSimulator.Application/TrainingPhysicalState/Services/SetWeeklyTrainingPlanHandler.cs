@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Commands;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -14,17 +15,20 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
     private readonly ITrainingPhysicalStateStore _store;
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly IWorldTimelineStore _timelineStore;
+    private readonly PlayerCareerDevelopmentService? _playerDevelopment;
     private readonly Dictionary<Guid, SetWeeklyTrainingPlanResult> _completed = new();
 
     public SetWeeklyTrainingPlanHandler(
         ITrainingPhysicalStateStore store,
         IManagerCareerStore managerCareerStore,
-        IWorldTimelineStore timelineStore)
+        IWorldTimelineStore timelineStore,
+        PlayerCareerDevelopmentService? playerDevelopment = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
+        _playerDevelopment = playerDevelopment;
     }
 
     public SetWeeklyTrainingPlanResult Handle(SetWeeklyTrainingPlanCommand command)
@@ -59,6 +63,7 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
 
         _store.UpsertPlan(plan);
         _store.ReplacePhysicalStatesForClub(clubId, physical);
+        _playerDevelopment?.EnsureAndApplyWeeklyTraining(clubId, plan, rootSeed, day);
 
         var xi = physical.Take(MatchSelection.StartingXiSize).ToArray();
         var result = new SetWeeklyTrainingPlanResult(

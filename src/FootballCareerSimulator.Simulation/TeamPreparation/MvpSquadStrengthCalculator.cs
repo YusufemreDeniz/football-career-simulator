@@ -23,10 +23,28 @@ public static class MvpSquadStrengthCalculator
         return rng.NextInt(MinRating, MaxRating + 1);
     }
 
+    public static int GetEffectiveRating(
+        ClubId clubId,
+        int rootSeed,
+        int slotIndex,
+        int? currentAbilityOverride)
+    {
+        if (currentAbilityOverride is int ability)
+        {
+            return Math.Clamp(ability, MinRating, MaxRating);
+        }
+
+        return GetPlayerRating(clubId, rootSeed, slotIndex);
+    }
+
     /// <summary>
     /// İlk 11 ortalamasının 65'e göre sapması; -10..+10 aralığında maç gücüne eklenir.
     /// </summary>
-    public static int ComputeLineupBonus(ClubId clubId, int rootSeed, IReadOnlyList<int> startingSlotIndices)
+    public static int ComputeLineupBonus(
+        ClubId clubId,
+        int rootSeed,
+        IReadOnlyList<int> startingSlotIndices,
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), int>? abilityBySlot = null)
     {
         ArgumentNullException.ThrowIfNull(startingSlotIndices);
         if (startingSlotIndices.Count == 0)
@@ -34,14 +52,28 @@ public static class MvpSquadStrengthCalculator
             return 0;
         }
 
-        var average = startingSlotIndices.Average(slot => GetPlayerRating(clubId, rootSeed, slot));
+        var average = startingSlotIndices.Average(slot =>
+        {
+            int? overrideAbility = null;
+            if (abilityBySlot is not null
+                && abilityBySlot.TryGetValue((clubId.Value, slot), out var ability))
+            {
+                overrideAbility = ability;
+            }
+
+            return GetEffectiveRating(clubId, rootSeed, slot, overrideAbility);
+        });
         var bonus = (int)Math.Round(average - 65.0, MidpointRounding.AwayFromZero);
         return Math.Clamp(bonus, -10, 10);
     }
 
-    public static int ComputeDefaultLineupBonus(ClubId clubId, int rootSeed) =>
+    public static int ComputeDefaultLineupBonus(
+        ClubId clubId,
+        int rootSeed,
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), int>? abilityBySlot = null) =>
         ComputeLineupBonus(
             clubId,
             rootSeed,
-            Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray());
+            Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray(),
+            abilityBySlot);
 }

@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.Career.Ports;
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -17,6 +18,7 @@ public sealed class CareerGameSessionService
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly IMatchSelectionStore _matchSelectionStore;
     private readonly ITrainingPhysicalStateStore _trainingStore;
+    private readonly IPlayerCareerStore _playerCareerStore;
     private readonly ICareerPersistence _persistence;
     private readonly IReadOnlyList<ICommandIdempotencyReset> _idempotencyResets;
 
@@ -27,6 +29,7 @@ public sealed class CareerGameSessionService
         IManagerCareerStore managerCareerStore,
         IMatchSelectionStore matchSelectionStore,
         ITrainingPhysicalStateStore trainingStore,
+        IPlayerCareerStore playerCareerStore,
         ICareerPersistence persistence,
         IEnumerable<ICommandIdempotencyReset> idempotencyResets)
     {
@@ -36,6 +39,7 @@ public sealed class CareerGameSessionService
         _managerCareerStore = managerCareerStore ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _matchSelectionStore = matchSelectionStore ?? throw new ArgumentNullException(nameof(matchSelectionStore));
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
+        _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
         _idempotencyResets = idempotencyResets?.ToArray()
             ?? throw new ArgumentNullException(nameof(idempotencyResets));
@@ -58,7 +62,8 @@ public sealed class CareerGameSessionService
             managerCareer,
             matchSelections,
             _trainingStore.Plans,
-            _trainingStore.PhysicalStates);
+            _trainingStore.PhysicalStates,
+            _playerCareerStore.Careers);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -80,6 +85,7 @@ public sealed class CareerGameSessionService
         _managerCareerStore.Replace(loaded.ManagerCareer);
         _matchSelectionStore.ReplaceAll(loaded.MatchSelections);
         _trainingStore.ReplaceAll(loaded.TrainingPlans, loaded.PhysicalStates);
+        _playerCareerStore.ReplaceAll(loaded.PlayerCareers);
 
         foreach (var reset in _idempotencyResets)
         {

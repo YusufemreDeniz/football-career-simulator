@@ -4,6 +4,8 @@ using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -25,6 +27,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly IManagerCareerStore? _managerCareerStore;
     private readonly IMatchSelectionStore? _matchSelectionStore;
     private readonly ITrainingPhysicalStateStore? _trainingStore;
+    private readonly IPlayerCareerStore? _playerCareerStore;
+    private readonly PlayerCareerDevelopmentService? _playerDevelopment;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -33,7 +37,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         IWorldTimelineStore timelineStore,
         IManagerCareerStore? managerCareerStore = null,
         IMatchSelectionStore? matchSelectionStore = null,
-        ITrainingPhysicalStateStore? trainingStore = null)
+        ITrainingPhysicalStateStore? trainingStore = null,
+        IPlayerCareerStore? playerCareerStore = null,
+        PlayerCareerDevelopmentService? playerDevelopment = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -41,6 +47,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _managerCareerStore = managerCareerStore;
         _matchSelectionStore = matchSelectionStore;
         _trainingStore = trainingStore;
+        _playerCareerStore = playerCareerStore;
+        _playerDevelopment = playerDevelopment;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -95,6 +103,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             occurredAt);
 
         ApplyMatchPhysicalConsequences(fixture, occurredAt, rootSeed);
+        ApplyMatchDevelopment(fixture, occurredAt, rootSeed);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
@@ -179,6 +188,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
     private int ResolveLineupBonus(FixtureId fixtureId, ClubId clubId, int rootSeed)
     {
+        _playerDevelopment?.EnsureClub(clubId, rootSeed);
+        var abilities = BuildAbilityMap(clubId);
+
         var managedClubId = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
         var isManagedClub = managedClubId is ClubId managed && managed == clubId;
 
@@ -197,10 +209,47 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             return MvpSquadStrengthCalculator.ComputeLineupBonus(
                 clubId,
                 rootSeed,
-                selection.StartingSlotIndices);
+                selection.StartingSlotIndices,
+                abilities);
         }
 
-        return MvpSquadStrengthCalculator.ComputeDefaultLineupBonus(clubId, rootSeed);
+        return MvpSquadStrengthCalculator.ComputeDefaultLineupBonus(clubId, rootSeed, abilities);
+    }
+
+    private IReadOnlyDictionary<(long ClubId, int SlotIndex), int>? BuildAbilityMap(ClubId clubId)
+    {
+        if (_playerCareerStore is null)
+        {
+            return null;
+        }
+
+        var map = _playerCareerStore.Careers
+            .Where(career => career.OriginClubId == clubId)
+            .ToDictionary(
+                career => (career.OriginClubId.Value, career.SlotIndex),
+                career => career.CurrentAbility);
+        return map.Count == 0 ? null : map;
+    }
+
+    private void ApplyMatchDevelopment(Fixture fixture, GameDate day, int rootSeed)
+    {
+        if (_playerDevelopment is null)
+        {
+            return;
+        }
+
+        ApplyMatchDevelopmentForClub(fixture.HomeClubId, fixture.Id, day, rootSeed);
+        ApplyMatchDevelopmentForClub(fixture.AwayClubId, fixture.Id, day, rootSeed);
+    }
+
+    private void ApplyMatchDevelopmentForClub(ClubId clubId, FixtureId fixtureId, GameDate day, int rootSeed)
+    {
+        IReadOnlyList<int> startingSlots;
+        var selection = _matchSelectionStore?.Get(fixtureId, clubId);
+        startingSlots = selection?.StartingSlotIndices
+            ?? Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
+
+        _playerDevelopment!.EnsureAndApplyMatchAppearances(clubId, startingSlots, rootSeed, day);
     }
 
     private int ResolvePhysicalModifier(FixtureId fixtureId, ClubId clubId, GameDate day)
