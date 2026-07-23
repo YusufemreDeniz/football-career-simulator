@@ -15,30 +15,42 @@ public sealed class TeamPreparationModule
     public TeamPreparationModule(
         IMatchSelectionStore selectionStore,
         IClubSquadStore squadStore,
+        ITacticPlanStore tacticPlanStore,
         ClubSquadService? clubSquadService,
+        TacticPlanService tacticPlans,
         ApproveDefaultMatchSelectionHandler approveDefaultSelection,
         MatchSelectionQueryService selectionQueries,
-        SquadQueryService squadQueries)
+        SquadQueryService squadQueries,
+        TacticPlanQueryService tacticQueries)
     {
         SelectionStore = selectionStore;
         SquadStore = squadStore;
+        TacticPlanStore = tacticPlanStore;
         ClubSquad = clubSquadService;
+        TacticPlans = tacticPlans;
         ApproveDefaultSelection = approveDefaultSelection;
         SelectionQueries = selectionQueries;
         SquadQueries = squadQueries;
+        TacticQueries = tacticQueries;
     }
 
     public IMatchSelectionStore SelectionStore { get; }
 
     public IClubSquadStore SquadStore { get; }
 
+    public ITacticPlanStore TacticPlanStore { get; }
+
     public ClubSquadService? ClubSquad { get; }
+
+    public TacticPlanService TacticPlans { get; }
 
     public ApproveDefaultMatchSelectionHandler ApproveDefaultSelection { get; }
 
     public MatchSelectionQueryService SelectionQueries { get; }
 
     public SquadQueryService SquadQueries { get; }
+
+    public TacticPlanQueryService TacticQueries { get; }
 
     public ICommandIdempotencyReset IdempotencyReset => ApproveDefaultSelection;
 
@@ -50,10 +62,12 @@ public sealed class TeamPreparationModule
         IWorldTimelineStore? timelineStore = null,
         IContractStore? contractStore = null,
         IPlayerCareerStore? playerCareerStore = null,
-        IClubSquadStore? squadStore = null)
+        IClubSquadStore? squadStore = null,
+        ITacticPlanStore? tacticPlanStore = null)
     {
         var store = selectionStore ?? new InMemoryMatchSelectionStore();
         var clubSquadStore = squadStore ?? new InMemoryClubSquadStore();
+        var tactics = tacticPlanStore ?? new InMemoryTacticPlanStore();
         ClubSquadService? clubSquadService = null;
         if (contractStore is not null && playerCareerStore is not null)
         {
@@ -63,7 +77,9 @@ public sealed class TeamPreparationModule
         return new TeamPreparationModule(
             store,
             clubSquadStore,
+            tactics,
             clubSquadService,
+            new TacticPlanService(tactics),
             new ApproveDefaultMatchSelectionHandler(
                 store,
                 competitionStore,
@@ -71,6 +87,7 @@ public sealed class TeamPreparationModule
                 timelineStore,
                 clubSquadStore),
             new MatchSelectionQueryService(store, competitionStore, managerCareerStore),
-            new SquadQueryService(clubSquadStore, playerCareerStore));
+            new SquadQueryService(clubSquadStore, playerCareerStore),
+            new TacticPlanQueryService(tactics, managerCareerStore));
     }
 }

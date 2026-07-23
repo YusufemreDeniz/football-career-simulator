@@ -23,7 +23,8 @@ public interface ICareerPersistence
         IReadOnlyList<PlayerCareerAggregate> playerCareers,
         IReadOnlyList<PlayerContract> contracts,
         IReadOnlyList<ClubSquad> clubSquads,
-        IReadOnlyList<PlayerFreeAgency> freeAgents);
+        IReadOnlyList<PlayerFreeAgency> freeAgents,
+        IReadOnlyList<TacticPlan> tacticPlans);
 
     CareerLoadResult Load(string filePath);
 }
@@ -40,5 +41,6 @@ public sealed record CareerLoadResult(
     IReadOnlyList<PlayerContract> Contracts,
     IReadOnlyList<ClubSquad> ClubSquads,
     IReadOnlyList<PlayerFreeAgency> FreeAgents,
+    IReadOnlyList<TacticPlan> TacticPlans,
     int SchemaVersion,
     bool WasMigrated);

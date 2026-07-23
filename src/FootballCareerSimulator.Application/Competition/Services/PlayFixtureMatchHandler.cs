@@ -29,6 +29,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly ITrainingPhysicalStateStore? _trainingStore;
     private readonly IPlayerCareerStore? _playerCareerStore;
     private readonly PlayerCareerDevelopmentService? _playerDevelopment;
+    private readonly ITacticPlanStore? _tacticPlanStore;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -39,7 +40,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         IMatchSelectionStore? matchSelectionStore = null,
         ITrainingPhysicalStateStore? trainingStore = null,
         IPlayerCareerStore? playerCareerStore = null,
-        PlayerCareerDevelopmentService? playerDevelopment = null)
+        PlayerCareerDevelopmentService? playerDevelopment = null,
+        ITacticPlanStore? tacticPlanStore = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -49,6 +51,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _trainingStore = trainingStore;
         _playerCareerStore = playerCareerStore;
         _playerDevelopment = playerDevelopment;
+        _tacticPlanStore = tacticPlanStore;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -84,9 +87,11 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         RecoverInjuriesToDate(occurredAt);
 
         var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed)
-            + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt);
+            + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
+            + ResolveTacticModifier(fixture.HomeClubId);
         var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed)
-            + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt);
+            + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
+            + ResolveTacticModifier(fixture.AwayClubId);
 
         var score = MvpFixtureMatchSimulator.Simulate(
             rootSeed,
@@ -277,6 +282,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             _trainingStore.PhysicalBySlot,
             day);
     }
+
+    private int ResolveTacticModifier(ClubId clubId) =>
+        MvpTacticMatchModifier.ComputeApproachModifier(_tacticPlanStore?.Get(clubId));
 
     private void RecoverInjuriesToDate(GameDate day)
     {

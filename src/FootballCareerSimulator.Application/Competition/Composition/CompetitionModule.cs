@@ -106,6 +106,7 @@ public sealed class CompetitionModule
         ITrainingPhysicalStateStore? trainingStore = null,
         IPlayerCareerStore? playerCareerStore = null,
         PlayerCareerDevelopmentService? playerDevelopment = null,
+        ITacticPlanStore? tacticPlanStore = null,
         long competitionId = 1)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
@@ -118,7 +119,8 @@ public sealed class CompetitionModule
             matchSelectionStore,
             trainingStore,
             playerCareerStore,
-            playerDevelopment);
+            playerDevelopment,
+            tacticPlanStore);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
@@ -129,7 +131,8 @@ public sealed class CompetitionModule
         IMatchSelectionStore? matchSelectionStore = null,
         ITrainingPhysicalStateStore? trainingStore = null,
         IPlayerCareerStore? playerCareerStore = null,
-        PlayerCareerDevelopmentService? playerDevelopment = null)
+        PlayerCareerDevelopmentService? playerDevelopment = null,
+        ITacticPlanStore? tacticPlanStore = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
@@ -145,7 +148,8 @@ public sealed class CompetitionModule
             matchSelectionStore,
             trainingStore,
             playerCareerStore,
-            playerDevelopment);
+            playerDevelopment,
+            tacticPlanStore);
 
         return new CompetitionModule(
             store,

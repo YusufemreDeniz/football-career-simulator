@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using Godot;
 
@@ -17,6 +18,7 @@ public partial class CareerHubScreen : Control
     private Label _trainingLabel = null!;
     private Label _developmentLabel = null!;
     private Label _contractLabel = null!;
+    private Label _tacticLabel = null!;
     private Label _squadStatusLabel = null!;
     private Label _standingsLabel = null!;
     private Label _statusLabel = null!;
@@ -30,6 +32,12 @@ public partial class CareerHubScreen : Control
     private Button _trainLowButton = null!;
     private Button _trainMediumButton = null!;
     private Button _trainHighButton = null!;
+    private Button _formation442Button = null!;
+    private Button _formation433Button = null!;
+    private Button _formation352Button = null!;
+    private Button _approachBalancedButton = null!;
+    private Button _approachAttackingButton = null!;
+    private Button _approachDefensiveButton = null!;
     private Button _playButton = null!;
     private Button _advanceDayButton = null!;
     private Button _advanceWeekButton = null!;
@@ -130,6 +138,14 @@ public partial class CareerHubScreen : Control
         };
         layout.AddChild(_contractLabel);
 
+        _tacticLabel = new Label
+        {
+            Name = "TacticLabel",
+            Text = "Taktik: —",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        layout.AddChild(_tacticLabel);
+
         _standingsLabel = new Label
         {
             Name = "StandingsLabel",
@@ -170,6 +186,40 @@ public partial class CareerHubScreen : Control
         _signFreeAgentButton = new Button { Text = "Serbesti Geri İmzala" };
         _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
         jobRow.AddChild(_signFreeAgentButton);
+
+        layout.AddChild(new Label { Text = "Taktik" });
+
+        var formationRow = new HBoxContainer();
+        formationRow.AddThemeConstantOverride("separation", 8);
+        layout.AddChild(formationRow);
+
+        _formation442Button = new Button { Text = "4-4-2" };
+        _formation442Button.Pressed += () => Apply(_controller.SetTacticFormation(Formation.F442));
+        formationRow.AddChild(_formation442Button);
+
+        _formation433Button = new Button { Text = "4-3-3" };
+        _formation433Button.Pressed += () => Apply(_controller.SetTacticFormation(Formation.F433));
+        formationRow.AddChild(_formation433Button);
+
+        _formation352Button = new Button { Text = "3-5-2" };
+        _formation352Button.Pressed += () => Apply(_controller.SetTacticFormation(Formation.F352));
+        formationRow.AddChild(_formation352Button);
+
+        var approachRow = new HBoxContainer();
+        approachRow.AddThemeConstantOverride("separation", 8);
+        layout.AddChild(approachRow);
+
+        _approachBalancedButton = new Button { Text = "Dengeli" };
+        _approachBalancedButton.Pressed += () => Apply(_controller.SetTacticApproach(TacticalApproach.Balanced));
+        approachRow.AddChild(_approachBalancedButton);
+
+        _approachAttackingButton = new Button { Text = "Hücum" };
+        _approachAttackingButton.Pressed += () => Apply(_controller.SetTacticApproach(TacticalApproach.Attacking));
+        approachRow.AddChild(_approachAttackingButton);
+
+        _approachDefensiveButton = new Button { Text = "Defans" };
+        _approachDefensiveButton.Pressed += () => Apply(_controller.SetTacticApproach(TacticalApproach.Defensive));
+        approachRow.AddChild(_approachDefensiveButton);
 
         layout.AddChild(new Label { Text = "Birincil eylemler" });
 
@@ -351,10 +401,12 @@ public partial class CareerHubScreen : Control
             RefreshTrainingStatus();
             RefreshDevelopmentStatus();
             RefreshContractStatus();
+            RefreshTacticStatus();
             RefreshSquadList();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
             UpdateJobOfferButtons(manager);
             UpdateTrainingButtons(manager);
+            UpdateTacticButtons(manager);
             return;
         }
 
@@ -374,6 +426,7 @@ public partial class CareerHubScreen : Control
         RefreshTrainingStatus();
         RefreshDevelopmentStatus();
         RefreshContractStatus();
+        RefreshTacticStatus();
         RefreshStandings();
         RefreshFixtureList();
         RefreshSquadList();
@@ -387,6 +440,7 @@ public partial class CareerHubScreen : Control
         UpdatePrimaryHints(dueCount, world.Queries.GetTimeAdvanceEligibility().CanAdvance);
         UpdateJobOfferButtons(manager);
         UpdateTrainingButtons(manager);
+        UpdateTacticButtons(manager);
     }
 
     private void RefreshTrainingStatus()
@@ -423,6 +477,38 @@ public partial class CareerHubScreen : Control
         _trainLowButton.Disabled = !employed;
         _trainMediumButton.Disabled = !employed;
         _trainHighButton.Disabled = !employed;
+    }
+
+    private void RefreshTacticStatus()
+    {
+        var tactic = _controller.Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+        if (tactic.ClubId is null)
+        {
+            _tacticLabel.Text = "Taktik: işsiz — plan yok.";
+            return;
+        }
+
+        if (string.Equals(tactic.FormationName, "yok", StringComparison.Ordinal))
+        {
+            _tacticLabel.Text = "Taktik: henüz yok — lig kur / formasyon seç.";
+            return;
+        }
+
+        _tacticLabel.Text =
+            $"Taktik: {tactic.FormationName} · {tactic.ApproachName}"
+            + $" (maç gücünü etkiler)";
+    }
+
+    private void UpdateTacticButtons(
+        Application.ManagerCareer.Queries.ManagerCareerReadModel manager)
+    {
+        var employed = string.Equals(manager.EmploymentStatus, "Employed", StringComparison.Ordinal);
+        _formation442Button.Disabled = !employed;
+        _formation433Button.Disabled = !employed;
+        _formation352Button.Disabled = !employed;
+        _approachBalancedButton.Disabled = !employed;
+        _approachAttackingButton.Disabled = !employed;
+        _approachDefensiveButton.Disabled = !employed;
     }
 
     private void RefreshDevelopmentStatus()

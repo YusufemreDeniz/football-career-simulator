@@ -99,6 +99,7 @@ public sealed class CareerSessionController
                     Host.WorldModule.TimelineStore.Timeline.RootSeed,
                     day);
                 Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, day);
+                Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
             }
 
             return UiActionResult.Ok(
@@ -229,6 +230,55 @@ public sealed class CareerSessionController
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>
         Host.TrainingModule.Queries.GetManagedClubSummary();
 
+    public UiActionResult SetTacticApproach(TacticalApproach approach)
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TeamPreparationModule.TacticPlans.SetApproach(
+                new Domain.Shared.ClubId(clubId),
+                approach,
+                day);
+            var view = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+            return UiActionResult.Ok(
+                $"Taktik yaklaşım: {view.ApproachName} · formasyon {view.FormationName}.");
+        }
+        catch (TeamPreparationInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Taktik ayarlanamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Taktik hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult SetTacticFormation(Formation formation)
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TeamPreparationModule.TacticPlans.SetFormation(
+                new Domain.Shared.ClubId(clubId),
+                formation,
+                day);
+            var plan = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+            return UiActionResult.Ok($"Formasyon: {plan.FormationName} · yaklaşım {plan.ApproachName}.");
+        }
+        catch (TeamPreparationInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Formasyon ayarlanamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Formasyon hatası: {ex.Message}");
+        }
+    }
+
     public UiActionResult SetWeeklyTraining(TrainingIntensity intensity)
     {
         try
@@ -349,6 +399,7 @@ public sealed class CareerSessionController
                 Host.WorldModule.TimelineStore.Timeline.RootSeed,
                 day);
             Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, day);
+            Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
         }
 
         var extras = new List<string>();

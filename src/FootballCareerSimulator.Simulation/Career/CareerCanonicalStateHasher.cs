@@ -159,7 +159,34 @@ public static class CareerCanonicalStateHasher
         IReadOnlyList<PlayerCareerAggregate> playerCareers,
         IReadOnlyList<PlayerContract> contracts,
         IReadOnlyList<ClubSquad> clubSquads,
-        IReadOnlyList<PlayerFreeAgency> freeAgents)
+        IReadOnlyList<PlayerFreeAgency> freeAgents) =>
+        ComputeHash(
+            timeline,
+            league,
+            clubRegistry,
+            managerCareer,
+            matchSelections,
+            trainingPlans,
+            physicalStates,
+            playerCareers,
+            contracts,
+            clubSquads,
+            freeAgents,
+            Array.Empty<TacticPlan>());
+
+    public static string ComputeHash(
+        WorldTimeline timeline,
+        LeagueCompetition league,
+        LeagueClubRegistry clubRegistry,
+        ManagerCareerState managerCareer,
+        IReadOnlyList<MatchSelection> matchSelections,
+        IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
+        IReadOnlyList<PlayerPhysicalState> physicalStates,
+        IReadOnlyList<PlayerCareerAggregate> playerCareers,
+        IReadOnlyList<PlayerContract> contracts,
+        IReadOnlyList<ClubSquad> clubSquads,
+        IReadOnlyList<PlayerFreeAgency> freeAgents,
+        IReadOnlyList<TacticPlan> tacticPlans)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -172,6 +199,7 @@ public static class CareerCanonicalStateHasher
         ArgumentNullException.ThrowIfNull(contracts);
         ArgumentNullException.ThrowIfNull(clubSquads);
         ArgumentNullException.ThrowIfNull(freeAgents);
+        ArgumentNullException.ThrowIfNull(tacticPlans);
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -192,7 +220,9 @@ public static class CareerCanonicalStateHasher
             "|",
             ClubSquadCanonicalStateHasher.BuildCanonicalText(clubSquads),
             "|",
-            FreeAgencyCanonicalStateHasher.BuildCanonicalText(freeAgents));
+            FreeAgencyCanonicalStateHasher.BuildCanonicalText(freeAgents),
+            "|",
+            TacticPlanCanonicalStateHasher.BuildCanonicalText(tacticPlans));
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

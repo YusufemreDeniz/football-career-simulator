@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + MatchSelection + Board Confidence + Dismissal + JobOffer + Training + Injury + PlayerCareer + Aging + Contract + ClubSquad + FreeAgency + **FreeAgent resign** (son kulübe geri imza, SQLite v17) kilitlenmiştir. Sıradaki aday: TacticPlan veya Transfer Need iskeleti — transfer müzakeresi/ilişki/diyalog/medya henüz açılmamalıdır.
+İnce kariyer döngüsü + MatchSelection + Board Confidence + Dismissal + JobOffer + Training + Injury + PlayerCareer + Aging + Contract + ClubSquad + FreeAgency + FreeAgent resign + **TacticPlan** (SQLite v18) kilitlenmiştir. Sıradaki aday: Transfer Need iskeleti — müzakere/ilişki/diyalog/medya henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

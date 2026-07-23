@@ -121,7 +121,8 @@ public sealed class CareerPresentationHost
             teamPreparation.SelectionStore,
             training.Store,
             playerCareer.Store,
-            playerCareer.Development);
+            playerCareer.Development,
+            teamPreparation.TacticPlanStore);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =
@@ -142,6 +143,7 @@ public sealed class CareerPresentationHost
             managerModule.Store,
             teamPreparation.SelectionStore,
             teamPreparation.SquadStore,
+            teamPreparation.TacticPlanStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,

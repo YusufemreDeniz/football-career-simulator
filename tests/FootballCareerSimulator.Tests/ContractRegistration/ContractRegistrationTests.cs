@@ -160,10 +160,11 @@ public sealed class ContractRegistrationTests : IDisposable
             players.Store.Careers,
             contracts.Store.Contracts,
             Array.Empty<ClubSquad>(),
-            Array.Empty<PlayerFreeAgency>());
+            Array.Empty<PlayerFreeAgency>(),
+            Array.Empty<TacticPlan>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(17, loaded.SchemaVersion);
+        Assert.Equal(18, loaded.SchemaVersion);
         Assert.Equal(25, loaded.Contracts.Count);
         Assert.All(loaded.Contracts, c => Assert.Equal(ContractStatus.Active, c.Status));
 
