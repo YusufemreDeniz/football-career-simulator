@@ -166,10 +166,11 @@ public sealed class ContractRegistrationTests : IDisposable
             Array.Empty<Domain.Transfer.ShortlistEntry>(),
             Array.Empty<Domain.Transfer.TransferTarget>(),
             Array.Empty<Domain.Transfer.TransferProcess>(),
-            Array.Empty<Domain.Transfer.ClubOffer>());
+            Array.Empty<Domain.Transfer.ClubOffer>(),
+            Array.Empty<Domain.Transfer.PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(23, loaded.SchemaVersion);
+        Assert.Equal(24, loaded.SchemaVersion);
         Assert.Equal(25, loaded.Contracts.Count);
         Assert.All(loaded.Contracts, c => Assert.Equal(ContractStatus.Active, c.Status));
 

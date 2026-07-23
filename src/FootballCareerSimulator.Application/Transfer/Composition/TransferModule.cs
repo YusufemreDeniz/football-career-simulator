@@ -15,10 +15,12 @@ public sealed class TransferModule
         ITransferTargetStore targetStore,
         ITransferProcessStore processStore,
         IClubOfferStore offerStore,
+        IPlayerContractProposalStore proposalStore,
         TransferNeedService needs,
         ShortlistTargetService shortlistTargets,
         TransferProcessService processes,
         ClubOfferService clubOffers,
+        PlayerContractProposalService contractProposals,
         TransferNeedQueryService queries)
     {
         NeedStore = needStore;
@@ -26,10 +28,12 @@ public sealed class TransferModule
         TargetStore = targetStore;
         ProcessStore = processStore;
         OfferStore = offerStore;
+        ProposalStore = proposalStore;
         Needs = needs;
         ShortlistTargets = shortlistTargets;
         Processes = processes;
         ClubOffers = clubOffers;
+        ContractProposals = contractProposals;
         Queries = queries;
     }
 
@@ -43,6 +47,8 @@ public sealed class TransferModule
 
     public IClubOfferStore OfferStore { get; }
 
+    public IPlayerContractProposalStore ProposalStore { get; }
+
     public TransferNeedService Needs { get; }
 
     public ShortlistTargetService ShortlistTargets { get; }
@@ -50,6 +56,8 @@ public sealed class TransferModule
     public TransferProcessService Processes { get; }
 
     public ClubOfferService ClubOffers { get; }
+
+    public PlayerContractProposalService ContractProposals { get; }
 
     public TransferNeedQueryService Queries { get; }
 
@@ -61,23 +69,34 @@ public sealed class TransferModule
         IShortlistStore? shortlistStore = null,
         ITransferTargetStore? targetStore = null,
         ITransferProcessStore? processStore = null,
-        IClubOfferStore? offerStore = null)
+        IClubOfferStore? offerStore = null,
+        IPlayerContractProposalStore? proposalStore = null)
     {
         var needs = needStore ?? new InMemoryTransferNeedStore();
         var shortlist = shortlistStore ?? new InMemoryShortlistStore();
         var targets = targetStore ?? new InMemoryTransferTargetStore();
         var processes = processStore ?? new InMemoryTransferProcessStore();
         var offers = offerStore ?? new InMemoryClubOfferStore();
+        var proposals = proposalStore ?? new InMemoryPlayerContractProposalStore();
         return new TransferModule(
             needs,
             shortlist,
             targets,
             processes,
             offers,
+            proposals,
             new TransferNeedService(needs, contractStore, squadStore),
             new ShortlistTargetService(shortlist, targets, needs),
             new TransferProcessService(processes, targets, needs, managerCareerStore),
             new ClubOfferService(offers, processes, managerCareerStore),
-            new TransferNeedQueryService(needs, shortlist, targets, processes, offers, managerCareerStore));
+            new PlayerContractProposalService(proposals, processes, managerCareerStore),
+            new TransferNeedQueryService(
+                needs,
+                shortlist,
+                targets,
+                processes,
+                offers,
+                proposals,
+                managerCareerStore));
     }
 }

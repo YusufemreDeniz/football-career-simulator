@@ -117,10 +117,11 @@ public sealed class DismissalTests : IDisposable
             Array.Empty<Domain.Transfer.ShortlistEntry>(),
             Array.Empty<Domain.Transfer.TransferTarget>(),
             Array.Empty<Domain.Transfer.TransferProcess>(),
-            Array.Empty<Domain.Transfer.ClubOffer>());
+            Array.Empty<Domain.Transfer.ClubOffer>(),
+            Array.Empty<Domain.Transfer.PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(23, loaded.SchemaVersion);
+        Assert.Equal(24, loaded.SchemaVersion);
         Assert.Equal(ManagerEmploymentStatus.Unemployed, loaded.ManagerCareer.EmploymentStatus);
         Assert.Null(loaded.ManagerCareer.ActiveEmployment);
         Assert.NotNull(loaded.ManagerCareer.LastClubId);

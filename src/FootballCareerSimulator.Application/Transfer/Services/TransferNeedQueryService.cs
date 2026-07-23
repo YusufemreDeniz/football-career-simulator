@@ -12,6 +12,7 @@ public sealed class TransferNeedQueryService
     private readonly ITransferTargetStore _targetStore;
     private readonly ITransferProcessStore _processStore;
     private readonly IClubOfferStore _offerStore;
+    private readonly IPlayerContractProposalStore _proposalStore;
     private readonly IManagerCareerStore _managerCareerStore;
 
     public TransferNeedQueryService(
@@ -20,6 +21,7 @@ public sealed class TransferNeedQueryService
         ITransferTargetStore targetStore,
         ITransferProcessStore processStore,
         IClubOfferStore offerStore,
+        IPlayerContractProposalStore proposalStore,
         IManagerCareerStore managerCareerStore)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
@@ -27,6 +29,7 @@ public sealed class TransferNeedQueryService
         _targetStore = targetStore ?? throw new ArgumentNullException(nameof(targetStore));
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _offerStore = offerStore ?? throw new ArgumentNullException(nameof(offerStore));
+        _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
     }
@@ -104,7 +107,8 @@ public sealed class TransferNeedQueryService
                 p.PlayerId.Value,
                 (int)p.Status,
                 TranslateProcessStatus(p.Status),
-                p.FailureReasonCode))
+                p.FailureReasonCode,
+                p.IsFreeAgent))
             .ToArray();
 
         return new ManagedClubTransferProcessesReadModel(clubId.Value, active.Length, active);
@@ -137,6 +141,37 @@ public sealed class TransferNeedQueryService
         return new ManagedClubOffersReadModel(clubId.Value, pending, offers);
     }
 
+    public ManagedClubContractProposalsReadModel GetManagedContractProposals()
+    {
+        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId })
+        {
+            return new ManagedClubContractProposalsReadModel(
+                null,
+                0,
+                Array.Empty<ContractProposalLineReadModel>());
+        }
+
+        var processIds = _processStore.GetForBuyingClub(clubId)
+            .Select(p => p.ProcessId.Value)
+            .ToHashSet();
+        var proposals = _proposalStore.Proposals
+            .Where(p => processIds.Contains(p.ProcessId.Value))
+            .OrderByDescending(p => p.ProposalId.Value)
+            .Take(5)
+            .Select(p => new ContractProposalLineReadModel(
+                p.ProposalId.Value,
+                p.ProcessId.Value,
+                p.Round,
+                p.WeeklyWage,
+                p.ContractYears,
+                TranslateProposalStatus(p.Status)))
+            .ToArray();
+        var pending = _proposalStore.Proposals.Count(p =>
+            processIds.Contains(p.ProcessId.Value) && p.IsPending);
+
+        return new ManagedClubContractProposalsReadModel(clubId.Value, pending, proposals);
+    }
+
     private static TransferNeedLineReadModel ToNeedLine(TransferNeed need) =>
         new(
             need.NeedId.Value,
@@ -166,6 +201,8 @@ public sealed class TransferNeedQueryService
             TransferProcessStatus.SportingApproved => "Sportif onaylı",
             TransferProcessStatus.ClubNegotiation => "Kulüp müzakeresi",
             TransferProcessStatus.ClubAgreementReached => "Kulüp anlaşması",
+            TransferProcessStatus.PlayerNegotiation => "Oyuncu müzakeresi",
+            TransferProcessStatus.PlayerAgreementReached => "Oyuncu anlaşması",
             TransferProcessStatus.Rejected => "Reddedildi",
             TransferProcessStatus.Withdrawn => "Geri çekildi",
             TransferProcessStatus.Failed => "Başarısız",
@@ -180,6 +217,16 @@ public sealed class TransferNeedQueryService
             ClubOfferStatus.Accepted => "Kabul",
             ClubOfferStatus.Rejected => "Ret",
             ClubOfferStatus.Superseded => "Geçersiz",
+            _ => status.ToString(),
+        };
+
+    private static string TranslateProposalStatus(PlayerContractProposalStatus status) =>
+        status switch
+        {
+            PlayerContractProposalStatus.Pending => "Bekliyor",
+            PlayerContractProposalStatus.Accepted => "Kabul",
+            PlayerContractProposalStatus.Rejected => "Ret",
+            PlayerContractProposalStatus.Superseded => "Geçersiz",
             _ => status.ToString(),
         };
 }

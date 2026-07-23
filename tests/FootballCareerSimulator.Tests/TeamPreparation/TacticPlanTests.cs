@@ -107,10 +107,11 @@ public sealed class TacticPlanTests : IDisposable
             Array.Empty<Domain.Transfer.ShortlistEntry>(),
             Array.Empty<Domain.Transfer.TransferTarget>(),
             Array.Empty<Domain.Transfer.TransferProcess>(),
-            Array.Empty<Domain.Transfer.ClubOffer>());
+            Array.Empty<Domain.Transfer.ClubOffer>(),
+            Array.Empty<Domain.Transfer.PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(23, loaded.SchemaVersion);
+        Assert.Equal(24, loaded.SchemaVersion);
         Assert.Single(loaded.TacticPlans);
         Assert.Equal(Formation.F433, loaded.TacticPlans[0].Formation);
         Assert.Equal(TacticalApproach.Attacking, loaded.TacticPlans[0].Approach);

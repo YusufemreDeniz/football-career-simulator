@@ -40,7 +40,8 @@ public sealed record TransferProcessLineReadModel(
     long PlayerId,
     int StatusCode,
     string StatusName,
-    string? FailureReasonCode);
+    string? FailureReasonCode,
+    bool IsFreeAgent);
 
 public sealed record ManagedClubTransferProcessesReadModel(
     long? ClubId,
@@ -58,3 +59,16 @@ public sealed record ManagedClubOffersReadModel(
     long? ClubId,
     int PendingCount,
     IReadOnlyList<ClubOfferLineReadModel> RecentOffers);
+
+public sealed record ContractProposalLineReadModel(
+    long ProposalId,
+    long ProcessId,
+    int Round,
+    int WeeklyWage,
+    int ContractYears,
+    string StatusName);
+
+public sealed record ManagedClubContractProposalsReadModel(
+    long? ClubId,
+    int PendingCount,
+    IReadOnlyList<ContractProposalLineReadModel> RecentProposals);

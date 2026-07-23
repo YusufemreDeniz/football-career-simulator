@@ -36,7 +36,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<ShortlistEntry> shortlistEntries,
         IReadOnlyList<TransferTarget> transferTargets,
         IReadOnlyList<TransferProcess> transferProcesses,
-        IReadOnlyList<ClubOffer> clubOffers)
+        IReadOnlyList<ClubOffer> clubOffers,
+        IReadOnlyList<PlayerContractProposal> contractProposals)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -56,6 +57,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(transferTargets);
         ArgumentNullException.ThrowIfNull(transferProcesses);
         ArgumentNullException.ThrowIfNull(clubOffers);
+        ArgumentNullException.ThrowIfNull(contractProposals);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -74,7 +76,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             shortlistEntries,
             transferTargets,
             transferProcesses,
-            clubOffers);
+            clubOffers,
+            contractProposals);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -106,6 +109,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertTransferTargets(connection, transaction, transferTargets);
             InsertTransferProcesses(connection, transaction, transferProcesses);
             InsertClubOffers(connection, transaction, clubOffers);
+            InsertPlayerContractProposals(connection, transaction, contractProposals);
 
             transaction.Commit();
         }
@@ -291,6 +295,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV22ToV23InPlace(filePath);
             wasMigrated = true;
             version = 23;
+        }
+
+        if (version == 23 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 24)
+        {
+            WorldCalendarSqliteMigrator.MigrateV23ToV24InPlace(filePath);
+            wasMigrated = true;
+            version = 24;
         }
 
         if (wasMigrated)
@@ -555,6 +566,18 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ProcessId INTEGER NOT NULL,
                 Round INTEGER NOT NULL,
                 OfferedFee INTEGER NOT NULL,
+                Status INTEGER NOT NULL,
+                SubmittedDayNumber INTEGER NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE PlayerContractProposalState (
+                ProposalId INTEGER PRIMARY KEY,
+                ProcessId INTEGER NOT NULL,
+                Round INTEGER NOT NULL,
+                WeeklyWage INTEGER NOT NULL,
+                ContractYears INTEGER NOT NULL,
                 Status INTEGER NOT NULL,
                 SubmittedDayNumber INTEGER NOT NULL
             );
@@ -1149,6 +1172,32 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertPlayerContractProposals(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<PlayerContractProposal> contractProposals)
+    {
+        foreach (var proposal in contractProposals)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO PlayerContractProposalState (
+                    ProposalId, ProcessId, Round, WeeklyWage, ContractYears, Status, SubmittedDayNumber)
+                VALUES (
+                    $proposalId, $processId, $round, $weeklyWage, $contractYears, $status, $submitted);
+                """;
+            command.Parameters.AddWithValue("$proposalId", proposal.ProposalId.Value);
+            command.Parameters.AddWithValue("$processId", proposal.ProcessId.Value);
+            command.Parameters.AddWithValue("$round", proposal.Round);
+            command.Parameters.AddWithValue("$weeklyWage", proposal.WeeklyWage);
+            command.Parameters.AddWithValue("$contractYears", proposal.ContractYears);
+            command.Parameters.AddWithValue("$status", (int)proposal.Status);
+            command.Parameters.AddWithValue("$submitted", proposal.SubmittedOn.DayNumber);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static (int Version, bool IsLegacySpikeSave) ReadSchemaMetadata(string filePath)
     {
         try
@@ -1221,6 +1270,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var transferTargets = ReadTransferTargets(connection);
         var transferProcesses = ReadTransferProcesses(connection);
         var clubOffers = ReadClubOffers(connection);
+        var contractProposals = ReadPlayerContractProposals(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1238,7 +1288,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             shortlistEntries,
             transferTargets,
             transferProcesses,
-            clubOffers);
+            clubOffers,
+            contractProposals);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1278,6 +1329,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<TransferTarget> transferTargets;
             IReadOnlyList<TransferProcess> transferProcesses;
             IReadOnlyList<ClubOffer> clubOffers;
+            IReadOnlyList<PlayerContractProposal> contractProposals;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1306,6 +1358,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 transferTargets = ReadTransferTargets(connection);
                 transferProcesses = ReadTransferProcesses(connection);
                 clubOffers = ReadClubOffers(connection);
+                contractProposals = ReadPlayerContractProposals(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1327,7 +1380,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 shortlistEntries,
                 transferTargets,
                 transferProcesses,
-                clubOffers);
+                clubOffers,
+                contractProposals);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1352,6 +1406,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 transferTargets,
                 transferProcesses,
                 clubOffers,
+                contractProposals,
                 schemaVersion,
                 wasMigrated);
         }
@@ -2023,6 +2078,36 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return offers;
+    }
+
+    private static IReadOnlyList<PlayerContractProposal> ReadPlayerContractProposals(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "PlayerContractProposalState"))
+        {
+            return Array.Empty<PlayerContractProposal>();
+        }
+
+        var proposals = new List<PlayerContractProposal>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ProposalId, ProcessId, Round, WeeklyWage, ContractYears, Status, SubmittedDayNumber
+            FROM PlayerContractProposalState
+            ORDER BY ProposalId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            proposals.Add(PlayerContractProposal.Rehydrate(
+                new PlayerContractProposalId(reader.GetInt64(0)),
+                new TransferProcessId(reader.GetInt64(1)),
+                reader.GetInt32(2),
+                reader.GetInt32(3),
+                reader.GetInt32(4),
+                (PlayerContractProposalStatus)reader.GetInt32(5),
+                GameDate.FromDayNumber(reader.GetInt32(6))));
+        }
+
+        return proposals;
     }
 
     private static IReadOnlyList<int> ParseSlotCsv(string csv)

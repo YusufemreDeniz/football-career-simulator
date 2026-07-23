@@ -123,10 +123,11 @@ public sealed class ShortlistTargetTests : IDisposable
             modules.Transfer.ShortlistStore.Entries,
             modules.Transfer.TargetStore.Targets,
             modules.Transfer.ProcessStore.Processes,
-            modules.Transfer.OfferStore.Offers);
+            modules.Transfer.OfferStore.Offers,
+            modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(23, loaded.SchemaVersion);
+        Assert.Equal(24, loaded.SchemaVersion);
         Assert.Single(loaded.ShortlistEntries);
         Assert.Single(loaded.TransferTargets);
         Assert.Equal(TransferTargetStatus.Listed, loaded.TransferTargets[0].Status);

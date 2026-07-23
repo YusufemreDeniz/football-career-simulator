@@ -631,7 +631,8 @@ public sealed class CareerSessionController
     private Application.Transfer.Queries.TransferProcessLineReadModel ResolveProcessForClubOffer(
         bool requireNegotiation = false)
     {
-        var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses;
+        var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+            .Where(p => !p.IsFreeAgent);
         var process = (requireNegotiation
                 ? active.Where(p => p.StatusCode == (int)TransferProcessStatus.ClubNegotiation)
                 : active.Where(p =>
@@ -646,6 +647,121 @@ public sealed class CareerSessionController
         return process;
     }
 
+    public UiActionResult SubmitDefaultContractProposal()
+    {
+        try
+        {
+            var process = ResolveProcessForContractProposal();
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var proposal = Host.TransferModule.ContractProposals.SubmitContractProposal(
+                new TransferProcessId(process.ProcessId),
+                weeklyWage: 25_000,
+                contractYears: 3,
+                day);
+            return UiActionResult.Ok(
+                $"Sözleşme teklifi: #{proposal.ProposalId.Value} tur {proposal.Round}"
+                + $" · maaş {proposal.WeeklyWage} × {proposal.ContractYears} yıl.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Sözleşme teklifi sunulamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Sözleşme teklifi hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult AcceptPendingContractProposal()
+    {
+        try
+        {
+            var process = ResolveProcessForContractProposal(requireNegotiation: true);
+            var proposal = Host.TransferModule.ContractProposals.AcceptPendingProposal(
+                new TransferProcessId(process.ProcessId));
+            return UiActionResult.Ok(
+                $"Sözleşme kabul: #{proposal.ProposalId.Value}"
+                + $" · maaş {proposal.WeeklyWage} × {proposal.ContractYears} yıl.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Sözleşme kabul edilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Sözleşme kabul hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult RejectPendingContractProposal()
+    {
+        try
+        {
+            var process = ResolveProcessForContractProposal(requireNegotiation: true);
+            var proposal = Host.TransferModule.ContractProposals.RejectPendingProposal(
+                new TransferProcessId(process.ProcessId));
+            return UiActionResult.Ok($"Sözleşme reddedildi: #{proposal.ProposalId.Value}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Sözleşme reddedilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Sözleşme ret hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult CounterPendingContractProposal()
+    {
+        try
+        {
+            var process = ResolveProcessForContractProposal(requireNegotiation: true);
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var pending = Host.TransferModule.ProposalStore.GetForProcess(
+                    new TransferProcessId(process.ProcessId))
+                .LastOrDefault(p => p.IsPending);
+            var wage = (pending?.WeeklyWage ?? 25_000) + 5_000;
+            var years = pending?.ContractYears ?? 3;
+            var proposal = Host.TransferModule.ContractProposals.CounterPendingProposal(
+                new TransferProcessId(process.ProcessId),
+                weeklyWage: wage,
+                contractYears: years,
+                day);
+            return UiActionResult.Ok(
+                $"Karşı sözleşme: #{proposal.ProposalId.Value} tur {proposal.Round}"
+                + $" · maaş {proposal.WeeklyWage} × {proposal.ContractYears} yıl.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Karşı sözleşme başarısız: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Karşı sözleşme hatası: {ex.Message}");
+        }
+    }
+
+    private Application.Transfer.Queries.TransferProcessLineReadModel ResolveProcessForContractProposal(
+        bool requireNegotiation = false)
+    {
+        var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses;
+        var process = (requireNegotiation
+                ? active.Where(p => p.StatusCode == (int)TransferProcessStatus.PlayerNegotiation)
+                : active.Where(p =>
+                    p.StatusCode == (int)TransferProcessStatus.PlayerNegotiation
+                    || p.StatusCode == (int)TransferProcessStatus.ClubAgreementReached
+                    || (p.IsFreeAgent
+                        && p.StatusCode == (int)TransferProcessStatus.SportingApproved)))
+            .OrderBy(p => p.ProcessId)
+            .FirstOrDefault()
+            ?? throw new InvalidOperationException(
+                requireNegotiation
+                    ? "Oyuncu müzakeresindeki süreç yok."
+                    : "Sözleşme teklifi için uygun süreç yok.");
+        return process;
+    }
+
     private static string TranslateProcessStatus(TransferProcessStatus status) =>
         status switch
         {
@@ -654,6 +770,8 @@ public sealed class CareerSessionController
             TransferProcessStatus.SportingApproved => "Sportif onaylı",
             TransferProcessStatus.ClubNegotiation => "Kulüp müzakeresi",
             TransferProcessStatus.ClubAgreementReached => "Kulüp anlaşması",
+            TransferProcessStatus.PlayerNegotiation => "Oyuncu müzakeresi",
+            TransferProcessStatus.PlayerAgreementReached => "Oyuncu anlaşması",
             TransferProcessStatus.Rejected => "Reddedildi",
             TransferProcessStatus.Withdrawn => "Geri çekildi",
             TransferProcessStatus.Failed => "Başarısız",

@@ -5,7 +5,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.Transfer;
 
 /// <summary>
-/// Transfer süreci: Sporting Approval + kulüp müzakeresi iskeleti. Financial / Completion yok.
+/// Transfer süreci: Sporting Approval + kulüp + oyuncu müzakeresi iskeleti. Financial / Completion yok.
 /// </summary>
 public sealed class TransferProcess
 {
@@ -66,11 +66,17 @@ public sealed class TransferProcess
     public bool HasSportingApproval =>
         Status is TransferProcessStatus.SportingApproved
             or TransferProcessStatus.ClubNegotiation
-            or TransferProcessStatus.ClubAgreementReached;
+            or TransferProcessStatus.ClubAgreementReached
+            or TransferProcessStatus.PlayerNegotiation
+            or TransferProcessStatus.PlayerAgreementReached;
 
     public bool IsInClubNegotiation => Status == TransferProcessStatus.ClubNegotiation;
 
     public bool HasClubAgreement => Status == TransferProcessStatus.ClubAgreementReached;
+
+    public bool IsInPlayerNegotiation => Status == TransferProcessStatus.PlayerNegotiation;
+
+    public bool HasPlayerAgreement => Status == TransferProcessStatus.PlayerAgreementReached;
 
     public static TransferProcess OpenFromTarget(
         TransferProcessId processId,
@@ -253,6 +259,46 @@ public sealed class TransferProcess
         return WithStatus(TransferProcessStatus.ClubAgreementReached, FailureReasonCode, terminalOn: null);
     }
 
+    public TransferProcess EnterPlayerNegotiation()
+    {
+        if (Status == TransferProcessStatus.PlayerNegotiation)
+        {
+            return this;
+        }
+
+        if (IsFreeAgent)
+        {
+            if (Status != TransferProcessStatus.SportingApproved)
+            {
+                throw new TransferInvariantViolationException(
+                    "Free-agent player negotiation requires sporting approval.");
+            }
+        }
+        else if (Status != TransferProcessStatus.ClubAgreementReached)
+        {
+            throw new TransferInvariantViolationException(
+                "Player negotiation requires a club agreement.");
+        }
+
+        return WithStatus(TransferProcessStatus.PlayerNegotiation, FailureReasonCode, terminalOn: null);
+    }
+
+    public TransferProcess ReachPlayerAgreement()
+    {
+        if (Status == TransferProcessStatus.PlayerAgreementReached)
+        {
+            return this;
+        }
+
+        if (Status != TransferProcessStatus.PlayerNegotiation)
+        {
+            throw new TransferInvariantViolationException(
+                "Player agreement requires an active player negotiation.");
+        }
+
+        return WithStatus(TransferProcessStatus.PlayerAgreementReached, FailureReasonCode, terminalOn: null);
+    }
+
     public TransferProcess Withdraw(GameDate day)
     {
         EnsureActive();
@@ -312,7 +358,9 @@ public sealed class TransferProcess
             or TransferProcessStatus.SportingApprovalPending
             or TransferProcessStatus.SportingApproved
             or TransferProcessStatus.ClubNegotiation
-            or TransferProcessStatus.ClubAgreementReached;
+            or TransferProcessStatus.ClubAgreementReached
+            or TransferProcessStatus.PlayerNegotiation
+            or TransferProcessStatus.PlayerAgreementReached;
 
     private static string RequireReason(string reasonCode)
     {

@@ -47,7 +47,8 @@ public sealed class WorldCalendarSqlitePersistence : IWorldCalendarPersistence
             Array.Empty<ShortlistEntry>(),
             Array.Empty<TransferTarget>(),
             Array.Empty<TransferProcess>(),
-            Array.Empty<ClubOffer>());
+            Array.Empty<ClubOffer>(),
+            Array.Empty<PlayerContractProposal>());
     }
 
     public WorldCalendarLoadResult Load(string filePath)

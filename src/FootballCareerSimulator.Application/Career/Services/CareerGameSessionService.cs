@@ -26,6 +26,7 @@ public sealed class CareerGameSessionService
     private readonly ITransferTargetStore _transferTargetStore;
     private readonly ITransferProcessStore _transferProcessStore;
     private readonly IClubOfferStore _clubOfferStore;
+    private readonly IPlayerContractProposalStore _playerContractProposalStore;
     private readonly ITrainingPhysicalStateStore _trainingStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly IContractStore _contractStore;
@@ -46,6 +47,7 @@ public sealed class CareerGameSessionService
         ITransferTargetStore transferTargetStore,
         ITransferProcessStore transferProcessStore,
         IClubOfferStore clubOfferStore,
+        IPlayerContractProposalStore playerContractProposalStore,
         ITrainingPhysicalStateStore trainingStore,
         IPlayerCareerStore playerCareerStore,
         IContractStore contractStore,
@@ -65,6 +67,8 @@ public sealed class CareerGameSessionService
         _transferTargetStore = transferTargetStore ?? throw new ArgumentNullException(nameof(transferTargetStore));
         _transferProcessStore = transferProcessStore ?? throw new ArgumentNullException(nameof(transferProcessStore));
         _clubOfferStore = clubOfferStore ?? throw new ArgumentNullException(nameof(clubOfferStore));
+        _playerContractProposalStore = playerContractProposalStore
+            ?? throw new ArgumentNullException(nameof(playerContractProposalStore));
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
         _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
@@ -101,7 +105,8 @@ public sealed class CareerGameSessionService
             _shortlistStore.Entries,
             _transferTargetStore.Targets,
             _transferProcessStore.Processes,
-            _clubOfferStore.Offers);
+            _clubOfferStore.Offers,
+            _playerContractProposalStore.Proposals);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -133,6 +138,7 @@ public sealed class CareerGameSessionService
         _transferTargetStore.ReplaceAll(loaded.TransferTargets);
         _transferProcessStore.ReplaceAll(loaded.TransferProcesses);
         _clubOfferStore.ReplaceAll(loaded.ClubOffers);
+        _playerContractProposalStore.ReplaceAll(loaded.ContractProposals);
 
         foreach (var reset in _idempotencyResets)
         {
