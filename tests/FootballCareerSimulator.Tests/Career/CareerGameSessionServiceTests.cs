@@ -68,6 +68,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         var shortlist = new Application.Transfer.Infrastructure.InMemoryShortlistStore();
         var targets = new Application.Transfer.Infrastructure.InMemoryTransferTargetStore();
         var processes = new Application.Transfer.Infrastructure.InMemoryTransferProcessStore();
+        var offers = new Application.Transfer.Infrastructure.InMemoryClubOfferStore();
         return new CareerGameSessionService(
             world.TimelineStore,
             competition.Store,
@@ -80,6 +81,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             shortlist,
             targets,
             processes,
+            offers,
             training.Store,
             playerCareer.Store,
             contracts.Store,

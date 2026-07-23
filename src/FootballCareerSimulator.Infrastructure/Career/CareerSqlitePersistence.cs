@@ -35,7 +35,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<TransferNeed> transferNeeds,
         IReadOnlyList<ShortlistEntry> shortlistEntries,
         IReadOnlyList<TransferTarget> transferTargets,
-        IReadOnlyList<TransferProcess> transferProcesses)
+        IReadOnlyList<TransferProcess> transferProcesses,
+        IReadOnlyList<ClubOffer> clubOffers)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -54,6 +55,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(shortlistEntries);
         ArgumentNullException.ThrowIfNull(transferTargets);
         ArgumentNullException.ThrowIfNull(transferProcesses);
+        ArgumentNullException.ThrowIfNull(clubOffers);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -71,7 +73,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             transferNeeds,
             shortlistEntries,
             transferTargets,
-            transferProcesses);
+            transferProcesses,
+            clubOffers);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -102,6 +105,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertShortlistEntries(connection, transaction, shortlistEntries);
             InsertTransferTargets(connection, transaction, transferTargets);
             InsertTransferProcesses(connection, transaction, transferProcesses);
+            InsertClubOffers(connection, transaction, clubOffers);
 
             transaction.Commit();
         }
@@ -280,6 +284,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV21ToV22InPlace(filePath);
             wasMigrated = true;
             version = 22;
+        }
+
+        if (version == 22 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 23)
+        {
+            WorldCalendarSqliteMigrator.MigrateV22ToV23InPlace(filePath);
+            wasMigrated = true;
+            version = 23;
         }
 
         if (wasMigrated)
@@ -535,6 +546,17 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 FailureReasonCode TEXT NULL,
                 OpenedDayNumber INTEGER NOT NULL,
                 TerminalDayNumber INTEGER NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE ClubOfferState (
+                OfferId INTEGER PRIMARY KEY,
+                ProcessId INTEGER NOT NULL,
+                Round INTEGER NOT NULL,
+                OfferedFee INTEGER NOT NULL,
+                Status INTEGER NOT NULL,
+                SubmittedDayNumber INTEGER NOT NULL
             );
             """);
     }
@@ -1102,6 +1124,31 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertClubOffers(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<ClubOffer> clubOffers)
+    {
+        foreach (var offer in clubOffers)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO ClubOfferState (
+                    OfferId, ProcessId, Round, OfferedFee, Status, SubmittedDayNumber)
+                VALUES (
+                    $offerId, $processId, $round, $offeredFee, $status, $submitted);
+                """;
+            command.Parameters.AddWithValue("$offerId", offer.OfferId.Value);
+            command.Parameters.AddWithValue("$processId", offer.ProcessId.Value);
+            command.Parameters.AddWithValue("$round", offer.Round);
+            command.Parameters.AddWithValue("$offeredFee", offer.OfferedFee);
+            command.Parameters.AddWithValue("$status", (int)offer.Status);
+            command.Parameters.AddWithValue("$submitted", offer.SubmittedOn.DayNumber);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static (int Version, bool IsLegacySpikeSave) ReadSchemaMetadata(string filePath)
     {
         try
@@ -1173,6 +1220,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var shortlistEntries = ReadShortlistEntries(connection);
         var transferTargets = ReadTransferTargets(connection);
         var transferProcesses = ReadTransferProcesses(connection);
+        var clubOffers = ReadClubOffers(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1189,7 +1237,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             transferNeeds,
             shortlistEntries,
             transferTargets,
-            transferProcesses);
+            transferProcesses,
+            clubOffers);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1228,6 +1277,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<ShortlistEntry> shortlistEntries;
             IReadOnlyList<TransferTarget> transferTargets;
             IReadOnlyList<TransferProcess> transferProcesses;
+            IReadOnlyList<ClubOffer> clubOffers;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1255,6 +1305,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 shortlistEntries = ReadShortlistEntries(connection);
                 transferTargets = ReadTransferTargets(connection);
                 transferProcesses = ReadTransferProcesses(connection);
+                clubOffers = ReadClubOffers(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1275,7 +1326,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 transferNeeds,
                 shortlistEntries,
                 transferTargets,
-                transferProcesses);
+                transferProcesses,
+                clubOffers);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1299,6 +1351,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 shortlistEntries,
                 transferTargets,
                 transferProcesses,
+                clubOffers,
                 schemaVersion,
                 wasMigrated);
         }
@@ -1941,6 +1994,35 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return processes;
+    }
+
+    private static IReadOnlyList<ClubOffer> ReadClubOffers(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "ClubOfferState"))
+        {
+            return Array.Empty<ClubOffer>();
+        }
+
+        var offers = new List<ClubOffer>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT OfferId, ProcessId, Round, OfferedFee, Status, SubmittedDayNumber
+            FROM ClubOfferState
+            ORDER BY OfferId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            offers.Add(ClubOffer.Rehydrate(
+                new ClubOfferId(reader.GetInt64(0)),
+                new TransferProcessId(reader.GetInt64(1)),
+                reader.GetInt32(2),
+                reader.GetInt32(3),
+                (ClubOfferStatus)reader.GetInt32(4),
+                GameDate.FromDayNumber(reader.GetInt32(5))));
+        }
+
+        return offers;
     }
 
     private static IReadOnlyList<int> ParseSlotCsv(string csv)

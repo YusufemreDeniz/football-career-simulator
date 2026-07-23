@@ -9,7 +9,6 @@ using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
-using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
@@ -20,16 +19,16 @@ using Microsoft.Data.Sqlite;
 
 namespace FootballCareerSimulator.Tests.Transfer;
 
-public sealed class ShortlistTargetTests : IDisposable
+public sealed class ClubOfferTests : IDisposable
 {
     private static readonly GameDate Day = GameDate.FromCalendarDate(2026, 7, 1);
 
     private readonly string _tempDirectory = Path.Combine(
         Path.GetTempPath(),
-        "fcs-shortlist-target",
+        "fcs-club-offer",
         Guid.NewGuid().ToString("N"));
 
-    public ShortlistTargetTests() => Directory.CreateDirectory(_tempDirectory);
+    public ClubOfferTests() => Directory.CreateDirectory(_tempDirectory);
 
     public void Dispose()
     {
@@ -41,70 +40,58 @@ public sealed class ShortlistTargetTests : IDisposable
     }
 
     [Fact]
-    public void SuggestAndList_CreatesShortlistAndTargetWithoutProcess()
+    public void Submit_AfterSportingApproval_EntersNegotiation()
     {
-        var modules = CreateModules();
-        modules.Transfer.Needs.Declare(
-            new ClubId(1),
-            TransferNeedKind.PositionGap,
-            priority: 4,
-            "ManualPositionGap",
-            Day);
+        var modules = CreateModulesWithSportingApproval();
+        var process = modules.Transfer.ProcessStore.Processes.Single();
 
-        var target = modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(
-            new ClubId(1),
-            Day);
+        var offer = modules.Transfer.ClubOffers.SubmitClubOffer(process.ProcessId, 4_000_000, Day);
 
-        Assert.True(target.IsListed);
-        Assert.Equal(PlayerId.FromClubSlot(2, 0), target.PlayerId);
-        Assert.Equal(1, modules.Transfer.Queries.GetManagedClubShortlistTargets().ActiveShortlistCount);
-        Assert.Equal(1, modules.Transfer.Queries.GetManagedClubShortlistTargets().ListedTargetCount);
+        Assert.True(offer.IsPending);
+        Assert.Equal(1, offer.Round);
+        Assert.Equal(
+            TransferProcessStatus.ClubNegotiation,
+            modules.Transfer.ProcessStore.Get(process.ProcessId)!.Status);
     }
 
     [Fact]
-    public void AddTransferTarget_RequiresOpenNeed()
+    public void CounterThenAccept_ReachesClubAgreement()
     {
-        var modules = CreateModules();
-        Assert.Throws<TransferInvariantViolationException>(() =>
-            modules.Transfer.ShortlistTargets.AddTransferTarget(
-                new TransferNeedId(99),
-                PlayerId.FromClubSlot(2, 0),
-                shortlistEntryId: null,
-                Day));
+        var modules = CreateModulesWithSportingApproval();
+        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
+        modules.Transfer.ClubOffers.SubmitClubOffer(processId, 3_000_000, Day);
+        var counter = modules.Transfer.ClubOffers.CounterPendingOffer(processId, 4_500_000, Day.AddDays(1));
+        Assert.Equal(2, counter.Round);
+
+        var accepted = modules.Transfer.ClubOffers.AcceptPendingOffer(processId);
+        Assert.Equal(ClubOfferStatus.Accepted, accepted.Status);
+        Assert.Equal(
+            TransferProcessStatus.ClubAgreementReached,
+            modules.Transfer.ProcessStore.Get(processId)!.Status);
     }
 
     [Fact]
-    public void Drop_RemovesFromListedQuery()
+    public void Reject_KeepsNegotiationOpenForNewOffer()
     {
-        var modules = CreateModules();
-        modules.Transfer.Needs.Declare(
-            new ClubId(1),
-            TransferNeedKind.SquadDepth,
-            priority: 2,
-            "ThinSquad",
-            Day);
-        var target = modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(
-            new ClubId(1),
-            Day);
+        var modules = CreateModulesWithSportingApproval();
+        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
+        modules.Transfer.ClubOffers.SubmitClubOffer(processId, 2_000_000, Day);
+        modules.Transfer.ClubOffers.RejectPendingOffer(processId);
 
-        modules.Transfer.ShortlistTargets.DropTransferTarget(target.TargetId, Day.AddDays(1));
-        Assert.Equal(0, modules.Transfer.Queries.GetManagedClubShortlistTargets().ListedTargetCount);
+        var next = modules.Transfer.ClubOffers.SubmitClubOffer(processId, 2_500_000, Day.AddDays(1));
+        Assert.Equal(2, next.Round);
+        Assert.True(next.IsPending);
     }
 
     [Fact]
-    public void SaveLoad_PreservesShortlistAndTargetAtSchemaV20()
+    public void SaveLoad_PreservesOffersAtSchemaV23()
     {
-        var modules = CreateModules();
-        modules.Transfer.Needs.Declare(
-            new ClubId(1),
-            TransferNeedKind.PositionGap,
-            priority: 3,
-            "ManualPositionGap",
-            Day);
-        modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(new ClubId(1), Day);
+        var modules = CreateModulesWithSportingApproval();
+        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
+        modules.Transfer.ClubOffers.SubmitClubOffer(processId, 6_000_000, Day);
 
         var persistence = new CareerSqlitePersistence();
-        var path = Path.Combine(_tempDirectory, "targets.db");
+        var path = Path.Combine(_tempDirectory, "offers.db");
         persistence.Save(
             path,
             modules.World.TimelineStore.Timeline,
@@ -127,19 +114,19 @@ public sealed class ShortlistTargetTests : IDisposable
 
         var loaded = persistence.Load(path);
         Assert.Equal(23, loaded.SchemaVersion);
-        Assert.Single(loaded.ShortlistEntries);
-        Assert.Single(loaded.TransferTargets);
-        Assert.Equal(TransferTargetStatus.Listed, loaded.TransferTargets[0].Status);
-        Assert.NotNull(loaded.TransferTargets[0].ShortlistEntryId);
+        Assert.Single(loaded.ClubOffers);
+        Assert.Equal(6_000_000, loaded.ClubOffers[0].OfferedFee);
+        Assert.Equal(ClubOfferStatus.Pending, loaded.ClubOffers[0].Status);
+        Assert.Equal(TransferProcessStatus.ClubNegotiation, loaded.TransferProcesses[0].Status);
     }
 
     private static (
         WorldCalendarModule World,
         ClubGovernanceModule Clubs,
         ManagerCareerModule Manager,
-        TransferModule Transfer) CreateModules()
+        TransferModule Transfer) CreateModulesWithSportingApproval()
     {
-        var world = WorldCalendarModule.Create(Day, rootSeed: 21);
+        var world = WorldCalendarModule.Create(Day, rootSeed: 51);
         var clubs = ClubGovernanceModule.CreateMvpLeague();
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
@@ -163,6 +150,16 @@ public sealed class ShortlistTargetTests : IDisposable
             contractStore: contracts.Store,
             playerCareerStore: playerStore);
         var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store);
+        transfer.Needs.Declare(
+            new ClubId(1),
+            TransferNeedKind.PositionGap,
+            priority: 4,
+            "ManualPositionGap",
+            Day);
+        transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(new ClubId(1), Day);
+        var process = transfer.Processes.OpenOldestListedTargetForClub(new ClubId(1), Day);
+        transfer.Processes.RequestSportingApproval(process.ProcessId);
+        transfer.Processes.GrantSportingApproval(process.ProcessId);
         return (world, clubs, manager, transfer);
     }
 }

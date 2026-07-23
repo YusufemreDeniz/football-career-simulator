@@ -156,6 +156,7 @@ public sealed class CareerPresentationHost
             transferModule.ShortlistStore,
             transferModule.TargetStore,
             transferModule.ProcessStore,
+            transferModule.OfferStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,

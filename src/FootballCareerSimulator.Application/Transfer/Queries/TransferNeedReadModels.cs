@@ -46,3 +46,15 @@ public sealed record ManagedClubTransferProcessesReadModel(
     long? ClubId,
     int ActiveCount,
     IReadOnlyList<TransferProcessLineReadModel> ActiveProcesses);
+
+public sealed record ClubOfferLineReadModel(
+    long OfferId,
+    long ProcessId,
+    int Round,
+    int OfferedFee,
+    string StatusName);
+
+public sealed record ManagedClubOffersReadModel(
+    long? ClubId,
+    int PendingCount,
+    IReadOnlyList<ClubOfferLineReadModel> RecentOffers);

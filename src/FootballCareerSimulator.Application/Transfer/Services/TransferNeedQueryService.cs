@@ -11,6 +11,7 @@ public sealed class TransferNeedQueryService
     private readonly IShortlistStore _shortlistStore;
     private readonly ITransferTargetStore _targetStore;
     private readonly ITransferProcessStore _processStore;
+    private readonly IClubOfferStore _offerStore;
     private readonly IManagerCareerStore _managerCareerStore;
 
     public TransferNeedQueryService(
@@ -18,12 +19,14 @@ public sealed class TransferNeedQueryService
         IShortlistStore shortlistStore,
         ITransferTargetStore targetStore,
         ITransferProcessStore processStore,
+        IClubOfferStore offerStore,
         IManagerCareerStore managerCareerStore)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _shortlistStore = shortlistStore ?? throw new ArgumentNullException(nameof(shortlistStore));
         _targetStore = targetStore ?? throw new ArgumentNullException(nameof(targetStore));
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
+        _offerStore = offerStore ?? throw new ArgumentNullException(nameof(offerStore));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
     }
@@ -107,6 +110,33 @@ public sealed class TransferNeedQueryService
         return new ManagedClubTransferProcessesReadModel(clubId.Value, active.Length, active);
     }
 
+    public ManagedClubOffersReadModel GetManagedClubOffers()
+    {
+        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId })
+        {
+            return new ManagedClubOffersReadModel(null, 0, Array.Empty<ClubOfferLineReadModel>());
+        }
+
+        var processIds = _processStore.GetForBuyingClub(clubId)
+            .Select(p => p.ProcessId.Value)
+            .ToHashSet();
+        var offers = _offerStore.Offers
+            .Where(o => processIds.Contains(o.ProcessId.Value))
+            .OrderByDescending(o => o.OfferId.Value)
+            .Take(5)
+            .Select(o => new ClubOfferLineReadModel(
+                o.OfferId.Value,
+                o.ProcessId.Value,
+                o.Round,
+                o.OfferedFee,
+                TranslateOfferStatus(o.Status)))
+            .ToArray();
+        var pending = _offerStore.Offers.Count(o =>
+            processIds.Contains(o.ProcessId.Value) && o.IsPending);
+
+        return new ManagedClubOffersReadModel(clubId.Value, pending, offers);
+    }
+
     private static TransferNeedLineReadModel ToNeedLine(TransferNeed need) =>
         new(
             need.NeedId.Value,
@@ -134,10 +164,22 @@ public sealed class TransferNeedQueryService
             TransferProcessStatus.UnderEvaluation => "Değerlendirmede",
             TransferProcessStatus.SportingApprovalPending => "Sportif onay bekliyor",
             TransferProcessStatus.SportingApproved => "Sportif onaylı",
+            TransferProcessStatus.ClubNegotiation => "Kulüp müzakeresi",
+            TransferProcessStatus.ClubAgreementReached => "Kulüp anlaşması",
             TransferProcessStatus.Rejected => "Reddedildi",
             TransferProcessStatus.Withdrawn => "Geri çekildi",
             TransferProcessStatus.Failed => "Başarısız",
             TransferProcessStatus.Archived => "Arşiv",
+            _ => status.ToString(),
+        };
+
+    private static string TranslateOfferStatus(ClubOfferStatus status) =>
+        status switch
+        {
+            ClubOfferStatus.Pending => "Bekliyor",
+            ClubOfferStatus.Accepted => "Kabul",
+            ClubOfferStatus.Rejected => "Ret",
+            ClubOfferStatus.Superseded => "Geçersiz",
             _ => status.ToString(),
         };
 }

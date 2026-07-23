@@ -139,10 +139,11 @@ public sealed class TransferNeedTests : IDisposable
             modules.Transfer.NeedStore.Needs,
             Array.Empty<ShortlistEntry>(),
             Array.Empty<TransferTarget>(),
-            Array.Empty<TransferProcess>());
+            Array.Empty<TransferProcess>(),
+            Array.Empty<ClubOffer>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(22, loaded.SchemaVersion);
+        Assert.Equal(23, loaded.SchemaVersion);
         Assert.Single(loaded.TransferNeeds);
         Assert.Equal(TransferNeedKind.ExpiringContract, loaded.TransferNeeds[0].Kind);
         Assert.Equal(TransferNeedStatus.Open, loaded.TransferNeeds[0].Status);

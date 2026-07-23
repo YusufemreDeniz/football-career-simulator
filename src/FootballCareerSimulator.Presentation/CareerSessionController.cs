@@ -540,12 +540,120 @@ public sealed class CareerSessionController
         return active.ProcessId;
     }
 
+    public UiActionResult SubmitDefaultClubOffer()
+    {
+        try
+        {
+            var process = ResolveProcessForClubOffer();
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var offer = Host.TransferModule.ClubOffers.SubmitClubOffer(
+                new TransferProcessId(process.ProcessId),
+                offeredFee: 5_000_000,
+                day);
+            return UiActionResult.Ok(
+                $"Kulüp teklifi: #{offer.OfferId.Value} tur {offer.Round} · ücret {offer.OfferedFee}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Teklif sunulamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Teklif hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult AcceptPendingClubOffer()
+    {
+        try
+        {
+            var process = ResolveProcessForClubOffer(requireNegotiation: true);
+            var offer = Host.TransferModule.ClubOffers.AcceptPendingOffer(
+                new TransferProcessId(process.ProcessId));
+            return UiActionResult.Ok(
+                $"Teklif kabul: #{offer.OfferId.Value} · ücret {offer.OfferedFee} · kulüp anlaşması.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Teklif kabul edilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Teklif kabul hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult RejectPendingClubOffer()
+    {
+        try
+        {
+            var process = ResolveProcessForClubOffer(requireNegotiation: true);
+            var offer = Host.TransferModule.ClubOffers.RejectPendingOffer(
+                new TransferProcessId(process.ProcessId));
+            return UiActionResult.Ok($"Teklif reddedildi: #{offer.OfferId.Value}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Teklif reddedilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Teklif ret hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult CounterPendingClubOffer()
+    {
+        try
+        {
+            var process = ResolveProcessForClubOffer(requireNegotiation: true);
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var pendingFee = Host.TransferModule.OfferStore.GetForProcess(
+                    new TransferProcessId(process.ProcessId))
+                .LastOrDefault(o => o.IsPending)?.OfferedFee ?? 5_000_000;
+            var offer = Host.TransferModule.ClubOffers.CounterPendingOffer(
+                new TransferProcessId(process.ProcessId),
+                offeredFee: pendingFee + 1_000_000,
+                day);
+            return UiActionResult.Ok(
+                $"Karşı teklif: #{offer.OfferId.Value} tur {offer.Round} · ücret {offer.OfferedFee}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Karşı teklif başarısız: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Karşı teklif hatası: {ex.Message}");
+        }
+    }
+
+    private Application.Transfer.Queries.TransferProcessLineReadModel ResolveProcessForClubOffer(
+        bool requireNegotiation = false)
+    {
+        var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses;
+        var process = (requireNegotiation
+                ? active.Where(p => p.StatusCode == (int)TransferProcessStatus.ClubNegotiation)
+                : active.Where(p =>
+                    p.StatusCode is (int)TransferProcessStatus.SportingApproved
+                        or (int)TransferProcessStatus.ClubNegotiation))
+            .OrderBy(p => p.ProcessId)
+            .FirstOrDefault()
+            ?? throw new InvalidOperationException(
+                requireNegotiation
+                    ? "Müzakeredeki süreç yok."
+                    : "Sportif onaylı veya müzakeredeki süreç yok.");
+        return process;
+    }
+
     private static string TranslateProcessStatus(TransferProcessStatus status) =>
         status switch
         {
             TransferProcessStatus.UnderEvaluation => "Değerlendirmede",
             TransferProcessStatus.SportingApprovalPending => "Sportif onay bekliyor",
             TransferProcessStatus.SportingApproved => "Sportif onaylı",
+            TransferProcessStatus.ClubNegotiation => "Kulüp müzakeresi",
+            TransferProcessStatus.ClubAgreementReached => "Kulüp anlaşması",
             TransferProcessStatus.Rejected => "Reddedildi",
             TransferProcessStatus.Withdrawn => "Geri çekildi",
             TransferProcessStatus.Failed => "Başarısız",

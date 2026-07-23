@@ -42,6 +42,11 @@ public partial class CareerHubScreen : Control
     private Button _requestSportingApprovalButton = null!;
     private Button _grantSportingApprovalButton = null!;
     private Button _rejectSportingApprovalButton = null!;
+    private Label _clubOfferLabel = null!;
+    private Button _submitClubOfferButton = null!;
+    private Button _acceptClubOfferButton = null!;
+    private Button _rejectClubOfferButton = null!;
+    private Button _counterClubOfferButton = null!;
     private Button _trainLowButton = null!;
     private Button _trainMediumButton = null!;
     private Button _trainHighButton = null!;
@@ -274,6 +279,29 @@ public partial class CareerHubScreen : Control
         _rejectSportingApprovalButton.Pressed += () =>
             Apply(_controller.RejectSportingApprovalForOldestPendingProcess());
         sportingRow.AddChild(_rejectSportingApprovalButton);
+
+        _clubOfferLabel = BodyLabel("ClubOfferLabel", autowrap: true);
+        clubCol.AddChild(_clubOfferLabel);
+
+        var offerRow = new HBoxContainer();
+        offerRow.AddThemeConstantOverride("separation", 8);
+        clubCol.AddChild(offerRow);
+
+        _submitClubOfferButton = SecondaryButton("Teklif Sun");
+        _submitClubOfferButton.Pressed += () => Apply(_controller.SubmitDefaultClubOffer());
+        offerRow.AddChild(_submitClubOfferButton);
+
+        _acceptClubOfferButton = SecondaryButton("Teklifi Kabul");
+        _acceptClubOfferButton.Pressed += () => Apply(_controller.AcceptPendingClubOffer());
+        offerRow.AddChild(_acceptClubOfferButton);
+
+        _rejectClubOfferButton = SecondaryButton("Teklifi Ret");
+        _rejectClubOfferButton.Pressed += () => Apply(_controller.RejectPendingClubOffer());
+        offerRow.AddChild(_rejectClubOfferButton);
+
+        _counterClubOfferButton = SecondaryButton("Karşı Teklif");
+        _counterClubOfferButton.Pressed += () => Apply(_controller.CounterPendingClubOffer());
+        offerRow.AddChild(_counterClubOfferButton);
 
         var prepCol = new VBoxContainer
         {
@@ -556,6 +584,7 @@ public partial class CareerHubScreen : Control
             RefreshTransferNeedStatus();
             RefreshShortlistTargetStatus();
             RefreshTransferProcessStatus();
+            RefreshClubOfferStatus();
             RefreshTacticStatus();
             RefreshSquadList();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
@@ -585,6 +614,7 @@ public partial class CareerHubScreen : Control
         RefreshTransferNeedStatus();
         RefreshShortlistTargetStatus();
         RefreshTransferProcessStatus();
+        RefreshClubOfferStatus();
         RefreshTacticStatus();
         RefreshStandings();
         RefreshFixtureList();
@@ -601,6 +631,27 @@ public partial class CareerHubScreen : Control
         UpdateTransferNeedButtons(manager);
         UpdateTrainingButtons(manager);
         UpdateTacticButtons(manager);
+    }
+
+    private void RefreshClubOfferStatus()
+    {
+        var offers = _controller.Host.TransferModule.Queries.GetManagedClubOffers();
+        if (offers.ClubId is null)
+        {
+            _clubOfferLabel.Text = "Kulüp teklifi: işsiz — kayıt yok.";
+            return;
+        }
+
+        if (offers.RecentOffers.Count == 0)
+        {
+            _clubOfferLabel.Text = "Kulüp teklifi: yok — sportif onay sonrası teklif sun.";
+            return;
+        }
+
+        var latest = offers.RecentOffers[0];
+        _clubOfferLabel.Text =
+            $"Kulüp teklifi: bekleyen {offers.PendingCount}"
+            + $" · son #{latest.OfferId} tur {latest.Round} ücret {latest.OfferedFee} ({latest.StatusName})";
     }
 
     private void RefreshTransferProcessStatus()
@@ -700,6 +751,16 @@ public partial class CareerHubScreen : Control
         _requestSportingApprovalButton.Disabled = !canRequestSporting;
         _grantSportingApprovalButton.Disabled = !pendingSporting;
         _rejectSportingApprovalButton.Disabled = !pendingSporting;
+
+        var canSubmitOffer = employed && processes.Any(p =>
+            p.StatusCode is (int)Domain.Transfer.TransferProcessStatus.SportingApproved
+                or (int)Domain.Transfer.TransferProcessStatus.ClubNegotiation);
+        var pendingOffers = employed
+            && _controller.Host.TransferModule.Queries.GetManagedClubOffers().PendingCount > 0;
+        _submitClubOfferButton.Disabled = !canSubmitOffer || pendingOffers;
+        _acceptClubOfferButton.Disabled = !pendingOffers;
+        _rejectClubOfferButton.Disabled = !pendingOffers;
+        _counterClubOfferButton.Disabled = !pendingOffers;
     }
 
     private void RefreshTrainingStatus()

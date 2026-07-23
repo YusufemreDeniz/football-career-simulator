@@ -175,10 +175,11 @@ public sealed class ClubSquadTests : IDisposable
             Array.Empty<Domain.Transfer.TransferNeed>(),
             Array.Empty<Domain.Transfer.ShortlistEntry>(),
             Array.Empty<Domain.Transfer.TransferTarget>(),
-            Array.Empty<Domain.Transfer.TransferProcess>());
+            Array.Empty<Domain.Transfer.TransferProcess>(),
+            Array.Empty<Domain.Transfer.ClubOffer>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(22, loaded.SchemaVersion);
+        Assert.Equal(23, loaded.SchemaVersion);
         Assert.Single(loaded.ClubSquads);
         Assert.Equal(25, loaded.ClubSquads[0].Members.Count);
         Assert.Equal(1, loaded.ClubSquads[0].ClubId.Value);
