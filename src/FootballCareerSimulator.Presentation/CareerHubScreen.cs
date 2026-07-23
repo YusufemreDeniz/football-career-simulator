@@ -12,11 +12,13 @@ public partial class CareerHubScreen : Control
     private Label _seasonLabel = null!;
     private Label _progressLabel = null!;
     private Label _blockerLabel = null!;
+    private Label _selectionLabel = null!;
     private Label _standingsLabel = null!;
     private Label _statusLabel = null!;
     private SpinBox _roundSelector = null!;
     private ItemList _fixtureList = null!;
     private ItemList _squadList = null!;
+    private Button _approveSelectionButton = null!;
     private Button _playButton = null!;
     private Button _advanceDayButton = null!;
     private Button _advanceWeekButton = null!;
@@ -86,6 +88,13 @@ public partial class CareerHubScreen : Control
         };
         layout.AddChild(_blockerLabel);
 
+        _selectionLabel = new Label
+        {
+            Name = "SelectionLabel",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        layout.AddChild(_selectionLabel);
+
         _standingsLabel = new Label
         {
             Name = "StandingsLabel",
@@ -98,6 +107,10 @@ public partial class CareerHubScreen : Control
         var primaryRow = new HBoxContainer();
         primaryRow.AddThemeConstantOverride("separation", 8);
         layout.AddChild(primaryRow);
+
+        _approveSelectionButton = new Button { Text = "Kadro Onayla" };
+        _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
+        primaryRow.AddChild(_approveSelectionButton);
 
         _playButton = new Button { Text = "Bugünün Maçlarını Oyna" };
         _playButton.Pressed += OnPlayMatches;
@@ -236,6 +249,7 @@ public partial class CareerHubScreen : Control
             _standingsLabel.Text = "Puan durumu: —";
             _fixtureList.Clear();
             _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
+            RefreshSelectionStatus();
             RefreshSquadList();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
             return;
@@ -253,6 +267,7 @@ public partial class CareerHubScreen : Control
         _progressLabel.Text = $"{progressText} · {periodText}";
 
         _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
+        RefreshSelectionStatus();
         RefreshStandings();
         RefreshFixtureList();
         RefreshSquadList();
@@ -266,12 +281,40 @@ public partial class CareerHubScreen : Control
         UpdatePrimaryHints(dueCount, world.Queries.GetTimeAdvanceEligibility().CanAdvance);
     }
 
+    private void RefreshSelectionStatus()
+    {
+        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = _controller.Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+
+        if (pending is null)
+        {
+            _selectionLabel.Text = "Kadro onayı: vadesi gelmiş kendi maçın yok.";
+            _approveSelectionButton.Disabled = true;
+            return;
+        }
+
+        var opponent = _controller.GetClubDisplayName(pending.OpponentClubId);
+        var venue = pending.IsHome ? "Ev" : "Dep";
+        _selectionLabel.Text = pending.IsApproved
+            ? $"Kadro onayı: hazır · fikstür #{pending.FixtureId} ({venue} vs {opponent})"
+            : $"Kadro onayı: gerekli · fikstür #{pending.FixtureId} ({venue} vs {opponent}, {pending.ScheduledIsoDate})";
+        _approveSelectionButton.Disabled = pending.IsApproved;
+    }
+
     private void UpdatePrimaryHints(int dueMatchCount, bool canAdvance)
     {
-        _playButton.Disabled = dueMatchCount == 0;
+        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = _controller.Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        var selectionBlocksPlay = pending is not null && !pending.IsApproved;
+
+        _playButton.Disabled = dueMatchCount == 0 || selectionBlocksPlay;
         _playButton.Text = dueMatchCount == 0
             ? "Bugünün Maçlarını Oyna"
-            : $"Bugünün Maçlarını Oyna ({dueMatchCount})";
+            : selectionBlocksPlay
+                ? "Bugünün Maçlarını Oyna (önce kadro)"
+                : $"Bugünün Maçlarını Oyna ({dueMatchCount})";
 
         _advanceDayButton.Disabled = !canAdvance;
         _advanceWeekButton.Disabled = !canAdvance;
@@ -287,17 +330,17 @@ public partial class CareerHubScreen : Control
         }
 
         var rootSeed = _controller.Host.WorldModule.TimelineStore.Timeline.RootSeed;
-        var squad = _controller.Host.SquadQueries.GetClubSquad(clubId, rootSeed);
+        var squad = _controller.Host.TeamPreparationModule.SquadQueries.GetClubSquad(clubId, rootSeed);
         var clubName = _controller.GetClubDisplayName(clubId);
 
-        foreach (var player in squad.Take(10))
+        foreach (var player in squad.Take(11))
         {
-            _squadList.AddItem($"{player.SquadNumber}. {player.DisplayName}");
+            _squadList.AddItem($"{player.SquadNumber}. {player.DisplayName} ({player.Rating})");
         }
 
-        if (squad.Count > 10)
+        if (squad.Count > 11)
         {
-            _squadList.AddItem($"... +{squad.Count - 10} oyuncu ({clubName})");
+            _squadList.AddItem($"... +{squad.Count - 11} yedek/oyuncu ({clubName})");
         }
     }
 

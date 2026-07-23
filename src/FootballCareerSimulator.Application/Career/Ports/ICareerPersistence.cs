@@ -3,6 +3,7 @@ namespace FootballCareerSimulator.Application.Career.Ports;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 public interface ICareerPersistence
@@ -12,7 +13,8 @@ public interface ICareerPersistence
         WorldTimeline timeline,
         LeagueCompetition league,
         LeagueClubRegistry clubRegistry,
-        ManagerCareer managerCareer);
+        ManagerCareer managerCareer,
+        IReadOnlyList<MatchSelection> matchSelections);
 
     CareerLoadResult Load(string filePath);
 }
@@ -22,5 +24,6 @@ public sealed record CareerLoadResult(
     LeagueCompetition League,
     LeagueClubRegistry ClubRegistry,
     ManagerCareer ManagerCareer,
+    IReadOnlyList<MatchSelection> MatchSelections,
     int SchemaVersion,
     bool WasMigrated);

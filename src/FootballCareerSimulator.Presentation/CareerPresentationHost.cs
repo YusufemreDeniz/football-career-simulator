@@ -4,21 +4,21 @@ using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.Competition.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
-using FootballCareerSimulator.Application.TeamPreparation.Services;
+using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
-using FootballCareerSimulator.Application.WorldCalendar.Services;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure.Career;
 using FootballCareerSimulator.Simulation;
 using Godot;
+
 namespace FootballCareerSimulator.Presentation;
 
 /// <summary>
-/// World Calendar + Competition birleşik Godot composition root (Competition Kart C6).
+/// World Calendar + Competition + TeamPreparation birleşik Godot composition root.
 /// </summary>
 public sealed class CareerPresentationHost
 {
@@ -27,7 +27,7 @@ public sealed class CareerPresentationHost
         CompetitionModule competitionModule,
         ClubGovernanceModule clubModule,
         ManagerCareerModule managerModule,
-        SquadQueryService squadQueries,
+        TeamPreparationModule teamPreparationModule,
         CareerGameSessionService gameSession,
         string defaultSavePath)
     {
@@ -35,7 +35,8 @@ public sealed class CareerPresentationHost
         CompetitionModule = competitionModule ?? throw new ArgumentNullException(nameof(competitionModule));
         ClubModule = clubModule ?? throw new ArgumentNullException(nameof(clubModule));
         ManagerModule = managerModule ?? throw new ArgumentNullException(nameof(managerModule));
-        SquadQueries = squadQueries ?? throw new ArgumentNullException(nameof(squadQueries));
+        TeamPreparationModule = teamPreparationModule
+            ?? throw new ArgumentNullException(nameof(teamPreparationModule));
         GameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
         DefaultSavePath = defaultSavePath ?? throw new ArgumentNullException(nameof(defaultSavePath));
     }
@@ -48,7 +49,7 @@ public sealed class CareerPresentationHost
 
     public ManagerCareerModule ManagerModule { get; }
 
-    public SquadQueryService SquadQueries { get; }
+    public TeamPreparationModule TeamPreparationModule { get; }
 
     public CareerGameSessionService GameSession { get; }
 
@@ -63,7 +64,7 @@ public sealed class CareerPresentationHost
             new LeagueCompetition(new CompetitionId(MvpLeagueIdentity.DefaultCompetitionId)));
         var clubModule = ClubGovernanceModule.CreateMvpLeague();
         var managerModule = ManagerCareerModule.CreateNewCareer(startDate);
-        var squadQueries = new SquadQueryService();
+        var teamPreparation = TeamPreparationModule.Create(competitionStore, managerModule.Store);
 
         var worldModule = WorldCalendarModule.Create(
             startDate,
@@ -77,7 +78,9 @@ public sealed class CareerPresentationHost
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,
             worldModule.TimelineStore,
-            clubModule.Store);
+            clubModule.Store,
+            managerModule.Store,
+            teamPreparation.SelectionStore);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =
@@ -86,6 +89,7 @@ public sealed class CareerPresentationHost
             worldModule.OpenPlanningPeriod,
             worldModule.CompletePlanningPeriod,
             .. competitionModule.IdempotencyResets,
+            teamPreparation.IdempotencyReset,
         ];
 
         var gameSession = new CareerGameSessionService(
@@ -93,6 +97,7 @@ public sealed class CareerPresentationHost
             competitionModule.Store,
             clubModule.Store,
             managerModule.Store,
+            teamPreparation.SelectionStore,
             persistence,
             idempotencyResets);
 
@@ -102,7 +107,7 @@ public sealed class CareerPresentationHost
             competitionModule,
             clubModule,
             managerModule,
-            squadQueries,
+            teamPreparation,
             gameSession,
             savePath);
     }

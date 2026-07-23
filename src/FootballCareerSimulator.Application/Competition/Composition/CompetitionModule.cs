@@ -4,6 +4,8 @@ using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.Competition.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.Competition.Services;
+using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 
@@ -96,17 +98,26 @@ public sealed class CompetitionModule
     public static CompetitionModule CreateForCareer(
         IWorldTimelineStore timelineStore,
         IClubRegistryStore clubRegistryStore,
+        IManagerCareerStore? managerCareerStore = null,
+        IMatchSelectionStore? matchSelectionStore = null,
         long competitionId = 1)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
         var store = new InMemoryLeagueCompetitionStore(league);
-        return CreateForCareerFromStore(store, timelineStore, clubRegistryStore);
+        return CreateForCareerFromStore(
+            store,
+            timelineStore,
+            clubRegistryStore,
+            managerCareerStore,
+            matchSelectionStore);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
         ILeagueCompetitionStore store,
         IWorldTimelineStore timelineStore,
-        IClubRegistryStore clubRegistryStore)
+        IClubRegistryStore clubRegistryStore,
+        IManagerCareerStore? managerCareerStore = null,
+        IMatchSelectionStore? matchSelectionStore = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
@@ -114,7 +125,12 @@ public sealed class CompetitionModule
         var planLeagueFixtures = new PlanLeagueFixturesHandler(store);
         var completeSeason = new CompleteSeasonHandler(store);
         var archiveSeason = new ArchiveSeasonHandler(store);
-        var playFixtureMatch = new PlayFixtureMatchHandler(store, clubRegistryStore, timelineStore);
+        var playFixtureMatch = new PlayFixtureMatchHandler(
+            store,
+            clubRegistryStore,
+            timelineStore,
+            managerCareerStore,
+            matchSelectionStore);
 
         return new CompetitionModule(
             store,

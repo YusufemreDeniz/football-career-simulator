@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
+using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -44,7 +45,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         WorldCalendarModule world,
         CompetitionModule competition,
         ClubGovernanceModule clubs,
-        ManagerCareerModule manager)
+        ManagerCareerModule manager,
+        TeamPreparationModule teamPreparation)
     {
         var idempotencyResets = new List<ICommandIdempotencyReset>
         {
@@ -53,12 +55,14 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             world.CompletePlanningPeriod,
         };
         idempotencyResets.AddRange(competition.IdempotencyResets);
+        idempotencyResets.Add(teamPreparation.IdempotencyReset);
 
         return new CareerGameSessionService(
             world.TimelineStore,
             competition.Store,
             clubs.Store,
             manager.Store,
+            teamPreparation.SelectionStore,
             _persistence,
             idempotencyResets);
     }
@@ -79,7 +83,8 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         var clubs = ClubGovernanceModule.CreateMvpLeague();
         var manager = ManagerCareerModule.CreateNewCareer(PreseasonStart);
         var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
-        var session = CreateSession(world, competition, clubs, manager);
+        var teamPreparation = TeamPreparationModule.Create(competition.Store, manager.Store);
+        var session = CreateSession(world, competition, clubs, manager, teamPreparation);
         const long seasonId = 1;
 
         world.AdvanceSimulationTime.Handle(

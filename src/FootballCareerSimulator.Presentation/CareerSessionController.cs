@@ -1,8 +1,10 @@
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Presentation;
@@ -87,6 +89,40 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult ApproveDefaultSelectionForNextDueMatch()
+    {
+        try
+        {
+            var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+            var pending = Host.TeamPreparationModule.SelectionQueries.GetNextDueManagedFixture(currentDay)
+                ?? throw new InvalidOperationException("Onaylanacak vadesi gelmiş maç yok.");
+
+            if (pending.IsApproved)
+            {
+                return UiActionResult.Ok(
+                    $"Kadro zaten onaylı: fikstür #{pending.FixtureId} ({pending.ScheduledIsoDate}).");
+            }
+
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+
+            Host.TeamPreparationModule.ApproveDefaultSelection.Handle(
+                new ApproveDefaultMatchSelectionCommand(
+                    Guid.NewGuid(),
+                    pending.FixtureId,
+                    clubId));
+
+            var opponent = GetClubDisplayName(pending.OpponentClubId);
+            var venue = pending.IsHome ? "ev sahibi" : "deplasman";
+            return UiActionResult.Ok(
+                $"Kadro onaylandı: fikstür #{pending.FixtureId} · {venue} vs {opponent}.");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Kadro onaylanamadı: {ex.Message}");
+        }
+    }
+
     public PlayMatchesUiResult PlayDueMatches()
     {
         try
@@ -100,6 +136,16 @@ public sealed class CareerSessionController
                 ?? throw new InvalidOperationException("Aktif sezon yok. Önce ligi kur.");
 
             var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
+            var pendingSelection = Host.TeamPreparationModule.SelectionQueries
+                .GetNextDueManagedFixture(currentDay);
+            if (pendingSelection is not null && !pendingSelection.IsApproved)
+            {
+                return new PlayMatchesUiResult(
+                    false,
+                    "Önce kendi maçın için kadroyu onayla (Kadro Onayla).",
+                    Array.Empty<string>());
+            }
+
             var dueFixtures = competition.Queries
                 .GetSeasonFixtures(season.SeasonId)
                 .Where(fixture =>
@@ -134,6 +180,10 @@ public sealed class CareerSessionController
                 true,
                 $"{lines.Count} maç oynandı (gün {currentDay}).",
                 lines);
+        }
+        catch (TeamPreparationInvariantViolationException ex)
+        {
+            return new PlayMatchesUiResult(false, $"Kadro engeli: {ex.Message}", Array.Empty<string>());
         }
         catch (Exception ex)
         {

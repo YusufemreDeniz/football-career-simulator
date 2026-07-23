@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.Competition.Commands;
+using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using Godot;
@@ -117,11 +118,26 @@ public static class CareerUiSmokeTest
             var firstMatchday = roundOne[0].ScheduledDayNumber;
             world.AdvanceSimulationTime.Handle(
                 new AdvanceSimulationTimeCommand(Guid.NewGuid(), firstMatchday));
+
+            var managedClubId = host.ManagerModule.Queries.GetCareer().EmployedClubId ?? 1;
+            var managedRoundOne = roundOne.FirstOrDefault(fixture =>
+                fixture.HomeClubId == managedClubId || fixture.AwayClubId == managedClubId);
+            if (managedRoundOne is not null)
+            {
+                host.TeamPreparationModule.ApproveDefaultSelection.Handle(
+                    new ApproveDefaultMatchSelectionCommand(
+                        Guid.NewGuid(),
+                        managedRoundOne.FixtureId,
+                        managedClubId));
+                passed &= LogCheck("Kadro onayı", true);
+            }
+
+            var playFixture = managedRoundOne ?? roundOne[0];
             var playResult = competition.PlayFixtureMatch!.Handle(
                 new PlayFixtureMatchCommand(
                     Guid.NewGuid(),
                     CareerSessionController.DefaultSeasonId,
-                    roundOne[0].FixtureId,
+                    playFixture.FixtureId,
                     firstMatchday));
             passed &= LogCheck("Maç oynatma", playResult.Succeeded);
             passed &= LogCheck(

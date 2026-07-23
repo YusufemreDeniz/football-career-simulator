@@ -6,7 +6,7 @@ Uzun soluklu, oyuncunun kararlarını, ilişkilerini ve geçmişini yıllarca ha
 
 Dokümantasyon ve teknik spike aşaması tamamlanmıştır. Üretim implementasyonu **aktif ilerliyor**: World & Calendar, Competition, Match, Club Governance, Manager Career, Team Preparation (kadro özeti) ve birleşik Career SQLite kaydı kodlanmıştır.
 
-Godot Presentation katmanında ince bir kariyer döngüsü vardır: **ana menü → kariyer merkezi → maç sonuçları** (yeni kariyer / devam et, lig kurma, fikstür, maç oynatma, zaman ilerletme, kaydet/yükle). Bu bir görsel ürün UI'sı değil; oynanabilir dikey kesit kontrol yüzeyidir. `Spike1Placeholder` / `Spike4Placeholder` yalnızca eski spike kanıtı için durur; asıl oyun akışı üretim context'leri üzerinden yürür.
+Godot Presentation katmanında ince bir kariyer döngüsü vardır: **ana menü → kariyer merkezi → maç sonuçları** (yeni kariyer / devam et, lig kurma, **maç öncesi kadro onayı**, fikstür, maç oynatma, zaman ilerletme, kaydet/yükle). Bu bir görsel ürün UI'sı değil; oynanabilir dikey kesit kontrol yüzeyidir. `Spike1Placeholder` / `Spike4Placeholder` yalnızca eski spike kanıtı için durur; asıl oyun akışı üretim context'leri üzerinden yürür.
 
 Hedef yığın: Windows 10/11 x64, Godot 4.7-stable (mono/.NET), C#, Godot'tan bağımsız saf .NET domain/simülasyon çekirdeği. Ayrıntı: `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md`.
 
@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (takvim → lig → maç → menajer → kayıt → Godot hub) kilitlenmiştir. Sıradaki öncelik, MVP için **tek bir sonraki bounded context derinliği** (ör. antrenman/kadro kararları veya istihdam/yönetim baskısı) — transfer, ilişki, diyalog ve medya henüz açılmamalıdır. Üretim planı: `docs/19_PRODUCTION_IMPLEMENTATION_PLAN.md`. Kararlar: `docs/15_DECISION_LOG.md`.
+İnce kariyer döngüsü + `MatchSelection` (onaylı ilk 11, SQLite v7) kilitlenmiştir. Sıradaki öncelik: istihdam/yönetim baskısı veya antrenman derinliği — transfer, ilişki, diyalog ve medya henüz açılmamalıdır. Üretim planı: `docs/19_PRODUCTION_IMPLEMENTATION_PLAN.md`.
 
 ## Klasör Yapısı
 

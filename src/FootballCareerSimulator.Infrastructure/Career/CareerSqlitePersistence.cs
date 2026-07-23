@@ -2,6 +2,8 @@ using FootballCareerSimulator.Application.Career.Ports;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure.WorldCalendar;
 using FootballCareerSimulator.Simulation.Career;
@@ -16,16 +18,18 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         WorldTimeline timeline,
         LeagueCompetition league,
         LeagueClubRegistry clubRegistry,
-        ManagerCareer managerCareer)
+        ManagerCareer managerCareer,
+        IReadOnlyList<MatchSelection> matchSelections)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
         ArgumentNullException.ThrowIfNull(clubRegistry);
         ArgumentNullException.ThrowIfNull(managerCareer);
+        ArgumentNullException.ThrowIfNull(matchSelections);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
-            timeline, league, clubRegistry, managerCareer);
+            timeline, league, clubRegistry, managerCareer, matchSelections);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -44,6 +48,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertCompetition(connection, transaction, league);
             InsertClubs(connection, transaction, clubRegistry);
             InsertManager(connection, transaction, managerCareer);
+            InsertMatchSelections(connection, transaction, matchSelections);
 
             transaction.Commit();
         }
@@ -110,6 +115,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV5ToV6InPlace(filePath);
             wasMigrated = true;
             version = 6;
+        }
+
+        if (version == 6 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 7)
+        {
+            WorldCalendarSqliteMigrator.MigrateV6ToV7InPlace(filePath);
+            wasMigrated = true;
+            version = 7;
         }
 
         if (wasMigrated)
@@ -210,6 +222,17 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 DisplayName TEXT NOT NULL,
                 EmployedClubId INTEGER NOT NULL,
                 EmploymentStartedDayNumber INTEGER NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE MatchSelectionState (
+                FixtureId INTEGER NOT NULL,
+                ClubId INTEGER NOT NULL,
+                Status INTEGER NOT NULL,
+                StartingSlotsCsv TEXT NOT NULL,
+                BenchSlotsCsv TEXT NOT NULL,
+                PRIMARY KEY (FixtureId, ClubId)
             );
             """);
     }
@@ -378,6 +401,33 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         command.ExecuteNonQuery();
     }
 
+    private static void InsertMatchSelections(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<MatchSelection> matchSelections)
+    {
+        foreach (var selection in matchSelections)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO MatchSelectionState (
+                    FixtureId, ClubId, Status, StartingSlotsCsv, BenchSlotsCsv)
+                VALUES ($fixtureId, $clubId, $status, $startingSlots, $benchSlots);
+                """;
+            command.Parameters.AddWithValue("$fixtureId", selection.FixtureId.Value);
+            command.Parameters.AddWithValue("$clubId", selection.ClubId.Value);
+            command.Parameters.AddWithValue("$status", (int)selection.Status);
+            command.Parameters.AddWithValue(
+                "$startingSlots",
+                string.Join(',', selection.StartingSlotIndices));
+            command.Parameters.AddWithValue(
+                "$benchSlots",
+                string.Join(',', selection.BenchSlotIndices));
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static (int Version, bool IsLegacySpikeSave) ReadSchemaMetadata(string filePath)
     {
         try
@@ -437,8 +487,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var league = ReadLeague(connection);
         var clubRegistry = ReadClubRegistry(connection);
         var managerCareer = ReadManager(connection, timeline.CurrentDate);
+        var matchSelections = ReadMatchSelections(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
-            timeline, league, clubRegistry, managerCareer);
+            timeline, league, clubRegistry, managerCareer, matchSelections);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -465,6 +516,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             LeagueCompetition league;
             LeagueClubRegistry clubRegistry;
             ManagerCareer managerCareer;
+            IReadOnlyList<MatchSelection> matchSelections;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -480,19 +532,27 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 league = ReadLeague(connection);
                 clubRegistry = ReadClubRegistry(connection);
                 managerCareer = ReadManager(connection, timeline.CurrentDate);
+                matchSelections = ReadMatchSelections(connection);
             }
 
             SqliteConnection.ClearAllPools();
 
             var recomputedHash = CareerCanonicalStateHasher.ComputeHash(
-                timeline, league, clubRegistry, managerCareer);
+                timeline, league, clubRegistry, managerCareer, matchSelections);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
                     $"Bütünlük hash'i eşleşmiyor (beklenen: {canonicalHash}, hesaplanan: {recomputedHash}); save bozulmuş olabilir.");
             }
 
-            return new CareerLoadResult(timeline, league, clubRegistry, managerCareer, schemaVersion, wasMigrated);
+            return new CareerLoadResult(
+                timeline,
+                league,
+                clubRegistry,
+                managerCareer,
+                matchSelections,
+                schemaVersion,
+                wasMigrated);
         }
         catch (SaveIntegrityException)
         {
@@ -712,6 +772,48 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             reader.GetInt64(2),
             reader.GetInt32(3),
             fallbackStartDate);
+    }
+
+    private static IReadOnlyList<MatchSelection> ReadMatchSelections(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "MatchSelectionState"))
+        {
+            return Array.Empty<MatchSelection>();
+        }
+
+        var selections = new List<MatchSelection>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT FixtureId, ClubId, Status, StartingSlotsCsv, BenchSlotsCsv
+            FROM MatchSelectionState
+            ORDER BY FixtureId, ClubId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var starting = ParseSlotCsv(reader.GetString(3));
+            var bench = ParseSlotCsv(reader.GetString(4));
+            selections.Add(MatchSelection.Rehydrate(
+                new FixtureId(reader.GetInt64(0)),
+                new ClubId(reader.GetInt64(1)),
+                starting,
+                bench,
+                (MatchSelectionStatus)reader.GetInt32(2)));
+        }
+
+        return selections;
+    }
+
+    private static IReadOnlyList<int> ParseSlotCsv(string csv)
+    {
+        if (string.IsNullOrWhiteSpace(csv))
+        {
+            return Array.Empty<int>();
+        }
+
+        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(int.Parse)
+            .ToArray();
     }
 
     private static bool TableExists(SqliteConnection connection, string tableName)

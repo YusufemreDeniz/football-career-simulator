@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.Career.Ports;
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 
 public sealed class CareerGameSessionService
@@ -13,6 +14,7 @@ public sealed class CareerGameSessionService
     private readonly ILeagueCompetitionStore _competitionStore;
     private readonly IClubRegistryStore _clubRegistryStore;
     private readonly IManagerCareerStore _managerCareerStore;
+    private readonly IMatchSelectionStore _matchSelectionStore;
     private readonly ICareerPersistence _persistence;
     private readonly IReadOnlyList<ICommandIdempotencyReset> _idempotencyResets;
 
@@ -21,6 +23,7 @@ public sealed class CareerGameSessionService
         ILeagueCompetitionStore competitionStore,
         IClubRegistryStore clubRegistryStore,
         IManagerCareerStore managerCareerStore,
+        IMatchSelectionStore matchSelectionStore,
         ICareerPersistence persistence,
         IEnumerable<ICommandIdempotencyReset> idempotencyResets)
     {
@@ -28,6 +31,7 @@ public sealed class CareerGameSessionService
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
         _managerCareerStore = managerCareerStore ?? throw new ArgumentNullException(nameof(managerCareerStore));
+        _matchSelectionStore = matchSelectionStore ?? throw new ArgumentNullException(nameof(matchSelectionStore));
         _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
         _idempotencyResets = idempotencyResets?.ToArray()
             ?? throw new ArgumentNullException(nameof(idempotencyResets));
@@ -41,7 +45,8 @@ public sealed class CareerGameSessionService
         var league = _competitionStore.League;
         var clubRegistry = _clubRegistryStore.Registry;
         var managerCareer = _managerCareerStore.Career;
-        _persistence.Save(filePath, timeline, league, clubRegistry, managerCareer);
+        var matchSelections = _matchSelectionStore.Selections;
+        _persistence.Save(filePath, timeline, league, clubRegistry, managerCareer, matchSelections);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -61,6 +66,7 @@ public sealed class CareerGameSessionService
         _competitionStore.Replace(loaded.League);
         _clubRegistryStore.Replace(loaded.ClubRegistry);
         _managerCareerStore.Replace(loaded.ManagerCareer);
+        _matchSelectionStore.ReplaceAll(loaded.MatchSelections);
 
         foreach (var reset in _idempotencyResets)
         {
