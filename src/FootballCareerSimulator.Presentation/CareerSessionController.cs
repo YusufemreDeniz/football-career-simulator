@@ -55,12 +55,15 @@ public sealed class CareerSessionController
 
             if (season.ParticipantCount < CompetitionMvpConstraints.LeagueTeamCount)
             {
-                for (var clubId = season.ParticipantCount + 1L;
-                     clubId <= CompetitionMvpConstraints.LeagueTeamCount;
-                     clubId++)
+                for (var participantClubId = season.ParticipantCount + 1L;
+                     participantClubId <= CompetitionMvpConstraints.LeagueTeamCount;
+                     participantClubId++)
                 {
                     competition.RegisterSeasonParticipant.Handle(
-                        new RegisterSeasonParticipantCommand(Guid.NewGuid(), DefaultSeasonId, clubId));
+                        new RegisterSeasonParticipantCommand(
+                            Guid.NewGuid(),
+                            DefaultSeasonId,
+                            participantClubId));
                 }
 
                 season = competition.Queries.GetCurrentSeason()!;
@@ -85,10 +88,10 @@ public sealed class CareerSessionController
                 season = competition.Queries.GetCurrentSeason()!;
             }
 
-            if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
+            if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long employedClubId)
             {
-                var day = Host.WorldModule.Queries.GetCurrentGameDate();
-                var id = new Domain.Shared.ClubId(clubId);
+                var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+                var id = new Domain.Shared.ClubId(employedClubId);
                 Host.PlayerCareerModule.Development.EnsureClub(
                     id,
                     Host.WorldModule.TimelineStore.Timeline.RootSeed,
@@ -299,7 +302,7 @@ public sealed class CareerSessionController
                 (b.SourceContext, b.DescriptionCode))));
         }
 
-        var day = Host.WorldModule.Queries.GetCurrentGameDate();
+        var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
         var declined = Host.PlayerCareerModule.Development.ApplyDueAging(day);
         var expired = Host.ContractModule.Registration.ExpireDueContracts(day);
         if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
@@ -336,7 +339,7 @@ public sealed class CareerSessionController
             var season = competition.Queries.GetCurrentSeason()
                 ?? throw new InvalidOperationException("Aktif sezon yok.");
 
-            var current = Host.WorldModule.Queries.GetCurrentGameDate();
+            var current = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
             competition.CompleteSeason.Handle(
                 new CompleteSeasonCommand(Guid.NewGuid(), season.SeasonId, current.DayNumber));
             var declined = Host.PlayerCareerModule.Development.ApplyDueAging(current);
