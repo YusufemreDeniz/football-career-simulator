@@ -180,10 +180,11 @@ public sealed class TrainingPhysicalStateTests : IDisposable
             Array.Empty<Domain.TeamPreparation.TacticPlan>(),
             Array.Empty<Domain.Transfer.TransferNeed>(),
             Array.Empty<Domain.Transfer.ShortlistEntry>(),
-            Array.Empty<Domain.Transfer.TransferTarget>());
+            Array.Empty<Domain.Transfer.TransferTarget>(),
+            Array.Empty<Domain.Transfer.TransferProcess>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(20, loaded.SchemaVersion);
+        Assert.Equal(21, loaded.SchemaVersion);
         Assert.Single(loaded.TrainingPlans);
         Assert.Equal(TrainingIntensity.Medium, loaded.TrainingPlans[0].Intensity);
         Assert.Equal(25, loaded.PhysicalStates.Count);

@@ -10,17 +10,20 @@ public sealed class TransferNeedQueryService
     private readonly ITransferNeedStore _store;
     private readonly IShortlistStore _shortlistStore;
     private readonly ITransferTargetStore _targetStore;
+    private readonly ITransferProcessStore _processStore;
     private readonly IManagerCareerStore _managerCareerStore;
 
     public TransferNeedQueryService(
         ITransferNeedStore store,
         IShortlistStore shortlistStore,
         ITransferTargetStore targetStore,
+        ITransferProcessStore processStore,
         IManagerCareerStore managerCareerStore)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _shortlistStore = shortlistStore ?? throw new ArgumentNullException(nameof(shortlistStore));
         _targetStore = targetStore ?? throw new ArgumentNullException(nameof(targetStore));
+        _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
     }
@@ -80,6 +83,29 @@ public sealed class TransferNeedQueryService
             targets);
     }
 
+    public ManagedClubTransferProcessesReadModel GetManagedClubProcesses()
+    {
+        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId })
+        {
+            return new ManagedClubTransferProcessesReadModel(
+                null,
+                0,
+                Array.Empty<TransferProcessLineReadModel>());
+        }
+
+        var active = _processStore.GetForBuyingClub(clubId)
+            .Where(p => p.IsActive)
+            .Select(p => new TransferProcessLineReadModel(
+                p.ProcessId.Value,
+                p.TargetId.Value,
+                p.PlayerId.Value,
+                TranslateProcessStatus(p.Status),
+                p.FailureReasonCode))
+            .ToArray();
+
+        return new ManagedClubTransferProcessesReadModel(clubId.Value, active.Length, active);
+    }
+
     private static TransferNeedLineReadModel ToNeedLine(TransferNeed need) =>
         new(
             need.NeedId.Value,
@@ -99,5 +125,15 @@ public sealed class TransferNeedQueryService
             TransferNeedKind.ExpiringContract => "Sözleşme bitişi",
             TransferNeedKind.TacticalRequirement => "Taktik gereksinim",
             _ => kind.ToString(),
+        };
+
+    private static string TranslateProcessStatus(TransferProcessStatus status) =>
+        status switch
+        {
+            TransferProcessStatus.UnderEvaluation => "Değerlendirmede",
+            TransferProcessStatus.Withdrawn => "Geri çekildi",
+            TransferProcessStatus.Failed => "Başarısız",
+            TransferProcessStatus.Archived => "Arşiv",
+            _ => status.ToString(),
         };
 }

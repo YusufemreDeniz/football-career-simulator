@@ -13,15 +13,19 @@ public sealed class TransferModule
         ITransferNeedStore needStore,
         IShortlistStore shortlistStore,
         ITransferTargetStore targetStore,
+        ITransferProcessStore processStore,
         TransferNeedService needs,
         ShortlistTargetService shortlistTargets,
+        TransferProcessService processes,
         TransferNeedQueryService queries)
     {
         NeedStore = needStore;
         ShortlistStore = shortlistStore;
         TargetStore = targetStore;
+        ProcessStore = processStore;
         Needs = needs;
         ShortlistTargets = shortlistTargets;
+        Processes = processes;
         Queries = queries;
     }
 
@@ -31,9 +35,13 @@ public sealed class TransferModule
 
     public ITransferTargetStore TargetStore { get; }
 
+    public ITransferProcessStore ProcessStore { get; }
+
     public TransferNeedService Needs { get; }
 
     public ShortlistTargetService ShortlistTargets { get; }
+
+    public TransferProcessService Processes { get; }
 
     public TransferNeedQueryService Queries { get; }
 
@@ -43,17 +51,21 @@ public sealed class TransferModule
         IManagerCareerStore managerCareerStore,
         ITransferNeedStore? needStore = null,
         IShortlistStore? shortlistStore = null,
-        ITransferTargetStore? targetStore = null)
+        ITransferTargetStore? targetStore = null,
+        ITransferProcessStore? processStore = null)
     {
         var needs = needStore ?? new InMemoryTransferNeedStore();
         var shortlist = shortlistStore ?? new InMemoryShortlistStore();
         var targets = targetStore ?? new InMemoryTransferTargetStore();
+        var processes = processStore ?? new InMemoryTransferProcessStore();
         return new TransferModule(
             needs,
             shortlist,
             targets,
+            processes,
             new TransferNeedService(needs, contractStore, squadStore),
             new ShortlistTargetService(shortlist, targets, needs),
-            new TransferNeedQueryService(needs, shortlist, targets, managerCareerStore));
+            new TransferProcessService(processes, targets, needs),
+            new TransferNeedQueryService(needs, shortlist, targets, processes, managerCareerStore));
     }
 }

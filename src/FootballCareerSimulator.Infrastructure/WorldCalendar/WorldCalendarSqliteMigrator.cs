@@ -1263,6 +1263,71 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV20ToV21InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV20ToV21(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V20 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.Move(workingCopyPath, filePath, overwrite: true);
+    }
+
+    private static void MigrateV20ToV21(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                CREATE TABLE IF NOT EXISTS TransferProcessState (
+                    ProcessId INTEGER PRIMARY KEY,
+                    NeedId INTEGER NOT NULL,
+                    TargetId INTEGER NOT NULL,
+                    BuyingClubId INTEGER NOT NULL,
+                    PlayerId INTEGER NOT NULL,
+                    SellingClubId INTEGER NULL,
+                    IsFreeAgent INTEGER NOT NULL,
+                    Status INTEGER NOT NULL,
+                    FailureReasonCode TEXT NULL,
+                    OpenedDayNumber INTEGER NOT NULL,
+                    TerminalDayNumber INTEGER NULL
+                );
+                """);
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 21);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void TryDelete(string path)
     {
         try

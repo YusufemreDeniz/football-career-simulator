@@ -20,6 +20,7 @@ public partial class CareerHubScreen : Control
     private Label _contractLabel = null!;
     private Label _transferNeedLabel = null!;
     private Label _shortlistTargetLabel = null!;
+    private Label _transferProcessLabel = null!;
     private Label _tacticLabel = null!;
     private Label _squadStatusLabel = null!;
     private Label _standingsLabel = null!;
@@ -36,6 +37,8 @@ public partial class CareerHubScreen : Control
     private Button _closeTransferNeedButton = null!;
     private Button _suggestTargetButton = null!;
     private Button _dropTargetButton = null!;
+    private Button _openProcessButton = null!;
+    private Button _withdrawProcessButton = null!;
     private Button _trainLowButton = null!;
     private Button _trainMediumButton = null!;
     private Button _trainHighButton = null!;
@@ -234,6 +237,21 @@ public partial class CareerHubScreen : Control
         _dropTargetButton = SecondaryButton("Hedefi Düşür");
         _dropTargetButton.Pressed += () => Apply(_controller.DropOldestListedTransferTarget());
         targetRow.AddChild(_dropTargetButton);
+
+        _transferProcessLabel = BodyLabel("TransferProcessLabel", autowrap: true);
+        clubCol.AddChild(_transferProcessLabel);
+
+        var processRow = new HBoxContainer();
+        processRow.AddThemeConstantOverride("separation", 8);
+        clubCol.AddChild(processRow);
+
+        _openProcessButton = SecondaryButton("Süreç Aç");
+        _openProcessButton.Pressed += () => Apply(_controller.OpenTransferProcessFromOldestTarget());
+        processRow.AddChild(_openProcessButton);
+
+        _withdrawProcessButton = SecondaryButton("Süreci Geri Çek");
+        _withdrawProcessButton.Pressed += () => Apply(_controller.WithdrawOldestActiveTransferProcess());
+        processRow.AddChild(_withdrawProcessButton);
 
         var prepCol = new VBoxContainer
         {
@@ -515,6 +533,7 @@ public partial class CareerHubScreen : Control
             RefreshContractStatus();
             RefreshTransferNeedStatus();
             RefreshShortlistTargetStatus();
+            RefreshTransferProcessStatus();
             RefreshTacticStatus();
             RefreshSquadList();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
@@ -543,6 +562,7 @@ public partial class CareerHubScreen : Control
         RefreshContractStatus();
         RefreshTransferNeedStatus();
         RefreshShortlistTargetStatus();
+        RefreshTransferProcessStatus();
         RefreshTacticStatus();
         RefreshStandings();
         RefreshFixtureList();
@@ -559,6 +579,27 @@ public partial class CareerHubScreen : Control
         UpdateTransferNeedButtons(manager);
         UpdateTrainingButtons(manager);
         UpdateTacticButtons(manager);
+    }
+
+    private void RefreshTransferProcessStatus()
+    {
+        var view = _controller.Host.TransferModule.Queries.GetManagedClubProcesses();
+        if (view.ClubId is null)
+        {
+            _transferProcessLabel.Text = "Transfer süreci: işsiz — kayıt yok.";
+            return;
+        }
+
+        if (view.ActiveCount == 0)
+        {
+            _transferProcessLabel.Text = "Transfer süreci: aktif yok — hedeften süreç aç (müzakere yok).";
+            return;
+        }
+
+        var preview = string.Join(
+            " · ",
+            view.ActiveProcesses.Take(2).Select(p => $"#{p.ProcessId} {p.StatusName} P{p.PlayerId}"));
+        _transferProcessLabel.Text = $"Transfer süreci: {view.ActiveCount} aktif · {preview}";
     }
 
     private void RefreshShortlistTargetStatus()
@@ -620,8 +661,13 @@ public partial class CareerHubScreen : Control
         _refreshTransferNeedsButton.Disabled = !employed;
         _declareTransferNeedButton.Disabled = !employed;
         _closeTransferNeedButton.Disabled = !employed || openCount == 0;
+        var activeProcessCount = employed
+            ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveCount
+            : 0;
         _suggestTargetButton.Disabled = !employed;
         _dropTargetButton.Disabled = !employed || listedCount == 0;
+        _openProcessButton.Disabled = !employed;
+        _withdrawProcessButton.Disabled = !employed || activeProcessCount == 0;
     }
 
     private void RefreshTrainingStatus()

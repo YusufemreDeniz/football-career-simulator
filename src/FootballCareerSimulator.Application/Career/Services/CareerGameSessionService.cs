@@ -24,6 +24,7 @@ public sealed class CareerGameSessionService
     private readonly ITransferNeedStore _transferNeedStore;
     private readonly IShortlistStore _shortlistStore;
     private readonly ITransferTargetStore _transferTargetStore;
+    private readonly ITransferProcessStore _transferProcessStore;
     private readonly ITrainingPhysicalStateStore _trainingStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly IContractStore _contractStore;
@@ -42,6 +43,7 @@ public sealed class CareerGameSessionService
         ITransferNeedStore transferNeedStore,
         IShortlistStore shortlistStore,
         ITransferTargetStore transferTargetStore,
+        ITransferProcessStore transferProcessStore,
         ITrainingPhysicalStateStore trainingStore,
         IPlayerCareerStore playerCareerStore,
         IContractStore contractStore,
@@ -59,6 +61,7 @@ public sealed class CareerGameSessionService
         _transferNeedStore = transferNeedStore ?? throw new ArgumentNullException(nameof(transferNeedStore));
         _shortlistStore = shortlistStore ?? throw new ArgumentNullException(nameof(shortlistStore));
         _transferTargetStore = transferTargetStore ?? throw new ArgumentNullException(nameof(transferTargetStore));
+        _transferProcessStore = transferProcessStore ?? throw new ArgumentNullException(nameof(transferProcessStore));
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
         _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
@@ -93,7 +96,8 @@ public sealed class CareerGameSessionService
             _tacticPlanStore.Plans,
             _transferNeedStore.Needs,
             _shortlistStore.Entries,
-            _transferTargetStore.Targets);
+            _transferTargetStore.Targets,
+            _transferProcessStore.Processes);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -123,6 +127,7 @@ public sealed class CareerGameSessionService
         _transferNeedStore.ReplaceAll(loaded.TransferNeeds);
         _shortlistStore.ReplaceAll(loaded.ShortlistEntries);
         _transferTargetStore.ReplaceAll(loaded.TransferTargets);
+        _transferProcessStore.ReplaceAll(loaded.TransferProcesses);
 
         foreach (var reset in _idempotencyResets)
         {

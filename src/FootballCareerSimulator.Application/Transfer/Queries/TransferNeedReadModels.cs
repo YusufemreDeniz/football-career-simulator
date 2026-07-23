@@ -33,3 +33,15 @@ public sealed record ManagedClubShortlistTargetsReadModel(
     int ListedTargetCount,
     IReadOnlyList<ShortlistLineReadModel> ActiveShortlist,
     IReadOnlyList<TransferTargetLineReadModel> ListedTargets);
+
+public sealed record TransferProcessLineReadModel(
+    long ProcessId,
+    long TargetId,
+    long PlayerId,
+    string StatusName,
+    string? FailureReasonCode);
+
+public sealed record ManagedClubTransferProcessesReadModel(
+    long? ClubId,
+    int ActiveCount,
+    IReadOnlyList<TransferProcessLineReadModel> ActiveProcesses);

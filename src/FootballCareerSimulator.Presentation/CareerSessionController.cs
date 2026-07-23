@@ -411,6 +411,56 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult OpenTransferProcessFromOldestTarget()
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var id = new Domain.Shared.ClubId(clubId);
+            if (Host.TransferModule.Queries.GetManagedClubShortlistTargets().ListedTargetCount == 0)
+            {
+                SuggestTransferTarget();
+            }
+
+            var process = Host.TransferModule.Processes.OpenOldestListedTargetForClub(id, day);
+            return UiActionResult.Ok(
+                $"Süreç açıldı: #{process.ProcessId.Value} · hedef #{process.TargetId.Value}"
+                + $" · oyuncu {process.PlayerId.Value} (değerlendirmede).");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Süreç açılamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Süreç hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult WithdrawOldestActiveTransferProcess()
+    {
+        try
+        {
+            var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+                .OrderBy(p => p.ProcessId)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("Geri çekilecek aktif süreç yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TransferModule.Processes.Withdraw(new TransferProcessId(active.ProcessId), day);
+            return UiActionResult.Ok($"Süreç geri çekildi: #{active.ProcessId}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Süreç geri çekilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Süreç geri çekme hatası: {ex.Message}");
+        }
+    }
+
     public UiActionResult SetWeeklyTraining(TrainingIntensity intensity)
     {
         try
