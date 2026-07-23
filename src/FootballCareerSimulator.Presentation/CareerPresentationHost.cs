@@ -65,12 +65,6 @@ public sealed class CareerPresentationHost
         var clubModule = ClubGovernanceModule.CreateMvpLeague();
         const long startingClubId = 1;
         var startingStrength = clubModule.Queries.GetClub(startingClubId)?.SportiveStrength ?? 50;
-        var managerModule = ManagerCareerModule.CreateNewCareer(
-            startDate,
-            startingClubId: startingClubId,
-            clubSportiveStrength: startingStrength);
-        var teamPreparation = TeamPreparationModule.Create(competitionStore, managerModule.Store);
-
         var worldModule = WorldCalendarModule.Create(
             startDate,
             rootSeed: 42,
@@ -79,6 +73,14 @@ public sealed class CareerPresentationHost
                 new UnplayedFixturesTimeAdvanceBlockerSource(competitionStore, timelineStore),
             ],
             timelineStore: timelineStore);
+
+        var managerModule = ManagerCareerModule.CreateForCareer(
+            startDate,
+            clubModule.Store,
+            worldModule.TimelineStore,
+            startingClubId: startingClubId,
+            clubSportiveStrength: startingStrength);
+        var teamPreparation = TeamPreparationModule.Create(competitionStore, managerModule.Store);
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,
@@ -95,6 +97,7 @@ public sealed class CareerPresentationHost
             worldModule.CompletePlanningPeriod,
             .. competitionModule.IdempotencyResets,
             teamPreparation.IdempotencyReset,
+            .. managerModule.IdempotencyResets,
         ];
 
         var gameSession = new CareerGameSessionService(

@@ -14,4 +14,7 @@ public sealed record ManagerCareerReadModel(
     string? EmploymentEndReason,
     long? LastClubId,
     long? DismissedDueToFixtureId,
-    int? DismissedAtDayNumber);
+    int? DismissedAtDayNumber,
+    long? PendingOfferId,
+    long? PendingOfferClubId,
+    string? PendingOfferStatus);

@@ -19,6 +19,8 @@ public partial class CareerHubScreen : Control
     private ItemList _fixtureList = null!;
     private ItemList _squadList = null!;
     private Button _approveSelectionButton = null!;
+    private Button _generateOfferButton = null!;
+    private Button _acceptOfferButton = null!;
     private Button _playButton = null!;
     private Button _advanceDayButton = null!;
     private Button _advanceWeekButton = null!;
@@ -123,6 +125,18 @@ public partial class CareerHubScreen : Control
         _advanceWeekButton = new Button { Text = "7 Gün İlerlet" };
         _advanceWeekButton.Pressed += () => Apply(_controller.AdvanceDays(7));
         primaryRow.AddChild(_advanceWeekButton);
+
+        var jobRow = new HBoxContainer();
+        jobRow.AddThemeConstantOverride("separation", 8);
+        layout.AddChild(jobRow);
+
+        _generateOfferButton = new Button { Text = "İş Teklifi Ara" };
+        _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
+        jobRow.AddChild(_generateOfferButton);
+
+        _acceptOfferButton = new Button { Text = "Teklifi Kabul Et" };
+        _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
+        jobRow.AddChild(_acceptOfferButton);
 
         var saveLoadRow = new HBoxContainer();
         saveLoadRow.AddThemeConstantOverride("separation", 8);
@@ -238,11 +252,11 @@ public partial class CareerHubScreen : Control
             var lastClub = manager.LastClubId is long lastClubId
                 ? _controller.GetClubDisplayName(lastClubId)
                 : "—";
+            var offerText = manager.PendingOfferClubId is long offerClubId
+                ? $" · Teklif: {GetClubDisplayNameSafe(offerClubId)} (#{manager.PendingOfferId})"
+                : " · Teklif: yok — 'İş Teklifi Ara'";
             _managerLabel.Text =
-                $"Menajer: {manager.DisplayName} · İŞSİZ (kovuldu: {lastClub})"
-                + (manager.DismissedDueToFixtureId is long fixture
-                    ? $" · fikstür #{fixture}"
-                    : string.Empty);
+                $"Menajer: {manager.DisplayName} · İŞSİZ (kovuldu: {lastClub}){offerText}";
         }
         else
         {
@@ -273,6 +287,7 @@ public partial class CareerHubScreen : Control
             RefreshSelectionStatus();
             RefreshSquadList();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
+            UpdateJobOfferButtons(manager);
             return;
         }
 
@@ -300,7 +315,18 @@ public partial class CareerHubScreen : Control
                 && string.Equals(fixture.Status, nameof(FixtureStatus.Planned), StringComparison.Ordinal));
 
         UpdatePrimaryHints(dueCount, world.Queries.GetTimeAdvanceEligibility().CanAdvance);
+        UpdateJobOfferButtons(manager);
     }
+
+    private void UpdateJobOfferButtons(
+        Application.ManagerCareer.Queries.ManagerCareerReadModel manager)
+    {
+        var unemployed = string.Equals(manager.EmploymentStatus, "Unemployed", StringComparison.Ordinal);
+        _generateOfferButton.Disabled = !unemployed;
+        _acceptOfferButton.Disabled = !unemployed || manager.PendingOfferId is null;
+    }
+
+    private string GetClubDisplayNameSafe(long clubId) => _controller.GetClubDisplayName(clubId);
 
     private void RefreshSelectionStatus()
     {

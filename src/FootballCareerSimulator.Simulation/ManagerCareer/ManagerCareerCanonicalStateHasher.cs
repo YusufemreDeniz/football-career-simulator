@@ -26,6 +26,21 @@ public static class ManagerCareerCanonicalStateHasher
             .Append(career.DismissedAt?.DayNumber.ToString() ?? string.Empty)
             .Append(';');
 
+        if (career.PendingJobOffer is { } offer)
+        {
+            builder.Append("PendingOfferId=").Append(offer.Id.Value).Append(';');
+            builder.Append("PendingOfferClubId=").Append(offer.ClubId.Value).Append(';');
+            builder.Append("PendingOfferStatus=").Append((int)offer.Status).Append(';');
+            builder.Append("PendingOfferCreatedAt=").Append(offer.CreatedAt.DayNumber).Append(';');
+        }
+        else
+        {
+            builder.Append("PendingOfferId=").Append(';');
+            builder.Append("PendingOfferClubId=").Append(';');
+            builder.Append("PendingOfferStatus=").Append(';');
+            builder.Append("PendingOfferCreatedAt=").Append(';');
+        }
+
         if (career.ActiveEmployment is { } employment)
         {
             builder.Append("EmployedClubId=").Append(employment.ClubId.Value).Append(';');

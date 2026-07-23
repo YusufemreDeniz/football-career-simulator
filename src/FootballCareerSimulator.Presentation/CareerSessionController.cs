@@ -1,9 +1,11 @@
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.ManagerCareer.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
@@ -120,6 +122,55 @@ public sealed class CareerSessionController
         catch (Exception ex)
         {
             return UiActionResult.Fail($"Kadro onaylanamadı: {ex.Message}");
+        }
+    }
+
+    public UiActionResult GenerateJobOffer()
+    {
+        try
+        {
+            var handler = Host.ManagerModule.GenerateJobOffer
+                ?? throw new InvalidOperationException("İş teklifi servisi bağlı değil.");
+
+            var result = handler.Handle(new GenerateUnemployedJobOfferCommand(Guid.NewGuid()));
+            if (result.ClubId is not long clubId)
+            {
+                return UiActionResult.Fail("İş teklifi üretilemedi.");
+            }
+
+            var clubName = GetClubDisplayName(clubId);
+            return result.WasAlreadyHeld
+                ? UiActionResult.Ok($"Bekleyen teklif zaten var: {clubName} (#{result.OfferId}).")
+                : UiActionResult.Ok($"Yeni iş teklifi: {clubName} (#{result.OfferId}).");
+        }
+        catch (ManagerCareerInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"İş teklifi alınamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"İş teklifi hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult AcceptJobOffer()
+    {
+        try
+        {
+            var handler = Host.ManagerModule.AcceptJobOffer
+                ?? throw new InvalidOperationException("İş teklifi kabul servisi bağlı değil.");
+
+            var result = handler.Handle(new AcceptPendingJobOfferCommand(Guid.NewGuid()));
+            var clubName = GetClubDisplayName(result.ClubId);
+            return UiActionResult.Ok($"Teklif kabul edildi — yeni kulüp: {clubName}.");
+        }
+        catch (ManagerCareerInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Teklif kabul edilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Teklif kabul hatası: {ex.Message}");
         }
     }
 

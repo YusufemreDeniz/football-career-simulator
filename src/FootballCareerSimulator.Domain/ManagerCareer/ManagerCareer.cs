@@ -14,7 +14,8 @@ public sealed class ManagerCareer
         EmploymentEndReason? terminationReason,
         ClubId? lastClubId,
         FixtureId? dismissedDueToFixtureId,
-        GameDate? dismissedAt)
+        GameDate? dismissedAt,
+        JobOffer? pendingJobOffer)
     {
         ManagerId = managerId;
         DisplayName = displayName;
@@ -24,6 +25,7 @@ public sealed class ManagerCareer
         LastClubId = lastClubId;
         DismissedDueToFixtureId = dismissedDueToFixtureId;
         DismissedAt = dismissedAt;
+        PendingJobOffer = pendingJobOffer;
     }
 
     public ManagerId ManagerId { get; }
@@ -41,6 +43,8 @@ public sealed class ManagerCareer
     public FixtureId? DismissedDueToFixtureId { get; }
 
     public GameDate? DismissedAt { get; }
+
+    public JobOffer? PendingJobOffer { get; }
 
     public bool IsEmployed =>
         EmploymentStatus == ManagerEmploymentStatus.Employed && ActiveEmployment is not null;
@@ -70,7 +74,8 @@ public sealed class ManagerCareer
             terminationReason: null,
             lastClubId: startingClubId,
             dismissedDueToFixtureId: null,
-            dismissedAt: null);
+            dismissedAt: null,
+            pendingJobOffer: null);
     }
 
     public static ManagerCareer StartNewCareerForClubStrength(
@@ -96,7 +101,8 @@ public sealed class ManagerCareer
         EmploymentEndReason? terminationReason,
         ClubId? lastClubId,
         FixtureId? dismissedDueToFixtureId,
-        GameDate? dismissedAt)
+        GameDate? dismissedAt,
+        JobOffer? pendingJobOffer = null)
     {
         if (employmentStatus == ManagerEmploymentStatus.Employed && activeEmployment is null)
         {
@@ -110,6 +116,12 @@ public sealed class ManagerCareer
                 "Unemployed manager career cannot keep active employment.");
         }
 
+        if (employmentStatus == ManagerEmploymentStatus.Employed && pendingJobOffer is not null)
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "Employed manager cannot hold a pending job offer.");
+        }
+
         return new ManagerCareer(
             managerId,
             displayName,
@@ -118,12 +130,10 @@ public sealed class ManagerCareer
             terminationReason,
             lastClubId,
             dismissedDueToFixtureId,
-            dismissedAt);
+            dismissedAt,
+            pendingJobOffer);
     }
 
-    /// <summary>
-    /// Geriye dönük rehydrate: istihdam varsa Employed kabul edilir.
-    /// </summary>
     public static ManagerCareer Rehydrate(
         ManagerId managerId,
         string displayName,
@@ -181,14 +191,12 @@ public sealed class ManagerCareer
             terminationReason: null,
             lastClubId: updatedEmployment.ClubId,
             dismissedDueToFixtureId: null,
-            dismissedAt: null);
+            dismissedAt: null,
+            pendingJobOffer: null);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
     }
 
-    /// <summary>
-    /// Critical risk sonrası kovulma. Aynı fixture causation ikinci kez no-op.
-    /// </summary>
     public DismissalResult DismissDueToBoardConfidence(FixtureId causationFixtureId, GameDate dismissedAt)
     {
         if (DismissedDueToFixtureId == causationFixtureId
@@ -216,9 +224,88 @@ public sealed class ManagerCareer
             terminationReason: EmploymentEndReason.Dismissed,
             lastClubId: ActiveEmployment.ClubId,
             dismissedDueToFixtureId: causationFixtureId,
-            dismissedAt: dismissedAt);
+            dismissedAt: dismissedAt,
+            pendingJobOffer: null);
 
         return DismissalResult.Applied(unemployed, ActiveEmployment.ClubId, causationFixtureId);
+    }
+
+    public JobOfferReceiveResult ReceiveJobOffer(JobOffer offer)
+    {
+        ArgumentNullException.ThrowIfNull(offer);
+
+        if (IsEmployed)
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "Employed manager cannot receive a job offer.");
+        }
+
+        if (PendingJobOffer is { Status: JobOfferStatus.Offered })
+        {
+            if (PendingJobOffer.Id == offer.Id)
+            {
+                return JobOfferReceiveResult.AlreadyHeld(this);
+            }
+
+            throw new ManagerCareerInvariantViolationException(
+                "A pending job offer already exists; accept or clear it first.");
+        }
+
+        if (offer.Status != JobOfferStatus.Offered)
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "Only Offered-status offers can be received.");
+        }
+
+        var updated = new ManagerCareer(
+            ManagerId,
+            DisplayName,
+            activeEmployment: null,
+            ManagerEmploymentStatus.Unemployed,
+            TerminationReason,
+            LastClubId,
+            DismissedDueToFixtureId,
+            DismissedAt,
+            offer);
+
+        return JobOfferReceiveResult.Received(updated, offer);
+    }
+
+    public JobOfferAcceptResult AcceptPendingJobOffer(
+        GameDate startedAt,
+        SeasonExpectationTier seasonExpectation,
+        int initialBoardConfidence = BoardConfidence.DefaultInitialValue)
+    {
+        if (IsEmployed)
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "Already employed; cannot accept a job offer.");
+        }
+
+        if (PendingJobOffer is not { Status: JobOfferStatus.Offered } offer)
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "No pending offered job offer to accept.");
+        }
+
+        var employment = ClubEmployment.Create(
+            offer.ClubId,
+            startedAt,
+            seasonExpectation,
+            new BoardConfidence(initialBoardConfidence));
+
+        var employed = new ManagerCareer(
+            ManagerId,
+            DisplayName,
+            employment,
+            ManagerEmploymentStatus.Employed,
+            terminationReason: null,
+            lastClubId: employment.ClubId,
+            dismissedDueToFixtureId: null,
+            dismissedAt: null,
+            pendingJobOffer: null);
+
+        return JobOfferAcceptResult.Accepted(employed, offer.Id, employment.ClubId);
     }
 
     private static (int Delta, string ReasonCode) ComputeDelta(
@@ -295,4 +382,33 @@ public sealed record DismissalResult(
         ClubId fromClubId,
         FixtureId causationFixtureId) =>
         new(true, false, career, fromClubId.Value, causationFixtureId.Value);
+}
+
+public sealed record JobOfferReceiveResult(
+    bool WasReceived,
+    bool WasAlreadyHeld,
+    ManagerCareer Career,
+    long? OfferId,
+    long? ClubId)
+{
+    public static JobOfferReceiveResult AlreadyHeld(ManagerCareer career) =>
+        new(
+            false,
+            true,
+            career,
+            career.PendingJobOffer?.Id.Value,
+            career.PendingJobOffer?.ClubId.Value);
+
+    public static JobOfferReceiveResult Received(ManagerCareer career, JobOffer offer) =>
+        new(true, false, career, offer.Id.Value, offer.ClubId.Value);
+}
+
+public sealed record JobOfferAcceptResult(
+    bool WasAccepted,
+    ManagerCareer Career,
+    long OfferId,
+    long ClubId)
+{
+    public static JobOfferAcceptResult Accepted(ManagerCareer career, JobOfferId offerId, ClubId clubId) =>
+        new(true, career, offerId.Value, clubId.Value);
 }

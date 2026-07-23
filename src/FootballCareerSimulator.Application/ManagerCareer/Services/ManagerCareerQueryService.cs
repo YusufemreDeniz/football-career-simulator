@@ -16,6 +16,7 @@ public sealed class ManagerCareerQueryService
     {
         var career = _store.Career;
         var employment = career.ActiveEmployment;
+        var offer = career.PendingJobOffer;
         return new ManagerCareerReadModel(
             career.ManagerId.Value,
             career.DisplayName,
@@ -30,6 +31,9 @@ public sealed class ManagerCareerQueryService
             career.TerminationReason?.ToString(),
             career.LastClubId?.Value,
             career.DismissedDueToFixtureId?.Value,
-            career.DismissedAt?.DayNumber);
+            career.DismissedAt?.DayNumber,
+            offer?.Id.Value,
+            offer?.ClubId.Value,
+            offer?.Status.ToString());
     }
 }

@@ -22,8 +22,25 @@ internal static class ManagerSnapshotMapper
         int? employmentEndReason = null,
         long? lastClubId = null,
         long? dismissedDueToFixtureId = null,
-        int? dismissedAtDayNumber = null)
+        int? dismissedAtDayNumber = null,
+        long? pendingOfferId = null,
+        long? pendingOfferClubId = null,
+        int? pendingOfferStatus = null,
+        int? pendingOfferCreatedDayNumber = null)
     {
+        JobOffer? pendingOffer = null;
+        if (pendingOfferId is long offerId
+            && pendingOfferClubId is long offerClubId
+            && pendingOfferStatus is int offerStatus
+            && pendingOfferCreatedDayNumber is int offerDay)
+        {
+            pendingOffer = JobOffer.Rehydrate(
+                new JobOfferId(offerId),
+                new ClubId(offerClubId),
+                (JobOfferStatus)offerStatus,
+                GameDate.FromDayNumber(offerDay));
+        }
+
         var status = employmentStatus is int statusValue
             ? (ManagerEmploymentStatus)statusValue
             : employedClubId is null
@@ -46,7 +63,8 @@ internal static class ManagerSnapshotMapper
                     : null,
                 dismissedAt: dismissedAtDayNumber is int day
                     ? GameDate.FromDayNumber(day)
-                    : null);
+                    : null,
+                pendingJobOffer: pendingOffer);
         }
 
         if (employmentStartedDayNumber is null)
@@ -87,6 +105,7 @@ internal static class ManagerSnapshotMapper
             terminationReason: null,
             lastClubId: employment.ClubId,
             dismissedDueToFixtureId: null,
-            dismissedAt: null);
+            dismissedAt: null,
+            pendingJobOffer: null);
     }
 }
