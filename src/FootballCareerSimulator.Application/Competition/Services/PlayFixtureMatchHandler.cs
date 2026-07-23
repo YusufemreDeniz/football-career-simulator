@@ -188,7 +188,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
     private int ResolveLineupBonus(FixtureId fixtureId, ClubId clubId, int rootSeed)
     {
-        _playerDevelopment?.EnsureClub(clubId, rootSeed);
+        _playerDevelopment?.EnsureClub(clubId, rootSeed, _timelineStore.Timeline.CurrentDate);
         var abilities = BuildAbilityMap(clubId);
 
         var managedClubId = _managerCareerStore?.Career.ActiveEmployment?.ClubId;

@@ -15,6 +15,7 @@ public static class MvpPlayerDevelopmentApplier
     public static IReadOnlyList<Domain.PlayerCareer.PlayerCareer> EnsureClubSquad(
         ClubId clubId,
         int rootSeed,
+        GameDate referenceDay,
         IReadOnlyDictionary<(long ClubId, int SlotIndex), Domain.PlayerCareer.PlayerCareer> existing)
     {
         ArgumentNullException.ThrowIfNull(existing);
@@ -34,7 +35,8 @@ public static class MvpPlayerDevelopmentApplier
             var pa = Math.Min(
                 Domain.PlayerCareer.PlayerCareer.MaxAbility,
                 ca + 5 + (slot % 10));
-            result.Add(Domain.PlayerCareer.PlayerCareer.CreateForSlot(clubId, slot, ca, pa));
+            var birthYear = MvpAgingApplier.ResolveBirthYear(referenceDay.Year, slot, rootSeed);
+            result.Add(Domain.PlayerCareer.PlayerCareer.CreateForSlot(clubId, slot, ca, pa, birthYear));
         }
 
         return result;

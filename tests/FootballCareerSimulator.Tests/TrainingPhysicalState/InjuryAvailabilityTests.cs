@@ -132,7 +132,7 @@ public sealed class InjuryAvailabilityTests : IDisposable
             Array.Empty<Domain.PlayerCareer.PlayerCareer>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(13, loaded.SchemaVersion);
+        Assert.Equal(14, loaded.SchemaVersion);
         Assert.Single(loaded.PhysicalStates);
         Assert.Equal(InjurySeverity.Moderate, loaded.PhysicalStates[0].InjurySeverity);
         Assert.Equal(Day.AddDays(7).DayNumber, loaded.PhysicalStates[0].InjuredUntilDayNumber);

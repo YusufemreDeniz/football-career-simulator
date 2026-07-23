@@ -8,7 +8,7 @@ using FootballCareerSimulator.Simulation.PlayerCareer;
 namespace FootballCareerSimulator.Application.PlayerCareer.Services;
 
 /// <summary>
-/// Training/Match orkestrasyonundan çağrılan PlayerCareer yazma kapısı.
+/// Training/Match/World orkestrasyonundan çağrılan PlayerCareer yazma kapısı.
 /// </summary>
 public sealed class PlayerCareerDevelopmentService
 {
@@ -23,10 +23,27 @@ public sealed class PlayerCareerDevelopmentService
         _trainingStore = trainingStore;
     }
 
-    public void EnsureClub(ClubId clubId, int rootSeed)
+    public void EnsureClub(ClubId clubId, int rootSeed, GameDate day)
     {
-        var squad = MvpPlayerDevelopmentApplier.EnsureClubSquad(clubId, rootSeed, _store.ByClubSlot);
+        var squad = MvpPlayerDevelopmentApplier.EnsureClubSquad(
+            clubId,
+            rootSeed,
+            day,
+            _store.ByClubSlot);
         _store.ReplaceClub(clubId, squad);
+    }
+
+    public int ApplyDueAging(GameDate day)
+    {
+        if (_store.Careers.Count == 0)
+        {
+            return 0;
+        }
+
+        var before = _store.Careers.ToDictionary(c => c.Id.Value, c => c.CurrentAbility);
+        var aged = MvpAgingApplier.ApplyDueAging(_store.Careers, day);
+        _store.ReplaceAll(aged);
+        return aged.Count(c => before.TryGetValue(c.Id.Value, out var prior) && prior != c.CurrentAbility);
     }
 
     public void EnsureAndApplyWeeklyTraining(
@@ -37,7 +54,12 @@ public sealed class PlayerCareerDevelopmentService
     {
         ArgumentNullException.ThrowIfNull(plan);
 
-        var squad = MvpPlayerDevelopmentApplier.EnsureClubSquad(clubId, rootSeed, _store.ByClubSlot);
+        ApplyDueAging(day);
+        var squad = MvpPlayerDevelopmentApplier.EnsureClubSquad(
+            clubId,
+            rootSeed,
+            day,
+            _store.ByClubSlot);
         var updated = new List<Domain.PlayerCareer.PlayerCareer>(squad.Count);
         foreach (var career in squad)
         {
@@ -56,7 +78,12 @@ public sealed class PlayerCareerDevelopmentService
     {
         ArgumentNullException.ThrowIfNull(startingSlotIndices);
 
-        var squad = MvpPlayerDevelopmentApplier.EnsureClubSquad(clubId, rootSeed, _store.ByClubSlot)
+        ApplyDueAging(day);
+        var squad = MvpPlayerDevelopmentApplier.EnsureClubSquad(
+                clubId,
+                rootSeed,
+                day,
+                _store.ByClubSlot)
             .ToDictionary(c => c.SlotIndex);
 
         foreach (var slot in startingSlotIndices)

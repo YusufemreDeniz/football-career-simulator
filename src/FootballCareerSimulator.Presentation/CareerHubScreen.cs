@@ -413,7 +413,9 @@ public partial class CareerHubScreen : Control
 
         _developmentLabel.Text =
             $"Gelişim: ort. CA {development.AverageCurrentAbility} / PA {development.AveragePotentialAbility}"
+            + $" · yaş {development.AverageAge}"
             + $" · {development.PlayerCount} oyuncu"
+            + (development.DecliningCount > 0 ? $" · düşüşte {development.DecliningCount}" : string.Empty)
             + (development.DevelopedThisWeekCount > 0
                 ? $" · bugün gelişen {development.DevelopedThisWeekCount}"
                 : string.Empty);

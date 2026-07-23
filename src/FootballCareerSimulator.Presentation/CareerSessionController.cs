@@ -288,7 +288,11 @@ public sealed class CareerSessionController
                 (b.SourceContext, b.DescriptionCode))));
         }
 
-        return UiActionResult.Ok($"Tarih ilerledi: gün {result.PreviousDayNumber} → {result.NewDayNumber}.");
+        var day = Host.WorldModule.Queries.GetCurrentGameDate();
+        var declined = Host.PlayerCareerModule.Development.ApplyDueAging(day);
+        var agingText = declined > 0 ? $" · yaşlanma: {declined} oyuncu düştü" : string.Empty;
+        return UiActionResult.Ok(
+            $"Tarih ilerledi: gün {result.PreviousDayNumber} → {result.NewDayNumber}{agingText}.");
     }
 
     public UiActionResult CompleteSeason()
@@ -299,11 +303,13 @@ public sealed class CareerSessionController
             var season = competition.Queries.GetCurrentSeason()
                 ?? throw new InvalidOperationException("Aktif sezon yok.");
 
-            var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+            var current = Host.WorldModule.Queries.GetCurrentGameDate();
             competition.CompleteSeason.Handle(
-                new CompleteSeasonCommand(Guid.NewGuid(), season.SeasonId, currentDay));
+                new CompleteSeasonCommand(Guid.NewGuid(), season.SeasonId, current.DayNumber));
+            var declined = Host.PlayerCareerModule.Development.ApplyDueAging(current);
 
-            return UiActionResult.Ok($"Sezon #{season.SeasonId} kapatıldı.");
+            var agingText = declined > 0 ? $" · yaşlanma: {declined} oyuncu düştü" : string.Empty;
+            return UiActionResult.Ok($"Sezon #{season.SeasonId} kapatıldı{agingText}.");
         }
         catch (Exception ex)
         {

@@ -5,4 +5,6 @@ public sealed record ClubDevelopmentSummaryReadModel(
     int PlayerCount,
     int AverageCurrentAbility,
     int AveragePotentialAbility,
-    int DevelopedThisWeekCount);
+    int DevelopedThisWeekCount,
+    int AverageAge,
+    int DecliningCount);

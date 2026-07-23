@@ -22,6 +22,8 @@ public static class PlayerCareerCanonicalStateHasher
                 .Append(";PA=").Append(career.PotentialAbility)
                 .Append(";DP=").Append(career.DevelopmentPoints)
                 .Append(";D=").Append(career.LastDevelopedOn?.DayNumber.ToString() ?? "-")
+                .Append(";BY=").Append(career.BirthYear)
+                .Append(";AY=").Append(career.LastAgedCalendarYear?.ToString() ?? "-")
                 .Append('|');
         }
 

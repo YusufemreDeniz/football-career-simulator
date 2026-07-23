@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + MatchSelection + Board Confidence + Dismissal + JobOffer + Training + Injury + **PlayerCareer CA/PA gelişim** (SQLite v13) kilitlenmiştir. Sıradaki aday: yaşlanma/düşüş veya Contract kesiti — transfer/ilişki/diyalog/medya henüz açılmamalıdır.
+İnce kariyer döngüsü + MatchSelection + Board Confidence + Dismissal + JobOffer + Training + Injury + PlayerCareer + **yaşlanma/düşüş** (SQLite v14) kilitlenmiştir. Sıradaki aday: Contract & Registration kesiti — transfer/ilişki/diyalog/medya henüz açılmamalıdır.
 
 ## Klasör Yapısı
 
