@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.SocialContinuity.Ports;
+using FootballCareerSimulator.Application.SocialContinuity.Queries;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.SocialContinuity;
@@ -7,7 +8,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.SocialContinuity.Services;
 
 /// <summary>
-/// Maç kadro seçimi → Selection Memory (ilk 11 / yedek / kadro dışı; idempotent).
+/// Maç kadro seçimi → Selection Memory (Create / Reinforce / Reject; idempotent).
 /// </summary>
 public sealed class SelectionMemoryService
 {
@@ -27,9 +28,9 @@ public sealed class SelectionMemoryService
             startingPlayerIds,
             Array.Empty<PlayerId>(),
             squadMembers: null,
-            day);
+            day).Applied;
 
-    public int RecordMatchday(
+    public MemoryMutationStats RecordMatchday(
         FixtureId fixtureId,
         IReadOnlyList<PlayerId> startingPlayerIds,
         IReadOnlyList<PlayerId> benchedPlayerIds,
@@ -41,30 +42,30 @@ public sealed class SelectionMemoryService
 
         var started = startingPlayerIds.Distinct().ToHashSet();
         var benched = benchedPlayerIds.Distinct().Where(id => !started.Contains(id)).ToHashSet();
+        var stats = MemoryMutationStats.Empty;
 
-        var created = 0;
         foreach (var playerId in started)
         {
-            created += TryCreate(
+            stats = stats.AddDecision(TryCreateOrReinforce(
                 fixtureId,
                 playerId,
                 day,
                 MemoryRecord.BuildSelectionStartedSourceKey(fixtureId, playerId.Value),
                 MemoryRecord.SelectionStartedRuleId,
                 MemoryRecord.SelectionStartedRuleVersion,
-                MemoryRecord.CreateSelectionStarted) ? 1 : 0;
+                MemoryRecord.CreateSelectionStarted));
         }
 
         foreach (var playerId in benched)
         {
-            created += TryCreate(
+            stats = stats.AddDecision(TryCreateOnly(
                 fixtureId,
                 playerId,
                 day,
                 MemoryRecord.BuildSelectionBenchedSourceKey(fixtureId, playerId.Value),
                 MemoryRecord.SelectionBenchedRuleId,
                 MemoryRecord.SelectionBenchedRuleVersion,
-                MemoryRecord.CreateSelectionBenched) ? 1 : 0;
+                MemoryRecord.CreateSelectionBenched));
         }
 
         if (squadMembers is { Count: > 0 })
@@ -72,31 +73,40 @@ public sealed class SelectionMemoryService
             var matchday = started.Concat(benched).ToHashSet();
             foreach (var playerId in squadMembers.Distinct().Where(id => !matchday.Contains(id)))
             {
-                created += TryCreateOrReinforceOmitted(fixtureId, playerId, day) ? 1 : 0;
+                stats = stats.AddDecision(TryCreateOrReinforce(
+                    fixtureId,
+                    playerId,
+                    day,
+                    MemoryRecord.BuildSelectionOmittedSourceKey(fixtureId, playerId.Value),
+                    MemoryRecord.SelectionOmittedRuleId,
+                    MemoryRecord.SelectionOmittedRuleVersion,
+                    MemoryRecord.CreateSelectionOmitted));
             }
         }
 
-        return created;
+        return stats;
     }
 
-    private bool TryCreateOrReinforceOmitted(FixtureId fixtureId, PlayerId playerId, GameDate day)
+    private MemoryCandidateDecision TryCreateOrReinforce(
+        FixtureId fixtureId,
+        PlayerId playerId,
+        GameDate day,
+        string sourceKey,
+        string ruleId,
+        int ruleVersion,
+        Func<MemoryId, ActorRef, FixtureId, GameDate, MemoryRecord> factory)
     {
         var remembering = new ActorRef(ActorKind.Player, playerId.Value);
-        var sourceKey = MemoryRecord.BuildSelectionOmittedSourceKey(fixtureId, playerId.Value);
-        if (IsProcessedEvent(
-                remembering,
-                sourceKey,
-                MemoryRecord.SelectionOmittedRuleId,
-                MemoryRecord.SelectionOmittedRuleVersion))
+        if (IsProcessedEvent(remembering, sourceKey, ruleId, ruleVersion))
         {
-            return false;
+            return MemoryCandidateDecision.Rejected;
         }
 
         var existing = _store.Memories
             .Where(m =>
                 m.RememberingActor == remembering
-                && m.RuleId == MemoryRecord.SelectionOmittedRuleId
-                && m.RuleVersion == MemoryRecord.SelectionOmittedRuleVersion
+                && m.RuleId == ruleId
+                && m.RuleVersion == ruleVersion
                 && m.Status is MemoryStatus.Active or MemoryStatus.Dormant)
             .OrderByDescending(m => m.LastReinforcedOn.DayNumber)
             .ThenByDescending(m => m.MemoryId.Value)
@@ -104,24 +114,45 @@ public sealed class SelectionMemoryService
 
         if (existing is not null)
         {
+            if (existing.ReinforcementCount >= MemoryRecord.MaxReinforcementsPerMemory)
+            {
+                return MemoryCandidateDecision.Rejected;
+            }
+
             var reinforced = existing.Reinforce(sourceKey, day);
             if (ReferenceEquals(reinforced, existing))
             {
-                return false;
+                return MemoryCandidateDecision.Rejected;
             }
 
             _store.Upsert(reinforced);
-            return true;
+            return MemoryCandidateDecision.Reinforced;
         }
 
-        return TryCreate(
-            fixtureId,
-            playerId,
-            day,
-            sourceKey,
-            MemoryRecord.SelectionOmittedRuleId,
-            MemoryRecord.SelectionOmittedRuleVersion,
-            MemoryRecord.CreateSelectionOmitted);
+        return TryCreateOnly(fixtureId, playerId, day, sourceKey, ruleId, ruleVersion, factory);
+    }
+
+    private MemoryCandidateDecision TryCreateOnly(
+        FixtureId fixtureId,
+        PlayerId playerId,
+        GameDate day,
+        string sourceKey,
+        string ruleId,
+        int ruleVersion,
+        Func<MemoryId, ActorRef, FixtureId, GameDate, MemoryRecord> factory)
+    {
+        var remembering = new ActorRef(ActorKind.Player, playerId.Value);
+        if (IsProcessedEvent(remembering, sourceKey, ruleId, ruleVersion))
+        {
+            return MemoryCandidateDecision.Rejected;
+        }
+
+        var nextId = _store.Memories.Count == 0
+            ? 1L
+            : _store.Memories.Max(m => m.MemoryId.Value) + 1;
+
+        _store.Upsert(factory(new MemoryId(nextId), remembering, fixtureId, day));
+        return MemoryCandidateDecision.Created;
     }
 
     private bool IsProcessedEvent(
@@ -136,27 +167,4 @@ public sealed class SelectionMemoryService
              && m.RuleVersion == ruleVersion)
             || (m.RememberingActor == remembering
                 && m.ProcessedReinforcementKeys.Contains(sourceKey)));
-
-    private bool TryCreate(
-        FixtureId fixtureId,
-        PlayerId playerId,
-        GameDate day,
-        string sourceKey,
-        string ruleId,
-        int ruleVersion,
-        Func<MemoryId, ActorRef, FixtureId, GameDate, MemoryRecord> factory)
-    {
-        var remembering = new ActorRef(ActorKind.Player, playerId.Value);
-        if (IsProcessedEvent(remembering, sourceKey, ruleId, ruleVersion))
-        {
-            return false;
-        }
-
-        var nextId = _store.Memories.Count == 0
-            ? 1L
-            : _store.Memories.Max(m => m.MemoryId.Value) + 1;
-
-        _store.Upsert(factory(new MemoryId(nextId), remembering, fixtureId, day));
-        return true;
-    }
 }

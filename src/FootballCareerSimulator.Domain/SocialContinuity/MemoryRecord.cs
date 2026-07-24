@@ -42,6 +42,7 @@ public sealed class MemoryRecord
     public const string RelationshipTrustBandRuleId = "RelationshipTrustBand";
     public const int RelationshipTrustBandRuleVersion = 1;
     public const int InfluenceBonusPerReinforcement = 10;
+    public const int MaxReinforcementsPerMemory = 5;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
 

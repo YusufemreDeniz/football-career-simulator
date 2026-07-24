@@ -65,24 +65,24 @@ public sealed class SelectionMemoryTests : IDisposable
         var social = SocialContinuityModule.Create();
         var player = new PlayerId(30);
 
-        Assert.Equal(
-            2,
-            social.SelectionMemory.RecordMatchday(
-                new FixtureId(1),
-                startingPlayerIds: [new PlayerId(1)],
-                benchedPlayerIds: [],
-                squadMembers: [new PlayerId(1), player],
-                Day));
+        var first = social.SelectionMemory.RecordMatchday(
+            new FixtureId(1),
+            startingPlayerIds: [new PlayerId(1)],
+            benchedPlayerIds: [],
+            squadMembers: [new PlayerId(1), player],
+            Day);
+        Assert.Equal(2, first.Created);
+        Assert.Equal(0, first.Reinforced);
 
-        // Fixture 2: yeni SelectionStarted + mevcut omitted pekiştirme
-        Assert.Equal(
-            2,
-            social.SelectionMemory.RecordMatchday(
-                new FixtureId(2),
-                startingPlayerIds: [new PlayerId(1)],
-                benchedPlayerIds: [],
-                squadMembers: [new PlayerId(1), player],
-                Day.AddDays(1)));
+        // Fixture 2: SelectionStarted + omitted pekiştirme
+        var second = social.SelectionMemory.RecordMatchday(
+            new FixtureId(2),
+            startingPlayerIds: [new PlayerId(1)],
+            benchedPlayerIds: [],
+            squadMembers: [new PlayerId(1), player],
+            Day.AddDays(1));
+        Assert.Equal(0, second.Created);
+        Assert.Equal(2, second.Reinforced);
 
         var omitted = Assert.Single(
             social.MemoryStore.Memories,
@@ -92,19 +92,54 @@ public sealed class SelectionMemoryTests : IDisposable
         Assert.Contains(
             MemoryRecord.BuildSelectionOmittedSourceKey(new FixtureId(2), player.Value),
             omitted.ProcessedReinforcementKeys);
+        Assert.Single(
+            social.MemoryStore.Memories,
+            m => m.RuleId == MemoryRecord.SelectionStartedRuleId);
 
-        Assert.Equal(
-            0,
-            social.SelectionMemory.RecordMatchday(
-                new FixtureId(2),
-                startingPlayerIds: [new PlayerId(1)],
-                benchedPlayerIds: [],
-                squadMembers: [new PlayerId(1), player],
-                Day.AddDays(1)));
+        var replay = social.SelectionMemory.RecordMatchday(
+            new FixtureId(2),
+            startingPlayerIds: [new PlayerId(1)],
+            benchedPlayerIds: [],
+            squadMembers: [new PlayerId(1), player],
+            Day.AddDays(1));
+        Assert.Equal(0, replay.Applied);
+        Assert.Equal(2, replay.Rejected);
         Assert.Equal(
             1,
             social.MemoryStore.Memories.Single(m => m.RuleId == MemoryRecord.SelectionOmittedRuleId)
                 .ReinforcementCount);
+    }
+
+    [Fact]
+    public void SelectionStarted_RejectsWhenReinforcementCapReached()
+    {
+        var social = SocialContinuityModule.Create();
+        var player = new PlayerId(40);
+
+        Assert.Equal(1, social.SelectionMemory.RecordStarts(new FixtureId(1), [player], Day));
+        for (var i = 0; i < MemoryRecord.MaxReinforcementsPerMemory; i++)
+        {
+            var stats = social.SelectionMemory.RecordMatchday(
+                new FixtureId(10 + i),
+                [player],
+                [],
+                null,
+                Day.AddDays(i + 1));
+            Assert.Equal(1, stats.Reinforced);
+            Assert.Equal(0, stats.Rejected);
+        }
+
+        var capped = social.SelectionMemory.RecordMatchday(
+            new FixtureId(99),
+            [player],
+            [],
+            null,
+            Day.AddDays(20));
+        Assert.Equal(0, capped.Applied);
+        Assert.Equal(1, capped.Rejected);
+        var memory = Assert.Single(social.MemoryStore.Memories);
+        Assert.Equal(MemoryRecord.MaxReinforcementsPerMemory, memory.ReinforcementCount);
+        Assert.Equal(35 + (MemoryRecord.MaxReinforcementsPerMemory * 10), memory.CurrentInfluence);
     }
 
     [Fact]
@@ -123,13 +158,16 @@ public sealed class SelectionMemoryTests : IDisposable
             [started, benched, omitted],
             Day);
 
-        Assert.Equal(3, created);
-        Assert.Equal(0, social.SelectionMemory.RecordMatchday(
+        Assert.Equal(3, created.Applied);
+        Assert.Equal(3, created.Created);
+        var replay = social.SelectionMemory.RecordMatchday(
             fixtureId,
             [started],
             [benched],
             [started, benched, omitted],
-            Day));
+            Day);
+        Assert.Equal(0, replay.Applied);
+        Assert.Equal(3, replay.Rejected);
 
         Assert.Contains(
             social.MemoryStore.Memories,
