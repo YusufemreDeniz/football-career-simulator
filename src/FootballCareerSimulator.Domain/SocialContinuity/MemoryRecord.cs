@@ -8,7 +8,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.SocialContinuity;
 
 /// <summary>
-/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust / Transfer / Career / ClubHistory / MatchPerformance.
+/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust / Transfer / Career / ClubHistory / MatchPerformance / Relationship.
 /// </summary>
 public sealed class MemoryRecord
 {
@@ -39,6 +39,8 @@ public sealed class MemoryRecord
     public const string MatchBlowoutRuleId = "MatchBlowout";
     public const int MatchBlowoutRuleVersion = 1;
     public const int MatchBlowoutMinGoalDifference = 3;
+    public const string RelationshipTrustBandRuleId = "RelationshipTrustBand";
+    public const int RelationshipTrustBandRuleVersion = 1;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
 
@@ -203,6 +205,53 @@ public sealed class MemoryRecord
             promise.PromiseId,
             TrustFromPromiseRuleId,
             TrustFromPromiseRuleVersion);
+    }
+
+    public static MemoryRecord CreateRelationshipTrustBandMilestone(
+        MemoryId memoryId,
+        RelationshipRecord relationship,
+        RelationshipDimensionBand fromBand,
+        RelationshipDimensionBand toBand,
+        GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(relationship);
+        if (relationship.Observer.Kind != ActorKind.Player || relationship.Subject.Kind != ActorKind.Manager)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Trust-band milestone requires Player → Manager relationship.");
+        }
+
+        if (fromBand == toBand)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Trust-band milestone requires a band change.");
+        }
+
+        var (importance, valence) = toBand switch
+        {
+            RelationshipDimensionBand.High => (75, MemoryValence.Positive),
+            RelationshipDimensionBand.Low => (80, MemoryValence.Negative),
+            _ => (55, MemoryValence.Neutral),
+        };
+
+        return new MemoryRecord(
+            memoryId,
+            relationship.Observer,
+            MemorySubjectKind.Manager,
+            relationship.Subject.Id,
+            BuildRelationshipTrustBandSourceKey(relationship.RelationshipId, fromBand, toBand),
+            MemoryCategory.Relationship,
+            day,
+            day,
+            importance,
+            importance,
+            valence,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            RelationshipTrustBandRuleId,
+            RelationshipTrustBandRuleVersion);
     }
 
     public static MemoryRecord CreateManagerDismissed(
@@ -592,6 +641,12 @@ public sealed class MemoryRecord
 
     public static string BuildTrustFromPromiseSourceKey(PromiseId promiseId, PromiseStatus status) =>
         $"TrustFromPromise:{promiseId.Value}:{status}";
+
+    public static string BuildRelationshipTrustBandSourceKey(
+        RelationshipId relationshipId,
+        RelationshipDimensionBand fromBand,
+        RelationshipDimensionBand toBand) =>
+        $"RelTrustBand:{relationshipId.Value}:{fromBand}:{toBand}";
 
     public static string BuildTransferCompletedSourceKey(TransferProcessId processId) =>
         $"TransferCompleted:{processId.Value}";

@@ -9,4 +9,5 @@ public enum MemoryCategory
     Career = 5,
     ClubHistory = 6,
     MatchPerformance = 7,
+    Relationship = 8,
 }

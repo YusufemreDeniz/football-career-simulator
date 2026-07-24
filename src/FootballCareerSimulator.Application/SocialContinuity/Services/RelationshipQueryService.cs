@@ -57,10 +57,10 @@ public sealed class RelationshipQueryService
             relationship.LastChangedOn.DayNumber);
 
     private static string DimensionLabel(int value) =>
-        value switch
+        RelationshipDimensionBands.FromValue(value) switch
         {
-            <= 33 => "Düşük",
-            >= 67 => "Yüksek",
+            RelationshipDimensionBand.Low => "Düşük",
+            RelationshipDimensionBand.High => "Yüksek",
             _ => "Nötr",
         };
 }

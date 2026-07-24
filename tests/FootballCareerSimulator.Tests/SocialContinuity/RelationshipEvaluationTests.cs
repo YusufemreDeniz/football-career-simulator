@@ -178,6 +178,70 @@ public sealed class RelationshipEvaluationTests : IDisposable
     }
 
     [Fact]
+    public void TrustBandCrossing_CreatesRelationshipMilestoneMemory_Idempotently()
+    {
+        var social = SocialContinuityModule.Create();
+        // Neutral(50) → iki Broken (−12/−12) = 26 Low
+        social.StartingOpportunity.Create(
+            new ManagerId(1),
+            new PlayerId(40),
+            new ClubId(1),
+            targetStarts: 3,
+            deadlineOn: Day.AddDays(5),
+            createdOn: Day);
+        social.StartingOpportunity.EvaluateDeadlines(Day.AddDays(5));
+        social.StartingOpportunity.Create(
+            new ManagerId(1),
+            new PlayerId(40),
+            new ClubId(1),
+            targetStarts: 3,
+            deadlineOn: Day.AddDays(12),
+            createdOn: Day.AddDays(6));
+        social.StartingOpportunity.EvaluateDeadlines(Day.AddDays(12));
+
+        var relationship = social.RelationshipStore.FindPlayerToManager(40, 1)!;
+        Assert.Equal(26, relationship.Trust);
+        Assert.Equal(RelationshipDimensionBand.Low, RelationshipDimensionBands.FromValue(relationship.Trust));
+
+        var milestone = Assert.Single(
+            social.MemoryStore.Memories,
+            m => m.Category == MemoryCategory.Relationship
+                && m.RuleId == MemoryRecord.RelationshipTrustBandRuleId);
+        Assert.Equal(MemoryValence.Negative, milestone.Valence);
+        Assert.Equal(
+            MemoryRecord.BuildRelationshipTrustBandSourceKey(
+                relationship.RelationshipId,
+                RelationshipDimensionBand.Neutral,
+                RelationshipDimensionBand.Low),
+            milestone.SourceEventKey);
+
+        Assert.Equal(
+            0,
+            social.RelationshipMilestones.EvaluateTrustBandChange(
+                relationship,
+                relationship,
+                Day.AddDays(13)));
+        Assert.Single(
+            social.MemoryStore.Memories,
+            m => m.Category == MemoryCategory.Relationship);
+    }
+
+    [Fact]
+    public void SelectionOnly_DoesNotCreateTrustBandMilestone()
+    {
+        var social = SocialContinuityModule.Create();
+        social.RelationshipEvaluation.ApplySelectionStarted(
+            new FixtureId(8),
+            new PlayerId(41),
+            new ManagerId(1),
+            Day);
+
+        Assert.DoesNotContain(
+            social.MemoryStore.Memories,
+            m => m.Category == MemoryCategory.Relationship);
+    }
+
+    [Fact]
     public void SaveLoad_PreservesRelationshipsAtSchemaV32()
     {
         var social = SocialContinuityModule.Create();

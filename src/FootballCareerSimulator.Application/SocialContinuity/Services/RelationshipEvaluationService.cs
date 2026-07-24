@@ -9,7 +9,7 @@ namespace FootballCareerSimulator.Application.SocialContinuity.Services;
 
 /// <summary>
 /// Relationship authoritative owner (iskelet). Promise/Selection girdileri + Dormant/Reactivate.
-/// Memory doğrudan delta uygulamaz.
+/// Memory doğrudan delta uygulamaz; Trust band milestone ayrı servisle üretilir.
 /// </summary>
 public sealed class RelationshipEvaluationService
 {
@@ -23,10 +23,14 @@ public sealed class RelationshipEvaluationService
     public const int RuleVersion = 1;
 
     private readonly IRelationshipStore _store;
+    private readonly RelationshipMilestoneService? _milestones;
 
-    public RelationshipEvaluationService(IRelationshipStore store)
+    public RelationshipEvaluationService(
+        IRelationshipStore store,
+        RelationshipMilestoneService? milestones = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _milestones = milestones;
     }
 
     public int ApplyPromiseOutcome(Promise promise, GameDate day)
@@ -185,6 +189,7 @@ public sealed class RelationshipEvaluationService
             reasonCode,
             day);
         _store.Upsert(next);
+        _milestones?.EvaluateTrustBandChange(current, next, day);
         return 1;
     }
 

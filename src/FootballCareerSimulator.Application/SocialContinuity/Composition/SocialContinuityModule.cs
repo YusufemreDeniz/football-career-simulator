@@ -19,6 +19,7 @@ public sealed class SocialContinuityModule
         CareerMemoryService careerMemory,
         ClubHistoryMemoryService clubHistoryMemory,
         MatchPerformanceMemoryService matchPerformanceMemory,
+        RelationshipMilestoneService relationshipMilestones,
         RelationshipEvaluationService relationshipEvaluation,
         PromiseInvalidationService invalidation,
         MemoryQueryService queries,
@@ -37,6 +38,7 @@ public sealed class SocialContinuityModule
         CareerMemory = careerMemory;
         ClubHistoryMemory = clubHistoryMemory;
         MatchPerformanceMemory = matchPerformanceMemory;
+        RelationshipMilestones = relationshipMilestones;
         RelationshipEvaluation = relationshipEvaluation;
         Invalidation = invalidation;
         Queries = queries;
@@ -68,6 +70,8 @@ public sealed class SocialContinuityModule
 
     public MatchPerformanceMemoryService MatchPerformanceMemory { get; }
 
+    public RelationshipMilestoneService RelationshipMilestones { get; }
+
     public RelationshipEvaluationService RelationshipEvaluation { get; }
 
     public PromiseInvalidationService Invalidation { get; }
@@ -93,7 +97,10 @@ public sealed class SocialContinuityModule
         var careerMemory = new CareerMemoryService(memories);
         var clubHistoryMemory = new ClubHistoryMemoryService(memories);
         var matchPerformanceMemory = new MatchPerformanceMemoryService(memories);
-        var relationshipEvaluation = new RelationshipEvaluationService(relationships);
+        var relationshipMilestones = new RelationshipMilestoneService(memories);
+        var relationshipEvaluation = new RelationshipEvaluationService(
+            relationships,
+            relationshipMilestones);
         var startingOpportunity = new StartingOpportunityPromiseService(
             promises,
             promiseMemory,
@@ -119,6 +126,7 @@ public sealed class SocialContinuityModule
             careerMemory,
             clubHistoryMemory,
             matchPerformanceMemory,
+            relationshipMilestones,
             relationshipEvaluation,
             invalidation,
             queries,
