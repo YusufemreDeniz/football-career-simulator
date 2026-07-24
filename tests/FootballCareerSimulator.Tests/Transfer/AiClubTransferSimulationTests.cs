@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Composition;
 using FootballCareerSimulator.Application.Transfer.Services;
@@ -38,7 +39,7 @@ public sealed class AiClubTransferSimulationTests
         Assert.NotNull(modules.Contracts.Store.GetByPlayer(new PlayerId(42)));
         Assert.Null(modules.Contracts.FreeAgentStore.Get(new PlayerId(42)));
 
-        // Same seed with no remaining free agents → no second completion.
+        // Same seed with no remaining free agents and no club contracts → no second completion.
         var second = modules.Transfer.AiSimulation.RunWindowTick(Day, worldSeed: 42);
         Assert.Equal(0, second.CompletedCount);
     }
@@ -84,23 +85,110 @@ public sealed class AiClubTransferSimulationTests
             b.Transfer.ProcessStore.Processes.Single().BuyingClubId);
     }
 
+    [Fact]
+    public void WindowTick_WithoutFreeAgents_CompletesClubToClubSale()
+    {
+        var modules = CreateBase(seed: 5);
+        SeedUnmanagedClubSquadsWithSpace(modules);
+
+        var outcome = modules.Transfer.AiSimulation.RunWindowTick(Day, worldSeed: 5);
+        Assert.Equal(1, outcome.CompletedCount);
+
+        var process = modules.Transfer.ProcessStore.Processes.Single();
+        Assert.False(process.IsFreeAgent);
+        Assert.NotEqual(1, process.BuyingClubId.Value);
+        Assert.NotEqual(1, process.SellingClubId!.Value.Value);
+        Assert.Equal(TransferProcessStatus.Archived, process.Status);
+
+        var buyerBudget = modules.Clubs.TransferBudget.Get(process.BuyingClubId);
+        Assert.Equal(0, buyerBudget.Reserved);
+        Assert.Equal(
+            AiClubTransferSimulationService.DefaultClubTransferFee,
+            buyerBudget.Spent);
+
+        Assert.NotNull(modules.Contracts.Store.GetByPlayer(process.PlayerId));
+        Assert.Equal(
+            process.BuyingClubId,
+            modules.Contracts.Store.GetByPlayer(process.PlayerId)!.ClubId);
+    }
+
+    [Fact]
+    public void WindowTick_ClubToClub_DoesNotSellFromHumanClub()
+    {
+        var modules = CreateBase(seed: 9);
+        modules.Players.Development.EnsureClub(new ClubId(1), 9, Day);
+        modules.TeamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
+        SeedUnmanagedClubSquadsWithSpace(modules);
+
+        _ = modules.Transfer.AiSimulation.RunWindowTick(Day, worldSeed: 9);
+
+        Assert.DoesNotContain(
+            modules.Transfer.ProcessStore.Processes,
+            p => p.SellingClubId?.Value == 1);
+    }
+
     private static void SeedFreeAgent(
         (
             WorldCalendarModule World,
             ClubGovernanceModule Clubs,
             TransferModule Transfer,
-            ContractRegistrationModule Contracts) modules,
+            ContractRegistrationModule Contracts,
+            PlayerCareerModule Players,
+            TeamPreparationModule TeamPrep) modules,
         PlayerId playerId)
     {
         modules.Contracts.FreeAgentStore.Upsert(
             Domain.ContractRegistration.PlayerFreeAgency.Release(playerId, new ClubId(2), Day));
     }
 
+    private static void SeedUnmanagedClubSquadsWithSpace(
+        (
+            WorldCalendarModule World,
+            ClubGovernanceModule Clubs,
+            TransferModule Transfer,
+            ContractRegistrationModule Contracts,
+            PlayerCareerModule Players,
+            TeamPreparationModule TeamPrep) modules)
+    {
+        for (var clubId = 2L; clubId <= 6L; clubId++)
+        {
+            var id = new ClubId(clubId);
+            modules.Players.Development.EnsureClub(id, modules.World.TimelineStore.Timeline.RootSeed, Day);
+            FreeOneSlot(modules.Contracts, modules.TeamPrep.ClubSquad!, modules.Players.Store, id, Day);
+        }
+    }
+
+    private static void FreeOneSlot(
+        ContractRegistrationModule contracts,
+        ClubSquadService clubSquad,
+        Application.PlayerCareer.Ports.IPlayerCareerStore playerStore,
+        ClubId clubId,
+        GameDate day)
+    {
+        var outgoing = playerStore.Careers
+            .Where(c => c.OriginClubId.Value == clubId.Value)
+            .OrderByDescending(c => c.SlotIndex)
+            .Select(c => c.Id)
+            .First(id => contracts.Store.GetByPlayer(id)?.IsActiveOn(day) == true);
+        var existing = contracts.Store.GetByPlayer(outgoing)!;
+        contracts.Store.Upsert(Domain.ContractRegistration.PlayerContract.Rehydrate(
+            existing.Id,
+            existing.PlayerId,
+            existing.ClubId,
+            existing.StartDate,
+            existing.StartDate,
+            existing.WeeklyWage,
+            Domain.ContractRegistration.ContractStatus.Expired));
+        clubSquad.SyncFromActiveContracts(clubId, day);
+    }
+
     private static (
         WorldCalendarModule World,
         ClubGovernanceModule Clubs,
         TransferModule Transfer,
-        ContractRegistrationModule Contracts) CreateBase(int seed)
+        ContractRegistrationModule Contracts,
+        PlayerCareerModule Players,
+        TeamPreparationModule TeamPrep) CreateBase(int seed)
     {
         var world = WorldCalendarModule.Create(Day, rootSeed: seed);
         var clubs = ClubGovernanceModule.CreateMvpLeague();
@@ -135,6 +223,6 @@ public sealed class AiClubTransferSimulationTests
             transferBudget: clubs.TransferBudget,
             clubRegistry: clubs.Store,
             freeAgentStore: contracts.FreeAgentStore);
-        return (world, clubs, transfer, contracts);
+        return (world, clubs, transfer, contracts, players, teamPrep);
     }
 }

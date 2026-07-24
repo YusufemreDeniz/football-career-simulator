@@ -135,18 +135,27 @@ public sealed class TransferModule
         var clubs = clubRegistry
             ?? new InMemoryClubRegistryStore(LeagueClubRegistry.CreateMvpLeague());
         var freeAgents = freeAgentStore ?? new InMemoryFreeAgentStore();
+        var clubOfferService = new ClubOfferService(
+            offers,
+            processes,
+            managerCareerStore,
+            window,
+            transferBudget);
 
         var aiSimulation = new AiClubTransferSimulationService(
             clubs,
             managerCareerStore,
             freeAgents,
+            contractStore,
             squadStore,
             needs,
             processes,
             window,
+            transferBudget,
             needService,
             shortlistService,
             processService,
+            clubOfferService,
             proposalService,
             completionService);
 
@@ -160,7 +169,7 @@ public sealed class TransferModule
             needService,
             shortlistService,
             processService,
-            new ClubOfferService(offers, processes, managerCareerStore, window, transferBudget),
+            clubOfferService,
             proposalService,
             completionService,
             new TransferWindowCloseService(processes, offers, proposals, transferBudget),

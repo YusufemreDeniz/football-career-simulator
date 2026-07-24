@@ -35,11 +35,15 @@ public sealed class ClubOfferService
         _transferBudget = transferBudget;
     }
 
-    public ClubOffer SubmitClubOffer(TransferProcessId processId, int offeredFee, GameDate day)
+    public ClubOffer SubmitClubOffer(
+        TransferProcessId processId,
+        int offeredFee,
+        GameDate day,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         EnsureTransferWindowOpen();
         var process = RequireProcess(processId);
-        EnsureManagerOfBuyingClub(process.BuyingClubId);
+        EnsureBuyingActor(process.BuyingClubId, actor);
 
         if (process.IsFreeAgent)
         {
@@ -73,10 +77,20 @@ public sealed class ClubOfferService
         return offer;
     }
 
-    public ClubOffer AcceptPendingOffer(TransferProcessId processId)
+    public ClubOffer AcceptPendingOffer(
+        TransferProcessId processId,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         var process = RequireProcess(processId);
-        EnsureManagerOfBuyingClub(process.BuyingClubId);
+        if (actor == TransferActingParty.SimulatedClub)
+        {
+            EnsureSimulatedSellerCanAccept(process);
+        }
+        else
+        {
+            EnsureBuyingActor(process.BuyingClubId, actor);
+        }
+
         if (!process.IsInClubNegotiation)
         {
             throw new TransferInvariantViolationException("No active club negotiation to accept.");
@@ -89,10 +103,12 @@ public sealed class ClubOfferService
         return accepted;
     }
 
-    public ClubOffer RejectPendingOffer(TransferProcessId processId)
+    public ClubOffer RejectPendingOffer(
+        TransferProcessId processId,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         var process = RequireProcess(processId);
-        EnsureManagerOfBuyingClub(process.BuyingClubId);
+        EnsureBuyingActor(process.BuyingClubId, actor);
         if (!process.IsInClubNegotiation)
         {
             throw new TransferInvariantViolationException("No active club negotiation to reject.");
@@ -105,11 +121,15 @@ public sealed class ClubOfferService
         return rejected;
     }
 
-    public ClubOffer CounterPendingOffer(TransferProcessId processId, int offeredFee, GameDate day)
+    public ClubOffer CounterPendingOffer(
+        TransferProcessId processId,
+        int offeredFee,
+        GameDate day,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         EnsureTransferWindowOpen();
         var process = RequireProcess(processId);
-        EnsureManagerOfBuyingClub(process.BuyingClubId);
+        EnsureBuyingActor(process.BuyingClubId, actor);
         if (!process.IsInClubNegotiation)
         {
             throw new TransferInvariantViolationException("No active club negotiation to counter.");
@@ -126,6 +146,36 @@ public sealed class ClubOfferService
         _offerStore.Upsert(counter);
         return counter;
     }
+
+    private void EnsureSimulatedSellerCanAccept(TransferProcess process)
+    {
+        if (process.SellingClubId is not { } sellingClubId)
+        {
+            throw new TransferInvariantViolationException(
+                "Simulated seller accept requires a selling club.");
+        }
+
+        if (_managerCareerStore.Career.ActiveEmployment is { ClubId: var managed }
+            && managed.Value == sellingClubId.Value)
+        {
+            throw new TransferInvariantViolationException(
+                "Simulated seller cannot auto-accept an offer against the human-managed club.");
+        }
+
+        // Buyer must also be simulated (not human).
+        TransferActorGuard.EnsureBuyingClubActor(
+            _managerCareerStore,
+            process.BuyingClubId,
+            TransferActingParty.SimulatedClub,
+            "Only the employed manager of the buying club can manage club offers.");
+    }
+
+    private void EnsureBuyingActor(ClubId buyingClubId, TransferActingParty actor) =>
+        TransferActorGuard.EnsureBuyingClubActor(
+            _managerCareerStore,
+            buyingClubId,
+            actor,
+            "Only the employed manager of the buying club can manage club offers.");
 
     private void ReserveBudget(ClubId clubId, int amount)
     {
@@ -169,16 +219,6 @@ public sealed class ClubOfferService
     private TransferProcess RequireProcess(TransferProcessId processId) =>
         _processStore.Get(processId)
         ?? throw new TransferInvariantViolationException($"Transfer process #{processId.Value} not found.");
-
-    private void EnsureManagerOfBuyingClub(ClubId buyingClubId)
-    {
-        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId }
-            || clubId.Value != buyingClubId.Value)
-        {
-            throw new TransferInvariantViolationException(
-                "Only the employed manager of the buying club can manage club offers.");
-        }
-    }
 
     private void EnsureTransferWindowOpen()
     {
