@@ -35,11 +35,12 @@ public sealed class PlayerContractProposalService
         TransferProcessId processId,
         int weeklyWage,
         int contractYears,
-        GameDate day)
+        GameDate day,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         EnsureTransferWindowOpen();
         var process = RequireProcess(processId);
-        EnsureManagerOfBuyingClub(process.BuyingClubId);
+        EnsureActor(process.BuyingClubId, actor);
 
         if (process.Status is TransferProcessStatus.ClubAgreementReached
             or TransferProcessStatus.SportingApproved)
@@ -73,10 +74,12 @@ public sealed class PlayerContractProposalService
         return proposal;
     }
 
-    public PlayerContractProposal AcceptPendingProposal(TransferProcessId processId)
+    public PlayerContractProposal AcceptPendingProposal(
+        TransferProcessId processId,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         var process = RequireProcess(processId);
-        EnsureManagerOfBuyingClub(process.BuyingClubId);
+        EnsureActor(process.BuyingClubId, actor);
         if (!process.IsInPlayerNegotiation)
         {
             throw new TransferInvariantViolationException("No active player negotiation to accept.");
@@ -89,10 +92,12 @@ public sealed class PlayerContractProposalService
         return accepted;
     }
 
-    public PlayerContractProposal RejectPendingProposal(TransferProcessId processId)
+    public PlayerContractProposal RejectPendingProposal(
+        TransferProcessId processId,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         var process = RequireProcess(processId);
-        EnsureManagerOfBuyingClub(process.BuyingClubId);
+        EnsureActor(process.BuyingClubId, actor);
         if (!process.IsInPlayerNegotiation)
         {
             throw new TransferInvariantViolationException("No active player negotiation to reject.");
@@ -108,11 +113,12 @@ public sealed class PlayerContractProposalService
         TransferProcessId processId,
         int weeklyWage,
         int contractYears,
-        GameDate day)
+        GameDate day,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         EnsureTransferWindowOpen();
         var process = RequireProcess(processId);
-        EnsureManagerOfBuyingClub(process.BuyingClubId);
+        EnsureActor(process.BuyingClubId, actor);
         if (!process.IsInPlayerNegotiation)
         {
             throw new TransferInvariantViolationException("No active player negotiation to counter.");
@@ -143,15 +149,12 @@ public sealed class PlayerContractProposalService
         _processStore.Get(processId)
         ?? throw new TransferInvariantViolationException($"Transfer process #{processId.Value} not found.");
 
-    private void EnsureManagerOfBuyingClub(ClubId buyingClubId)
-    {
-        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId }
-            || clubId.Value != buyingClubId.Value)
-        {
-            throw new TransferInvariantViolationException(
-                "Only the employed manager of the buying club can manage contract proposals.");
-        }
-    }
+    private void EnsureActor(ClubId buyingClubId, TransferActingParty actor) =>
+        TransferActorGuard.EnsureBuyingClubActor(
+            _managerCareerStore,
+            buyingClubId,
+            actor,
+            "Only the employed manager of the buying club can manage contract proposals.");
 
     private void EnsureTransferWindowOpen()
     {

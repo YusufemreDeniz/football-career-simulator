@@ -104,17 +104,21 @@ public sealed class TransferProcessService
         return OpenFromListedTarget(target.TargetId, day);
     }
 
-    public TransferProcess RequestSportingApproval(TransferProcessId processId)
+    public TransferProcess RequestSportingApproval(
+        TransferProcessId processId,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
-        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        EnsureActor(Require(processId).BuyingClubId, actor);
         var updated = Require(processId).RequestSportingApproval();
         _processStore.Upsert(updated);
         return updated;
     }
 
-    public TransferProcess GrantSportingApproval(TransferProcessId processId)
+    public TransferProcess GrantSportingApproval(
+        TransferProcessId processId,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
-        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        EnsureActor(Require(processId).BuyingClubId, actor);
         var updated = Require(processId).GrantSportingApproval();
         _processStore.Upsert(updated);
         return updated;
@@ -123,25 +127,30 @@ public sealed class TransferProcessService
     public TransferProcess RejectSportingApproval(
         TransferProcessId processId,
         string reasonCode,
-        GameDate day)
+        GameDate day,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
-        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        EnsureActor(Require(processId).BuyingClubId, actor);
         var updated = Require(processId).RejectSportingApproval(reasonCode, day);
         _processStore.Upsert(updated);
         return updated;
     }
 
-    public TransferProcess RequestFinancialApproval(TransferProcessId processId)
+    public TransferProcess RequestFinancialApproval(
+        TransferProcessId processId,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
-        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        EnsureActor(Require(processId).BuyingClubId, actor);
         var updated = Require(processId).RequestFinancialApproval();
         _processStore.Upsert(updated);
         return updated;
     }
 
-    public TransferProcess GrantFinancialApproval(TransferProcessId processId)
+    public TransferProcess GrantFinancialApproval(
+        TransferProcessId processId,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
-        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        EnsureActor(Require(processId).BuyingClubId, actor);
         var updated = Require(processId).GrantFinancialApproval();
         _processStore.Upsert(updated);
         return updated;
@@ -150,10 +159,11 @@ public sealed class TransferProcessService
     public TransferProcess RejectFinancialApproval(
         TransferProcessId processId,
         string reasonCode,
-        GameDate day)
+        GameDate day,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         var process = Require(processId);
-        EnsureManagerCanDecide(process.BuyingClubId);
+        EnsureActor(process.BuyingClubId, actor);
         ReleaseReservedFee(process);
         var updated = process.RejectFinancialApproval(reasonCode, day);
         _processStore.Upsert(updated);
@@ -211,15 +221,12 @@ public sealed class TransferProcessService
         _processStore.Get(processId)
         ?? throw new TransferInvariantViolationException($"Transfer process #{processId.Value} not found.");
 
-    private void EnsureManagerCanDecide(ClubId buyingClubId)
-    {
-        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId }
-            || clubId.Value != buyingClubId.Value)
-        {
-            throw new TransferInvariantViolationException(
-                "Only the employed manager of the buying club can make sporting decisions.");
-        }
-    }
+    private void EnsureActor(ClubId buyingClubId, TransferActingParty actor) =>
+        TransferActorGuard.EnsureBuyingClubActor(
+            _managerCareerStore,
+            buyingClubId,
+            actor,
+            "Only the employed manager of the buying club can make sporting decisions.");
 
     private void EnsureTransferWindowOpen()
     {

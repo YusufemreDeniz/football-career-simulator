@@ -1,4 +1,7 @@
+using FootballCareerSimulator.Application.ClubGovernance.Infrastructure;
+using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ClubGovernance.Services;
+using FootballCareerSimulator.Application.ContractRegistration.Infrastructure;
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
@@ -7,6 +10,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Application.Transfer.Services;
+using FootballCareerSimulator.Domain.ClubGovernance;
 
 namespace FootballCareerSimulator.Application.Transfer.Composition;
 
@@ -26,6 +30,7 @@ public sealed class TransferModule
         PlayerContractProposalService contractProposals,
         TransferCompletionService completion,
         TransferWindowCloseService windowClose,
+        AiClubTransferSimulationService aiSimulation,
         TransferNeedQueryService queries)
     {
         NeedStore = needStore;
@@ -41,6 +46,7 @@ public sealed class TransferModule
         ContractProposals = contractProposals;
         Completion = completion;
         WindowClose = windowClose;
+        AiSimulation = aiSimulation;
         Queries = queries;
     }
 
@@ -70,6 +76,8 @@ public sealed class TransferModule
 
     public TransferWindowCloseService WindowClose { get; }
 
+    public AiClubTransferSimulationService AiSimulation { get; }
+
     public TransferNeedQueryService Queries { get; }
 
     public static TransferModule Create(
@@ -85,7 +93,9 @@ public sealed class TransferModule
         IClubOfferStore? offerStore = null,
         IPlayerContractProposalStore? proposalStore = null,
         ITransferWindowQuery? transferWindow = null,
-        ClubTransferBudgetService? transferBudget = null)
+        ClubTransferBudgetService? transferBudget = null,
+        IClubRegistryStore? clubRegistry = null,
+        IFreeAgentStore? freeAgentStore = null)
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(clubSquad);
@@ -97,6 +107,49 @@ public sealed class TransferModule
         var processes = processStore ?? new InMemoryTransferProcessStore();
         var offers = offerStore ?? new InMemoryClubOfferStore();
         var proposals = proposalStore ?? new InMemoryPlayerContractProposalStore();
+        var needService = new TransferNeedService(needs, contractStore, squadStore);
+        var shortlistService = new ShortlistTargetService(shortlist, targets, needs);
+        var processService = new TransferProcessService(
+            processes,
+            targets,
+            needs,
+            managerCareerStore,
+            window,
+            offers,
+            transferBudget);
+        var proposalService = new PlayerContractProposalService(
+            proposals,
+            processes,
+            managerCareerStore,
+            window);
+        var completionService = new TransferCompletionService(
+            processes,
+            proposals,
+            offers,
+            registration,
+            clubSquad,
+            managerCareerStore,
+            window,
+            transferBudget);
+
+        var clubs = clubRegistry
+            ?? new InMemoryClubRegistryStore(LeagueClubRegistry.CreateMvpLeague());
+        var freeAgents = freeAgentStore ?? new InMemoryFreeAgentStore();
+
+        var aiSimulation = new AiClubTransferSimulationService(
+            clubs,
+            managerCareerStore,
+            freeAgents,
+            squadStore,
+            needs,
+            processes,
+            window,
+            needService,
+            shortlistService,
+            processService,
+            proposalService,
+            completionService);
+
         return new TransferModule(
             needs,
             shortlist,
@@ -104,28 +157,14 @@ public sealed class TransferModule
             processes,
             offers,
             proposals,
-            new TransferNeedService(needs, contractStore, squadStore),
-            new ShortlistTargetService(shortlist, targets, needs),
-            new TransferProcessService(
-                processes,
-                targets,
-                needs,
-                managerCareerStore,
-                window,
-                offers,
-                transferBudget),
+            needService,
+            shortlistService,
+            processService,
             new ClubOfferService(offers, processes, managerCareerStore, window, transferBudget),
-            new PlayerContractProposalService(proposals, processes, managerCareerStore, window),
-            new TransferCompletionService(
-                processes,
-                proposals,
-                offers,
-                registration,
-                clubSquad,
-                managerCareerStore,
-                window,
-                transferBudget),
+            proposalService,
+            completionService,
             new TransferWindowCloseService(processes, offers, proposals, transferBudget),
+            aiSimulation,
             new TransferNeedQueryService(
                 needs,
                 shortlist,

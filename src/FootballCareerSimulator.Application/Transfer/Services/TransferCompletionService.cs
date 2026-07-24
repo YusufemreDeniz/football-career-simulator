@@ -47,10 +47,13 @@ public sealed class TransferCompletionService
         _transferBudget = transferBudget;
     }
 
-    public TransferProcess Complete(TransferProcessId processId, GameDate day)
+    public TransferProcess Complete(
+        TransferProcessId processId,
+        GameDate day,
+        TransferActingParty actor = TransferActingParty.HumanManager)
     {
         var process = Require(processId);
-        EnsureManagerOfBuyingClub(process.BuyingClubId);
+        EnsureActor(process.BuyingClubId, actor);
 
         if (process.Status is TransferProcessStatus.Completed or TransferProcessStatus.Archived)
         {
@@ -133,13 +136,10 @@ public sealed class TransferCompletionService
         _processStore.Get(processId)
         ?? throw new TransferInvariantViolationException($"Transfer process #{processId.Value} not found.");
 
-    private void EnsureManagerOfBuyingClub(ClubId buyingClubId)
-    {
-        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId }
-            || clubId.Value != buyingClubId.Value)
-        {
-            throw new TransferInvariantViolationException(
-                "Only the employed manager of the buying club can complete a transfer.");
-        }
-    }
+    private void EnsureActor(ClubId buyingClubId, TransferActingParty actor) =>
+        TransferActorGuard.EnsureBuyingClubActor(
+            _managerCareerStore,
+            buyingClubId,
+            actor,
+            "Only the employed manager of the buying club can complete a transfer.");
 }
