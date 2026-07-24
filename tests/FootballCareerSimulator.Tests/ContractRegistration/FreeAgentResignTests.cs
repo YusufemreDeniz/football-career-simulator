@@ -68,7 +68,7 @@ public sealed class FreeAgentResignTests
         Assert.False(contracts.Registration.IsFreeAgent(playerId));
         Assert.Equal(new ClubId(1), contracts.Registration.GetActiveClub(playerId, afterEnd));
         Assert.Equal(ContractStatus.Active, contracts.Store.GetByPlayer(playerId)!.Status);
-        Assert.Equal(24, teamPrep.SquadStore.Get(new ClubId(1))!.Members.Count);
+        Assert.Equal(25, teamPrep.SquadStore.Get(new ClubId(1))!.Members.Count);
         Assert.True(teamPrep.SquadStore.Get(new ClubId(1))!.ContainsPlayer(playerId));
         Assert.Equal(0, contracts.Queries.GetManagedClubSummary().FreeAgentReleasedCount);
         Assert.Null(contracts.Queries.GetNextSignableFreeAgentForManagedClub());

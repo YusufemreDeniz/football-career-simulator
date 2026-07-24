@@ -66,7 +66,7 @@ public sealed class FreeAgencyTests : IDisposable
 
         players.Development.EnsureClub(new ClubId(1), world.TimelineStore.Timeline.RootSeed, Day);
         teamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
-        Assert.Equal(24, teamPrep.SquadStore.Get(new ClubId(1))!.Members.Count);
+        Assert.Equal(25, teamPrep.SquadStore.Get(new ClubId(1))!.Members.Count);
 
         var shortPlayer = PlayerId.FromClubSlot(1, MvpContractFactory.ShortContractSquadSlot);
         var shortContract = contracts.Store.GetByPlayer(shortPlayer)!;
