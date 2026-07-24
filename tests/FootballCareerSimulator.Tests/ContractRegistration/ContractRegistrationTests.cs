@@ -172,7 +172,7 @@ public sealed class ContractRegistrationTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(34, loaded.SchemaVersion);
+        Assert.Equal(35, loaded.SchemaVersion);
         Assert.Equal(25, loaded.Contracts.Count);
         Assert.All(loaded.Contracts, c => Assert.Equal(ContractStatus.Active, c.Status));
 

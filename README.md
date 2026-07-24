@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Social Continuity ilk dikey + DecisionRequest + **sınırlı Dialogue seçenek üretimi** (PlayingTime: Grant/Refuse semantic intent; aktif söz → Grant ineligible; seçim anı doğrulama; UI seçenekleri generator’dan) kilitlenmiştir. Sıradaki aday: DialogueSession iskeleti veya ikinci DecisionRequest türü; tam diyalog ağacı/medya henüz açılmamalıdır; ledger/muhasebe MVP dışı (D-150).
+İnce kariyer döngüsü + Social Continuity + DecisionRequest + Dialogue seçenekleri + **DialogueSession iskeleti** (DecisionRequest’e bağlı tek turn; frozen AvailableOptionCodes; Answer/Expire senkronu; SQLite v35) kilitlenmiştir. Sıradaki aday: ikinci DecisionRequest türü veya Session query/UI derinleştirme; tam diyalog ağacı/medya henüz açılmamalıdır; ledger/muhasebe MVP dışı (D-150).
 
 ## Klasör Yapısı
 

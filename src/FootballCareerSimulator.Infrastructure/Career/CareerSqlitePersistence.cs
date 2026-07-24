@@ -43,7 +43,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<Promise> promises,
         IReadOnlyList<MemoryRecord> memories,
         IReadOnlyList<RelationshipRecord>? relationships = null,
-        IReadOnlyList<DecisionRequest>? decisionRequests = null)
+        IReadOnlyList<DecisionRequest>? decisionRequests = null,
+        IReadOnlyList<DialogueSession>? dialogueSessions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -68,6 +69,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(memories);
         relationships ??= Array.Empty<RelationshipRecord>();
         decisionRequests ??= Array.Empty<DecisionRequest>();
+        dialogueSessions ??= Array.Empty<DialogueSession>();
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -91,7 +93,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             promises,
             memories,
             relationships,
-            decisionRequests);
+            decisionRequests,
+            dialogueSessions);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -128,6 +131,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertMemories(connection, transaction, memories);
             InsertRelationships(connection, transaction, relationships);
             InsertDecisionRequests(connection, transaction, decisionRequests);
+            InsertDialogueSessions(connection, transaction, dialogueSessions);
 
             transaction.Commit();
         }
@@ -390,6 +394,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV33ToV34InPlace(filePath);
             wasMigrated = true;
             version = 34;
+        }
+
+        if (version == 34 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 35)
+        {
+            WorldCalendarSqliteMigrator.MigrateV34ToV35InPlace(filePath);
+            wasMigrated = true;
+            version = 35;
         }
 
         if (wasMigrated)
@@ -757,6 +768,22 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 DeadlineDayNumber INTEGER NOT NULL,
                 Status INTEGER NOT NULL,
                 IsHardBlocker INTEGER NOT NULL,
+                SelectedOptionCode TEXT NULL,
+                ResolvedDayNumber INTEGER NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE DialogueSessionState (
+                DialogueSessionId INTEGER PRIMARY KEY,
+                SourceDecisionRequestId INTEGER NOT NULL,
+                DialogueTypeCode TEXT NOT NULL,
+                ManagerId INTEGER NOT NULL,
+                PrimaryParticipantPlayerId INTEGER NOT NULL,
+                CreatedDayNumber INTEGER NOT NULL,
+                DeadlineDayNumber INTEGER NULL,
+                Status INTEGER NOT NULL,
+                AvailableOptionCodesCsv TEXT NOT NULL,
                 SelectedOptionCode TEXT NULL,
                 ResolvedDayNumber INTEGER NULL
             );
@@ -1518,6 +1545,47 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertDialogueSessions(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<DialogueSession> dialogueSessions)
+    {
+        foreach (var session in dialogueSessions)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO DialogueSessionState (
+                    DialogueSessionId, SourceDecisionRequestId, DialogueTypeCode,
+                    ManagerId, PrimaryParticipantPlayerId, CreatedDayNumber, DeadlineDayNumber,
+                    Status, AvailableOptionCodesCsv, SelectedOptionCode, ResolvedDayNumber)
+                VALUES (
+                    $id, $decisionId, $type, $managerId, $playerId, $created, $deadline,
+                    $status, $options, $selected, $resolved);
+                """;
+            command.Parameters.AddWithValue("$id", session.DialogueSessionId.Value);
+            command.Parameters.AddWithValue("$decisionId", session.SourceDecisionRequestId.Value);
+            command.Parameters.AddWithValue("$type", session.DialogueTypeCode);
+            command.Parameters.AddWithValue("$managerId", session.ManagerId.Value);
+            command.Parameters.AddWithValue("$playerId", session.PrimaryParticipantPlayerId.Value);
+            command.Parameters.AddWithValue("$created", session.CreatedOn.DayNumber);
+            command.Parameters.AddWithValue(
+                "$deadline",
+                (object?)session.DeadlineOn?.DayNumber ?? DBNull.Value);
+            command.Parameters.AddWithValue("$status", (int)session.Status);
+            command.Parameters.AddWithValue(
+                "$options",
+                string.Join('|', session.AvailableOptionCodes));
+            command.Parameters.AddWithValue(
+                "$selected",
+                (object?)session.SelectedOptionCode ?? DBNull.Value);
+            command.Parameters.AddWithValue(
+                "$resolved",
+                (object?)session.ResolvedOn?.DayNumber ?? DBNull.Value);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static void InsertMemories(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1645,6 +1713,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var memories = ReadMemories(connection);
         var relationships = ReadRelationships(connection);
         var decisionRequests = ReadDecisionRequests(connection);
+        var dialogueSessions = ReadDialogueSessions(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1667,7 +1736,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             promises,
             memories,
             relationships,
-            decisionRequests);
+            decisionRequests,
+            dialogueSessions);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1712,6 +1782,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<MemoryRecord> memories;
             IReadOnlyList<RelationshipRecord> relationships;
             IReadOnlyList<DecisionRequest> decisionRequests;
+            IReadOnlyList<DialogueSession> dialogueSessions;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1745,6 +1816,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 memories = ReadMemories(connection);
                 relationships = ReadRelationships(connection);
                 decisionRequests = ReadDecisionRequests(connection);
+                dialogueSessions = ReadDialogueSessions(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1771,7 +1843,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 promises,
                 memories,
                 relationships,
-                decisionRequests);
+                decisionRequests,
+                dialogueSessions);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1801,6 +1874,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 memories,
                 relationships,
                 decisionRequests,
+                dialogueSessions,
                 schemaVersion,
                 wasMigrated);
         }
@@ -2696,6 +2770,46 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return requests;
+    }
+
+    private static IReadOnlyList<DialogueSession> ReadDialogueSessions(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "DialogueSessionState"))
+        {
+            return Array.Empty<DialogueSession>();
+        }
+
+        var sessions = new List<DialogueSession>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT DialogueSessionId, SourceDecisionRequestId, DialogueTypeCode,
+                   ManagerId, PrimaryParticipantPlayerId, CreatedDayNumber, DeadlineDayNumber,
+                   Status, AvailableOptionCodesCsv, SelectedOptionCode, ResolvedDayNumber
+            FROM DialogueSessionState
+            ORDER BY DialogueSessionId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var optionsCsv = reader.GetString(8);
+            var options = string.IsNullOrWhiteSpace(optionsCsv)
+                ? Array.Empty<string>()
+                : optionsCsv.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            sessions.Add(DialogueSession.Rehydrate(
+                new DialogueSessionId(reader.GetInt64(0)),
+                new DecisionRequestId(reader.GetInt64(1)),
+                reader.GetString(2),
+                new ManagerId(reader.GetInt64(3)),
+                new PlayerId(reader.GetInt64(4)),
+                GameDate.FromDayNumber(reader.GetInt32(5)),
+                reader.IsDBNull(6) ? null : GameDate.FromDayNumber(reader.GetInt32(6)),
+                (DialogueSessionStatus)reader.GetInt32(7),
+                options,
+                reader.IsDBNull(9) ? null : reader.GetString(9),
+                reader.IsDBNull(10) ? null : GameDate.FromDayNumber(reader.GetInt32(10))));
+        }
+
+        return sessions;
     }
 
     private static IReadOnlyList<long> ParseLongCsv(string csv)

@@ -147,7 +147,7 @@ public sealed class TransferCompletionTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(34, loaded.SchemaVersion);
+        Assert.Equal(35, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.Archived, loaded.TransferProcesses[0].Status);
         Assert.Equal(

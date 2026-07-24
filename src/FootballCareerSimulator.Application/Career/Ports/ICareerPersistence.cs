@@ -37,7 +37,8 @@ public interface ICareerPersistence
         IReadOnlyList<Promise> promises,
         IReadOnlyList<MemoryRecord> memories,
         IReadOnlyList<RelationshipRecord>? relationships = null,
-        IReadOnlyList<DecisionRequest>? decisionRequests = null);
+        IReadOnlyList<DecisionRequest>? decisionRequests = null,
+        IReadOnlyList<DialogueSession>? dialogueSessions = null);
 
     CareerLoadResult Load(string filePath);
 }
@@ -65,5 +66,6 @@ public sealed record CareerLoadResult(
     IReadOnlyList<MemoryRecord> Memories,
     IReadOnlyList<RelationshipRecord> Relationships,
     IReadOnlyList<DecisionRequest> DecisionRequests,
+    IReadOnlyList<DialogueSession> DialogueSessions,
     int SchemaVersion,
     bool WasMigrated);

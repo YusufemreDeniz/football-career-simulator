@@ -146,7 +146,7 @@ public sealed class DecisionRequestTests : IDisposable
     }
 
     [Fact]
-    public void SaveLoad_PreservesDecisionRequestAtSchemaV34()
+    public void SaveLoad_PreservesDecisionRequestAtSchemaV35()
     {
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var social = SocialContinuityModule.Create();
@@ -177,13 +177,15 @@ public sealed class DecisionRequestTests : IDisposable
             social.PromiseStore.Promises,
             social.MemoryStore.Memories,
             social.RelationshipStore.Relationships,
-            interaction.DecisionRequestStore.Requests);
+            interaction.DecisionRequestStore.Requests,
+            interaction.DialogueSessionStore.Sessions);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(34, loaded.SchemaVersion);
+        Assert.Equal(35, loaded.SchemaVersion);
         var request = Assert.Single(loaded.DecisionRequests);
         Assert.Equal(DecisionRequestKind.PlayingTimeRequest, request.Kind);
         Assert.Equal(13, request.SubjectPlayerId.Value);
         Assert.True(request.IsHardBlocker);
+        Assert.Single(loaded.DialogueSessions);
     }
 }

@@ -123,7 +123,7 @@ public sealed class DismissalTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(34, loaded.SchemaVersion);
+        Assert.Equal(35, loaded.SchemaVersion);
         Assert.Equal(ManagerEmploymentStatus.Unemployed, loaded.ManagerCareer.EmploymentStatus);
         Assert.Null(loaded.ManagerCareer.ActiveEmployment);
         Assert.NotNull(loaded.ManagerCareer.LastClubId);

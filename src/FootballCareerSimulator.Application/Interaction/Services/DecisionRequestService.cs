@@ -8,7 +8,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// DecisionRequest owner (iskelet). Forma süresi talebi → Promise / Relationship / Memory.
+/// DecisionRequest owner (iskelet). Forma süresi talebi → Promise / Relationship / Memory / DialogueSession.
 /// </summary>
 public sealed class DecisionRequestService
 {
@@ -21,6 +21,7 @@ public sealed class DecisionRequestService
     private readonly RelationshipEvaluationService? _relationships;
     private readonly DecisionMemoryService? _decisionMemory;
     private readonly DialogueOptionGenerationService? _dialogueOptions;
+    private readonly DialogueSessionService? _dialogueSessions;
 
     public DecisionRequestService(
         IDecisionRequestStore store,
@@ -28,7 +29,8 @@ public sealed class DecisionRequestService
         PlayingTimePromiseService? playingTime = null,
         RelationshipEvaluationService? relationships = null,
         DecisionMemoryService? decisionMemory = null,
-        DialogueOptionGenerationService? dialogueOptions = null)
+        DialogueOptionGenerationService? dialogueOptions = null,
+        DialogueSessionService? dialogueSessions = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
@@ -37,6 +39,7 @@ public sealed class DecisionRequestService
         _relationships = relationships;
         _decisionMemory = decisionMemory;
         _dialogueOptions = dialogueOptions;
+        _dialogueSessions = dialogueSessions;
     }
 
     public DecisionRequest OpenPlayingTimeRequest(
@@ -82,6 +85,7 @@ public sealed class DecisionRequestService
             day.AddDays(days),
             isHardBlocker);
         _store.Upsert(request);
+        OpenDialogueSession(request);
         return request;
     }
 
@@ -93,6 +97,7 @@ public sealed class DecisionRequestService
     {
         var current = Require(decisionRequestId);
         _dialogueOptions?.EnsureEligible(decisionRequestId, optionCode);
+        _dialogueSessions?.EnsureOptionInFrozenSet(decisionRequestId, optionCode);
         var answered = current.Answer(optionCode, day);
         _store.Upsert(answered);
 
@@ -114,6 +119,7 @@ public sealed class DecisionRequestService
                 day);
         }
 
+        _dialogueSessions?.MarkResolved(decisionRequestId, answered.SelectedOptionCode!, day);
         ApplySocialOutcomes(answered, day);
         return answered;
     }
@@ -127,12 +133,44 @@ public sealed class DecisionRequestService
             if (next.Status != request.Status)
             {
                 _store.Upsert(next);
+                _dialogueSessions?.MarkExpired(next.DecisionRequestId, day);
                 ApplySocialOutcomes(next, day);
                 expired++;
             }
         }
 
         return expired;
+    }
+
+    private void OpenDialogueSession(DecisionRequest request)
+    {
+        if (_dialogueSessions is null)
+        {
+            return;
+        }
+
+        IReadOnlyList<string> optionCodes;
+        if (_dialogueOptions is not null)
+        {
+            optionCodes = _dialogueOptions.GetForDecision(request.DecisionRequestId)
+                .Options
+                .Select(o => o.OptionCode)
+                .ToArray();
+        }
+        else if (request.Kind == DecisionRequestKind.PlayingTimeRequest)
+        {
+            optionCodes =
+            [
+                DecisionRequest.OptionGrantPlayingTimePromise,
+                DecisionRequest.OptionRefuse,
+            ];
+        }
+        else
+        {
+            return;
+        }
+
+        _dialogueSessions.OpenForDecision(request, optionCodes);
     }
 
     private void ApplySocialOutcomes(DecisionRequest request, GameDate day)

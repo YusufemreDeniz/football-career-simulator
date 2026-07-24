@@ -87,6 +87,7 @@ public sealed class CareerPresentationHost
         const long startingClubId = 1;
         var startingStrength = clubModule.Queries.GetClub(startingClubId)?.SportiveStrength ?? 50;
         var decisionStore = new InMemoryDecisionRequestStore();
+        var dialogueSessionStore = new InMemoryDialogueSessionStore();
         var worldModule = WorldCalendarModule.Create(
             startDate,
             rootSeed: 42,
@@ -136,7 +137,8 @@ public sealed class CareerPresentationHost
             decisionStore,
             socialContinuity.RelationshipEvaluation,
             socialContinuity.DecisionMemory,
-            socialContinuity.PromiseStore);
+            socialContinuity.PromiseStore,
+            dialogueSessionStore);
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,
@@ -212,6 +214,7 @@ public sealed class CareerPresentationHost
             socialContinuity.MemoryStore,
             socialContinuity.RelationshipStore,
             interactionModule.DecisionRequestStore,
+            interactionModule.DialogueSessionStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,

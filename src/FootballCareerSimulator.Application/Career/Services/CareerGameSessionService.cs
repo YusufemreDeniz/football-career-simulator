@@ -33,6 +33,7 @@ public sealed class CareerGameSessionService
     private readonly IMemoryStore _memoryStore;
     private readonly IRelationshipStore _relationshipStore;
     private readonly IDecisionRequestStore _decisionRequestStore;
+    private readonly IDialogueSessionStore _dialogueSessionStore;
     private readonly ITrainingPhysicalStateStore _trainingStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly IContractStore _contractStore;
@@ -58,6 +59,7 @@ public sealed class CareerGameSessionService
         IMemoryStore memoryStore,
         IRelationshipStore relationshipStore,
         IDecisionRequestStore decisionRequestStore,
+        IDialogueSessionStore dialogueSessionStore,
         ITrainingPhysicalStateStore trainingStore,
         IPlayerCareerStore playerCareerStore,
         IContractStore contractStore,
@@ -84,6 +86,8 @@ public sealed class CareerGameSessionService
         _relationshipStore = relationshipStore ?? throw new ArgumentNullException(nameof(relationshipStore));
         _decisionRequestStore = decisionRequestStore
             ?? throw new ArgumentNullException(nameof(decisionRequestStore));
+        _dialogueSessionStore = dialogueSessionStore
+            ?? throw new ArgumentNullException(nameof(dialogueSessionStore));
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
         _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
@@ -125,7 +129,8 @@ public sealed class CareerGameSessionService
             _promiseStore.Promises,
             _memoryStore.Memories,
             _relationshipStore.Relationships,
-            _decisionRequestStore.Requests);
+            _decisionRequestStore.Requests,
+            _dialogueSessionStore.Sessions);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -162,6 +167,7 @@ public sealed class CareerGameSessionService
         _memoryStore.ReplaceAll(loaded.Memories);
         _relationshipStore.ReplaceAll(loaded.Relationships);
         _decisionRequestStore.ReplaceAll(loaded.DecisionRequests);
+        _dialogueSessionStore.ReplaceAll(loaded.DialogueSessions);
 
         foreach (var reset in _idempotencyResets)
         {

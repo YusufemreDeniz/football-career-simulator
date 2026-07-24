@@ -140,7 +140,7 @@ public sealed class MatchPerformanceMemoryTests : IDisposable
             social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(34, loaded.SchemaVersion);
+        Assert.Equal(35, loaded.SchemaVersion);
         Assert.Equal(2, loaded.Memories.Count(m => m.Category == MemoryCategory.MatchPerformance));
     }
 }

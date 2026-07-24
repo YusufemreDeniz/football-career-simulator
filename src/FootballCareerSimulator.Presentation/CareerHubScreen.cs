@@ -1299,6 +1299,13 @@ public partial class CareerHubScreen : Control
         _decisionLabel.Text =
             $"Kararlar: {pending.OpenCount} açık — {preview}"
             + (string.IsNullOrWhiteSpace(optionPreview) ? string.Empty : $" · seçenekler: {optionPreview}");
+
+        var awaiting = _controller.Host.InteractionModule.DialogueSessionStore.Sessions
+            .Count(s => s.IsAwaitingPlayer);
+        if (awaiting > 0)
+        {
+            _decisionLabel.Text += $" · diyalog:{awaiting}";
+        }
     }
 
     private void UpdateJobOfferButtons(
