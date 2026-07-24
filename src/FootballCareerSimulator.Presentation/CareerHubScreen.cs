@@ -19,6 +19,7 @@ public partial class CareerHubScreen : Control
     private Label _developmentLabel = null!;
     private Label _contractLabel = null!;
     private Label _memoryLabel = null!;
+    private Label _promiseLabel = null!;
     private Label _transferWindowLabel = null!;
     private Label _transferBudgetLabel = null!;
     private Button _openTransferWindowButton = null!;
@@ -291,6 +292,8 @@ public partial class CareerHubScreen : Control
         page.AddChild(_contractLabel);
         _memoryLabel = BodyLabel("MemoryLabel", autowrap: true);
         page.AddChild(_memoryLabel);
+        _promiseLabel = BodyLabel("PromiseLabel", autowrap: true);
+        page.AddChild(_promiseLabel);
 
         _squadList = new ItemList
         {
@@ -758,6 +761,7 @@ public partial class CareerHubScreen : Control
             RefreshDevelopmentStatus();
             RefreshContractStatus();
             RefreshMemoryStatus();
+            RefreshPromiseStatus();
             RefreshTransferWindowStatus();
             RefreshTransferBudgetStatus();
             RefreshTransferNeedStatus();
@@ -792,6 +796,7 @@ public partial class CareerHubScreen : Control
         RefreshDevelopmentStatus();
         RefreshContractStatus();
         RefreshMemoryStatus();
+        RefreshPromiseStatus();
         RefreshTransferWindowStatus();
         RefreshTransferBudgetStatus();
         RefreshTransferNeedStatus();
@@ -1169,6 +1174,29 @@ public partial class CareerHubScreen : Control
             memories.RecentActive.Select(m => $"{m.CategoryName}/{m.ValenceName}"));
         _memoryLabel.Text =
             $"Hafıza: {memories.ActiveCount} aktif"
+            + (string.IsNullOrWhiteSpace(preview) ? string.Empty : $" — {preview}");
+    }
+
+    private void RefreshPromiseStatus()
+    {
+        var manager = _controller.Host.ManagerModule.Queries.GetCareer();
+        var promises = _controller.Host.SocialContinuityModule.PromiseQueries.GetActiveForPromisor(
+            Domain.SocialContinuity.ActorKind.Manager,
+            manager.ManagerId,
+            take: 5);
+
+        if (promises.ActiveCount == 0)
+        {
+            _promiseLabel.Text = "Sözler: menajer için aktif söz yok.";
+            return;
+        }
+
+        var preview = string.Join(
+            " · ",
+            promises.RecentActive.Select(p =>
+                $"{p.KindName} oyuncu#{p.PromiseeId} {p.ProgressCount}/{p.TargetCount}"));
+        _promiseLabel.Text =
+            $"Sözler: {promises.ActiveCount} aktif"
             + (string.IsNullOrWhiteSpace(preview) ? string.Empty : $" — {preview}");
     }
 
