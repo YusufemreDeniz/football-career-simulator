@@ -74,6 +74,7 @@ public sealed class MemoryQueryService
             MemoryCategory.Transfer => "Transfer",
             MemoryCategory.Career => "Kariyer",
             MemoryCategory.ClubHistory => "Kulüp geçmişi",
+            MemoryCategory.MatchPerformance => "Maç performansı",
             _ => category.ToString(),
         };
 

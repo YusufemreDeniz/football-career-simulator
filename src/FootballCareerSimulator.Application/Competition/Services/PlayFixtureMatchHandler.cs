@@ -39,6 +39,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly PromiseInvalidationService? _promiseInvalidation;
     private readonly CareerMemoryService? _careerMemory;
     private readonly ClubHistoryMemoryService? _clubHistoryMemory;
+    private readonly MatchPerformanceMemoryService? _matchPerformanceMemory;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -57,7 +58,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         PlayingTimePromiseService? playingTimePromises = null,
         PromiseInvalidationService? promiseInvalidation = null,
         CareerMemoryService? careerMemory = null,
-        ClubHistoryMemoryService? clubHistoryMemory = null)
+        ClubHistoryMemoryService? clubHistoryMemory = null,
+        MatchPerformanceMemoryService? matchPerformanceMemory = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -75,6 +77,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _promiseInvalidation = promiseInvalidation;
         _careerMemory = careerMemory;
         _clubHistoryMemory = clubHistoryMemory;
+        _matchPerformanceMemory = matchPerformanceMemory;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -133,6 +136,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         ApplyMatchPhysicalConsequences(fixture, occurredAt, rootSeed);
         ApplyMatchDevelopment(fixture, occurredAt, rootSeed);
         ApplySocialContinuityAfterMatch(fixture, occurredAt);
+        ApplyMatchPerformanceMemory(fixture, score, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
@@ -404,6 +408,42 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         ApplySocialContinuityForClub(fixture.Id, fixture.HomeClubId, day);
         ApplySocialContinuityForClub(fixture.Id, fixture.AwayClubId, day);
+    }
+
+    private void ApplyMatchPerformanceMemory(Fixture fixture, MatchScore score, GameDate day)
+    {
+        if (_matchPerformanceMemory is null || _managerCareerStore is null)
+        {
+            return;
+        }
+
+        var employment = _managerCareerStore.Career.ActiveEmployment;
+        if (employment is null)
+        {
+            return;
+        }
+
+        var managedClubId = employment.ClubId;
+        if (fixture.HomeClubId != managedClubId && fixture.AwayClubId != managedClubId)
+        {
+            return;
+        }
+
+        var isHome = fixture.HomeClubId == managedClubId;
+        var managedGoals = isHome ? score.HomeGoals : score.AwayGoals;
+        var opponentGoals = isHome ? score.AwayGoals : score.HomeGoals;
+        var startingIds = ResolvePlayerIdsForSlots(
+            fixture.Id,
+            managedClubId,
+            ResolveStartingSlots(fixture.Id, managedClubId));
+
+        _matchPerformanceMemory.RecordBlowoutIfApplicable(
+            fixture.Id,
+            managedGoals,
+            opponentGoals,
+            _managerCareerStore.Career.ManagerId,
+            startingIds,
+            day);
     }
 
     private void ApplySocialContinuityForClub(FixtureId fixtureId, ClubId clubId, GameDate day)

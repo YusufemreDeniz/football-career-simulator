@@ -8,7 +8,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.SocialContinuity;
 
 /// <summary>
-/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust / Transfer / Career / ClubHistory.
+/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust / Transfer / Career / ClubHistory / MatchPerformance.
 /// </summary>
 public sealed class MemoryRecord
 {
@@ -36,6 +36,9 @@ public sealed class MemoryRecord
     public const int ClubHistoryLeftTransferRuleVersion = 1;
     public const string ClubHistoryJoinedTransferRuleId = "ClubHistoryJoinedTransfer";
     public const int ClubHistoryJoinedTransferRuleVersion = 1;
+    public const string MatchBlowoutRuleId = "MatchBlowout";
+    public const int MatchBlowoutRuleVersion = 1;
+    public const int MatchBlowoutMinGoalDifference = 3;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
 
@@ -371,6 +374,40 @@ public sealed class MemoryRecord
             ClubHistoryJoinedTransferRuleVersion);
     }
 
+    public static MemoryRecord CreateMatchBlowout(
+        MemoryId memoryId,
+        ActorRef rememberingActor,
+        FixtureId fixtureId,
+        GameDate day,
+        bool managedWon)
+    {
+        if (rememberingActor.Kind is not (ActorKind.Manager or ActorKind.Player))
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Match-blowout memory remembering actor must be a manager or player.");
+        }
+
+        const int importance = 75;
+        return new MemoryRecord(
+            memoryId,
+            rememberingActor,
+            MemorySubjectKind.Fixture,
+            fixtureId.Value,
+            BuildMatchBlowoutSourceKey(fixtureId, rememberingActor),
+            MemoryCategory.MatchPerformance,
+            day,
+            day,
+            importance,
+            importance,
+            managedWon ? MemoryValence.Positive : MemoryValence.Negative,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            MatchBlowoutRuleId,
+            MatchBlowoutRuleVersion);
+    }
+
     public static MemoryRecord CreateTransferCompleted(
         MemoryId memoryId,
         ActorRef rememberingActor,
@@ -576,6 +613,9 @@ public sealed class MemoryRecord
 
     public static string BuildClubHistoryJoinedTransferSourceKey(TransferProcessId processId) =>
         $"ClubHistoryJoinedTransfer:{processId.Value}";
+
+    public static string BuildMatchBlowoutSourceKey(FixtureId fixtureId, ActorRef rememberingActor) =>
+        $"MatchBlowout:{fixtureId.Value}:{rememberingActor.Kind}:{rememberingActor.Id}";
 
     public static string BuildSelectionStartedSourceKey(FixtureId fixtureId, long playerId) =>
         $"SelectionStarted:{fixtureId.Value}:{playerId}";

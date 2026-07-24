@@ -8,4 +8,5 @@ public enum MemoryCategory
     Transfer = 4,
     Career = 5,
     ClubHistory = 6,
+    MatchPerformance = 7,
 }

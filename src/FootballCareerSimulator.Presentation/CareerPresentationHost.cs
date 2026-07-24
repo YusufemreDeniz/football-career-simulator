@@ -139,7 +139,8 @@ public sealed class CareerPresentationHost
             socialContinuity.PlayingTime,
             socialContinuity.Invalidation,
             socialContinuity.CareerMemory,
-            socialContinuity.ClubHistoryMemory);
+            socialContinuity.ClubHistoryMemory,
+            socialContinuity.MatchPerformanceMemory);
         clubModule.BindWageBudget(contractModule.Store);
         contractModule.Registration.BindPromiseInvalidation(socialContinuity.Invalidation);
         managerModule.AcceptJobOffer?.BindCareerMemory(socialContinuity.CareerMemory);

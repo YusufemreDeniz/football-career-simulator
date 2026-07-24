@@ -17,6 +17,7 @@ public sealed class SocialContinuityModule
         TransferMemoryService transferMemory,
         CareerMemoryService careerMemory,
         ClubHistoryMemoryService clubHistoryMemory,
+        MatchPerformanceMemoryService matchPerformanceMemory,
         PromiseInvalidationService invalidation,
         MemoryQueryService queries,
         PromiseQueryService promiseQueries)
@@ -31,6 +32,7 @@ public sealed class SocialContinuityModule
         TransferMemory = transferMemory;
         CareerMemory = careerMemory;
         ClubHistoryMemory = clubHistoryMemory;
+        MatchPerformanceMemory = matchPerformanceMemory;
         Invalidation = invalidation;
         Queries = queries;
         PromiseQueries = promiseQueries;
@@ -56,6 +58,8 @@ public sealed class SocialContinuityModule
 
     public ClubHistoryMemoryService ClubHistoryMemory { get; }
 
+    public MatchPerformanceMemoryService MatchPerformanceMemory { get; }
+
     public PromiseInvalidationService Invalidation { get; }
 
     public MemoryQueryService Queries { get; }
@@ -74,6 +78,7 @@ public sealed class SocialContinuityModule
         var transferMemory = new TransferMemoryService(memories);
         var careerMemory = new CareerMemoryService(memories);
         var clubHistoryMemory = new ClubHistoryMemoryService(memories);
+        var matchPerformanceMemory = new MatchPerformanceMemoryService(memories);
         var startingOpportunity = new StartingOpportunityPromiseService(promises, promiseMemory);
         var playingTime = new PlayingTimePromiseService(promises, promiseMemory);
         var invalidation = new PromiseInvalidationService(promises, promiseMemory);
@@ -90,6 +95,7 @@ public sealed class SocialContinuityModule
             transferMemory,
             careerMemory,
             clubHistoryMemory,
+            matchPerformanceMemory,
             invalidation,
             queries,
             promiseQueries);
