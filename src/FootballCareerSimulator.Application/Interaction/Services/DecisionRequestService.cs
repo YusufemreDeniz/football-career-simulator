@@ -254,6 +254,12 @@ public sealed class DecisionRequestService
                 answered.SelectedOptionCode!);
             _managerCareerStore.Replace(assessment.Career);
         }
+        else if (answered.Kind == DecisionRequestKind.PressQuestionRequest)
+        {
+            var reputation = _managerCareerStore.Career.ApplyPressPublicNarrative(
+                answered.SelectedOptionCode!);
+            _managerCareerStore.Replace(reputation.Career);
+        }
 
         _dialogueSessions?.MarkResolved(decisionRequestId, answered.SelectedOptionCode!, day);
         ApplySocialOutcomes(answered, day);

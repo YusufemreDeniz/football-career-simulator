@@ -231,7 +231,7 @@ public sealed class DialogueOptionGenerationService
             SemanticIntentName: "PubliclyDefend",
             DisplayText: "Oyuncuyu kamuya savun",
             ToneCode: "Supportive",
-            RiskHint: "Oyuncu Trust↑; kamuya açık destek hafızası.",
+            RiskHint: "Oyuncu Trust↑; Manager Reputation hafif yükselir.",
             IsEligible: true,
             IneligibilityReason: null),
         new DialogueOptionReadModel(
@@ -239,7 +239,7 @@ public sealed class DialogueOptionGenerationService
             SemanticIntentName: "PubliclyCriticize",
             DisplayText: "Oyuncuyu kamuya eleştir",
             ToneCode: "Firm",
-            RiskHint: "Oyuncu Trust↓; kamuya açık eleştiri hafızası.",
+            RiskHint: "Oyuncu Trust↓; Manager Reputation hafif düşer.",
             IsEligible: true,
             IneligibilityReason: null),
     ];

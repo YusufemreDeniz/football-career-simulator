@@ -15,7 +15,9 @@ public sealed class ManagerCareer
         ClubId? lastClubId,
         FixtureId? dismissedDueToFixtureId,
         GameDate? dismissedAt,
-        JobOffer? pendingJobOffer)
+        JobOffer? pendingJobOffer,
+        ManagerReputation reputation,
+        string? lastReputationReasonCode)
     {
         ManagerId = managerId;
         DisplayName = displayName;
@@ -26,6 +28,8 @@ public sealed class ManagerCareer
         DismissedDueToFixtureId = dismissedDueToFixtureId;
         DismissedAt = dismissedAt;
         PendingJobOffer = pendingJobOffer;
+        Reputation = reputation;
+        LastReputationReasonCode = lastReputationReasonCode;
     }
 
     public ManagerId ManagerId { get; }
@@ -45,6 +49,10 @@ public sealed class ManagerCareer
     public GameDate? DismissedAt { get; }
 
     public JobOffer? PendingJobOffer { get; }
+
+    public ManagerReputation Reputation { get; }
+
+    public string? LastReputationReasonCode { get; }
 
     public bool IsEmployed =>
         EmploymentStatus == ManagerEmploymentStatus.Employed && ActiveEmployment is not null;
@@ -75,7 +83,9 @@ public sealed class ManagerCareer
             lastClubId: startingClubId,
             dismissedDueToFixtureId: null,
             dismissedAt: null,
-            pendingJobOffer: null);
+            pendingJobOffer: null,
+            new ManagerReputation(ManagerReputation.DefaultInitialValue),
+            lastReputationReasonCode: null);
     }
 
     public static ManagerCareer StartNewCareerForClubStrength(
@@ -102,7 +112,9 @@ public sealed class ManagerCareer
         ClubId? lastClubId,
         FixtureId? dismissedDueToFixtureId,
         GameDate? dismissedAt,
-        JobOffer? pendingJobOffer = null)
+        JobOffer? pendingJobOffer = null,
+        ManagerReputation? reputation = null,
+        string? lastReputationReasonCode = null)
     {
         if (employmentStatus == ManagerEmploymentStatus.Employed && activeEmployment is null)
         {
@@ -131,7 +143,9 @@ public sealed class ManagerCareer
             lastClubId,
             dismissedDueToFixtureId,
             dismissedAt,
-            pendingJobOffer);
+            pendingJobOffer,
+            reputation ?? new ManagerReputation(ManagerReputation.DefaultInitialValue),
+            lastReputationReasonCode);
     }
 
     public static ManagerCareer Rehydrate(
@@ -192,7 +206,9 @@ public sealed class ManagerCareer
             lastClubId: updatedEmployment.ClubId,
             dismissedDueToFixtureId: null,
             dismissedAt: null,
-            pendingJobOffer: null);
+            pendingJobOffer: null,
+            Reputation,
+            LastReputationReasonCode);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
     }
@@ -234,9 +250,47 @@ public sealed class ManagerCareer
             lastClubId: updatedEmployment.ClubId,
             dismissedDueToFixtureId: null,
             dismissedAt: null,
-            pendingJobOffer: null);
+            pendingJobOffer: null,
+            Reputation,
+            LastReputationReasonCode);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
+    }
+
+    /// <summary>
+    /// Kritik basın kamuya açık anlatısı → Manager Reputation. Dialogue doğrudan mutasyon yapamaz.
+    /// </summary>
+    public ManagerReputationChangeResult ApplyPressPublicNarrative(string optionCode)
+    {
+        if (string.IsNullOrWhiteSpace(optionCode))
+        {
+            throw new ManagerCareerInvariantViolationException("Press narrative option code is required.");
+        }
+
+        var trimmed = optionCode.Trim();
+        var (delta, reasonCode) = trimmed switch
+        {
+            "PubliclyDefend" => (2, "PressPubliclyDefend"),
+            "PubliclyCriticize" => (-3, "PressPubliclyCriticize"),
+            _ => throw new ManagerCareerInvariantViolationException(
+                $"Unsupported press narrative option: {trimmed}."),
+        };
+
+        var nextReputation = Reputation.Adjust(delta);
+        var updatedCareer = new ManagerCareer(
+            ManagerId,
+            DisplayName,
+            ActiveEmployment,
+            EmploymentStatus,
+            TerminationReason,
+            LastClubId,
+            DismissedDueToFixtureId,
+            DismissedAt,
+            PendingJobOffer,
+            nextReputation,
+            reasonCode);
+
+        return ManagerReputationChangeResult.Applied(updatedCareer, delta, reasonCode);
     }
 
     public DismissalResult DismissDueToBoardConfidence(FixtureId causationFixtureId, GameDate dismissedAt)
@@ -267,7 +321,9 @@ public sealed class ManagerCareer
             lastClubId: ActiveEmployment.ClubId,
             dismissedDueToFixtureId: causationFixtureId,
             dismissedAt: dismissedAt,
-            pendingJobOffer: null);
+            pendingJobOffer: null,
+            Reputation,
+            LastReputationReasonCode);
 
         return DismissalResult.Applied(unemployed, ActiveEmployment.ClubId, causationFixtureId);
     }
@@ -308,7 +364,9 @@ public sealed class ManagerCareer
             LastClubId,
             DismissedDueToFixtureId,
             DismissedAt,
-            offer);
+            offer,
+            Reputation,
+            LastReputationReasonCode);
 
         return JobOfferReceiveResult.Received(updated, offer);
     }
@@ -345,7 +403,9 @@ public sealed class ManagerCareer
             lastClubId: employment.ClubId,
             dismissedDueToFixtureId: null,
             dismissedAt: null,
-            pendingJobOffer: null);
+            pendingJobOffer: null,
+            Reputation,
+            LastReputationReasonCode);
 
         return JobOfferAcceptResult.Accepted(employed, offer.Id, employment.ClubId);
     }
@@ -453,4 +513,18 @@ public sealed record JobOfferAcceptResult(
 {
     public static JobOfferAcceptResult Accepted(ManagerCareer career, JobOfferId offerId, ClubId clubId) =>
         new(true, career, offerId.Value, clubId.Value);
+}
+
+public sealed record ManagerReputationChangeResult(
+    bool WasApplied,
+    ManagerCareer Career,
+    int ReputationDelta,
+    int Reputation,
+    string ReasonCode)
+{
+    public static ManagerReputationChangeResult Applied(
+        ManagerCareer career,
+        int delta,
+        string reasonCode) =>
+        new(true, career, delta, career.Reputation.Value, reasonCode);
 }

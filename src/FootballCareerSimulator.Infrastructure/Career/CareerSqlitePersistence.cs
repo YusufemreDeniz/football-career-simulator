@@ -415,6 +415,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 36;
         }
 
+        if (version == 36 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 37)
+        {
+            WorldCalendarSqliteMigrator.MigrateV36ToV37InPlace(filePath);
+            wasMigrated = true;
+            version = 37;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -540,7 +547,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 PendingOfferId INTEGER NULL,
                 PendingOfferClubId INTEGER NULL,
                 PendingOfferStatus INTEGER NULL,
-                PendingOfferCreatedDayNumber INTEGER NULL
+                PendingOfferCreatedDayNumber INTEGER NULL,
+                ManagerReputation INTEGER NOT NULL DEFAULT 50,
+                LastReputationReasonCode TEXT NULL
             );
             """);
 
@@ -994,14 +1003,16 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 LastAssessedFixtureId, LastAssessmentReasonCode,
                 EmploymentStatus, EmploymentEndReason, LastClubId,
                 DismissedDueToFixtureId, DismissedAtDayNumber,
-                PendingOfferId, PendingOfferClubId, PendingOfferStatus, PendingOfferCreatedDayNumber)
+                PendingOfferId, PendingOfferClubId, PendingOfferStatus, PendingOfferCreatedDayNumber,
+                ManagerReputation, LastReputationReasonCode)
             VALUES (
                 1, $managerId, $displayName, $employedClubId, $employmentStartedDayNumber,
                 $seasonExpectation, $boardConfidence, $riskBand,
                 $lastAssessedFixtureId, $lastAssessmentReasonCode,
                 $employmentStatus, $employmentEndReason, $lastClubId,
                 $dismissedDueToFixtureId, $dismissedAtDayNumber,
-                $pendingOfferId, $pendingOfferClubId, $pendingOfferStatus, $pendingOfferCreatedDayNumber);
+                $pendingOfferId, $pendingOfferClubId, $pendingOfferStatus, $pendingOfferCreatedDayNumber,
+                $managerReputation, $lastReputationReasonCode);
             """;
         command.Parameters.AddWithValue("$managerId", managerCareer.ManagerId.Value);
         command.Parameters.AddWithValue("$displayName", managerCareer.DisplayName);
@@ -1060,6 +1071,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         command.Parameters.AddWithValue(
             "$pendingOfferCreatedDayNumber",
             offer is null ? DBNull.Value : offer.CreatedAt.DayNumber);
+        command.Parameters.AddWithValue("$managerReputation", managerCareer.Reputation.Value);
+        command.Parameters.AddWithValue(
+            "$lastReputationReasonCode",
+            (object?)managerCareer.LastReputationReasonCode ?? DBNull.Value);
         command.ExecuteNonQuery();
     }
 
@@ -2171,7 +2186,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                    LastAssessedFixtureId, LastAssessmentReasonCode,
                    EmploymentStatus, EmploymentEndReason, LastClubId,
                    DismissedDueToFixtureId, DismissedAtDayNumber,
-                   PendingOfferId, PendingOfferClubId, PendingOfferStatus, PendingOfferCreatedDayNumber
+                   PendingOfferId, PendingOfferClubId, PendingOfferStatus, PendingOfferCreatedDayNumber,
+                   ManagerReputation, LastReputationReasonCode
             FROM ManagerCareerState
             WHERE SingletonId = 1;
             """;
@@ -2205,7 +2221,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             pendingOfferId: reader.FieldCount > 14 && !reader.IsDBNull(14) ? reader.GetInt64(14) : null,
             pendingOfferClubId: reader.FieldCount > 15 && !reader.IsDBNull(15) ? reader.GetInt64(15) : null,
             pendingOfferStatus: reader.FieldCount > 16 && !reader.IsDBNull(16) ? reader.GetInt32(16) : null,
-            pendingOfferCreatedDayNumber: reader.FieldCount > 17 && !reader.IsDBNull(17) ? reader.GetInt32(17) : null);
+            pendingOfferCreatedDayNumber: reader.FieldCount > 17 && !reader.IsDBNull(17) ? reader.GetInt32(17) : null,
+            managerReputation: reader.FieldCount > 18 && !reader.IsDBNull(18) ? reader.GetInt32(18) : null,
+            lastReputationReasonCode: reader.FieldCount > 19 && !reader.IsDBNull(19) ? reader.GetString(19) : null);
     }
 
     private static IReadOnlyList<MatchSelection> ReadMatchSelections(SqliteConnection connection)

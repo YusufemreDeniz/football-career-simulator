@@ -26,7 +26,9 @@ internal static class ManagerSnapshotMapper
         long? pendingOfferId = null,
         long? pendingOfferClubId = null,
         int? pendingOfferStatus = null,
-        int? pendingOfferCreatedDayNumber = null)
+        int? pendingOfferCreatedDayNumber = null,
+        int? managerReputation = null,
+        string? lastReputationReasonCode = null)
     {
         JobOffer? pendingOffer = null;
         if (pendingOfferId is long offerId
@@ -40,6 +42,9 @@ internal static class ManagerSnapshotMapper
                 (JobOfferStatus)offerStatus,
                 GameDate.FromDayNumber(offerDay));
         }
+
+        var reputation = new ManagerReputation(
+            managerReputation ?? ManagerReputation.DefaultInitialValue);
 
         var status = employmentStatus is int statusValue
             ? (ManagerEmploymentStatus)statusValue
@@ -64,7 +69,9 @@ internal static class ManagerSnapshotMapper
                 dismissedAt: dismissedAtDayNumber is int day
                     ? GameDate.FromDayNumber(day)
                     : null,
-                pendingJobOffer: pendingOffer);
+                pendingJobOffer: pendingOffer,
+                reputation: reputation,
+                lastReputationReasonCode: lastReputationReasonCode);
         }
 
         if (employmentStartedDayNumber is null)
@@ -106,6 +113,8 @@ internal static class ManagerSnapshotMapper
             lastClubId: employment.ClubId,
             dismissedDueToFixtureId: null,
             dismissedAt: null,
-            pendingJobOffer: null);
+            pendingJobOffer: null,
+            reputation: reputation,
+            lastReputationReasonCode: lastReputationReasonCode);
     }
 }

@@ -25,6 +25,10 @@ public static class ManagerCareerCanonicalStateHasher
         builder.Append("DismissedAt=")
             .Append(career.DismissedAt?.DayNumber.ToString() ?? string.Empty)
             .Append(';');
+        builder.Append("ManagerReputation=").Append(career.Reputation.Value).Append(';');
+        builder.Append("LastReputationReasonCode=")
+            .Append(career.LastReputationReasonCode ?? string.Empty)
+            .Append(';');
 
         if (career.PendingJobOffer is { } offer)
         {

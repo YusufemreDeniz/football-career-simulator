@@ -3,23 +3,24 @@ using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.SocialContinuity.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Interaction;
+using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure.Career;
 using Microsoft.Data.Sqlite;
 
-namespace FootballCareerSimulator.Tests.Interaction;
+namespace FootballCareerSimulator.Tests.ManagerCareerBoard;
 
-public sealed class DialogueSessionTests : IDisposable
+public sealed class ManagerReputationTests : IDisposable
 {
     private static readonly GameDate Day = GameDate.FromCalendarDate(2026, 8, 1);
 
     private readonly string _tempDirectory = Path.Combine(
         Path.GetTempPath(),
-        "fcs-dialogue-session",
+        "fcs-reputation",
         Guid.NewGuid().ToString("N"));
 
-    public DialogueSessionTests() => Directory.CreateDirectory(_tempDirectory);
+    public ManagerReputationTests() => Directory.CreateDirectory(_tempDirectory);
 
     public void Dispose()
     {
@@ -31,31 +32,19 @@ public sealed class DialogueSessionTests : IDisposable
     }
 
     [Fact]
-    public void OpenPlayingTimeRequest_CreatesAwaitingDialogueSession_WithFrozenOptions()
+    public void StartNewCareer_SetsDefaultReputation()
     {
-        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
-        var social = SocialContinuityModule.Create();
-        var interaction = InteractionModule.Create(
-            manager.Store,
-            social.PlayingTime,
-            promiseStore: social.PromiseStore);
-
-        var request = interaction.Decisions.OpenPlayingTimeRequest(new PlayerId(30), Day);
-        var session = Assert.Single(interaction.DialogueSessionStore.Sessions);
-        Assert.Equal(request.DecisionRequestId, session.SourceDecisionRequestId);
-        Assert.Equal(DialogueSessionStatus.AwaitingPlayerDecision, session.Status);
-        Assert.Equal(DialogueSession.PlayingTimeRequestType, session.DialogueTypeCode);
-        Assert.Equal(
-            new[]
-            {
-                DecisionRequest.OptionGrantPlayingTimePromise,
-                DecisionRequest.OptionRefuse,
-            },
-            session.AvailableOptionCodes);
+        var career = ManagerCareer.StartNewCareerForClubStrength(
+            new ManagerId(1),
+            "TD",
+            new Domain.Shared.ClubId(1),
+            Day,
+            clubSportiveStrength: 50);
+        Assert.Equal(ManagerReputation.DefaultInitialValue, career.Reputation.Value);
     }
 
     [Fact]
-    public void Answer_ResolvesDialogueSession()
+    public void PressDefend_RaisesReputation_ViaDecisionRequest()
     {
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var social = SocialContinuityModule.Create();
@@ -63,54 +52,56 @@ public sealed class DialogueSessionTests : IDisposable
             manager.Store,
             social.PlayingTime,
             relationships: social.RelationshipEvaluation,
-            decisionMemory: social.DecisionMemory,
-            promiseStore: social.PromiseStore);
-
-        var request = interaction.Decisions.OpenPlayingTimeRequest(new PlayerId(31), Day);
+            decisionMemory: social.DecisionMemory);
+        var before = manager.Store.Career.Reputation.Value;
+        var request = interaction.Decisions.OpenPressQuestionRequest(new PlayerId(80), Day);
         interaction.Decisions.Answer(
             request.DecisionRequestId,
-            DecisionRequest.OptionRefuse,
+            DecisionRequest.OptionPubliclyDefend,
             Day);
 
-        var session = Assert.Single(interaction.DialogueSessionStore.Sessions);
-        Assert.Equal(DialogueSessionStatus.Resolved, session.Status);
-        Assert.Equal(DecisionRequest.OptionRefuse, session.SelectedOptionCode);
+        Assert.Equal(before + 2, manager.Store.Career.Reputation.Value);
+        Assert.Equal("PressPubliclyDefend", manager.Store.Career.LastReputationReasonCode);
     }
 
     [Fact]
-    public void ExpireDue_ExpiresDialogueSession()
-    {
-        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
-        var social = SocialContinuityModule.Create();
-        var interaction = InteractionModule.Create(
-            manager.Store,
-            relationships: social.RelationshipEvaluation,
-            decisionMemory: social.DecisionMemory,
-            promiseStore: social.PromiseStore);
-
-        interaction.Decisions.OpenPlayingTimeRequest(
-            new PlayerId(32),
-            Day,
-            deadlineDays: 1,
-            isHardBlocker: false);
-        Assert.Equal(1, interaction.Decisions.ExpireDue(Day.AddDays(1)));
-
-        var session = Assert.Single(interaction.DialogueSessionStore.Sessions);
-        Assert.Equal(DialogueSessionStatus.Expired, session.Status);
-    }
-
-    [Fact]
-    public void SaveLoad_PreservesDialogueSessionAtSchemaV36()
+    public void PressCriticize_LowersReputation_ViaDecisionRequest()
     {
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var social = SocialContinuityModule.Create();
         var interaction = InteractionModule.Create(
             manager.Store,
             social.PlayingTime,
-            promiseStore: social.PromiseStore);
-        interaction.Decisions.OpenPlayingTimeRequest(new PlayerId(33), Day);
+            relationships: social.RelationshipEvaluation,
+            decisionMemory: social.DecisionMemory);
+        var before = manager.Store.Career.Reputation.Value;
+        var request = interaction.Decisions.OpenPressQuestionRequest(new PlayerId(81), Day);
+        interaction.Decisions.Answer(
+            request.DecisionRequestId,
+            DecisionRequest.OptionPubliclyCriticize,
+            Day);
 
-        var path = Path.Combine(_tempDirectory, "dialogue-session.db");
+        Assert.Equal(before - 3, manager.Store.Career.Reputation.Value);
+        Assert.Equal("PressPubliclyCriticize", manager.Store.Career.LastReputationReasonCode);
+    }
+
+    [Fact]
+    public void SaveLoad_PreservesReputationAtSchemaV37()
+    {
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var social = SocialContinuityModule.Create();
+        var interaction = InteractionModule.Create(
+            manager.Store,
+            social.PlayingTime,
+            relationships: social.RelationshipEvaluation,
+            decisionMemory: social.DecisionMemory);
+        var request = interaction.Decisions.OpenPressQuestionRequest(new PlayerId(82), Day);
+        interaction.Decisions.Answer(
+            request.DecisionRequestId,
+            DecisionRequest.OptionPubliclyDefend,
+            Day);
+
+        var path = Path.Combine(_tempDirectory, "reputation.db");
         new CareerSqlitePersistence().Save(
             path,
             WorldCalendarModule.Create(Day, rootSeed: 2).TimelineStore.Timeline,
@@ -135,14 +126,12 @@ public sealed class DialogueSessionTests : IDisposable
             social.MemoryStore.Memories,
             social.RelationshipStore.Relationships,
             interaction.DecisionRequestStore.Requests,
-            interaction.DialogueSessionStore.Sessions);
+            interaction.DialogueSessionStore.Sessions,
+            interaction.DisciplinaryActionStore.Actions);
 
         var loaded = new CareerSqlitePersistence().Load(path);
         Assert.Equal(37, loaded.SchemaVersion);
-        var session = Assert.Single(loaded.DialogueSessions);
-        Assert.Equal(DialogueSessionStatus.AwaitingPlayerDecision, session.Status);
-        Assert.Equal(33, session.PrimaryParticipantPlayerId.Value);
-        Assert.Contains(DecisionRequest.OptionGrantPlayingTimePromise, session.AvailableOptionCodes);
-        Assert.Contains(DecisionRequest.OptionRefuse, session.AvailableOptionCodes);
+        Assert.Equal(52, loaded.ManagerCareer.Reputation.Value);
+        Assert.Equal("PressPubliclyDefend", loaded.ManagerCareer.LastReputationReasonCode);
     }
 }

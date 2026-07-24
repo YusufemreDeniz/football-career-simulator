@@ -34,6 +34,8 @@ public sealed class ManagerCareerQueryService
             career.DismissedAt?.DayNumber,
             offer?.Id.Value,
             offer?.ClubId.Value,
-            offer?.Status.ToString());
+            offer?.Status.ToString(),
+            career.Reputation.Value,
+            career.LastReputationReasonCode);
     }
 }

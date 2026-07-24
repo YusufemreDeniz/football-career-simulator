@@ -12,7 +12,8 @@ public sealed class PressQuestionDecisionRequestTests
 {
     private static readonly GameDate Day = GameDate.FromCalendarDate(2026, 8, 1);
 
-    private static (InteractionModule Interaction, SocialContinuityModule Social) Create()
+    private static (InteractionModule Interaction, ManagerCareerModule Manager, SocialContinuityModule Social)
+        Create()
     {
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var social = SocialContinuityModule.Create();
@@ -23,13 +24,13 @@ public sealed class PressQuestionDecisionRequestTests
             decisionMemory: social.DecisionMemory,
             promiseStore: social.PromiseStore,
             startingOpportunity: social.StartingOpportunity);
-        return (interaction, social);
+        return (interaction, manager, social);
     }
 
     [Fact]
     public void Defend_RaisesTrustAndRecordsPositiveMemory()
     {
-        var (interaction, social) = Create();
+        var (interaction, manager, social) = Create();
         var request = interaction.Decisions.OpenPressQuestionRequest(new PlayerId(70), Day);
         Assert.Equal(DecisionRequestKind.PressQuestionRequest, request.Kind);
 
@@ -41,6 +42,7 @@ public sealed class PressQuestionDecisionRequestTests
         var relationship = social.RelationshipStore.FindPlayerToManager(70, 1)!;
         Assert.Equal(58, relationship.Trust);
         Assert.Equal(52, relationship.Respect);
+        Assert.Equal(52, manager.Store.Career.Reputation.Value);
         Assert.Equal(
             MemoryValence.Positive,
             Assert.Single(
@@ -51,7 +53,7 @@ public sealed class PressQuestionDecisionRequestTests
     [Fact]
     public void Criticize_LowersTrustAndRecordsNegativeMemory()
     {
-        var (interaction, social) = Create();
+        var (interaction, manager, social) = Create();
         var request = interaction.Decisions.OpenPressQuestionRequest(new PlayerId(71), Day);
         interaction.Decisions.Answer(
             request.DecisionRequestId,
@@ -61,6 +63,7 @@ public sealed class PressQuestionDecisionRequestTests
         var relationship = social.RelationshipStore.FindPlayerToManager(71, 1)!;
         Assert.Equal(40, relationship.Trust);
         Assert.Equal(46, relationship.Respect);
+        Assert.Equal(47, manager.Store.Career.Reputation.Value);
         Assert.Equal(
             MemoryValence.Negative,
             Assert.Single(
@@ -71,7 +74,7 @@ public sealed class PressQuestionDecisionRequestTests
     [Fact]
     public void DialogueOptions_IncludeDefendAndCriticize()
     {
-        var (interaction, _) = Create();
+        var (interaction, _, _) = Create();
         var request = interaction.Decisions.OpenPressQuestionRequest(new PlayerId(72), Day);
         var codes = interaction.DialogueOptions.GetForDecision(request.DecisionRequestId)
             .Options
@@ -90,7 +93,7 @@ public sealed class PressQuestionDecisionRequestTests
     [Fact]
     public void Open_SecondPressQuestionForSamePlayer_IsRejected()
     {
-        var (interaction, _) = Create();
+        var (interaction, _, _) = Create();
         interaction.Decisions.OpenPressQuestionRequest(new PlayerId(73), Day);
         Assert.Throws<InteractionInvariantViolationException>(() =>
             interaction.Decisions.OpenPressQuestionRequest(new PlayerId(73), Day));

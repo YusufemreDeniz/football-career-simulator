@@ -815,11 +815,12 @@ public partial class CareerHubScreen : Control
             var boardText = manager.BoardConfidence is int confidence
                 ? $" · Yönetim: {confidence} ({TranslateRisk(manager.EmploymentRiskBand)}) · Beklenti: {TranslateExpectation(manager.SeasonExpectation)}"
                 : string.Empty;
+            var reputationText = $" · İtibar: {manager.ManagerReputation}";
             var reasonText = string.IsNullOrWhiteSpace(manager.LastAssessmentReasonCode)
                 ? string.Empty
                 : $" · Son değerlendirme: {TranslateReason(manager.LastAssessmentReasonCode)}";
             _managerLabel.Text =
-                $"Menajer: {manager.DisplayName} · Kulüp: {clubName}{boardText}{reasonText}";
+                $"Menajer: {manager.DisplayName} · Kulüp: {clubName}{boardText}{reputationText}{reasonText}";
         }
 
         var periodText = period is null
