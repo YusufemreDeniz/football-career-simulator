@@ -146,7 +146,7 @@ public sealed class DecisionRequestTests : IDisposable
     }
 
     [Fact]
-    public void SaveLoad_PreservesDecisionRequestAtSchemaV35()
+    public void SaveLoad_PreservesDecisionRequestAtSchemaV36()
     {
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var social = SocialContinuityModule.Create();
@@ -181,7 +181,7 @@ public sealed class DecisionRequestTests : IDisposable
             interaction.DialogueSessionStore.Sessions);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(35, loaded.SchemaVersion);
+        Assert.Equal(36, loaded.SchemaVersion);
         var request = Assert.Single(loaded.DecisionRequests);
         Assert.Equal(DecisionRequestKind.PlayingTimeRequest, request.Kind);
         Assert.Equal(13, request.SubjectPlayerId.Value);

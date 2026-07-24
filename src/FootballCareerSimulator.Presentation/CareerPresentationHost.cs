@@ -217,6 +217,7 @@ public sealed class CareerPresentationHost
             socialContinuity.RelationshipStore,
             interactionModule.DecisionRequestStore,
             interactionModule.DialogueSessionStore,
+            interactionModule.DisciplinaryActionStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,

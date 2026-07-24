@@ -5,7 +5,9 @@ using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.Discipline;
 using FootballCareerSimulator.Domain.Interaction;
+using FootballCareerSimulator.Simulation.Discipline;
 using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -453,7 +455,8 @@ public static class CareerCanonicalStateHasher
         IReadOnlyList<MemoryRecord> memories,
         IReadOnlyList<RelationshipRecord>? relationships = null,
         IReadOnlyList<DecisionRequest>? decisionRequests = null,
-        IReadOnlyList<DialogueSession>? dialogueSessions = null)
+        IReadOnlyList<DialogueSession>? dialogueSessions = null,
+        IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -478,6 +481,7 @@ public static class CareerCanonicalStateHasher
         relationships ??= Array.Empty<RelationshipRecord>();
         decisionRequests ??= Array.Empty<DecisionRequest>();
         dialogueSessions ??= Array.Empty<DialogueSession>();
+        disciplinaryActions ??= Array.Empty<DisciplinaryAction>();
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -520,7 +524,9 @@ public static class CareerCanonicalStateHasher
             "|",
             DecisionRequestCanonicalStateHasher.BuildCanonicalText(decisionRequests),
             "|",
-            DialogueSessionCanonicalStateHasher.BuildCanonicalText(dialogueSessions));
+            DialogueSessionCanonicalStateHasher.BuildCanonicalText(dialogueSessions),
+            "|",
+            DisciplinaryActionCanonicalStateHasher.BuildCanonicalText(disciplinaryActions));
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

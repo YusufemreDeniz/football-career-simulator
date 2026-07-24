@@ -75,6 +75,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         var relationships = new Application.SocialContinuity.Infrastructure.InMemoryRelationshipStore();
         var decisions = new Application.Interaction.Infrastructure.InMemoryDecisionRequestStore();
         var dialogueSessions = new Application.Interaction.Infrastructure.InMemoryDialogueSessionStore();
+        var disciplinaryActions = new Application.Discipline.Infrastructure.InMemoryDisciplinaryActionStore();
         return new CareerGameSessionService(
             world.TimelineStore,
             competition.Store,
@@ -94,6 +95,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             relationships,
             decisions,
             dialogueSessions,
+            disciplinaryActions,
             training.Store,
             playerCareer.Store,
             contracts.Store,

@@ -129,7 +129,7 @@ public sealed class FinancialApprovalTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(35, loaded.SchemaVersion);
+        Assert.Equal(36, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.FinancialApproved, loaded.TransferProcesses[0].Status);
     }

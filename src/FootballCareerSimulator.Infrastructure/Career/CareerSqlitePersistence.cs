@@ -6,6 +6,7 @@ using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.Discipline;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.Transfer;
@@ -44,7 +45,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<MemoryRecord> memories,
         IReadOnlyList<RelationshipRecord>? relationships = null,
         IReadOnlyList<DecisionRequest>? decisionRequests = null,
-        IReadOnlyList<DialogueSession>? dialogueSessions = null)
+        IReadOnlyList<DialogueSession>? dialogueSessions = null,
+        IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -70,6 +72,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         relationships ??= Array.Empty<RelationshipRecord>();
         decisionRequests ??= Array.Empty<DecisionRequest>();
         dialogueSessions ??= Array.Empty<DialogueSession>();
+        disciplinaryActions ??= Array.Empty<DisciplinaryAction>();
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -94,7 +97,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             memories,
             relationships,
             decisionRequests,
-            dialogueSessions);
+            dialogueSessions,
+            disciplinaryActions);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -132,6 +136,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertRelationships(connection, transaction, relationships);
             InsertDecisionRequests(connection, transaction, decisionRequests);
             InsertDialogueSessions(connection, transaction, dialogueSessions);
+            InsertDisciplinaryActions(connection, transaction, disciplinaryActions);
 
             transaction.Commit();
         }
@@ -401,6 +406,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV34ToV35InPlace(filePath);
             wasMigrated = true;
             version = 35;
+        }
+
+        if (version == 35 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 36)
+        {
+            WorldCalendarSqliteMigrator.MigrateV35ToV36InPlace(filePath);
+            wasMigrated = true;
+            version = 36;
         }
 
         if (wasMigrated)
@@ -786,6 +798,18 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 AvailableOptionCodesCsv TEXT NOT NULL,
                 SelectedOptionCode TEXT NULL,
                 ResolvedDayNumber INTEGER NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE DisciplinaryActionState (
+                DisciplinaryActionId INTEGER PRIMARY KEY,
+                Kind INTEGER NOT NULL,
+                ManagerId INTEGER NOT NULL,
+                SubjectPlayerId INTEGER NOT NULL,
+                ClubId INTEGER NOT NULL,
+                SourceDecisionRequestId INTEGER NULL,
+                AppliedDayNumber INTEGER NOT NULL
             );
             """);
     }
@@ -1586,6 +1610,35 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertDisciplinaryActions(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<DisciplinaryAction> disciplinaryActions)
+    {
+        foreach (var action in disciplinaryActions)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO DisciplinaryActionState (
+                    DisciplinaryActionId, Kind, ManagerId, SubjectPlayerId, ClubId,
+                    SourceDecisionRequestId, AppliedDayNumber)
+                VALUES (
+                    $id, $kind, $managerId, $playerId, $clubId, $decisionId, $applied);
+                """;
+            command.Parameters.AddWithValue("$id", action.DisciplinaryActionId.Value);
+            command.Parameters.AddWithValue("$kind", (int)action.Kind);
+            command.Parameters.AddWithValue("$managerId", action.ManagerId.Value);
+            command.Parameters.AddWithValue("$playerId", action.SubjectPlayerId.Value);
+            command.Parameters.AddWithValue("$clubId", action.ClubId.Value);
+            command.Parameters.AddWithValue(
+                "$decisionId",
+                (object?)action.SourceDecisionRequestId?.Value ?? DBNull.Value);
+            command.Parameters.AddWithValue("$applied", action.AppliedOn.DayNumber);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static void InsertMemories(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1714,6 +1767,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var relationships = ReadRelationships(connection);
         var decisionRequests = ReadDecisionRequests(connection);
         var dialogueSessions = ReadDialogueSessions(connection);
+        var disciplinaryActions = ReadDisciplinaryActions(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1737,7 +1791,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             memories,
             relationships,
             decisionRequests,
-            dialogueSessions);
+            dialogueSessions,
+            disciplinaryActions);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1783,6 +1838,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<RelationshipRecord> relationships;
             IReadOnlyList<DecisionRequest> decisionRequests;
             IReadOnlyList<DialogueSession> dialogueSessions;
+            IReadOnlyList<DisciplinaryAction> disciplinaryActions;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1817,6 +1873,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 relationships = ReadRelationships(connection);
                 decisionRequests = ReadDecisionRequests(connection);
                 dialogueSessions = ReadDialogueSessions(connection);
+                disciplinaryActions = ReadDisciplinaryActions(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1844,7 +1901,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 memories,
                 relationships,
                 decisionRequests,
-                dialogueSessions);
+                dialogueSessions,
+                disciplinaryActions);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1875,6 +1933,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 relationships,
                 decisionRequests,
                 dialogueSessions,
+                disciplinaryActions,
                 schemaVersion,
                 wasMigrated);
         }
@@ -2810,6 +2869,37 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return sessions;
+    }
+
+    private static IReadOnlyList<DisciplinaryAction> ReadDisciplinaryActions(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "DisciplinaryActionState"))
+        {
+            return Array.Empty<DisciplinaryAction>();
+        }
+
+        var actions = new List<DisciplinaryAction>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT DisciplinaryActionId, Kind, ManagerId, SubjectPlayerId, ClubId,
+                   SourceDecisionRequestId, AppliedDayNumber
+            FROM DisciplinaryActionState
+            ORDER BY DisciplinaryActionId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            actions.Add(DisciplinaryAction.Rehydrate(
+                new DisciplinaryActionId(reader.GetInt64(0)),
+                (DisciplinaryActionKind)reader.GetInt32(1),
+                new ManagerId(reader.GetInt64(2)),
+                new PlayerId(reader.GetInt64(3)),
+                new ClubId(reader.GetInt64(4)),
+                reader.IsDBNull(5) ? null : new DecisionRequestId(reader.GetInt64(5)),
+                GameDate.FromDayNumber(reader.GetInt32(6))));
+        }
+
+        return actions;
     }
 
     private static IReadOnlyList<long> ParseLongCsv(string csv)

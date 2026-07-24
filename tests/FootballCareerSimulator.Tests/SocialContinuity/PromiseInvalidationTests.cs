@@ -157,7 +157,7 @@ public sealed class PromiseInvalidationTests : IDisposable
             social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(35, loaded.SchemaVersion);
+        Assert.Equal(36, loaded.SchemaVersion);
         Assert.Equal(PromiseStatus.Invalidated, loaded.Promises.Single().Status);
         Assert.Equal(2, loaded.Memories.Count);
     }

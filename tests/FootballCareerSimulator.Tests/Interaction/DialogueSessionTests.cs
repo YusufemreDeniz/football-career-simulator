@@ -100,7 +100,7 @@ public sealed class DialogueSessionTests : IDisposable
     }
 
     [Fact]
-    public void SaveLoad_PreservesDialogueSessionAtSchemaV35()
+    public void SaveLoad_PreservesDialogueSessionAtSchemaV36()
     {
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var social = SocialContinuityModule.Create();
@@ -138,7 +138,7 @@ public sealed class DialogueSessionTests : IDisposable
             interaction.DialogueSessionStore.Sessions);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(35, loaded.SchemaVersion);
+        Assert.Equal(36, loaded.SchemaVersion);
         var session = Assert.Single(loaded.DialogueSessions);
         Assert.Equal(DialogueSessionStatus.AwaitingPlayerDecision, session.Status);
         Assert.Equal(33, session.PrimaryParticipantPlayerId.Value);
