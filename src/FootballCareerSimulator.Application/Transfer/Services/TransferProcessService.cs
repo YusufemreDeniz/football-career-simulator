@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
@@ -16,22 +17,26 @@ public sealed class TransferProcessService
     private readonly ITransferTargetStore _targetStore;
     private readonly ITransferNeedStore _needStore;
     private readonly IManagerCareerStore _managerCareerStore;
+    private readonly ITransferWindowQuery _transferWindow;
 
     public TransferProcessService(
         ITransferProcessStore processStore,
         ITransferTargetStore targetStore,
         ITransferNeedStore needStore,
-        IManagerCareerStore managerCareerStore)
+        IManagerCareerStore managerCareerStore,
+        ITransferWindowQuery? transferWindow = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _targetStore = targetStore ?? throw new ArgumentNullException(nameof(targetStore));
         _needStore = needStore ?? throw new ArgumentNullException(nameof(needStore));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
+        _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
     }
 
     public TransferProcess OpenFromListedTarget(TransferTargetId targetId, GameDate day)
     {
+        EnsureTransferWindowOpen();
         var target = _targetStore.Get(targetId)
             ?? throw new TransferInvariantViolationException($"Transfer target #{targetId.Value} not found.");
         if (!target.IsListed)
@@ -180,6 +185,15 @@ public sealed class TransferProcessService
         {
             throw new TransferInvariantViolationException(
                 "Only the employed manager of the buying club can make sporting decisions.");
+        }
+    }
+
+    private void EnsureTransferWindowOpen()
+    {
+        if (!_transferWindow.IsOpen)
+        {
+            throw new TransferInvariantViolationException(
+                "Transfer window is closed; cannot open a new transfer process.");
         }
     }
 

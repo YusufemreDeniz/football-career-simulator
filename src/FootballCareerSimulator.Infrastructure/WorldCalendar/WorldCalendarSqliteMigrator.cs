@@ -1587,6 +1587,73 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV26ToV27InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV26ToV27(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V26 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.Move(workingCopyPath, filePath, overwrite: true);
+    }
+
+    private static void MigrateV26ToV27(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                CREATE TABLE IF NOT EXISTS TransferWindowState (
+                    SingletonId INTEGER PRIMARY KEY CHECK (SingletonId = 1),
+                    Status INTEGER NOT NULL,
+                    OpenedOnDayNumber INTEGER NULL,
+                    ClosesOnDayNumber INTEGER NULL
+                );
+                """);
+
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                INSERT INTO TransferWindowState (SingletonId, Status, OpenedOnDayNumber, ClosesOnDayNumber)
+                SELECT 1, 2, CurrentDayNumber, NULL
+                FROM WorldTimelineState
+                WHERE SingletonId = 1
+                  AND NOT EXISTS (SELECT 1 FROM TransferWindowState WHERE SingletonId = 1);
+                """);
+
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 27);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void TryDelete(string path)
     {
         try

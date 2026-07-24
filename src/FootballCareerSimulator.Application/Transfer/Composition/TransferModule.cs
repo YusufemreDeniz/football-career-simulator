@@ -78,11 +78,13 @@ public sealed class TransferModule
         ITransferTargetStore? targetStore = null,
         ITransferProcessStore? processStore = null,
         IClubOfferStore? offerStore = null,
-        IPlayerContractProposalStore? proposalStore = null)
+        IPlayerContractProposalStore? proposalStore = null,
+        ITransferWindowQuery? transferWindow = null)
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(clubSquad);
 
+        var window = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
         var needs = needStore ?? new InMemoryTransferNeedStore();
         var shortlist = shortlistStore ?? new InMemoryShortlistStore();
         var targets = targetStore ?? new InMemoryTransferTargetStore();
@@ -98,15 +100,16 @@ public sealed class TransferModule
             proposals,
             new TransferNeedService(needs, contractStore, squadStore),
             new ShortlistTargetService(shortlist, targets, needs),
-            new TransferProcessService(processes, targets, needs, managerCareerStore),
-            new ClubOfferService(offers, processes, managerCareerStore),
-            new PlayerContractProposalService(proposals, processes, managerCareerStore),
+            new TransferProcessService(processes, targets, needs, managerCareerStore, window),
+            new ClubOfferService(offers, processes, managerCareerStore, window),
+            new PlayerContractProposalService(proposals, processes, managerCareerStore, window),
             new TransferCompletionService(
                 processes,
                 proposals,
                 registration,
                 clubSquad,
-                managerCareerStore),
+                managerCareerStore,
+                window),
             new TransferNeedQueryService(
                 needs,
                 shortlist,

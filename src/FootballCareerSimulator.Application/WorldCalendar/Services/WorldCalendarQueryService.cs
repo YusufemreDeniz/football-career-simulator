@@ -61,4 +61,14 @@ public sealed class WorldCalendarQueryService
             CurrentDayNumber: _timelineStore.Timeline.CurrentDate.DayNumber,
             Blockers: blockers);
     }
+
+    public TransferWindowReadModel GetTransferWindow()
+    {
+        var window = _timelineStore.Timeline.TransferWindow;
+        return new TransferWindowReadModel(
+            window.IsOpen,
+            window.IsOpen ? "Açık" : "Kapalı",
+            window.OpenedOn?.DayNumber,
+            window.ClosesOn?.DayNumber);
+    }
 }

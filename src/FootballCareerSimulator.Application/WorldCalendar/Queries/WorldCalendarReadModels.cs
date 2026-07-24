@@ -25,3 +25,9 @@ public sealed record TimeAdvanceEligibilityReadModel(
     bool CanAdvance,
     int CurrentDayNumber,
     IReadOnlyList<TimeAdvanceBlockerReadModel> Blockers);
+
+public sealed record TransferWindowReadModel(
+    bool IsOpen,
+    string StatusName,
+    int? OpenedOnDayNumber,
+    int? ClosesOnDayNumber);

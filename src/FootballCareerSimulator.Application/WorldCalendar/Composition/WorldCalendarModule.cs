@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Application.WorldCalendar.Composition;
 
+using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Services;
@@ -17,7 +18,10 @@ public sealed class WorldCalendarModule
         AdvanceSimulationTimeHandler advanceSimulationTime,
         OpenPlanningPeriodHandler openPlanningPeriod,
         CompletePlanningPeriodHandler completePlanningPeriod,
+        OpenTransferWindowHandler openTransferWindow,
+        CloseTransferWindowHandler closeTransferWindow,
         WorldCalendarQueryService queries,
+        ITransferWindowQuery transferWindowQuery,
         WorldCalendarGameSessionService? gameSession = null)
     {
         TimelineStore = timelineStore;
@@ -25,7 +29,10 @@ public sealed class WorldCalendarModule
         AdvanceSimulationTime = advanceSimulationTime;
         OpenPlanningPeriod = openPlanningPeriod;
         CompletePlanningPeriod = completePlanningPeriod;
+        OpenTransferWindow = openTransferWindow;
+        CloseTransferWindow = closeTransferWindow;
         Queries = queries;
+        TransferWindowQuery = transferWindowQuery;
         GameSession = gameSession;
     }
 
@@ -39,7 +46,13 @@ public sealed class WorldCalendarModule
 
     public CompletePlanningPeriodHandler CompletePlanningPeriod { get; }
 
+    public OpenTransferWindowHandler OpenTransferWindow { get; }
+
+    public CloseTransferWindowHandler CloseTransferWindow { get; }
+
     public WorldCalendarQueryService Queries { get; }
+
+    public ITransferWindowQuery TransferWindowQuery { get; }
 
     public WorldCalendarGameSessionService? GameSession { get; }
 
@@ -65,11 +78,16 @@ public sealed class WorldCalendarModule
         var advanceHandler = new AdvanceSimulationTimeHandler(store, aggregator);
         var openPlanningHandler = new OpenPlanningPeriodHandler(store);
         var completePlanningHandler = new CompletePlanningPeriodHandler(store);
+        var openWindowHandler = new OpenTransferWindowHandler(store);
+        var closeWindowHandler = new CloseTransferWindowHandler(store);
+        var windowQuery = new TimelineTransferWindowQuery(store);
         var idempotencyResets = new ICommandIdempotencyReset[]
         {
             advanceHandler,
             openPlanningHandler,
             completePlanningHandler,
+            openWindowHandler,
+            closeWindowHandler,
         };
 
         WorldCalendarGameSessionService? gameSession = persistence is null
@@ -82,8 +100,10 @@ public sealed class WorldCalendarModule
             advanceHandler,
             openPlanningHandler,
             completePlanningHandler,
+            openWindowHandler,
+            closeWindowHandler,
             new WorldCalendarQueryService(store, aggregator),
+            windowQuery,
             gameSession);
     }
 }
-

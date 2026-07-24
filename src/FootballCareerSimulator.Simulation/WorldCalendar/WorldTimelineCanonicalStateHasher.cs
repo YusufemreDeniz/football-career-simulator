@@ -30,6 +30,11 @@ public static class WorldTimelineCanonicalStateHasher
             builder.Append("PlanningPeriodStart=").Append(period.StartDate.DayNumber).Append(';');
         }
 
+        var window = timeline.TransferWindow;
+        builder.Append("TransferWindowStatus=").Append((int)window.Status).Append(';');
+        builder.Append("TransferWindowOpened=").Append(window.OpenedOn?.DayNumber ?? 0).Append(';');
+        builder.Append("TransferWindowCloses=").Append(window.ClosesOn?.DayNumber ?? 0).Append(';');
+
         return builder.ToString();
     }
 }

@@ -133,7 +133,8 @@ public sealed class CareerPresentationHost
             managerModule.Store,
             contractModule.Registration,
             teamPreparation.ClubSquad
-                ?? throw new InvalidOperationException("ClubSquad service is required for transfers."));
+                ?? throw new InvalidOperationException("ClubSquad service is required for transfers."),
+            transferWindow: worldModule.TransferWindowQuery);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =
@@ -141,6 +142,8 @@ public sealed class CareerPresentationHost
             worldModule.AdvanceSimulationTime,
             worldModule.OpenPlanningPeriod,
             worldModule.CompletePlanningPeriod,
+            worldModule.OpenTransferWindow,
+            worldModule.CloseTransferWindow,
             .. competitionModule.IdempotencyResets,
             teamPreparation.IdempotencyReset,
             training.IdempotencyReset,

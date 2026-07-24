@@ -16,6 +16,8 @@ public sealed class WorldTimeline
 
     public PlanningPeriod? ActivePlanningPeriod { get; private set; }
 
+    public TransferWindow TransferWindow { get; private set; }
+
     public int RootSeed { get; }
 
     public string RngVersion { get; }
@@ -30,6 +32,7 @@ public sealed class WorldTimeline
         LastCommittedStepId = lastCommittedStepId;
         RootSeed = rootSeed;
         RngVersion = rngVersion;
+        TransferWindow = TransferWindow.Open(startingDate);
     }
 
     public static WorldTimeline Create(GameDate startingDate, int rootSeed = 0, string rngVersion = "1") =>
@@ -141,6 +144,35 @@ public sealed class WorldTimeline
         return completedPeriod;
     }
 
+    public TransferWindow OpenTransferWindow(GameDate? closesOn = null)
+    {
+        if (TransferWindow.IsOpen)
+        {
+            return TransferWindow;
+        }
+
+        var stepId = LastCommittedStepId.Next();
+        var window = TransferWindow.Open(CurrentDate, closesOn);
+        TransferWindow = window;
+        LastCommittedStepId = stepId;
+        _uncommittedEvents.Add(new TransferWindowOpened(stepId, CurrentDate, window.OpenedOn!.Value, window.ClosesOn));
+        return window;
+    }
+
+    public TransferWindow CloseTransferWindow()
+    {
+        if (!TransferWindow.IsOpen)
+        {
+            return TransferWindow;
+        }
+
+        var stepId = LastCommittedStepId.Next();
+        TransferWindow = TransferWindow.Closed();
+        LastCommittedStepId = stepId;
+        _uncommittedEvents.Add(new TransferWindowClosed(stepId, CurrentDate));
+        return TransferWindow;
+    }
+
     public void ClearUncommittedEvents() => _uncommittedEvents.Clear();
 
     public static WorldTimeline Rehydrate(
@@ -149,7 +181,8 @@ public sealed class WorldTimeline
         int rootSeed,
         string rngVersion,
         int rngDrawCount,
-        PlanningPeriod? activePlanningPeriod)
+        PlanningPeriod? activePlanningPeriod,
+        TransferWindow? transferWindow = null)
     {
         var timeline = new WorldTimeline(currentDate, lastCommittedStepId, rootSeed, rngVersion);
 
@@ -159,6 +192,7 @@ public sealed class WorldTimeline
         }
 
         timeline.ActivePlanningPeriod = activePlanningPeriod;
+        timeline.TransferWindow = transferWindow ?? TransferWindow.Open(currentDate);
         return timeline;
     }
 }

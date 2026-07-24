@@ -117,7 +117,7 @@ public sealed class TransferProcessTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(26, loaded.SchemaVersion);
+        Assert.Equal(27, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.UnderEvaluation, loaded.TransferProcesses[0].Status);
         Assert.Equal(2, loaded.TransferProcesses[0].SellingClubId!.Value.Value);

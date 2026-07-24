@@ -16,7 +16,10 @@ internal static class WorldCalendarSnapshotMapper
         int? planningExpectedEndDayNumber,
         int? planningStatus,
         int? planningCompletedAtDayNumber,
-        string? checkpointLabel)
+        string? checkpointLabel,
+        int? transferWindowStatus = null,
+        int? transferWindowOpenedOnDayNumber = null,
+        int? transferWindowClosesOnDayNumber = null)
     {
         PlanningPeriod? planningPeriod = null;
 
@@ -34,12 +37,25 @@ internal static class WorldCalendarSnapshotMapper
 
         _ = checkpointLabel;
 
+        var currentDate = GameDate.FromDayNumber(currentDayNumber);
+        TransferWindow? transferWindow = transferWindowStatus is null
+            ? TransferWindow.Open(currentDate)
+            : TransferWindow.Rehydrate(
+                (TransferWindowStatus)transferWindowStatus.Value,
+                transferWindowOpenedOnDayNumber is null
+                    ? null
+                    : GameDate.FromDayNumber(transferWindowOpenedOnDayNumber.Value),
+                transferWindowClosesOnDayNumber is null
+                    ? null
+                    : GameDate.FromDayNumber(transferWindowClosesOnDayNumber.Value));
+
         return WorldTimeline.Rehydrate(
-            GameDate.FromDayNumber(currentDayNumber),
+            currentDate,
             new SimulationStepId(lastCommittedStepId),
             rootSeed,
             rngVersion,
             rngDrawCount,
-            planningPeriod);
+            planningPeriod,
+            transferWindow);
     }
 }

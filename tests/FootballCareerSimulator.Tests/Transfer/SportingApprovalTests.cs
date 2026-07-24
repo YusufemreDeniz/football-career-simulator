@@ -126,7 +126,7 @@ public sealed class SportingApprovalTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(26, loaded.SchemaVersion);
+        Assert.Equal(27, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.SportingApproved, loaded.TransferProcesses[0].Status);
     }

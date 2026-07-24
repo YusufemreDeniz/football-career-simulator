@@ -4,7 +4,7 @@ internal static class ProductionWorldCalendarSaveSchema
 {
     public const string SaveFormatId = "WorldCalendar";
 
-    public const int CurrentVersion = 26;
+    public const int CurrentVersion = 27;
 
     public const int MinSupportedVersion = 1;
 }

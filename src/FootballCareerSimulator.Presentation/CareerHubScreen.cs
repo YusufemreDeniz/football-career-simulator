@@ -18,6 +18,9 @@ public partial class CareerHubScreen : Control
     private Label _trainingLabel = null!;
     private Label _developmentLabel = null!;
     private Label _contractLabel = null!;
+    private Label _transferWindowLabel = null!;
+    private Button _openTransferWindowButton = null!;
+    private Button _closeTransferWindowButton = null!;
     private Label _transferNeedLabel = null!;
     private Label _shortlistTargetLabel = null!;
     private Label _transferProcessLabel = null!;
@@ -314,6 +317,21 @@ public partial class CareerHubScreen : Control
     {
         var page = PageRoot();
         page.AddChild(SectionTitle("Transfer"));
+        _transferWindowLabel = BodyLabel("TransferWindowLabel", autowrap: true);
+        page.AddChild(_transferWindowLabel);
+
+        var windowRow = new HBoxContainer();
+        windowRow.AddThemeConstantOverride("separation", 8);
+        page.AddChild(windowRow);
+
+        _openTransferWindowButton = SecondaryButton("Pencere Aç");
+        _openTransferWindowButton.Pressed += () => Apply(_controller.OpenTransferWindow());
+        windowRow.AddChild(_openTransferWindowButton);
+
+        _closeTransferWindowButton = SecondaryButton("Pencere Kapat");
+        _closeTransferWindowButton.Pressed += () => Apply(_controller.CloseTransferWindow());
+        windowRow.AddChild(_closeTransferWindowButton);
+
         _transferNeedLabel = BodyLabel("TransferNeedLabel", autowrap: true);
         page.AddChild(_transferNeedLabel);
 
@@ -723,6 +741,7 @@ public partial class CareerHubScreen : Control
             RefreshTrainingStatus();
             RefreshDevelopmentStatus();
             RefreshContractStatus();
+            RefreshTransferWindowStatus();
             RefreshTransferNeedStatus();
             RefreshShortlistTargetStatus();
             RefreshTransferProcessStatus();
@@ -754,6 +773,7 @@ public partial class CareerHubScreen : Control
         RefreshTrainingStatus();
         RefreshDevelopmentStatus();
         RefreshContractStatus();
+        RefreshTransferWindowStatus();
         RefreshTransferNeedStatus();
         RefreshShortlistTargetStatus();
         RefreshTransferProcessStatus();
@@ -775,6 +795,16 @@ public partial class CareerHubScreen : Control
         UpdateTransferNeedButtons(manager);
         UpdateTrainingButtons(manager);
         UpdateTacticButtons(manager);
+    }
+
+    private void RefreshTransferWindowStatus()
+    {
+        var window = _controller.Host.WorldModule.Queries.GetTransferWindow();
+        var openText = window.OpenedOnDayNumber is { } openDay ? $" · açılış gün {openDay}" : string.Empty;
+        var closeText = window.ClosesOnDayNumber is { } closeDay ? $" · kapanış gün {closeDay}" : string.Empty;
+        _transferWindowLabel.Text = $"Transfer penceresi: {window.StatusName}{openText}{closeText}";
+        _openTransferWindowButton.Disabled = window.IsOpen;
+        _closeTransferWindowButton.Disabled = !window.IsOpen;
     }
 
     private void RefreshClubOfferStatus()
@@ -904,6 +934,7 @@ public partial class CareerHubScreen : Control
         var activeProcessCount = employed
             ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveCount
             : 0;
+        var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
         _suggestTargetButton.Disabled = !employed;
         _dropTargetButton.Disabled = !employed || listedCount == 0;
         var processes = employed
@@ -913,13 +944,13 @@ public partial class CareerHubScreen : Control
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.SportingApprovalPending);
         var canRequestSporting = processes.Any(p =>
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.UnderEvaluation);
-        _openProcessButton.Disabled = !employed;
+        _openProcessButton.Disabled = !employed || !windowOpen;
         _withdrawProcessButton.Disabled = !employed || activeProcessCount == 0;
         _requestSportingApprovalButton.Disabled = !canRequestSporting;
         _grantSportingApprovalButton.Disabled = !pendingSporting;
         _rejectSportingApprovalButton.Disabled = !pendingSporting;
 
-        var canSubmitOffer = employed && processes.Any(p =>
+        var canSubmitOffer = employed && windowOpen && processes.Any(p =>
             !p.IsFreeAgent
             && p.StatusCode is (int)Domain.Transfer.TransferProcessStatus.SportingApproved
                 or (int)Domain.Transfer.TransferProcessStatus.ClubNegotiation);
@@ -928,9 +959,9 @@ public partial class CareerHubScreen : Control
         _submitClubOfferButton.Disabled = !canSubmitOffer || pendingOffers;
         _acceptClubOfferButton.Disabled = !pendingOffers;
         _rejectClubOfferButton.Disabled = !pendingOffers;
-        _counterClubOfferButton.Disabled = !pendingOffers;
+        _counterClubOfferButton.Disabled = !pendingOffers || !windowOpen;
 
-        var canSubmitProposal = employed && processes.Any(p =>
+        var canSubmitProposal = employed && windowOpen && processes.Any(p =>
             p.StatusCode is (int)Domain.Transfer.TransferProcessStatus.ClubAgreementReached
                 or (int)Domain.Transfer.TransferProcessStatus.PlayerNegotiation
             || (p.IsFreeAgent
@@ -940,19 +971,20 @@ public partial class CareerHubScreen : Control
         _submitContractProposalButton.Disabled = !canSubmitProposal || pendingProposals;
         _acceptContractProposalButton.Disabled = !pendingProposals;
         _rejectContractProposalButton.Disabled = !pendingProposals;
-        _counterContractProposalButton.Disabled = !pendingProposals;
+        _counterContractProposalButton.Disabled = !pendingProposals || !windowOpen;
 
         var canRequestFinancial = employed && processes.Any(p =>
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.PlayerAgreementReached);
         var pendingFinancial = employed && processes.Any(p =>
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.FinancialApprovalPending);
-        var canComplete = employed && processes.Any(p =>
-            p.StatusCode is (int)Domain.Transfer.TransferProcessStatus.FinancialApproved
-                or (int)Domain.Transfer.TransferProcessStatus.CompletionPending);
+        var canStartComplete = employed && windowOpen && processes.Any(p =>
+            p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.FinancialApproved);
+        var canFinishComplete = employed && processes.Any(p =>
+            p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.CompletionPending);
         _requestFinancialApprovalButton.Disabled = !canRequestFinancial;
         _grantFinancialApprovalButton.Disabled = !pendingFinancial;
         _rejectFinancialApprovalButton.Disabled = !pendingFinancial;
-        _completeTransferButton.Disabled = !canComplete;
+        _completeTransferButton.Disabled = !canStartComplete && !canFinishComplete;
     }
 
     private void RefreshTrainingStatus()

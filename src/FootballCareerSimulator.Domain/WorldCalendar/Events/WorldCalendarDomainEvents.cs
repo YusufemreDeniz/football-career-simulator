@@ -33,3 +33,15 @@ public sealed record PlanningPeriodCompleted(
     PlanningPeriodId PlanningPeriodId,
     GameDate CompletedAt)
     : WorldCalendarDomainEvent(SimulationStepId, OccurredAtGameTime);
+
+public sealed record TransferWindowOpened(
+    SimulationStepId SimulationStepId,
+    GameDate OccurredAtGameTime,
+    GameDate OpenedOn,
+    GameDate? ClosesOn)
+    : WorldCalendarDomainEvent(SimulationStepId, OccurredAtGameTime);
+
+public sealed record TransferWindowClosed(
+    SimulationStepId SimulationStepId,
+    GameDate OccurredAtGameTime)
+    : WorldCalendarDomainEvent(SimulationStepId, OccurredAtGameTime);

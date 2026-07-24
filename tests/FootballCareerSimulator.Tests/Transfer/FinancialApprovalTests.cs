@@ -127,7 +127,7 @@ public sealed class FinancialApprovalTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(26, loaded.SchemaVersion);
+        Assert.Equal(27, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.FinancialApproved, loaded.TransferProcesses[0].Status);
     }

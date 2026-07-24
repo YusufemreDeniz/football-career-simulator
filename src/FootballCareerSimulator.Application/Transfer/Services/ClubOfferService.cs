@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
@@ -14,20 +15,24 @@ public sealed class ClubOfferService
     private readonly IClubOfferStore _offerStore;
     private readonly ITransferProcessStore _processStore;
     private readonly IManagerCareerStore _managerCareerStore;
+    private readonly ITransferWindowQuery _transferWindow;
 
     public ClubOfferService(
         IClubOfferStore offerStore,
         ITransferProcessStore processStore,
-        IManagerCareerStore managerCareerStore)
+        IManagerCareerStore managerCareerStore,
+        ITransferWindowQuery? transferWindow = null)
     {
         _offerStore = offerStore ?? throw new ArgumentNullException(nameof(offerStore));
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
+        _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
     }
 
     public ClubOffer SubmitClubOffer(TransferProcessId processId, int offeredFee, GameDate day)
     {
+        EnsureTransferWindowOpen();
         var process = RequireProcess(processId);
         EnsureManagerOfBuyingClub(process.BuyingClubId);
 
@@ -94,6 +99,7 @@ public sealed class ClubOfferService
 
     public ClubOffer CounterPendingOffer(TransferProcessId processId, int offeredFee, GameDate day)
     {
+        EnsureTransferWindowOpen();
         var process = RequireProcess(processId);
         EnsureManagerOfBuyingClub(process.BuyingClubId);
         if (!process.IsInClubNegotiation)
@@ -127,6 +133,15 @@ public sealed class ClubOfferService
         {
             throw new TransferInvariantViolationException(
                 "Only the employed manager of the buying club can manage club offers.");
+        }
+    }
+
+    private void EnsureTransferWindowOpen()
+    {
+        if (!_transferWindow.IsOpen)
+        {
+            throw new TransferInvariantViolationException(
+                "Transfer window is closed; cannot submit a club offer.");
         }
     }
 }

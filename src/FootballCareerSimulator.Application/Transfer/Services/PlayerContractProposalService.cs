@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
@@ -15,16 +16,19 @@ public sealed class PlayerContractProposalService
     private readonly IPlayerContractProposalStore _proposalStore;
     private readonly ITransferProcessStore _processStore;
     private readonly IManagerCareerStore _managerCareerStore;
+    private readonly ITransferWindowQuery _transferWindow;
 
     public PlayerContractProposalService(
         IPlayerContractProposalStore proposalStore,
         ITransferProcessStore processStore,
-        IManagerCareerStore managerCareerStore)
+        IManagerCareerStore managerCareerStore,
+        ITransferWindowQuery? transferWindow = null)
     {
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
+        _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
     }
 
     public PlayerContractProposal SubmitContractProposal(
@@ -33,6 +37,7 @@ public sealed class PlayerContractProposalService
         int contractYears,
         GameDate day)
     {
+        EnsureTransferWindowOpen();
         var process = RequireProcess(processId);
         EnsureManagerOfBuyingClub(process.BuyingClubId);
 
@@ -105,6 +110,7 @@ public sealed class PlayerContractProposalService
         int contractYears,
         GameDate day)
     {
+        EnsureTransferWindowOpen();
         var process = RequireProcess(processId);
         EnsureManagerOfBuyingClub(process.BuyingClubId);
         if (!process.IsInPlayerNegotiation)
@@ -144,6 +150,15 @@ public sealed class PlayerContractProposalService
         {
             throw new TransferInvariantViolationException(
                 "Only the employed manager of the buying club can manage contract proposals.");
+        }
+    }
+
+    private void EnsureTransferWindowOpen()
+    {
+        if (!_transferWindow.IsOpen)
+        {
+            throw new TransferInvariantViolationException(
+                "Transfer window is closed; cannot submit a contract proposal.");
         }
     }
 }

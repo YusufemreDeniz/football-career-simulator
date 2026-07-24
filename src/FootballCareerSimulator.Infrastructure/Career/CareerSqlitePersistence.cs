@@ -318,6 +318,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 26;
         }
 
+        if (version == 26 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 27)
+        {
+            WorldCalendarSqliteMigrator.MigrateV26ToV27InPlace(filePath);
+            wasMigrated = true;
+            version = 27;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -357,6 +364,15 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ExpectedEndDayNumber INTEGER NULL,
                 Status INTEGER NOT NULL,
                 CompletedAtDayNumber INTEGER NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE TransferWindowState (
+                SingletonId INTEGER PRIMARY KEY CHECK (SingletonId = 1),
+                Status INTEGER NOT NULL,
+                OpenedOnDayNumber INTEGER NULL,
+                ClosesOnDayNumber INTEGER NULL
             );
             """);
 
@@ -629,24 +645,35 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         command.Parameters.AddWithValue("$rngDrawCount", timeline.RngDrawCount);
         command.ExecuteNonQuery();
 
-        if (timeline.ActivePlanningPeriod is not { } period)
+        if (timeline.ActivePlanningPeriod is { } period)
         {
-            return;
+            using var periodCommand = connection.CreateCommand();
+            periodCommand.Transaction = transaction;
+            periodCommand.CommandText = """
+                INSERT INTO PlanningPeriodState (
+                    SingletonId, PlanningPeriodId, StartDayNumber, ExpectedEndDayNumber, Status, CompletedAtDayNumber)
+                VALUES (1, $planningPeriodId, $startDayNumber, $expectedEndDayNumber, $status, $completedAtDayNumber);
+                """;
+            periodCommand.Parameters.AddWithValue("$planningPeriodId", period.Id.Value);
+            periodCommand.Parameters.AddWithValue("$startDayNumber", period.StartDate.DayNumber);
+            periodCommand.Parameters.AddWithValue("$expectedEndDayNumber", (object?)period.ExpectedEndDate?.DayNumber ?? DBNull.Value);
+            periodCommand.Parameters.AddWithValue("$status", (int)period.Status);
+            periodCommand.Parameters.AddWithValue("$completedAtDayNumber", (object?)period.CompletedAt?.DayNumber ?? DBNull.Value);
+            periodCommand.ExecuteNonQuery();
         }
 
-        using var periodCommand = connection.CreateCommand();
-        periodCommand.Transaction = transaction;
-        periodCommand.CommandText = """
-            INSERT INTO PlanningPeriodState (
-                SingletonId, PlanningPeriodId, StartDayNumber, ExpectedEndDayNumber, Status, CompletedAtDayNumber)
-            VALUES (1, $planningPeriodId, $startDayNumber, $expectedEndDayNumber, $status, $completedAtDayNumber);
+        var window = timeline.TransferWindow;
+        using var windowCommand = connection.CreateCommand();
+        windowCommand.Transaction = transaction;
+        windowCommand.CommandText = """
+            INSERT INTO TransferWindowState (
+                SingletonId, Status, OpenedOnDayNumber, ClosesOnDayNumber)
+            VALUES (1, $status, $openedOnDayNumber, $closesOnDayNumber);
             """;
-        periodCommand.Parameters.AddWithValue("$planningPeriodId", period.Id.Value);
-        periodCommand.Parameters.AddWithValue("$startDayNumber", period.StartDate.DayNumber);
-        periodCommand.Parameters.AddWithValue("$expectedEndDayNumber", (object?)period.ExpectedEndDate?.DayNumber ?? DBNull.Value);
-        periodCommand.Parameters.AddWithValue("$status", (int)period.Status);
-        periodCommand.Parameters.AddWithValue("$completedAtDayNumber", (object?)period.CompletedAt?.DayNumber ?? DBNull.Value);
-        periodCommand.ExecuteNonQuery();
+        windowCommand.Parameters.AddWithValue("$status", (int)window.Status);
+        windowCommand.Parameters.AddWithValue("$openedOnDayNumber", (object?)window.OpenedOn?.DayNumber ?? DBNull.Value);
+        windowCommand.Parameters.AddWithValue("$closesOnDayNumber", (object?)window.ClosesOn?.DayNumber ?? DBNull.Value);
+        windowCommand.ExecuteNonQuery();
     }
 
     private static void InsertCompetition(SqliteConnection connection, SqliteTransaction transaction, LeagueCompetition league)
@@ -1446,6 +1473,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         int? planningExpectedEndDayNumber = null;
         int? planningStatus = null;
         int? planningCompletedAtDayNumber = null;
+        int? transferWindowStatus = null;
+        int? transferWindowOpenedOnDayNumber = null;
+        int? transferWindowClosesOnDayNumber = null;
 
         using (var timelineCommand = connection.CreateCommand())
         {
@@ -1487,6 +1517,23 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             }
         }
 
+        if (TableExists(connection, "TransferWindowState"))
+        {
+            using var windowCommand = connection.CreateCommand();
+            windowCommand.CommandText = """
+                SELECT Status, OpenedOnDayNumber, ClosesOnDayNumber
+                FROM TransferWindowState
+                WHERE SingletonId = 1;
+                """;
+            using var reader = windowCommand.ExecuteReader();
+            if (reader.Read())
+            {
+                transferWindowStatus = reader.GetInt32(0);
+                transferWindowOpenedOnDayNumber = reader.IsDBNull(1) ? null : reader.GetInt32(1);
+                transferWindowClosesOnDayNumber = reader.IsDBNull(2) ? null : reader.GetInt32(2);
+            }
+        }
+
         return WorldCalendarSnapshotMapper.ToDomain(
             currentDayNumber,
             lastCommittedStepId,
@@ -1498,7 +1545,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             planningExpectedEndDayNumber,
             planningStatus,
             planningCompletedAtDayNumber,
-            checkpointLabel: null);
+            checkpointLabel: null,
+            transferWindowStatus,
+            transferWindowOpenedOnDayNumber,
+            transferWindowClosesOnDayNumber);
     }
 
     private static LeagueCompetition ReadLeague(SqliteConnection connection)

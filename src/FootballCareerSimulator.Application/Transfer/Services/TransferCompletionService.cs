@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
+using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
@@ -19,13 +20,15 @@ public sealed class TransferCompletionService
     private readonly ContractRegistrationService _registration;
     private readonly ClubSquadService _clubSquad;
     private readonly IManagerCareerStore _managerCareerStore;
+    private readonly ITransferWindowQuery _transferWindow;
 
     public TransferCompletionService(
         ITransferProcessStore processStore,
         IPlayerContractProposalStore proposalStore,
         ContractRegistrationService registration,
         ClubSquadService clubSquad,
-        IManagerCareerStore managerCareerStore)
+        IManagerCareerStore managerCareerStore,
+        ITransferWindowQuery? transferWindow = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
@@ -33,6 +36,7 @@ public sealed class TransferCompletionService
         _clubSquad = clubSquad ?? throw new ArgumentNullException(nameof(clubSquad));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
+        _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
     }
 
     public TransferProcess Complete(TransferProcessId processId, GameDate day)
@@ -53,6 +57,13 @@ public sealed class TransferCompletionService
         {
             throw new TransferInvariantViolationException(
                 "Completion requires financial approval or an open completion.");
+        }
+
+        // Normal completion requires an open window; in-progress completion may finish while closed.
+        if (process.Status == TransferProcessStatus.FinancialApproved && !_transferWindow.IsOpen)
+        {
+            throw new TransferInvariantViolationException(
+                "Transfer window is closed; cannot start transfer completion.");
         }
 
         var proposal = RequireAcceptedProposal(processId);

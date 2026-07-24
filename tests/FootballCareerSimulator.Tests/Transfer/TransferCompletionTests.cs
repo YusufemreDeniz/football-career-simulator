@@ -145,7 +145,7 @@ public sealed class TransferCompletionTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(26, loaded.SchemaVersion);
+        Assert.Equal(27, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.Archived, loaded.TransferProcesses[0].Status);
         Assert.Equal(

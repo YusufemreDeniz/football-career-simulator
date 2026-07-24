@@ -635,6 +635,37 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult OpenTransferWindow()
+    {
+        try
+        {
+            var result = Host.WorldModule.OpenTransferWindow.Handle(
+                new Application.WorldCalendar.Commands.OpenTransferWindowCommand(
+                    Guid.NewGuid(),
+                    ClosesOnDayNumber: null));
+            return UiActionResult.Ok(
+                $"Transfer penceresi açıldı (gün {result.OpenedOnDayNumber}).");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Pencere açılamadı: {ex.Message}");
+        }
+    }
+
+    public UiActionResult CloseTransferWindow()
+    {
+        try
+        {
+            _ = Host.WorldModule.CloseTransferWindow.Handle(
+                new Application.WorldCalendar.Commands.CloseTransferWindowCommand(Guid.NewGuid()));
+            return UiActionResult.Ok("Transfer penceresi kapatıldı.");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Pencere kapatılamadı: {ex.Message}");
+        }
+    }
+
     private long ResolveOldestActiveProcessId()
     {
         var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
