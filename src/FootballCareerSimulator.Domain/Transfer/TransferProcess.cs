@@ -5,7 +5,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.Transfer;
 
 /// <summary>
-/// Transfer süreci: Sporting Approval + kulüp + oyuncu müzakeresi iskeleti. Financial / Completion yok.
+/// Transfer süreci: Sporting / Club / Player + Financial Approval iskeleti. Completion yok.
 /// </summary>
 public sealed class TransferProcess
 {
@@ -68,7 +68,9 @@ public sealed class TransferProcess
             or TransferProcessStatus.ClubNegotiation
             or TransferProcessStatus.ClubAgreementReached
             or TransferProcessStatus.PlayerNegotiation
-            or TransferProcessStatus.PlayerAgreementReached;
+            or TransferProcessStatus.PlayerAgreementReached
+            or TransferProcessStatus.FinancialApprovalPending
+            or TransferProcessStatus.FinancialApproved;
 
     public bool IsInClubNegotiation => Status == TransferProcessStatus.ClubNegotiation;
 
@@ -77,6 +79,10 @@ public sealed class TransferProcess
     public bool IsInPlayerNegotiation => Status == TransferProcessStatus.PlayerNegotiation;
 
     public bool HasPlayerAgreement => Status == TransferProcessStatus.PlayerAgreementReached;
+
+    public bool AwaitsFinancialDecision => Status == TransferProcessStatus.FinancialApprovalPending;
+
+    public bool HasFinancialApproval => Status == TransferProcessStatus.FinancialApproved;
 
     public static TransferProcess OpenFromTarget(
         TransferProcessId processId,
@@ -299,6 +305,64 @@ public sealed class TransferProcess
         return WithStatus(TransferProcessStatus.PlayerAgreementReached, FailureReasonCode, terminalOn: null);
     }
 
+    public TransferProcess RequestFinancialApproval()
+    {
+        if (Status == TransferProcessStatus.FinancialApprovalPending)
+        {
+            return this;
+        }
+
+        if (Status == TransferProcessStatus.FinancialApproved)
+        {
+            throw new TransferInvariantViolationException(
+                "Financial approval already granted; cannot request again.");
+        }
+
+        EnsureActive();
+        if (Status != TransferProcessStatus.PlayerAgreementReached)
+        {
+            throw new TransferInvariantViolationException(
+                $"Cannot request financial approval from {Status}.");
+        }
+
+        return WithStatus(TransferProcessStatus.FinancialApprovalPending, FailureReasonCode, terminalOn: null);
+    }
+
+    public TransferProcess GrantFinancialApproval()
+    {
+        if (Status == TransferProcessStatus.FinancialApproved)
+        {
+            return this;
+        }
+
+        if (Status != TransferProcessStatus.FinancialApprovalPending)
+        {
+            throw new TransferInvariantViolationException(
+                "Financial approval can only be granted while pending.");
+        }
+
+        return WithStatus(TransferProcessStatus.FinancialApproved, FailureReasonCode, terminalOn: null);
+    }
+
+    public TransferProcess RejectFinancialApproval(string reasonCode, GameDate day)
+    {
+        if (Status == TransferProcessStatus.Rejected)
+        {
+            return this;
+        }
+
+        if (Status != TransferProcessStatus.FinancialApprovalPending)
+        {
+            throw new TransferInvariantViolationException(
+                "Financial rejection can only occur while approval is pending.");
+        }
+
+        return WithStatus(
+            TransferProcessStatus.Rejected,
+            RequireReason(reasonCode),
+            day);
+    }
+
     public TransferProcess Withdraw(GameDate day)
     {
         EnsureActive();
@@ -360,7 +424,9 @@ public sealed class TransferProcess
             or TransferProcessStatus.ClubNegotiation
             or TransferProcessStatus.ClubAgreementReached
             or TransferProcessStatus.PlayerNegotiation
-            or TransferProcessStatus.PlayerAgreementReached;
+            or TransferProcessStatus.PlayerAgreementReached
+            or TransferProcessStatus.FinancialApprovalPending
+            or TransferProcessStatus.FinancialApproved;
 
     private static string RequireReason(string reasonCode)
     {

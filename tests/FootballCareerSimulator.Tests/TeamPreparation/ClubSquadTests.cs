@@ -66,8 +66,8 @@ public sealed class ClubSquadTests : IDisposable
         players.Development.EnsureClub(new ClubId(1), world.TimelineStore.Timeline.RootSeed, Day);
         var squad = teamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
 
-        Assert.Equal(25, squad.Members.Count);
-        Assert.Equal(25, teamPrep.SquadQueries.GetClubSquad(1, world.TimelineStore.Timeline.RootSeed).Count);
+        Assert.Equal(24, squad.Members.Count);
+        Assert.Equal(24, teamPrep.SquadQueries.GetClubSquad(1, world.TimelineStore.Timeline.RootSeed).Count);
         Assert.True(squad.ContainsSlot(0));
         Assert.True(squad.ContainsPlayer(PlayerId.FromClubSlot(1, 0)));
     }
@@ -180,9 +180,9 @@ public sealed class ClubSquadTests : IDisposable
             Array.Empty<Domain.Transfer.PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(24, loaded.SchemaVersion);
+        Assert.Equal(25, loaded.SchemaVersion);
         Assert.Single(loaded.ClubSquads);
-        Assert.Equal(25, loaded.ClubSquads[0].Members.Count);
+        Assert.Equal(24, loaded.ClubSquads[0].Members.Count);
         Assert.Equal(1, loaded.ClubSquads[0].ClubId.Value);
     }
 }

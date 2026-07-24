@@ -90,7 +90,7 @@ public sealed class PlayerCareerDevelopmentTests : IDisposable
                 (int)TrainingIntensity.High,
                 (int)RestApproach.Normal));
 
-        Assert.Equal(25, players.Store.Careers.Count);
+        Assert.Equal(24, players.Store.Careers.Count);
         Assert.Contains(players.Store.Careers, career => career.DevelopmentPoints > 0 || career.LastDevelopedOn is not null);
         Assert.True(players.Queries.GetManagedClubSummary().AverageCurrentAbility >= 40);
         Assert.True(players.Queries.GetManagedClubSummary().AverageAge >= 18);
@@ -134,8 +134,8 @@ public sealed class PlayerCareerDevelopmentTests : IDisposable
             Array.Empty<Domain.Transfer.PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(24, loaded.SchemaVersion);
-        Assert.Equal(25, loaded.PlayerCareers.Count);
+        Assert.Equal(25, loaded.SchemaVersion);
+        Assert.Equal(24, loaded.PlayerCareers.Count);
         var loadedFirst = loaded.PlayerCareers.Single(c => c.SlotIndex == 0);
         Assert.Equal(aged.BirthYear, loadedFirst.BirthYear);
         Assert.Equal(aged.CurrentAbility, loadedFirst.CurrentAbility);

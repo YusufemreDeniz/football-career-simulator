@@ -19,16 +19,16 @@ using Microsoft.Data.Sqlite;
 
 namespace FootballCareerSimulator.Tests.Transfer;
 
-public sealed class ClubOfferTests : IDisposable
+public sealed class FinancialApprovalTests : IDisposable
 {
     private static readonly GameDate Day = GameDate.FromCalendarDate(2026, 7, 1);
 
     private readonly string _tempDirectory = Path.Combine(
         Path.GetTempPath(),
-        "fcs-club-offer",
+        "fcs-financial-approval",
         Guid.NewGuid().ToString("N"));
 
-    public ClubOfferTests() => Directory.CreateDirectory(_tempDirectory);
+    public FinancialApprovalTests() => Directory.CreateDirectory(_tempDirectory);
 
     public void Dispose()
     {
@@ -40,58 +40,71 @@ public sealed class ClubOfferTests : IDisposable
     }
 
     [Fact]
-    public void Submit_AfterSportingApproval_EntersNegotiation()
+    public void RequestAndGrant_MovesToFinancialApproved()
     {
-        var modules = CreateModulesWithSportingApproval();
+        var modules = CreateModulesWithPlayerAgreement();
         var process = modules.Transfer.ProcessStore.Processes.Single();
 
-        var offer = modules.Transfer.ClubOffers.SubmitClubOffer(process.ProcessId, 4_000_000, Day);
+        var pending = modules.Transfer.Processes.RequestFinancialApproval(process.ProcessId);
+        Assert.Equal(TransferProcessStatus.FinancialApprovalPending, pending.Status);
+        Assert.True(pending.AwaitsFinancialDecision);
 
-        Assert.True(offer.IsPending);
-        Assert.Equal(1, offer.Round);
-        Assert.Equal(
-            TransferProcessStatus.ClubNegotiation,
-            modules.Transfer.ProcessStore.Get(process.ProcessId)!.Status);
+        var approved = modules.Transfer.Processes.GrantFinancialApproval(process.ProcessId);
+        Assert.True(approved.HasFinancialApproval);
+        Assert.Equal(TransferProcessStatus.FinancialApproved, approved.Status);
+        Assert.True(approved.IsActive);
     }
 
     [Fact]
-    public void CounterThenAccept_ReachesClubAgreement()
+    public void Reject_TerminatesAsRejected()
     {
-        var modules = CreateModulesWithSportingApproval();
-        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
-        modules.Transfer.ClubOffers.SubmitClubOffer(processId, 3_000_000, Day);
-        var counter = modules.Transfer.ClubOffers.CounterPendingOffer(processId, 4_500_000, Day.AddDays(1));
-        Assert.Equal(2, counter.Round);
+        var modules = CreateModulesWithPlayerAgreement();
+        var process = modules.Transfer.ProcessStore.Processes.Single();
+        modules.Transfer.Processes.RequestFinancialApproval(process.ProcessId);
 
-        var accepted = modules.Transfer.ClubOffers.AcceptPendingOffer(processId);
-        Assert.Equal(ClubOfferStatus.Accepted, accepted.Status);
-        Assert.Equal(
-            TransferProcessStatus.ClubAgreementReached,
-            modules.Transfer.ProcessStore.Get(processId)!.Status);
+        var rejected = modules.Transfer.Processes.RejectFinancialApproval(
+            process.ProcessId,
+            "BudgetExceeded",
+            Day.AddDays(1));
+
+        Assert.Equal(TransferProcessStatus.Rejected, rejected.Status);
+        Assert.False(rejected.IsActive);
+        Assert.Equal("BudgetExceeded", rejected.FailureReasonCode);
+        Assert.Equal(0, modules.Transfer.Queries.GetManagedClubProcesses().ActiveCount);
     }
 
     [Fact]
-    public void Reject_KeepsNegotiationOpenForNewOffer()
+    public void Grant_WithoutPending_Throws()
     {
-        var modules = CreateModulesWithSportingApproval();
-        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
-        modules.Transfer.ClubOffers.SubmitClubOffer(processId, 2_000_000, Day);
-        modules.Transfer.ClubOffers.RejectPendingOffer(processId);
+        var modules = CreateModulesWithPlayerAgreement();
+        var process = modules.Transfer.ProcessStore.Processes.Single();
 
-        var next = modules.Transfer.ClubOffers.SubmitClubOffer(processId, 2_500_000, Day.AddDays(1));
-        Assert.Equal(2, next.Round);
-        Assert.True(next.IsPending);
+        Assert.Throws<TransferInvariantViolationException>(() =>
+            modules.Transfer.Processes.GrantFinancialApproval(process.ProcessId));
     }
 
     [Fact]
-    public void SaveLoad_PreservesOffersAtSchemaV23()
+    public void Request_IsIdempotentWhilePending()
     {
-        var modules = CreateModulesWithSportingApproval();
-        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
-        modules.Transfer.ClubOffers.SubmitClubOffer(processId, 6_000_000, Day);
+        var modules = CreateModulesWithPlayerAgreement();
+        var process = modules.Transfer.ProcessStore.Processes.Single();
+        var first = modules.Transfer.Processes.RequestFinancialApproval(process.ProcessId);
+        var second = modules.Transfer.Processes.RequestFinancialApproval(process.ProcessId);
+
+        Assert.Equal(first.Status, second.Status);
+        Assert.Equal(TransferProcessStatus.FinancialApprovalPending, second.Status);
+    }
+
+    [Fact]
+    public void SaveLoad_PreservesFinancialApprovedAtSchemaV25()
+    {
+        var modules = CreateModulesWithPlayerAgreement();
+        var process = modules.Transfer.ProcessStore.Processes.Single();
+        modules.Transfer.Processes.RequestFinancialApproval(process.ProcessId);
+        modules.Transfer.Processes.GrantFinancialApproval(process.ProcessId);
 
         var persistence = new CareerSqlitePersistence();
-        var path = Path.Combine(_tempDirectory, "offers.db");
+        var path = Path.Combine(_tempDirectory, "financial.db");
         persistence.Save(
             path,
             modules.World.TimelineStore.Timeline,
@@ -115,19 +128,17 @@ public sealed class ClubOfferTests : IDisposable
 
         var loaded = persistence.Load(path);
         Assert.Equal(25, loaded.SchemaVersion);
-        Assert.Single(loaded.ClubOffers);
-        Assert.Equal(6_000_000, loaded.ClubOffers[0].OfferedFee);
-        Assert.Equal(ClubOfferStatus.Pending, loaded.ClubOffers[0].Status);
-        Assert.Equal(TransferProcessStatus.ClubNegotiation, loaded.TransferProcesses[0].Status);
+        Assert.Single(loaded.TransferProcesses);
+        Assert.Equal(TransferProcessStatus.FinancialApproved, loaded.TransferProcesses[0].Status);
     }
 
     private static (
         WorldCalendarModule World,
         ClubGovernanceModule Clubs,
         ManagerCareerModule Manager,
-        TransferModule Transfer) CreateModulesWithSportingApproval()
+        TransferModule Transfer) CreateModulesWithPlayerAgreement()
     {
-        var world = WorldCalendarModule.Create(Day, rootSeed: 51);
+        var world = WorldCalendarModule.Create(Day, rootSeed: 71);
         var clubs = ClubGovernanceModule.CreateMvpLeague();
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
@@ -161,6 +172,10 @@ public sealed class ClubOfferTests : IDisposable
         var process = transfer.Processes.OpenOldestListedTargetForClub(new ClubId(1), Day);
         transfer.Processes.RequestSportingApproval(process.ProcessId);
         transfer.Processes.GrantSportingApproval(process.ProcessId);
+        transfer.ClubOffers.SubmitClubOffer(process.ProcessId, 5_000_000, Day);
+        transfer.ClubOffers.AcceptPendingOffer(process.ProcessId);
+        transfer.ContractProposals.SubmitContractProposal(process.ProcessId, 25_000, 3, Day);
+        transfer.ContractProposals.AcceptPendingProposal(process.ProcessId);
         return (world, clubs, manager, transfer);
     }
 }

@@ -118,6 +118,33 @@ public sealed class TransferProcessService
         return updated;
     }
 
+    public TransferProcess RequestFinancialApproval(TransferProcessId processId)
+    {
+        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        var updated = Require(processId).RequestFinancialApproval();
+        _processStore.Upsert(updated);
+        return updated;
+    }
+
+    public TransferProcess GrantFinancialApproval(TransferProcessId processId)
+    {
+        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        var updated = Require(processId).GrantFinancialApproval();
+        _processStore.Upsert(updated);
+        return updated;
+    }
+
+    public TransferProcess RejectFinancialApproval(
+        TransferProcessId processId,
+        string reasonCode,
+        GameDate day)
+    {
+        EnsureManagerCanDecide(Require(processId).BuyingClubId);
+        var updated = Require(processId).RejectFinancialApproval(reasonCode, day);
+        _processStore.Upsert(updated);
+        return updated;
+    }
+
     public TransferProcess Withdraw(TransferProcessId processId, GameDate day)
     {
         var process = Require(processId);

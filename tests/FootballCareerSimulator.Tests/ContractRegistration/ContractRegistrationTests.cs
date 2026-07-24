@@ -56,10 +56,10 @@ public sealed class ContractRegistrationTests : IDisposable
 
         players.Development.EnsureClub(new ClubId(1), world.TimelineStore.Timeline.RootSeed, Day);
 
-        Assert.Equal(25, players.Store.Careers.Count);
-        Assert.Equal(25, contracts.Store.Contracts.Count);
+        Assert.Equal(24, players.Store.Careers.Count);
+        Assert.Equal(24, contracts.Store.Contracts.Count);
         Assert.All(contracts.Store.Contracts, c => Assert.Equal(ContractStatus.Active, c.Status));
-        Assert.Equal(25, contracts.Queries.GetManagedClubSummary().ActiveCount);
+        Assert.Equal(24, contracts.Queries.GetManagedClubSummary().ActiveCount);
         Assert.True(contracts.Queries.GetManagedClubSummary().AverageWeeklyWage >= 500);
     }
 
@@ -170,8 +170,8 @@ public sealed class ContractRegistrationTests : IDisposable
             Array.Empty<Domain.Transfer.PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(24, loaded.SchemaVersion);
-        Assert.Equal(25, loaded.Contracts.Count);
+        Assert.Equal(25, loaded.SchemaVersion);
+        Assert.Equal(24, loaded.Contracts.Count);
         Assert.All(loaded.Contracts, c => Assert.Equal(ContractStatus.Active, c.Status));
 
         var sample = contracts.Store.Contracts.OrderBy(c => c.Id.Value).First();

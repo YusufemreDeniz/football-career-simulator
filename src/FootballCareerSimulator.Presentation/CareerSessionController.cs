@@ -531,6 +531,80 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult RequestFinancialApprovalForOldestProcess()
+    {
+        try
+        {
+            var process = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+                .Where(p => p.StatusCode == (int)TransferProcessStatus.PlayerAgreementReached)
+                .OrderBy(p => p.ProcessId)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("Oyuncu anlaşmalı süreç yok.");
+            var updated = Host.TransferModule.Processes.RequestFinancialApproval(
+                new TransferProcessId(process.ProcessId));
+            return UiActionResult.Ok(
+                $"Mali onay istendi: süreç #{updated.ProcessId.Value} · {TranslateProcessStatus(updated.Status)}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Mali onay istenemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Mali onay hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult GrantFinancialApprovalForOldestPendingProcess()
+    {
+        try
+        {
+            var pending = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+                .Where(p => p.StatusCode == (int)TransferProcessStatus.FinancialApprovalPending)
+                .OrderBy(p => p.ProcessId)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("Mali onay bekleyen süreç yok.");
+            var updated = Host.TransferModule.Processes.GrantFinancialApproval(
+                new TransferProcessId(pending.ProcessId));
+            return UiActionResult.Ok(
+                $"Mali onay verildi: süreç #{updated.ProcessId.Value} · oyuncu {updated.PlayerId.Value}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Mali onay verilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Mali onay hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult RejectFinancialApprovalForOldestPendingProcess()
+    {
+        try
+        {
+            var pending = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+                .Where(p => p.StatusCode == (int)TransferProcessStatus.FinancialApprovalPending)
+                .OrderBy(p => p.ProcessId)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("Reddedilecek mali onay bekleyen süreç yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var updated = Host.TransferModule.Processes.RejectFinancialApproval(
+                new TransferProcessId(pending.ProcessId),
+                "FinancialRejected",
+                day);
+            return UiActionResult.Ok($"Mali red: süreç #{updated.ProcessId.Value}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Mali red başarısız: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Mali red hatası: {ex.Message}");
+        }
+    }
+
     private long ResolveOldestActiveProcessId()
     {
         var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
@@ -772,6 +846,8 @@ public sealed class CareerSessionController
             TransferProcessStatus.ClubAgreementReached => "Kulüp anlaşması",
             TransferProcessStatus.PlayerNegotiation => "Oyuncu müzakeresi",
             TransferProcessStatus.PlayerAgreementReached => "Oyuncu anlaşması",
+            TransferProcessStatus.FinancialApprovalPending => "Mali onay bekliyor",
+            TransferProcessStatus.FinancialApproved => "Mali onaylı",
             TransferProcessStatus.Rejected => "Reddedildi",
             TransferProcessStatus.Withdrawn => "Geri çekildi",
             TransferProcessStatus.Failed => "Başarısız",

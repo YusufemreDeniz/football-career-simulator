@@ -52,6 +52,9 @@ public partial class CareerHubScreen : Control
     private Button _acceptContractProposalButton = null!;
     private Button _rejectContractProposalButton = null!;
     private Button _counterContractProposalButton = null!;
+    private Button _requestFinancialApprovalButton = null!;
+    private Button _grantFinancialApprovalButton = null!;
+    private Button _rejectFinancialApprovalButton = null!;
     private Button _trainLowButton = null!;
     private Button _trainMediumButton = null!;
     private Button _trainHighButton = null!;
@@ -334,6 +337,25 @@ public partial class CareerHubScreen : Control
         _counterContractProposalButton.Pressed += () =>
             Apply(_controller.CounterPendingContractProposal());
         proposalRow.AddChild(_counterContractProposalButton);
+
+        var financialRow = new HBoxContainer();
+        financialRow.AddThemeConstantOverride("separation", 8);
+        clubCol.AddChild(financialRow);
+
+        _requestFinancialApprovalButton = SecondaryButton("Mali Onay İste");
+        _requestFinancialApprovalButton.Pressed += () =>
+            Apply(_controller.RequestFinancialApprovalForOldestProcess());
+        financialRow.AddChild(_requestFinancialApprovalButton);
+
+        _grantFinancialApprovalButton = SecondaryButton("Mali Onayla");
+        _grantFinancialApprovalButton.Pressed += () =>
+            Apply(_controller.GrantFinancialApprovalForOldestPendingProcess());
+        financialRow.AddChild(_grantFinancialApprovalButton);
+
+        _rejectFinancialApprovalButton = SecondaryButton("Mali Reddet");
+        _rejectFinancialApprovalButton.Pressed += () =>
+            Apply(_controller.RejectFinancialApprovalForOldestPendingProcess());
+        financialRow.AddChild(_rejectFinancialApprovalButton);
 
         var prepCol = new VBoxContainer
         {
@@ -831,6 +853,14 @@ public partial class CareerHubScreen : Control
         _acceptContractProposalButton.Disabled = !pendingProposals;
         _rejectContractProposalButton.Disabled = !pendingProposals;
         _counterContractProposalButton.Disabled = !pendingProposals;
+
+        var canRequestFinancial = employed && processes.Any(p =>
+            p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.PlayerAgreementReached);
+        var pendingFinancial = employed && processes.Any(p =>
+            p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.FinancialApprovalPending);
+        _requestFinancialApprovalButton.Disabled = !canRequestFinancial;
+        _grantFinancialApprovalButton.Disabled = !pendingFinancial;
+        _rejectFinancialApprovalButton.Disabled = !pendingFinancial;
     }
 
     private void RefreshTrainingStatus()

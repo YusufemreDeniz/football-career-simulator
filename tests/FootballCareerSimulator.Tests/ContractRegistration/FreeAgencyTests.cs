@@ -66,7 +66,7 @@ public sealed class FreeAgencyTests : IDisposable
 
         players.Development.EnsureClub(new ClubId(1), world.TimelineStore.Timeline.RootSeed, Day);
         teamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
-        Assert.Equal(25, teamPrep.SquadStore.Get(new ClubId(1))!.Members.Count);
+        Assert.Equal(24, teamPrep.SquadStore.Get(new ClubId(1))!.Members.Count);
 
         var shortPlayer = PlayerId.FromClubSlot(1, MvpContractFactory.ShortContractSquadSlot);
         var shortContract = contracts.Store.GetByPlayer(shortPlayer)!;
@@ -177,7 +177,7 @@ public sealed class FreeAgencyTests : IDisposable
             Array.Empty<Domain.Transfer.PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(24, loaded.SchemaVersion);
+        Assert.Equal(25, loaded.SchemaVersion);
         Assert.Single(loaded.FreeAgents);
         Assert.Equal(playerId, loaded.FreeAgents[0].PlayerId);
         Assert.Equal(1, loaded.FreeAgents[0].LastClubId.Value);

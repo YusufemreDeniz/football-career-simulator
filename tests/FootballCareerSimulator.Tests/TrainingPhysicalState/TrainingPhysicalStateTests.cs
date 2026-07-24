@@ -103,7 +103,7 @@ public sealed class TrainingPhysicalStateTests : IDisposable
         Assert.True(result.Succeeded);
         Assert.True(result.AverageFatigue > PlayerPhysicalState.DefaultFatigue);
         Assert.NotNull(training.Store.GetPlan(new Domain.Shared.ClubId(1)));
-        Assert.Equal(25, training.Store.PhysicalStates.Count);
+        Assert.Equal(24, training.Store.PhysicalStates.Count);
     }
 
     [Fact]
@@ -186,10 +186,10 @@ public sealed class TrainingPhysicalStateTests : IDisposable
             Array.Empty<Domain.Transfer.PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(24, loaded.SchemaVersion);
+        Assert.Equal(25, loaded.SchemaVersion);
         Assert.Single(loaded.TrainingPlans);
         Assert.Equal(TrainingIntensity.Medium, loaded.TrainingPlans[0].Intensity);
-        Assert.Equal(25, loaded.PhysicalStates.Count);
+        Assert.Equal(24, loaded.PhysicalStates.Count);
         Assert.Equal(
             training.Store.PhysicalStates[0].Fatigue,
             loaded.PhysicalStates[0].Fatigue);
