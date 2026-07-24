@@ -24,6 +24,7 @@ public partial class CareerHubScreen : Control
     private Label _decisionLabel = null!;
     private Button _openDecisionButton = null!;
     private Button _openStartingDecisionButton = null!;
+    private Button _openTransferDecisionButton = null!;
     private Button _grantDecisionButton = null!;
     private Button _refuseDecisionButton = null!;
     private Label _transferWindowLabel = null!;
@@ -348,6 +349,10 @@ public partial class CareerHubScreen : Control
         _openStartingDecisionButton.Pressed += () =>
             Apply(_controller.OpenStartingOpportunityDecisionForOldestSquadPlayer());
         decisionRow.AddChild(_openStartingDecisionButton);
+        _openTransferDecisionButton = SecondaryButton("Transfer Talebi Aç");
+        _openTransferDecisionButton.Pressed += () =>
+            Apply(_controller.OpenTransferDecisionForOldestSquadPlayer());
+        decisionRow.AddChild(_openTransferDecisionButton);
         _grantDecisionButton = SecondaryButton("Talebi Kabul Et");
         _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
         decisionRow.AddChild(_grantDecisionButton);

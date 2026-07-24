@@ -46,6 +46,8 @@ public sealed class MemoryRecord
     public const int DecisionPlayingTimeAnswerRuleVersion = 1;
     public const string DecisionStartingOpportunityAnswerRuleId = "DecisionStartingOpportunityAnswer";
     public const int DecisionStartingOpportunityAnswerRuleVersion = 1;
+    public const string DecisionTransferAnswerRuleId = "DecisionTransferAnswer";
+    public const int DecisionTransferAnswerRuleVersion = 1;
     public const int InfluenceBonusPerReinforcement = 10;
     public const int MaxReinforcementsPerMemory = 5;
     public const int MinImportance = 1;
@@ -329,6 +331,61 @@ public sealed class MemoryRecord
             relatedPromiseId: null,
             DecisionStartingOpportunityAnswerRuleId,
             DecisionStartingOpportunityAnswerRuleVersion);
+    }
+
+    public static MemoryRecord CreateDecisionTransferOutcome(
+        MemoryId memoryId,
+        DecisionRequest request,
+        GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Kind != DecisionRequestKind.TransferRequest)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Decision transfer memory requires TransferRequest kind.");
+        }
+
+        if (request.Status is not (
+            DecisionRequestStatus.Answered
+            or DecisionRequestStatus.Expired))
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Decision transfer memory requires Answered or Expired status.");
+        }
+
+        var outcomeKey = request.Status == DecisionRequestStatus.Expired
+            ? "Expired"
+            : request.SelectedOptionCode
+              ?? throw new SocialContinuityInvariantViolationException(
+                  "Answered decision requires a selected option code.");
+
+        var (importance, valence) = outcomeKey switch
+        {
+            DecisionRequest.OptionAcknowledgeTransferRequest => (55, MemoryValence.Positive),
+            DecisionRequest.OptionRefuse => (70, MemoryValence.Negative),
+            "Expired" => (60, MemoryValence.Negative),
+            _ => throw new SocialContinuityInvariantViolationException(
+                $"Unsupported decision outcome for memory: {outcomeKey}."),
+        };
+
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Player, request.SubjectPlayerId.Value),
+            MemorySubjectKind.Manager,
+            request.ManagerId.Value,
+            BuildDecisionTransferOutcomeSourceKey(request.DecisionRequestId, outcomeKey),
+            MemoryCategory.Relationship,
+            day,
+            day,
+            importance,
+            importance,
+            valence,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            DecisionTransferAnswerRuleId,
+            DecisionTransferAnswerRuleVersion);
     }
 
     public static MemoryRecord CreateRelationshipTrustBandMilestone(
@@ -874,6 +931,11 @@ public sealed class MemoryRecord
         DecisionRequestId decisionRequestId,
         string outcomeKey) =>
         $"DecisionStartingOpportunity:{decisionRequestId.Value}:{outcomeKey}";
+
+    public static string BuildDecisionTransferOutcomeSourceKey(
+        DecisionRequestId decisionRequestId,
+        string outcomeKey) =>
+        $"DecisionTransfer:{decisionRequestId.Value}:{outcomeKey}";
 
     public static string BuildTransferCompletedSourceKey(TransferProcessId processId) =>
         $"TransferCompleted:{processId.Value}";

@@ -4,6 +4,7 @@ using FootballCareerSimulator.Application.Interaction.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
+using FootballCareerSimulator.Application.Transfer.Services;
 
 namespace FootballCareerSimulator.Application.Interaction.Composition;
 
@@ -49,12 +50,13 @@ public sealed class InteractionModule
         DecisionMemoryService? decisionMemory = null,
         IPromiseStore? promiseStore = null,
         IDialogueSessionStore? dialogueSessionStore = null,
-        StartingOpportunityPromiseService? startingOpportunity = null)
+        StartingOpportunityPromiseService? startingOpportunity = null,
+        TransferNeedService? transferNeeds = null)
     {
         ArgumentNullException.ThrowIfNull(managerCareerStore);
         var store = decisionRequestStore ?? new InMemoryDecisionRequestStore();
         var sessions = dialogueSessionStore ?? new InMemoryDialogueSessionStore();
-        var dialogueOptions = new DialogueOptionGenerationService(store, promiseStore);
+        var dialogueOptions = new DialogueOptionGenerationService(store, promiseStore, transferNeeds);
         var dialogueSessionService = new DialogueSessionService(sessions);
         var decisions = new DecisionRequestService(
             store,
@@ -64,7 +66,8 @@ public sealed class InteractionModule
             decisionMemory,
             dialogueOptions,
             dialogueSessionService,
-            startingOpportunity);
+            startingOpportunity,
+            transferNeeds);
         var queries = new DecisionRequestQueryService(store);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
         return new InteractionModule(

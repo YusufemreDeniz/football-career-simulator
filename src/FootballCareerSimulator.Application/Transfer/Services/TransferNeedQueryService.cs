@@ -190,6 +190,7 @@ public sealed class TransferNeedQueryService
             TransferNeedKind.InjuryCover => "Sakatlık kapağı",
             TransferNeedKind.ExpiringContract => "Sözleşme bitişi",
             TransferNeedKind.TacticalRequirement => "Taktik gereksinim",
+            TransferNeedKind.PlayerExitRequest => "Oyuncu ayrılma isteği",
             _ => kind.ToString(),
         };
 

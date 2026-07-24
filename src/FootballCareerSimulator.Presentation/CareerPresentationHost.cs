@@ -131,35 +131,6 @@ public sealed class CareerPresentationHost
             playerCareer.Development,
             teamPreparation.ClubSquad);
         var socialContinuity = SocialContinuityModule.Create();
-        var interactionModule = InteractionModule.Create(
-            managerModule.Store,
-            socialContinuity.PlayingTime,
-            decisionStore,
-            socialContinuity.RelationshipEvaluation,
-            socialContinuity.DecisionMemory,
-            socialContinuity.PromiseStore,
-            dialogueSessionStore,
-            socialContinuity.StartingOpportunity);
-
-        var competitionModule = CompetitionModule.CreateForCareerFromStore(
-            competitionStore,
-            worldModule.TimelineStore,
-            clubModule.Store,
-            managerModule.Store,
-            teamPreparation.SelectionStore,
-            training.Store,
-            playerCareer.Store,
-            playerCareer.Development,
-            teamPreparation.TacticPlanStore,
-            teamPreparation.SquadStore,
-            socialContinuity.StartingOpportunity,
-            socialContinuity.SelectionMemory,
-            socialContinuity.PlayingTime,
-            socialContinuity.Invalidation,
-            socialContinuity.CareerMemory,
-            socialContinuity.ClubHistoryMemory,
-            socialContinuity.MatchPerformanceMemory,
-            socialContinuity.RelationshipEvaluation);
         clubModule.BindWageBudget(contractModule.Store);
         contractModule.Registration.BindPromiseInvalidation(socialContinuity.Invalidation);
         contractModule.Registration.BindRelationships(socialContinuity.RelationshipEvaluation);
@@ -182,6 +153,36 @@ public sealed class CareerPresentationHost
             transferMemory: socialContinuity.TransferMemory,
             clubHistoryMemory: socialContinuity.ClubHistoryMemory,
             relationships: socialContinuity.RelationshipEvaluation);
+        var interactionModule = InteractionModule.Create(
+            managerModule.Store,
+            socialContinuity.PlayingTime,
+            decisionStore,
+            socialContinuity.RelationshipEvaluation,
+            socialContinuity.DecisionMemory,
+            socialContinuity.PromiseStore,
+            dialogueSessionStore,
+            socialContinuity.StartingOpportunity,
+            transferModule.Needs);
+
+        var competitionModule = CompetitionModule.CreateForCareerFromStore(
+            competitionStore,
+            worldModule.TimelineStore,
+            clubModule.Store,
+            managerModule.Store,
+            teamPreparation.SelectionStore,
+            training.Store,
+            playerCareer.Store,
+            playerCareer.Development,
+            teamPreparation.TacticPlanStore,
+            teamPreparation.SquadStore,
+            socialContinuity.StartingOpportunity,
+            socialContinuity.SelectionMemory,
+            socialContinuity.PlayingTime,
+            socialContinuity.Invalidation,
+            socialContinuity.CareerMemory,
+            socialContinuity.ClubHistoryMemory,
+            socialContinuity.MatchPerformanceMemory,
+            socialContinuity.RelationshipEvaluation);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =

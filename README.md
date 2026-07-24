@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Social Continuity + DialogueSession + **StartingOpportunity DecisionRequest** (Grant→İlk 11 Promise; Refuse/Expire Trust; Dialogue eligibility; şema v35) kilitlenmiştir. Sıradaki aday: disiplin veya transfer isteği DecisionRequest; tam diyalog ağacı/medya henüz açılmamalıdır; ledger/muhasebe MVP dışı (D-150).
+İnce kariyer döngüsü + Social Continuity + DialogueSession + **Transfer DecisionRequest** (Acknowledge→PlayerExitRequest TransferNeed; Refuse/Expire Trust; Dialogue eligibility; şema v35) kilitlenmiştir. Sıradaki aday: disiplin DecisionRequest veya TransferNeed→Target zinciri; tam diyalog ağacı/medya henüz açılmamalıdır; ledger/muhasebe MVP dışı (D-150).
 
 ## Klasör Yapısı
 

@@ -7,12 +7,13 @@ namespace FootballCareerSimulator.Domain.Interaction;
 
 /// <summary>
 /// Interaction & Narrative: bekleyen zorunlu/kritik karar isteği
-/// (forma süresi + ilk 11 fırsatı talepleri).
+/// (forma süresi, ilk 11, transfer isteği).
 /// </summary>
 public sealed class DecisionRequest
 {
     public const string OptionGrantPlayingTimePromise = "GrantPlayingTimePromise";
     public const string OptionGrantStartingOpportunityPromise = "GrantStartingOpportunityPromise";
+    public const string OptionAcknowledgeTransferRequest = "AcknowledgeTransferRequest";
     public const string OptionRefuse = "Refuse";
 
     private DecisionRequest(
@@ -123,6 +124,35 @@ public sealed class DecisionRequest
             resolvedOn: null);
     }
 
+    public static DecisionRequest OpenTransferRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.TransferRequest,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
     public DecisionRequest Answer(string optionCode, GameDate day)
     {
         EnsureOpen();
@@ -138,6 +168,8 @@ public sealed class DecisionRequest
                 trimmed is OptionGrantPlayingTimePromise or OptionRefuse,
             DecisionRequestKind.StartingOpportunityRequest =>
                 trimmed is OptionGrantStartingOpportunityPromise or OptionRefuse,
+            DecisionRequestKind.TransferRequest =>
+                trimmed is OptionAcknowledgeTransferRequest or OptionRefuse,
             _ => false,
         };
         if (!supported)

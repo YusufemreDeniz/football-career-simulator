@@ -11,4 +11,6 @@ public enum TransferNeedKind
     InjuryCover = 4,
     ExpiringContract = 5,
     TacticalRequirement = 6,
+    /// <summary>Futbolcu ayrılma/transfer isteği (giden yön).</summary>
+    PlayerExitRequest = 7,
 }

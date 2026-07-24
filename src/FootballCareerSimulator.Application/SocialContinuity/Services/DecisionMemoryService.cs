@@ -24,6 +24,7 @@ public sealed class DecisionMemoryService
         {
             DecisionRequestKind.PlayingTimeRequest => RecordPlayingTimeOutcome(request, day),
             DecisionRequestKind.StartingOpportunityRequest => RecordStartingOpportunityOutcome(request, day),
+            DecisionRequestKind.TransferRequest => RecordTransferOutcome(request, day),
             _ => 0,
         };
     }
@@ -46,6 +47,16 @@ public sealed class DecisionMemoryService
             MemoryRecord.DecisionStartingOpportunityAnswerRuleVersion,
             MemoryRecord.BuildDecisionStartingOpportunityOutcomeSourceKey,
             MemoryRecord.CreateDecisionStartingOpportunityOutcome,
+            day);
+
+    public int RecordTransferOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.TransferRequest,
+            MemoryRecord.DecisionTransferAnswerRuleId,
+            MemoryRecord.DecisionTransferAnswerRuleVersion,
+            MemoryRecord.BuildDecisionTransferOutcomeSourceKey,
+            MemoryRecord.CreateDecisionTransferOutcome,
             day);
 
     private int RecordTypedOutcome(

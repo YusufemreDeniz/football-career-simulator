@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.Transfer.Ports;
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -33,6 +34,42 @@ public sealed class TransferNeedService
         string reasonCode,
         GameDate day) =>
         EnsureOpen(clubId, kind, priority, reasonCode, day);
+
+    /// <summary>
+    /// Futbolcu transfer/ayrılma isteğinin kabulü → giden yön TransferNeed (D-114 command yolu).
+    /// </summary>
+    public TransferNeed DeclarePlayerExitRequest(ClubId clubId, PlayerId playerId, GameDate day)
+    {
+        var reasonCode = TransferNeed.BuildPlayerExitReasonCode(playerId);
+        var existing = _store.GetForClub(clubId).FirstOrDefault(n =>
+            n.IsOpen
+            && n.Kind == TransferNeedKind.PlayerExitRequest
+            && string.Equals(n.ReasonCode, reasonCode, StringComparison.Ordinal));
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var maxId = _store.Needs.Select(n => n.NeedId.Value).DefaultIfEmpty(0).Max();
+        var need = TransferNeed.Identify(
+            new TransferNeedId(maxId + 1),
+            clubId,
+            TransferNeedKind.PlayerExitRequest,
+            priority: 4,
+            reasonCode,
+            day);
+        _store.Upsert(need);
+        return need;
+    }
+
+    public bool HasOpenPlayerExitRequest(ClubId clubId, PlayerId playerId)
+    {
+        var reasonCode = TransferNeed.BuildPlayerExitReasonCode(playerId);
+        return _store.GetForClub(clubId).Any(n =>
+            n.IsOpen
+            && n.Kind == TransferNeedKind.PlayerExitRequest
+            && string.Equals(n.ReasonCode, reasonCode, StringComparison.Ordinal));
+    }
 
     public IReadOnlyList<TransferNeed> RefreshSuggestions(ClubId clubId, GameDate day)
     {

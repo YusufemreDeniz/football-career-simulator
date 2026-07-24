@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
+using FootballCareerSimulator.Application.Transfer.Services;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -8,7 +9,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// DecisionRequest owner: PlayingTime / StartingOpportunity → Promise / Relationship / Memory / DialogueSession.
+/// DecisionRequest owner: PlayingTime / StartingOpportunity / Transfer → Promise/Need / Relationship / Memory / DialogueSession.
 /// </summary>
 public sealed class DecisionRequestService
 {
@@ -20,6 +21,7 @@ public sealed class DecisionRequestService
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly PlayingTimePromiseService? _playingTime;
     private readonly StartingOpportunityPromiseService? _startingOpportunity;
+    private readonly TransferNeedService? _transferNeeds;
     private readonly RelationshipEvaluationService? _relationships;
     private readonly DecisionMemoryService? _decisionMemory;
     private readonly DialogueOptionGenerationService? _dialogueOptions;
@@ -33,13 +35,15 @@ public sealed class DecisionRequestService
         DecisionMemoryService? decisionMemory = null,
         DialogueOptionGenerationService? dialogueOptions = null,
         DialogueSessionService? dialogueSessions = null,
-        StartingOpportunityPromiseService? startingOpportunity = null)
+        StartingOpportunityPromiseService? startingOpportunity = null,
+        TransferNeedService? transferNeeds = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _playingTime = playingTime;
         _startingOpportunity = startingOpportunity;
+        _transferNeeds = transferNeeds;
         _relationships = relationships;
         _decisionMemory = decisionMemory;
         _dialogueOptions = dialogueOptions;
@@ -73,6 +77,20 @@ public sealed class DecisionRequestService
             isHardBlocker,
             DecisionRequest.OpenStartingOpportunityRequest,
             "starting-opportunity");
+
+    public DecisionRequest OpenTransferRequest(
+        PlayerId subjectPlayerId,
+        GameDate day,
+        int? deadlineDays = null,
+        bool isHardBlocker = true) =>
+        OpenRequest(
+            DecisionRequestKind.TransferRequest,
+            subjectPlayerId,
+            day,
+            deadlineDays,
+            isHardBlocker,
+            DecisionRequest.OpenTransferRequest,
+            "transfer");
 
     public DecisionRequest Answer(
         DecisionRequestId decisionRequestId,
@@ -119,6 +137,20 @@ public sealed class DecisionRequestService
                 answered.ClubId,
                 startingOpportunityTargetStarts,
                 answered.DeadlineOn,
+                day);
+        }
+        else if (answered.Kind == DecisionRequestKind.TransferRequest
+                 && answered.SelectedOptionCode == DecisionRequest.OptionAcknowledgeTransferRequest)
+        {
+            if (_transferNeeds is null)
+            {
+                throw new InteractionInvariantViolationException(
+                    "Transfer need service is required to acknowledge a transfer decision.");
+            }
+
+            _transferNeeds.DeclarePlayerExitRequest(
+                answered.ClubId,
+                answered.SubjectPlayerId,
                 day);
         }
 
@@ -222,6 +254,11 @@ public sealed class DecisionRequestService
                 DecisionRequestKind.StartingOpportunityRequest =>
                 [
                     DecisionRequest.OptionGrantStartingOpportunityPromise,
+                    DecisionRequest.OptionRefuse,
+                ],
+                DecisionRequestKind.TransferRequest =>
+                [
+                    DecisionRequest.OptionAcknowledgeTransferRequest,
                     DecisionRequest.OptionRefuse,
                 ],
                 _ => Array.Empty<string>(),

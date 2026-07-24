@@ -12,6 +12,7 @@ public sealed class DialogueSession
 {
     public const string PlayingTimeRequestType = "PlayingTimeRequest";
     public const string StartingOpportunityRequestType = "StartingOpportunityRequest";
+    public const string TransferRequestType = "TransferRequest";
 
     private readonly string[] _availableOptionCodes;
 
@@ -103,6 +104,7 @@ public sealed class DialogueSession
         {
             DecisionRequestKind.PlayingTimeRequest => PlayingTimeRequestType,
             DecisionRequestKind.StartingOpportunityRequest => StartingOpportunityRequestType,
+            DecisionRequestKind.TransferRequest => TransferRequestType,
             _ => request.Kind.ToString(),
         };
 

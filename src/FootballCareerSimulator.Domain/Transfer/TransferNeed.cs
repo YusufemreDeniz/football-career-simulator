@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
@@ -10,6 +11,10 @@ public sealed class TransferNeed
 {
     public const int MinPriority = 1;
     public const int MaxPriority = 5;
+    public const string PlayerExitReasonPrefix = "PlayerExit:";
+
+    public static string BuildPlayerExitReasonCode(PlayerId playerId) =>
+        $"{PlayerExitReasonPrefix}{playerId.Value}";
 
     private TransferNeed(
         TransferNeedId needId,

@@ -27,6 +27,9 @@ public sealed class RelationshipEvaluationService
     public const string DecisionStartingOpportunityGrantedRuleId = "DecisionStartingOpportunityGranted";
     public const string DecisionStartingOpportunityRefusedRuleId = "DecisionStartingOpportunityRefused";
     public const string DecisionStartingOpportunityExpiredRuleId = "DecisionStartingOpportunityExpired";
+    public const string DecisionTransferAcknowledgedRuleId = "DecisionTransferAcknowledged";
+    public const string DecisionTransferRefusedRuleId = "DecisionTransferRefused";
+    public const string DecisionTransferExpiredRuleId = "DecisionTransferExpired";
     public const int RuleVersion = 1;
 
     private readonly IRelationshipStore _store;
@@ -179,6 +182,7 @@ public sealed class RelationshipEvaluationService
         {
             DecisionRequestKind.PlayingTimeRequest => ApplyPlayingTimeDecision(request, day),
             DecisionRequestKind.StartingOpportunityRequest => ApplyStartingOpportunityDecision(request, day),
+            DecisionRequestKind.TransferRequest => ApplyTransferDecision(request, day),
             _ => 0,
         };
     }
@@ -255,6 +259,44 @@ public sealed class RelationshipEvaluationService
                     respectDelta: 0,
                     compatibilityDelta: 0,
                     reasonCode: DecisionStartingOpportunityExpiredRuleId,
+                    day),
+            _ => 0,
+        };
+
+    private int ApplyTransferDecision(DecisionRequest request, GameDate day) =>
+        request.Status switch
+        {
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionAcknowledgeTransferRequest =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionTransferAcknowledgedRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: 6,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionTransferAcknowledgedRuleId,
+                    day),
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionRefuse =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionTransferRefusedRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -10,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionTransferRefusedRuleId,
+                    day),
+            DecisionRequestStatus.Expired =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionTransferExpiredRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -6,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionTransferExpiredRuleId,
                     day),
             _ => 0,
         };

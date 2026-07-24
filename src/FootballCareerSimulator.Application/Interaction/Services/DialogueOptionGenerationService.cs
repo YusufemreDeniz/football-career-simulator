@@ -1,26 +1,30 @@
 using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.Interaction.Queries;
 using FootballCareerSimulator.Application.SocialContinuity.Ports;
+using FootballCareerSimulator.Application.Transfer.Services;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.SocialContinuity;
 
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// Sınırlı Dialogue seçenek üretimi (PlayingTime + StartingOpportunity).
+/// Sınırlı Dialogue seçenek üretimi (PlayingTime / StartingOpportunity / Transfer).
 /// UI seçenek icat etmez; eligibility Application kurallarıyla belirlenir (D-114/D-126).
 /// </summary>
 public sealed class DialogueOptionGenerationService
 {
     private readonly IDecisionRequestStore _decisions;
     private readonly IPromiseStore? _promises;
+    private readonly TransferNeedService? _transferNeeds;
 
     public DialogueOptionGenerationService(
         IDecisionRequestStore decisions,
-        IPromiseStore? promises = null)
+        IPromiseStore? promises = null,
+        TransferNeedService? transferNeeds = null)
     {
         _decisions = decisions ?? throw new ArgumentNullException(nameof(decisions));
         _promises = promises;
+        _transferNeeds = transferNeeds;
     }
 
     public DialogueOptionsReadModel GetForDecision(DecisionRequestId decisionRequestId)
@@ -48,6 +52,7 @@ public sealed class DialogueOptionGenerationService
         {
             DecisionRequestKind.PlayingTimeRequest => BuildPlayingTimeOptions(request),
             DecisionRequestKind.StartingOpportunityRequest => BuildStartingOpportunityOptions(request),
+            DecisionRequestKind.TransferRequest => BuildTransferOptions(request),
             _ => Array.Empty<DialogueOptionReadModel>(),
         };
 
@@ -126,6 +131,29 @@ public sealed class DialogueOptionGenerationService
         ];
     }
 
+    private IReadOnlyList<DialogueOptionReadModel> BuildTransferOptions(DecisionRequest request)
+    {
+        string? acknowledgeBlocked = null;
+        if (_transferNeeds is not null
+            && _transferNeeds.HasOpenPlayerExitRequest(request.ClubId, request.SubjectPlayerId))
+        {
+            acknowledgeBlocked = "Oyuncunun bu kulüpte zaten açık ayrılma/transfer ihtiyacı var.";
+        }
+
+        return
+        [
+            new DialogueOptionReadModel(
+                DecisionRequest.OptionAcknowledgeTransferRequest,
+                SemanticIntentName: "AcknowledgeTransferRequest",
+                DisplayText: "Transfer isteğini kabul et",
+                ToneCode: "Pragmatic",
+                RiskHint: "Giden yön TransferNeed (PlayerExitRequest) oluşur.",
+                IsEligible: acknowledgeBlocked is null,
+                IneligibilityReason: acknowledgeBlocked),
+            RefuseOption("RefuseTransferRequest"),
+        ];
+    }
+
     private static DialogueOptionReadModel RefuseOption(string semanticIntentName) =>
         new(
             DecisionRequest.OptionRefuse,
@@ -163,6 +191,7 @@ public sealed class DialogueOptionGenerationService
         {
             DecisionRequestKind.PlayingTimeRequest => "PlayingTimeRequest",
             DecisionRequestKind.StartingOpportunityRequest => "StartingOpportunityRequest",
+            DecisionRequestKind.TransferRequest => "TransferRequest",
             _ => kind.ToString(),
         };
 }

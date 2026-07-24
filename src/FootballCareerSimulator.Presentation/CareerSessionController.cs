@@ -316,6 +316,11 @@ public sealed class CareerSessionController
             (playerId, day) => Host.InteractionModule.Decisions.OpenStartingOpportunityRequest(playerId, day),
             "ilk 11 fırsatı talebi");
 
+    public UiActionResult OpenTransferDecisionForOldestSquadPlayer() =>
+        OpenDecisionForOldestSquadPlayer(
+            (playerId, day) => Host.InteractionModule.Decisions.OpenTransferRequest(playerId, day),
+            "transfer isteği");
+
     public UiActionResult AnswerOldestPendingDecision(bool grantPromise)
     {
         try
