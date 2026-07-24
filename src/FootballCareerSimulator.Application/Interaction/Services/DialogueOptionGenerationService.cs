@@ -9,7 +9,7 @@ using FootballCareerSimulator.Domain.SocialContinuity;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// Sınırlı Dialogue seçenek üretimi (PlayingTime / StartingOpportunity / Transfer / Discipline / BoardDemand).
+/// Sınırlı Dialogue seçenek üretimi (PlayingTime / StartingOpportunity / Transfer / Discipline / BoardDemand / Press).
 /// </summary>
 public sealed class DialogueOptionGenerationService
 {
@@ -58,6 +58,7 @@ public sealed class DialogueOptionGenerationService
             DecisionRequestKind.TransferRequest => BuildTransferOptions(request),
             DecisionRequestKind.DisciplineRequest => BuildDisciplineOptions(request),
             DecisionRequestKind.BoardDemandRequest => BuildBoardDemandOptions(),
+            DecisionRequestKind.PressQuestionRequest => BuildPressQuestionOptions(),
             _ => Array.Empty<DialogueOptionReadModel>(),
         };
 
@@ -223,6 +224,26 @@ public sealed class DialogueOptionGenerationService
             IneligibilityReason: null),
     ];
 
+    private static IReadOnlyList<DialogueOptionReadModel> BuildPressQuestionOptions() =>
+    [
+        new DialogueOptionReadModel(
+            DecisionRequest.OptionPubliclyDefend,
+            SemanticIntentName: "PubliclyDefend",
+            DisplayText: "Oyuncuyu kamuya savun",
+            ToneCode: "Supportive",
+            RiskHint: "Oyuncu Trust↑; kamuya açık destek hafızası.",
+            IsEligible: true,
+            IneligibilityReason: null),
+        new DialogueOptionReadModel(
+            DecisionRequest.OptionPubliclyCriticize,
+            SemanticIntentName: "PubliclyCriticize",
+            DisplayText: "Oyuncuyu kamuya eleştir",
+            ToneCode: "Firm",
+            RiskHint: "Oyuncu Trust↓; kamuya açık eleştiri hafızası.",
+            IsEligible: true,
+            IneligibilityReason: null),
+    ];
+
     private static DialogueOptionReadModel RefuseOption(string semanticIntentName) =>
         new(
             DecisionRequest.OptionRefuse,
@@ -263,6 +284,7 @@ public sealed class DialogueOptionGenerationService
             DecisionRequestKind.TransferRequest => "TransferRequest",
             DecisionRequestKind.DisciplineRequest => "DisciplineRequest",
             DecisionRequestKind.BoardDemandRequest => "BoardDemandRequest",
+            DecisionRequestKind.PressQuestionRequest => "PressQuestionRequest",
             _ => kind.ToString(),
         };
 }

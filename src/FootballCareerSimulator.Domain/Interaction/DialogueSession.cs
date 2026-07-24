@@ -15,6 +15,7 @@ public sealed class DialogueSession
     public const string TransferRequestType = "TransferRequest";
     public const string DisciplineRequestType = "DisciplineRequest";
     public const string BoardDemandRequestType = "BoardDemandRequest";
+    public const string PressQuestionRequestType = "PressQuestionRequest";
 
     private readonly string[] _availableOptionCodes;
 
@@ -109,6 +110,7 @@ public sealed class DialogueSession
             DecisionRequestKind.TransferRequest => TransferRequestType,
             DecisionRequestKind.DisciplineRequest => DisciplineRequestType,
             DecisionRequestKind.BoardDemandRequest => BoardDemandRequestType,
+            DecisionRequestKind.PressQuestionRequest => PressQuestionRequestType,
             _ => request.Kind.ToString(),
         };
 

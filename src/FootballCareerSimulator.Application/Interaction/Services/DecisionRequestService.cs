@@ -11,7 +11,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// DecisionRequest owner: PlayingTime / StartingOpportunity / Transfer / Discipline / BoardDemand.
+/// DecisionRequest owner: PlayingTime / StartingOpportunity / Transfer / Discipline / BoardDemand / Press.
 /// </summary>
 public sealed class DecisionRequestService
 {
@@ -110,6 +110,20 @@ public sealed class DecisionRequestService
             isHardBlocker,
             DecisionRequest.OpenDisciplineRequest,
             "discipline");
+
+    public DecisionRequest OpenPressQuestionRequest(
+        PlayerId subjectPlayerId,
+        GameDate day,
+        int? deadlineDays = null,
+        bool isHardBlocker = true) =>
+        OpenRequest(
+            DecisionRequestKind.PressQuestionRequest,
+            subjectPlayerId,
+            day,
+            deadlineDays,
+            isHardBlocker,
+            DecisionRequest.OpenPressQuestionRequest,
+            "press-question");
 
     public DecisionRequest OpenBoardDemandRequest(
         GameDate day,
@@ -359,6 +373,11 @@ public sealed class DecisionRequestService
                     DecisionRequest.OptionAcceptBoardDemand,
                     DecisionRequest.OptionCounterBoardDemand,
                     DecisionRequest.OptionRefuse,
+                ],
+                DecisionRequestKind.PressQuestionRequest =>
+                [
+                    DecisionRequest.OptionPubliclyDefend,
+                    DecisionRequest.OptionPubliclyCriticize,
                 ],
                 _ => Array.Empty<string>(),
             };

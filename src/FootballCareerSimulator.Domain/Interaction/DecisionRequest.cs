@@ -7,7 +7,7 @@ namespace FootballCareerSimulator.Domain.Interaction;
 
 /// <summary>
 /// Interaction & Narrative: bekleyen zorunlu/kritik karar isteği
-/// (forma süresi, ilk 11, transfer, disiplin, yönetim talebi).
+/// (forma süresi, ilk 11, transfer, disiplin, yönetim, basın).
 /// </summary>
 public sealed class DecisionRequest
 {
@@ -24,6 +24,8 @@ public sealed class DecisionRequest
     public const string OptionOfferSupport = "OfferSupport";
     public const string OptionAcceptBoardDemand = "AcceptBoardDemand";
     public const string OptionCounterBoardDemand = "CounterBoardDemand";
+    public const string OptionPubliclyDefend = "PubliclyDefend";
+    public const string OptionPubliclyCriticize = "PubliclyCriticize";
     public const string OptionRefuse = "Refuse";
 
     private DecisionRequest(
@@ -220,6 +222,35 @@ public sealed class DecisionRequest
             resolvedOn: null);
     }
 
+    public static DecisionRequest OpenPressQuestionRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.PressQuestionRequest,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
     public DecisionRequest Answer(string optionCode, GameDate day)
     {
         EnsureOpen();
@@ -241,6 +272,8 @@ public sealed class DecisionRequest
                 trimmed is OptionIssueWarning or OptionIssueFine or OptionOfferSupport,
             DecisionRequestKind.BoardDemandRequest =>
                 trimmed is OptionAcceptBoardDemand or OptionCounterBoardDemand or OptionRefuse,
+            DecisionRequestKind.PressQuestionRequest =>
+                trimmed is OptionPubliclyDefend or OptionPubliclyCriticize,
             _ => false,
         };
         if (!supported)

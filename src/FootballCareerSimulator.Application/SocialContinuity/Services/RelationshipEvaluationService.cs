@@ -34,6 +34,9 @@ public sealed class RelationshipEvaluationService
     public const string DecisionDisciplineFineRuleId = "DecisionDisciplineFine";
     public const string DecisionDisciplineSupportRuleId = "DecisionDisciplineSupport";
     public const string DecisionDisciplineExpiredRuleId = "DecisionDisciplineExpired";
+    public const string DecisionPressDefendRuleId = "DecisionPressDefend";
+    public const string DecisionPressCriticizeRuleId = "DecisionPressCriticize";
+    public const string DecisionPressExpiredRuleId = "DecisionPressExpired";
     public const int RuleVersion = 1;
 
     private readonly IRelationshipStore _store;
@@ -188,6 +191,7 @@ public sealed class RelationshipEvaluationService
             DecisionRequestKind.StartingOpportunityRequest => ApplyStartingOpportunityDecision(request, day),
             DecisionRequestKind.TransferRequest => ApplyTransferDecision(request, day),
             DecisionRequestKind.DisciplineRequest => ApplyDisciplineDecision(request, day),
+            DecisionRequestKind.PressQuestionRequest => ApplyPressQuestionDecision(request, day),
             _ => 0,
         };
     }
@@ -351,6 +355,44 @@ public sealed class RelationshipEvaluationService
                     respectDelta: 0,
                     compatibilityDelta: 0,
                     reasonCode: DecisionDisciplineExpiredRuleId,
+                    day),
+            _ => 0,
+        };
+
+    private int ApplyPressQuestionDecision(DecisionRequest request, GameDate day) =>
+        request.Status switch
+        {
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionPubliclyDefend =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionPressDefendRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: 8,
+                    respectDelta: 2,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionPressDefendRuleId,
+                    day),
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionPubliclyCriticize =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionPressCriticizeRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -10,
+                    respectDelta: -4,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionPressCriticizeRuleId,
+                    day),
+            DecisionRequestStatus.Expired =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionPressExpiredRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -4,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionPressExpiredRuleId,
                     day),
             _ => 0,
         };

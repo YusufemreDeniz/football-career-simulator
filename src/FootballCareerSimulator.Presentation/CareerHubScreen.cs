@@ -27,12 +27,14 @@ public partial class CareerHubScreen : Control
     private Button _openTransferDecisionButton = null!;
     private Button _openDisciplineDecisionButton = null!;
     private Button _openBoardDemandDecisionButton = null!;
+    private Button _openPressQuestionDecisionButton = null!;
     private Button _grantDecisionButton = null!;
     private Button _refuseDecisionButton = null!;
     private Button _disciplineWarningButton = null!;
     private Button _disciplineFineButton = null!;
     private Button _disciplineSupportButton = null!;
     private Button _boardCounterButton = null!;
+    private Button _pressCriticizeButton = null!;
     private Label _transferWindowLabel = null!;
     private Label _transferBudgetLabel = null!;
     private Button _openTransferWindowButton = null!;
@@ -366,6 +368,10 @@ public partial class CareerHubScreen : Control
         _openBoardDemandDecisionButton = SecondaryButton("Yönetim Talebi Aç");
         _openBoardDemandDecisionButton.Pressed += () => Apply(_controller.OpenBoardDemandDecision());
         decisionRow.AddChild(_openBoardDemandDecisionButton);
+        _openPressQuestionDecisionButton = SecondaryButton("Basın Sorusu Aç");
+        _openPressQuestionDecisionButton.Pressed += () =>
+            Apply(_controller.OpenPressQuestionDecisionForOldestSquadPlayer());
+        decisionRow.AddChild(_openPressQuestionDecisionButton);
         _grantDecisionButton = SecondaryButton("Talebi Kabul Et");
         _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
         decisionRow.AddChild(_grantDecisionButton);
@@ -393,6 +399,11 @@ public partial class CareerHubScreen : Control
             Apply(_controller.AnswerOldestPendingWithOption(
                 Domain.Interaction.DecisionRequest.OptionCounterBoardDemand));
         disciplineRow.AddChild(_boardCounterButton);
+        _pressCriticizeButton = SecondaryButton("Kamuya Eleştir");
+        _pressCriticizeButton.Pressed += () =>
+            Apply(_controller.AnswerOldestPendingWithOption(
+                Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
+        disciplineRow.AddChild(_pressCriticizeButton);
         return page;
     }
 
@@ -1303,6 +1314,7 @@ public partial class CareerHubScreen : Control
             _disciplineFineButton.Disabled = true;
             _disciplineSupportButton.Disabled = true;
             _boardCounterButton.Disabled = true;
+            _pressCriticizeButton.Disabled = true;
             _grantDecisionButton.Text = "Talebi Kabul Et";
             _refuseDecisionButton.Text = "Talebi Reddet";
             return;
@@ -1317,7 +1329,8 @@ public partial class CareerHubScreen : Control
                 Domain.Interaction.DecisionRequest.OptionIssueWarning
                 or Domain.Interaction.DecisionRequest.OptionIssueFine
                 or Domain.Interaction.DecisionRequest.OptionOfferSupport
-                or Domain.Interaction.DecisionRequest.OptionCounterBoardDemand));
+                or Domain.Interaction.DecisionRequest.OptionCounterBoardDemand
+                or Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
         var refuse = options.Options.FirstOrDefault(o =>
             o.OptionCode == Domain.Interaction.DecisionRequest.OptionRefuse);
         var warning = options.Options.FirstOrDefault(o =>
@@ -1328,6 +1341,8 @@ public partial class CareerHubScreen : Control
             o.OptionCode == Domain.Interaction.DecisionRequest.OptionOfferSupport);
         var counter = options.Options.FirstOrDefault(o =>
             o.OptionCode == Domain.Interaction.DecisionRequest.OptionCounterBoardDemand);
+        var criticize = options.Options.FirstOrDefault(o =>
+            o.OptionCode == Domain.Interaction.DecisionRequest.OptionPubliclyCriticize);
 
         if (grant is not null)
         {
@@ -1353,6 +1368,7 @@ public partial class CareerHubScreen : Control
         _disciplineFineButton.Disabled = fine is null || !fine.IsEligible;
         _disciplineSupportButton.Disabled = support is null || !support.IsEligible;
         _boardCounterButton.Disabled = counter is null || !counter.IsEligible;
+        _pressCriticizeButton.Disabled = criticize is null || !criticize.IsEligible;
 
         var optionPreview = string.Join(
             " | ",

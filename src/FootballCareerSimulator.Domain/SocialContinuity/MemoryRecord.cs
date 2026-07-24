@@ -52,6 +52,8 @@ public sealed class MemoryRecord
     public const int DecisionDisciplineAnswerRuleVersion = 1;
     public const string DecisionBoardDemandAnswerRuleId = "DecisionBoardDemandAnswer";
     public const int DecisionBoardDemandAnswerRuleVersion = 1;
+    public const string DecisionPressQuestionAnswerRuleId = "DecisionPressQuestionAnswer";
+    public const int DecisionPressQuestionAnswerRuleVersion = 1;
     public const int InfluenceBonusPerReinforcement = 10;
     public const int MaxReinforcementsPerMemory = 5;
     public const int MinImportance = 1;
@@ -502,6 +504,61 @@ public sealed class MemoryRecord
             relatedPromiseId: null,
             DecisionBoardDemandAnswerRuleId,
             DecisionBoardDemandAnswerRuleVersion);
+    }
+
+    public static MemoryRecord CreateDecisionPressQuestionOutcome(
+        MemoryId memoryId,
+        DecisionRequest request,
+        GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Kind != DecisionRequestKind.PressQuestionRequest)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Decision press-question memory requires PressQuestionRequest kind.");
+        }
+
+        if (request.Status is not (
+            DecisionRequestStatus.Answered
+            or DecisionRequestStatus.Expired))
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Decision press-question memory requires Answered or Expired status.");
+        }
+
+        var outcomeKey = request.Status == DecisionRequestStatus.Expired
+            ? "Expired"
+            : request.SelectedOptionCode
+              ?? throw new SocialContinuityInvariantViolationException(
+                  "Answered decision requires a selected option code.");
+
+        var (importance, valence) = outcomeKey switch
+        {
+            DecisionRequest.OptionPubliclyDefend => (65, MemoryValence.Positive),
+            DecisionRequest.OptionPubliclyCriticize => (70, MemoryValence.Negative),
+            "Expired" => (60, MemoryValence.Negative),
+            _ => throw new SocialContinuityInvariantViolationException(
+                $"Unsupported press-question outcome for memory: {outcomeKey}."),
+        };
+
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Player, request.SubjectPlayerId.Value),
+            MemorySubjectKind.Manager,
+            request.ManagerId.Value,
+            BuildDecisionPressQuestionOutcomeSourceKey(request.DecisionRequestId, outcomeKey),
+            MemoryCategory.Relationship,
+            day,
+            day,
+            importance,
+            importance,
+            valence,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            DecisionPressQuestionAnswerRuleId,
+            DecisionPressQuestionAnswerRuleVersion);
     }
 
     public static MemoryRecord CreateRelationshipTrustBandMilestone(
@@ -1062,6 +1119,11 @@ public sealed class MemoryRecord
         DecisionRequestId decisionRequestId,
         string outcomeKey) =>
         $"DecisionBoardDemand:{decisionRequestId.Value}:{outcomeKey}";
+
+    public static string BuildDecisionPressQuestionOutcomeSourceKey(
+        DecisionRequestId decisionRequestId,
+        string outcomeKey) =>
+        $"DecisionPressQuestion:{decisionRequestId.Value}:{outcomeKey}";
 
     public static string BuildTransferCompletedSourceKey(TransferProcessId processId) =>
         $"TransferCompleted:{processId.Value}";

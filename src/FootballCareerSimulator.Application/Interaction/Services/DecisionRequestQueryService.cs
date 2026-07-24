@@ -41,6 +41,7 @@ public sealed class DecisionRequestQueryService
                 DecisionRequestKind.TransferRequest => "Transfer isteği",
                 DecisionRequestKind.DisciplineRequest => "Disiplin görüşmesi",
                 DecisionRequestKind.BoardDemandRequest => "Yönetim talebi",
+                DecisionRequestKind.PressQuestionRequest => "Kritik basın sorusu",
                 _ => request.Kind.ToString(),
             },
             request.SubjectPlayerId.Value,

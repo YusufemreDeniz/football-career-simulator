@@ -346,6 +346,11 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult OpenPressQuestionDecisionForOldestSquadPlayer() =>
+        OpenDecisionForOldestSquadPlayer(
+            (playerId, day) => Host.InteractionModule.Decisions.OpenPressQuestionRequest(playerId, day),
+            "kritik basın sorusu");
+
     public UiActionResult AnswerOldestPendingDecision(bool grantPromise)
     {
         try

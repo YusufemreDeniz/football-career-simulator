@@ -27,6 +27,7 @@ public sealed class DecisionMemoryService
             DecisionRequestKind.TransferRequest => RecordTransferOutcome(request, day),
             DecisionRequestKind.DisciplineRequest => RecordDisciplineOutcome(request, day),
             DecisionRequestKind.BoardDemandRequest => RecordBoardDemandOutcome(request, day),
+            DecisionRequestKind.PressQuestionRequest => RecordPressQuestionOutcome(request, day),
             _ => 0,
         };
     }
@@ -110,6 +111,16 @@ public sealed class DecisionMemoryService
             day));
         return 1;
     }
+
+    public int RecordPressQuestionOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.PressQuestionRequest,
+            MemoryRecord.DecisionPressQuestionAnswerRuleId,
+            MemoryRecord.DecisionPressQuestionAnswerRuleVersion,
+            MemoryRecord.BuildDecisionPressQuestionOutcomeSourceKey,
+            MemoryRecord.CreateDecisionPressQuestionOutcome,
+            day);
 
     private int RecordTypedOutcome(
         DecisionRequest request,
