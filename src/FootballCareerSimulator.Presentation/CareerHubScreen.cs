@@ -21,6 +21,10 @@ public partial class CareerHubScreen : Control
     private Label _memoryLabel = null!;
     private Label _promiseLabel = null!;
     private Label _relationshipLabel = null!;
+    private Label _decisionLabel = null!;
+    private Button _openDecisionButton = null!;
+    private Button _grantDecisionButton = null!;
+    private Button _refuseDecisionButton = null!;
     private Label _transferWindowLabel = null!;
     private Label _transferBudgetLabel = null!;
     private Button _openTransferWindowButton = null!;
@@ -297,6 +301,8 @@ public partial class CareerHubScreen : Control
         page.AddChild(_promiseLabel);
         _relationshipLabel = BodyLabel("RelationshipLabel", autowrap: true);
         page.AddChild(_relationshipLabel);
+        _decisionLabel = BodyLabel("DecisionLabel", autowrap: true);
+        page.AddChild(_decisionLabel);
 
         _squadList = new ItemList
         {
@@ -330,6 +336,19 @@ public partial class CareerHubScreen : Control
         _promisePlayingTimeButton = SecondaryButton("Oyun Süresi Sözü");
         _promisePlayingTimeButton.Pressed += () => Apply(_controller.PromisePlayingTimeToOldestSquadPlayer());
         jobRow.AddChild(_promisePlayingTimeButton);
+
+        var decisionRow = new HBoxContainer();
+        decisionRow.AddThemeConstantOverride("separation", 8);
+        page.AddChild(decisionRow);
+        _openDecisionButton = SecondaryButton("Süre Talebi Aç");
+        _openDecisionButton.Pressed += () => Apply(_controller.OpenPlayingTimeDecisionForOldestSquadPlayer());
+        decisionRow.AddChild(_openDecisionButton);
+        _grantDecisionButton = SecondaryButton("Talebi Kabul Et");
+        _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPlayingTimePromise: true));
+        decisionRow.AddChild(_grantDecisionButton);
+        _refuseDecisionButton = SecondaryButton("Talebi Reddet");
+        _refuseDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPlayingTimePromise: false));
+        decisionRow.AddChild(_refuseDecisionButton);
         return page;
     }
 
@@ -766,6 +785,7 @@ public partial class CareerHubScreen : Control
             RefreshMemoryStatus();
             RefreshPromiseStatus();
             RefreshRelationshipStatus();
+            RefreshDecisionStatus();
             RefreshTransferWindowStatus();
             RefreshTransferBudgetStatus();
             RefreshTransferNeedStatus();
@@ -802,6 +822,7 @@ public partial class CareerHubScreen : Control
         RefreshMemoryStatus();
         RefreshPromiseStatus();
         RefreshRelationshipStatus();
+        RefreshDecisionStatus();
         RefreshTransferWindowStatus();
         RefreshTransferBudgetStatus();
         RefreshTransferNeedStatus();
@@ -1224,6 +1245,26 @@ public partial class CareerHubScreen : Control
         _relationshipLabel.Text =
             $"İlişki: {relationships.ActiveCount} aktif"
             + (string.IsNullOrWhiteSpace(preview) ? string.Empty : $" — {preview}");
+    }
+
+    private void RefreshDecisionStatus()
+    {
+        var pending = _controller.Host.InteractionModule.Queries.GetPending(take: 5);
+        if (pending.OpenCount == 0)
+        {
+            _decisionLabel.Text = "Kararlar: bekleyen zorunlu karar yok.";
+            _grantDecisionButton.Disabled = true;
+            _refuseDecisionButton.Disabled = true;
+            return;
+        }
+
+        var preview = string.Join(
+            " · ",
+            pending.OpenRequests.Select(d =>
+                $"{d.KindName} oyuncu#{d.SubjectPlayerId} son:{d.DeadlineDayNumber}"));
+        _decisionLabel.Text = $"Kararlar: {pending.OpenCount} açık — {preview}";
+        _grantDecisionButton.Disabled = false;
+        _refuseDecisionButton.Disabled = false;
     }
 
     private void UpdateJobOfferButtons(

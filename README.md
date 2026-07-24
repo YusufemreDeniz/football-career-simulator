@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + MatchSelection + Board Confidence + Dismissal + JobOffer + Training + Injury + PlayerCareer + Aging + Contract + ClubSquad + FreeAgency + FreeAgent resign + TacticPlan + Transfer Need + Shortlist/Target + Transfer Process + Sporting Approval + Club Offer + Player Contract Proposal + Financial Approval + Transfer Completion + kariyer hub sayfa ayrımı + Transfer Window + pencere kapanışında expire/carry + transfer bütçe rezervasyonu + AI kulüp FA/C2C tick + haftalık maaş bütçe iskeleti + Starting Opportunity / Playing Time Promise + Memory kategorileri + Memory/Promise Query/UI + Match Performance Memory + Relationship iskeleti + Dormant/Reactivate + Relationship Milestone + Memory time decay + reinforcement + **Memory Create/Reinforce/Reject** (SelectionStarted pekiştirme; max 5 reinforce sonrası Reject; şema v33) ile Social Continuity ilk dikey kapanmıştır. Sıradaki aday: Interaction/Dialogue henüz açılmamalıdır; ledger/muhasebe MVP dışı (D-150).
+İnce kariyer döngüsü + Social Continuity ilk dikey + **DecisionRequest iskeleti** (forma süresi talebi; Grant→PlayingTime Promise; hard time-advance blocker; Kulüp UI; SQLite v34) kilitlenmiştir. Sıradaki aday: DecisionRequest→Relationship/Memory entegrasyonu veya sınırlı Dialogue seçenek üretimi; tam diyalog ağacı/medya henüz açılmamalıdır; ledger/muhasebe MVP dışı (D-150).
 
 ## Klasör Yapısı
 

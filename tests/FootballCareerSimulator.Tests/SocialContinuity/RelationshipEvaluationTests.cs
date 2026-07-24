@@ -242,7 +242,7 @@ public sealed class RelationshipEvaluationTests : IDisposable
     }
 
     [Fact]
-    public void SaveLoad_PreservesRelationshipsAtSchemaV33()
+    public void SaveLoad_PreservesRelationshipsAtSchemaV34()
     {
         var social = SocialContinuityModule.Create();
         social.RelationshipEvaluation.ApplySelectionStarted(
@@ -277,7 +277,7 @@ public sealed class RelationshipEvaluationTests : IDisposable
             social.RelationshipStore.Relationships);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(33, loaded.SchemaVersion);
+        Assert.Equal(34, loaded.SchemaVersion);
         Assert.Single(loaded.Relationships);
         Assert.Equal(52, loaded.Relationships[0].Respect);
     }

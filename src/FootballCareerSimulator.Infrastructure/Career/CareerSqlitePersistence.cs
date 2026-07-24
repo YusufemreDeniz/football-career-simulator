@@ -6,6 +6,7 @@ using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -41,7 +42,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<PlayerContractProposal> contractProposals,
         IReadOnlyList<Promise> promises,
         IReadOnlyList<MemoryRecord> memories,
-        IReadOnlyList<RelationshipRecord>? relationships = null)
+        IReadOnlyList<RelationshipRecord>? relationships = null,
+        IReadOnlyList<DecisionRequest>? decisionRequests = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -65,6 +67,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(promises);
         ArgumentNullException.ThrowIfNull(memories);
         relationships ??= Array.Empty<RelationshipRecord>();
+        decisionRequests ??= Array.Empty<DecisionRequest>();
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -87,7 +90,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             contractProposals,
             promises,
             memories,
-            relationships);
+            relationships,
+            decisionRequests);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -123,6 +127,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertPromises(connection, transaction, promises);
             InsertMemories(connection, transaction, memories);
             InsertRelationships(connection, transaction, relationships);
+            InsertDecisionRequests(connection, transaction, decisionRequests);
 
             transaction.Commit();
         }
@@ -378,6 +383,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV32ToV33InPlace(filePath);
             wasMigrated = true;
             version = 33;
+        }
+
+        if (version == 33 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 34)
+        {
+            WorldCalendarSqliteMigrator.MigrateV33ToV34InPlace(filePath);
+            wasMigrated = true;
+            version = 34;
         }
 
         if (wasMigrated)
@@ -731,6 +743,22 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 LastChangedDayNumber INTEGER NOT NULL,
                 LastChangeReasonCode TEXT NULL,
                 ProcessedEffectKeysCsv TEXT NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE DecisionRequestState (
+                DecisionRequestId INTEGER PRIMARY KEY,
+                Kind INTEGER NOT NULL,
+                ManagerId INTEGER NOT NULL,
+                SubjectPlayerId INTEGER NOT NULL,
+                ClubId INTEGER NOT NULL,
+                OpenedDayNumber INTEGER NOT NULL,
+                DeadlineDayNumber INTEGER NOT NULL,
+                Status INTEGER NOT NULL,
+                IsHardBlocker INTEGER NOT NULL,
+                SelectedOptionCode TEXT NULL,
+                ResolvedDayNumber INTEGER NULL
             );
             """);
     }
@@ -1452,6 +1480,44 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertDecisionRequests(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<DecisionRequest> decisionRequests)
+    {
+        foreach (var request in decisionRequests)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO DecisionRequestState (
+                    DecisionRequestId, Kind, ManagerId, SubjectPlayerId, ClubId,
+                    OpenedDayNumber, DeadlineDayNumber, Status, IsHardBlocker,
+                    SelectedOptionCode, ResolvedDayNumber)
+                VALUES (
+                    $id, $kind, $managerId, $playerId, $clubId,
+                    $opened, $deadline, $status, $hard,
+                    $option, $resolved);
+                """;
+            command.Parameters.AddWithValue("$id", request.DecisionRequestId.Value);
+            command.Parameters.AddWithValue("$kind", (int)request.Kind);
+            command.Parameters.AddWithValue("$managerId", request.ManagerId.Value);
+            command.Parameters.AddWithValue("$playerId", request.SubjectPlayerId.Value);
+            command.Parameters.AddWithValue("$clubId", request.ClubId.Value);
+            command.Parameters.AddWithValue("$opened", request.OpenedOn.DayNumber);
+            command.Parameters.AddWithValue("$deadline", request.DeadlineOn.DayNumber);
+            command.Parameters.AddWithValue("$status", (int)request.Status);
+            command.Parameters.AddWithValue("$hard", request.IsHardBlocker ? 1 : 0);
+            command.Parameters.AddWithValue(
+                "$option",
+                (object?)request.SelectedOptionCode ?? DBNull.Value);
+            command.Parameters.AddWithValue(
+                "$resolved",
+                (object?)request.ResolvedOn?.DayNumber ?? DBNull.Value);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static void InsertMemories(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1578,6 +1644,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var promises = ReadPromises(connection);
         var memories = ReadMemories(connection);
         var relationships = ReadRelationships(connection);
+        var decisionRequests = ReadDecisionRequests(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1599,7 +1666,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             contractProposals,
             promises,
             memories,
-            relationships);
+            relationships,
+            decisionRequests);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1643,6 +1711,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<Promise> promises;
             IReadOnlyList<MemoryRecord> memories;
             IReadOnlyList<RelationshipRecord> relationships;
+            IReadOnlyList<DecisionRequest> decisionRequests;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1675,6 +1744,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 promises = ReadPromises(connection);
                 memories = ReadMemories(connection);
                 relationships = ReadRelationships(connection);
+                decisionRequests = ReadDecisionRequests(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1700,7 +1770,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 contractProposals,
                 promises,
                 memories,
-                relationships);
+                relationships,
+                decisionRequests);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1729,6 +1800,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 promises,
                 memories,
                 relationships,
+                decisionRequests,
                 schemaVersion,
                 wasMigrated);
         }
@@ -2588,6 +2660,42 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return relationships;
+    }
+
+    private static IReadOnlyList<DecisionRequest> ReadDecisionRequests(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "DecisionRequestState"))
+        {
+            return Array.Empty<DecisionRequest>();
+        }
+
+        var requests = new List<DecisionRequest>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT DecisionRequestId, Kind, ManagerId, SubjectPlayerId, ClubId,
+                   OpenedDayNumber, DeadlineDayNumber, Status, IsHardBlocker,
+                   SelectedOptionCode, ResolvedDayNumber
+            FROM DecisionRequestState
+            ORDER BY DecisionRequestId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            requests.Add(DecisionRequest.Rehydrate(
+                new DecisionRequestId(reader.GetInt64(0)),
+                (DecisionRequestKind)reader.GetInt32(1),
+                new ManagerId(reader.GetInt64(2)),
+                new PlayerId(reader.GetInt64(3)),
+                new ClubId(reader.GetInt64(4)),
+                GameDate.FromDayNumber(reader.GetInt32(5)),
+                GameDate.FromDayNumber(reader.GetInt32(6)),
+                (DecisionRequestStatus)reader.GetInt32(7),
+                reader.GetInt32(8) != 0,
+                reader.IsDBNull(9) ? null : reader.GetString(9),
+                reader.IsDBNull(10) ? null : GameDate.FromDayNumber(reader.GetInt32(10))));
+        }
+
+        return requests;
     }
 
     private static IReadOnlyList<long> ParseLongCsv(string csv)

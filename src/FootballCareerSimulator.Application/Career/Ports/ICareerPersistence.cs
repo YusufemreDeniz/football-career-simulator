@@ -3,6 +3,7 @@ namespace FootballCareerSimulator.Application.Career.Ports;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
+using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.TeamPreparation;
@@ -35,7 +36,8 @@ public interface ICareerPersistence
         IReadOnlyList<PlayerContractProposal> contractProposals,
         IReadOnlyList<Promise> promises,
         IReadOnlyList<MemoryRecord> memories,
-        IReadOnlyList<RelationshipRecord>? relationships = null);
+        IReadOnlyList<RelationshipRecord>? relationships = null,
+        IReadOnlyList<DecisionRequest>? decisionRequests = null);
 
     CareerLoadResult Load(string filePath);
 }
@@ -62,5 +64,6 @@ public sealed record CareerLoadResult(
     IReadOnlyList<Promise> Promises,
     IReadOnlyList<MemoryRecord> Memories,
     IReadOnlyList<RelationshipRecord> Relationships,
+    IReadOnlyList<DecisionRequest> DecisionRequests,
     int SchemaVersion,
     bool WasMigrated);

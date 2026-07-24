@@ -285,7 +285,7 @@ public sealed class SelectionMemoryTests : IDisposable
             social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(33, loaded.SchemaVersion);
+        Assert.Equal(34, loaded.SchemaVersion);
         Assert.Equal(3, loaded.Memories.Count);
         Assert.Contains(loaded.Memories, m => m.RuleId == MemoryRecord.SelectionStartedRuleId);
         Assert.Contains(loaded.Memories, m => m.RuleId == MemoryRecord.SelectionBenchedRuleId);

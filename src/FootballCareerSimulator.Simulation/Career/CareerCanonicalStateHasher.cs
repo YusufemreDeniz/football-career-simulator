@@ -5,6 +5,7 @@ using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -13,6 +14,7 @@ using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.Player
 using FootballCareerSimulator.Simulation.ClubGovernance;
 using FootballCareerSimulator.Simulation.Competition;
 using FootballCareerSimulator.Simulation.ContractRegistration;
+using FootballCareerSimulator.Simulation.Interaction;
 using FootballCareerSimulator.Simulation.ManagerCareer;
 using FootballCareerSimulator.Simulation.PlayerCareer;
 using FootballCareerSimulator.Simulation.SocialContinuity;
@@ -449,7 +451,8 @@ public static class CareerCanonicalStateHasher
         IReadOnlyList<PlayerContractProposal> contractProposals,
         IReadOnlyList<Promise> promises,
         IReadOnlyList<MemoryRecord> memories,
-        IReadOnlyList<RelationshipRecord>? relationships = null)
+        IReadOnlyList<RelationshipRecord>? relationships = null,
+        IReadOnlyList<DecisionRequest>? decisionRequests = null)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -472,6 +475,7 @@ public static class CareerCanonicalStateHasher
         ArgumentNullException.ThrowIfNull(promises);
         ArgumentNullException.ThrowIfNull(memories);
         relationships ??= Array.Empty<RelationshipRecord>();
+        decisionRequests ??= Array.Empty<DecisionRequest>();
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -510,7 +514,9 @@ public static class CareerCanonicalStateHasher
             "|",
             MemoryCanonicalStateHasher.BuildCanonicalText(memories),
             "|",
-            RelationshipCanonicalStateHasher.BuildCanonicalText(relationships));
+            RelationshipCanonicalStateHasher.BuildCanonicalText(relationships),
+            "|",
+            DecisionRequestCanonicalStateHasher.BuildCanonicalText(decisionRequests));
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

@@ -4,6 +4,9 @@ using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.Competition.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Services;
 using FootballCareerSimulator.Application.ContractRegistration.Composition;
+using FootballCareerSimulator.Application.Interaction.Composition;
+using FootballCareerSimulator.Application.Interaction.Infrastructure;
+using FootballCareerSimulator.Application.Interaction.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
@@ -37,6 +40,7 @@ public sealed class CareerPresentationHost
         ContractRegistrationModule contractModule,
         TransferModule transferModule,
         SocialContinuityModule socialContinuityModule,
+        InteractionModule interactionModule,
         CareerGameSessionService gameSession,
         string defaultSavePath)
     {
@@ -53,6 +57,7 @@ public sealed class CareerPresentationHost
         TransferModule = transferModule ?? throw new ArgumentNullException(nameof(transferModule));
         SocialContinuityModule = socialContinuityModule
             ?? throw new ArgumentNullException(nameof(socialContinuityModule));
+        InteractionModule = interactionModule ?? throw new ArgumentNullException(nameof(interactionModule));
         GameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
         DefaultSavePath = defaultSavePath ?? throw new ArgumentNullException(nameof(defaultSavePath));
     }
@@ -67,6 +72,7 @@ public sealed class CareerPresentationHost
     public ContractRegistrationModule ContractModule { get; }
     public TransferModule TransferModule { get; }
     public SocialContinuityModule SocialContinuityModule { get; }
+    public InteractionModule InteractionModule { get; }
     public CareerGameSessionService GameSession { get; }
     public string DefaultSavePath { get; }
 
@@ -80,12 +86,14 @@ public sealed class CareerPresentationHost
         var clubModule = ClubGovernanceModule.CreateMvpLeague();
         const long startingClubId = 1;
         var startingStrength = clubModule.Queries.GetClub(startingClubId)?.SportiveStrength ?? 50;
+        var decisionStore = new InMemoryDecisionRequestStore();
         var worldModule = WorldCalendarModule.Create(
             startDate,
             rootSeed: 42,
             blockerSources:
             [
                 new UnplayedFixturesTimeAdvanceBlockerSource(competitionStore, timelineStore),
+                new DecisionRequestTimeAdvanceBlockerSource(decisionStore),
             ],
             timelineStore: timelineStore);
 
@@ -122,6 +130,10 @@ public sealed class CareerPresentationHost
             playerCareer.Development,
             teamPreparation.ClubSquad);
         var socialContinuity = SocialContinuityModule.Create();
+        var interactionModule = InteractionModule.Create(
+            managerModule.Store,
+            socialContinuity.PlayingTime,
+            decisionStore);
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,
@@ -196,6 +208,7 @@ public sealed class CareerPresentationHost
             socialContinuity.PromiseStore,
             socialContinuity.MemoryStore,
             socialContinuity.RelationshipStore,
+            interactionModule.DecisionRequestStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,
@@ -215,6 +228,7 @@ public sealed class CareerPresentationHost
             contractModule,
             transferModule,
             socialContinuity,
+            interactionModule,
             gameSession,
             savePath);
     }

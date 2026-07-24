@@ -10,6 +10,7 @@ using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.PlayerCareer;
+using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
@@ -302,6 +303,68 @@ public sealed class CareerSessionController
         catch (Exception ex)
         {
             return UiActionResult.Fail($"Söz hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult OpenPlayingTimeDecisionForOldestSquadPlayer()
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Store.Career.ActiveEmployment?.ClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(clubId, day);
+            var squad = Host.TeamPreparationModule.SquadStore.Get(clubId)
+                ?? throw new InvalidOperationException("Kadro yok.");
+            var member = squad.Members.OrderBy(m => m.SlotIndex).FirstOrDefault()
+                ?? throw new InvalidOperationException("Kadroda oyuncu yok.");
+
+            var request = Host.InteractionModule.Decisions.OpenPlayingTimeRequest(
+                member.PlayerId,
+                day);
+            return UiActionResult.Ok(
+                $"Karar açıldı: forma süresi talebi · oyuncu #{member.PlayerId.Value}"
+                + $" · karar #{request.DecisionRequestId.Value}"
+                + $" · son gün {request.DeadlineOn.DayNumber}.");
+        }
+        catch (InteractionInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Karar açılamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Karar hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult AnswerOldestPendingDecision(bool grantPlayingTimePromise)
+    {
+        try
+        {
+            var pending = Host.InteractionModule.Queries.GetPending(take: 1).OpenRequests.FirstOrDefault()
+                ?? throw new InvalidOperationException("Bekleyen karar yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var option = grantPlayingTimePromise
+                ? DecisionRequest.OptionGrantPlayingTimePromise
+                : DecisionRequest.OptionRefuse;
+            var answered = Host.InteractionModule.Decisions.Answer(
+                new DecisionRequestId(pending.DecisionRequestId),
+                option,
+                day);
+            return UiActionResult.Ok(
+                $"Karar yanıtlandı: #{answered.DecisionRequestId.Value} → {answered.SelectedOptionCode}.");
+        }
+        catch (InteractionInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Karar yanıtlanamadı: {ex.Message}");
+        }
+        catch (SocialContinuityInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Karar/söz hatası: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Karar hatası: {ex.Message}");
         }
     }
 
@@ -1128,6 +1191,7 @@ public sealed class CareerSessionController
 
         var promiseResolved = Host.SocialContinuityModule.StartingOpportunity.EvaluateDeadlines(day);
         var memoriesDecayed = Host.SocialContinuityModule.MemoryDecay.ApplyDue(day);
+        var decisionsExpired = Host.InteractionModule.Decisions.ExpireDue(day);
 
         var extras = new List<string>();
         if (declined > 0)
@@ -1149,6 +1213,11 @@ public sealed class CareerSessionController
         if (memoriesDecayed > 0)
         {
             extras.Add($"hafıza zayıfladı: {memoriesDecayed}");
+        }
+
+        if (decisionsExpired > 0)
+        {
+            extras.Add($"karar süresi doldu: {decisionsExpired}");
         }
 
         var suffix = extras.Count == 0 ? string.Empty : " · " + string.Join(" · ", extras);
@@ -1330,6 +1399,8 @@ public sealed class CareerSessionController
         {
             "UnplayedFixturesDue" =>
                 "Oynanmamış maçlar var — önce 'Bugünün maçlarını oyna'.",
+            "PendingDecisionRequest" =>
+                "Bekleyen zorunlu karar var — önce görüşme kararını yanıtlayın.",
             _ => $"{sourceContext}/{descriptionCode}",
         };
 

@@ -197,7 +197,7 @@ public sealed class PlayingTimePromiseTests : IDisposable
             social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(33, loaded.SchemaVersion);
+        Assert.Equal(34, loaded.SchemaVersion);
         Assert.Single(loaded.Promises);
         Assert.Equal(PromiseKind.PlayingTime, loaded.Promises[0].Kind);
         Assert.Equal(6, loaded.Promises[0].TargetStarts);
