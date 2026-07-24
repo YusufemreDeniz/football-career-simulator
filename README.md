@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + DialogueSession + Discipline + **DisciplinaryAction SQLite v36** (save/load + migrasyon + canonical hash) kilitlenmiştir. Sıradaki aday: kritik basın veya yönetim DecisionRequest; tam diyalog ağacı/medya henüz açılmamalıdır; ledger/muhasebe MVP dışı (D-150).
+İnce kariyer döngüsü + DialogueSession + Discipline (v36) + **BoardDemand DecisionRequest → BoardConfidence** (kabul/ret/karşı teklif; Career Memory; Relationship’a yazılmaz) kilitlenmiştir. Sıradaki aday: kritik basın DecisionRequest; tam diyalog ağacı/medya henüz açılmamalıdır; ledger/muhasebe MVP dışı (D-150).
 
 ## Klasör Yapısı
 

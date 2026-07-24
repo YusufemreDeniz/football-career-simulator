@@ -197,6 +197,48 @@ public sealed class ManagerCareer
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
     }
 
+    /// <summary>
+    /// Yönetim talebi (BoardDemand) yanıtı → Board Confidence. Dialogue bu metodu doğrudan çağırmaz.
+    /// </summary>
+    public BoardAssessmentResult ApplyBoardDemandResponse(string optionCode)
+    {
+        if (ActiveEmployment is null)
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "Board demand response requires active employment.");
+        }
+
+        if (string.IsNullOrWhiteSpace(optionCode))
+        {
+            throw new ManagerCareerInvariantViolationException("Board demand option code is required.");
+        }
+
+        var trimmed = optionCode.Trim();
+        var (delta, reasonCode) = trimmed switch
+        {
+            "AcceptBoardDemand" => (8, "BoardDemandAccepted"),
+            "CounterBoardDemand" => (-4, "BoardDemandCountered"),
+            "Refuse" => (-12, "BoardDemandRefused"),
+            _ => throw new ManagerCareerInvariantViolationException(
+                $"Unsupported board demand option: {trimmed}."),
+        };
+
+        var newConfidence = ActiveEmployment.BoardConfidence.Adjust(delta);
+        var updatedEmployment = ActiveEmployment.WithBoardConfidenceAdjustment(newConfidence, reasonCode);
+        var updatedCareer = new ManagerCareer(
+            ManagerId,
+            DisplayName,
+            updatedEmployment,
+            ManagerEmploymentStatus.Employed,
+            terminationReason: null,
+            lastClubId: updatedEmployment.ClubId,
+            dismissedDueToFixtureId: null,
+            dismissedAt: null,
+            pendingJobOffer: null);
+
+        return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
+    }
+
     public DismissalResult DismissDueToBoardConfidence(FixtureId causationFixtureId, GameDate dismissedAt)
     {
         if (DismissedDueToFixtureId == causationFixtureId

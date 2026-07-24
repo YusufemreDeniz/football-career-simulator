@@ -7,16 +7,23 @@ namespace FootballCareerSimulator.Domain.Interaction;
 
 /// <summary>
 /// Interaction & Narrative: bekleyen zorunlu/kritik karar isteği
-/// (forma süresi, ilk 11, transfer, disiplin).
+/// (forma süresi, ilk 11, transfer, disiplin, yönetim talebi).
 /// </summary>
 public sealed class DecisionRequest
 {
+    /// <summary>
+    /// BoardDemand için kalıcılık/DialogueParticipant sentinel'i (gerçek kadro oyuncusu değildir).
+    /// </summary>
+    public static readonly PlayerId BoardDemandParticipantPlayerId = new(9_000_000_001L);
+
     public const string OptionGrantPlayingTimePromise = "GrantPlayingTimePromise";
     public const string OptionGrantStartingOpportunityPromise = "GrantStartingOpportunityPromise";
     public const string OptionAcknowledgeTransferRequest = "AcknowledgeTransferRequest";
     public const string OptionIssueWarning = "IssueWarning";
     public const string OptionIssueFine = "IssueFine";
     public const string OptionOfferSupport = "OfferSupport";
+    public const string OptionAcceptBoardDemand = "AcceptBoardDemand";
+    public const string OptionCounterBoardDemand = "CounterBoardDemand";
     public const string OptionRefuse = "Refuse";
 
     private DecisionRequest(
@@ -185,6 +192,34 @@ public sealed class DecisionRequest
             resolvedOn: null);
     }
 
+    public static DecisionRequest OpenBoardDemandRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.BoardDemandRequest,
+            managerId,
+            BoardDemandParticipantPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
     public DecisionRequest Answer(string optionCode, GameDate day)
     {
         EnsureOpen();
@@ -204,6 +239,8 @@ public sealed class DecisionRequest
                 trimmed is OptionAcknowledgeTransferRequest or OptionRefuse,
             DecisionRequestKind.DisciplineRequest =>
                 trimmed is OptionIssueWarning or OptionIssueFine or OptionOfferSupport,
+            DecisionRequestKind.BoardDemandRequest =>
+                trimmed is OptionAcceptBoardDemand or OptionCounterBoardDemand or OptionRefuse,
             _ => false,
         };
         if (!supported)

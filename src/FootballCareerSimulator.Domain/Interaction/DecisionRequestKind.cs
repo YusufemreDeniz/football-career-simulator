@@ -6,4 +6,5 @@ public enum DecisionRequestKind
     StartingOpportunityRequest = 2,
     TransferRequest = 3,
     DisciplineRequest = 4,
+    BoardDemandRequest = 5,
 }

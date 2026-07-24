@@ -326,6 +326,26 @@ public sealed class CareerSessionController
             (playerId, day) => Host.InteractionModule.Decisions.OpenDisciplineRequest(playerId, day),
             "disiplin görüşmesi");
 
+    public UiActionResult OpenBoardDemandDecision()
+    {
+        try
+        {
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var request = Host.InteractionModule.Decisions.OpenBoardDemandRequest(day);
+            return UiActionResult.Ok(
+                $"Yönetim talebi açıldı: #{request.DecisionRequestId.Value}"
+                + $" · son gün {request.DeadlineOn.DayNumber}.");
+        }
+        catch (InteractionInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Yönetim talebi açılamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Yönetim talebi hatası: {ex.Message}");
+        }
+    }
+
     public UiActionResult AnswerOldestPendingDecision(bool grantPromise)
     {
         try

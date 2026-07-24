@@ -91,4 +91,26 @@ public sealed class ClubEmployment
             fixtureId,
             reasonCode.Trim());
     }
+
+    /// <summary>
+    /// Maç dışı Board Confidence ayarı (ör. yönetim talebi yanıtı); son maç değerlendirme fikstürü korunur.
+    /// </summary>
+    public ClubEmployment WithBoardConfidenceAdjustment(
+        BoardConfidence newConfidence,
+        string reasonCode)
+    {
+        if (string.IsNullOrWhiteSpace(reasonCode))
+        {
+            throw new ManagerCareerInvariantViolationException("Assessment reason code cannot be empty.");
+        }
+
+        return new ClubEmployment(
+            ClubId,
+            StartedAt,
+            SeasonExpectation,
+            newConfidence,
+            EmploymentRisk.FromConfidence(newConfidence.Value),
+            LastAssessedFixtureId,
+            reasonCode.Trim());
+    }
 }

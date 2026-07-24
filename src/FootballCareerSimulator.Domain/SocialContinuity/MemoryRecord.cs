@@ -50,6 +50,8 @@ public sealed class MemoryRecord
     public const int DecisionTransferAnswerRuleVersion = 1;
     public const string DecisionDisciplineAnswerRuleId = "DecisionDisciplineAnswer";
     public const int DecisionDisciplineAnswerRuleVersion = 1;
+    public const string DecisionBoardDemandAnswerRuleId = "DecisionBoardDemandAnswer";
+    public const int DecisionBoardDemandAnswerRuleVersion = 1;
     public const int InfluenceBonusPerReinforcement = 10;
     public const int MaxReinforcementsPerMemory = 5;
     public const int MinImportance = 1;
@@ -444,6 +446,62 @@ public sealed class MemoryRecord
             relatedPromiseId: null,
             DecisionDisciplineAnswerRuleId,
             DecisionDisciplineAnswerRuleVersion);
+    }
+
+    public static MemoryRecord CreateDecisionBoardDemandOutcome(
+        MemoryId memoryId,
+        DecisionRequest request,
+        GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Kind != DecisionRequestKind.BoardDemandRequest)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Decision board-demand memory requires BoardDemandRequest kind.");
+        }
+
+        if (request.Status is not (
+            DecisionRequestStatus.Answered
+            or DecisionRequestStatus.Expired))
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Decision board-demand memory requires Answered or Expired status.");
+        }
+
+        var outcomeKey = request.Status == DecisionRequestStatus.Expired
+            ? "Expired"
+            : request.SelectedOptionCode
+              ?? throw new SocialContinuityInvariantViolationException(
+                  "Answered decision requires a selected option code.");
+
+        var (importance, valence) = outcomeKey switch
+        {
+            DecisionRequest.OptionAcceptBoardDemand => (55, MemoryValence.Positive),
+            DecisionRequest.OptionCounterBoardDemand => (60, MemoryValence.Neutral),
+            DecisionRequest.OptionRefuse => (75, MemoryValence.Negative),
+            "Expired" => (70, MemoryValence.Negative),
+            _ => throw new SocialContinuityInvariantViolationException(
+                $"Unsupported board-demand outcome for memory: {outcomeKey}."),
+        };
+
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Manager, request.ManagerId.Value),
+            MemorySubjectKind.Club,
+            request.ClubId.Value,
+            BuildDecisionBoardDemandOutcomeSourceKey(request.DecisionRequestId, outcomeKey),
+            MemoryCategory.Career,
+            day,
+            day,
+            importance,
+            importance,
+            valence,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            DecisionBoardDemandAnswerRuleId,
+            DecisionBoardDemandAnswerRuleVersion);
     }
 
     public static MemoryRecord CreateRelationshipTrustBandMilestone(
@@ -999,6 +1057,11 @@ public sealed class MemoryRecord
         DecisionRequestId decisionRequestId,
         string outcomeKey) =>
         $"DecisionDiscipline:{decisionRequestId.Value}:{outcomeKey}";
+
+    public static string BuildDecisionBoardDemandOutcomeSourceKey(
+        DecisionRequestId decisionRequestId,
+        string outcomeKey) =>
+        $"DecisionBoardDemand:{decisionRequestId.Value}:{outcomeKey}";
 
     public static string BuildTransferCompletedSourceKey(TransferProcessId processId) =>
         $"TransferCompleted:{processId.Value}";

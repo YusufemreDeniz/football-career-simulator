@@ -11,7 +11,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// DecisionRequest owner: PlayingTime / StartingOpportunity / Transfer / Discipline.
+/// DecisionRequest owner: PlayingTime / StartingOpportunity / Transfer / Discipline / BoardDemand.
 /// </summary>
 public sealed class DecisionRequestService
 {
@@ -111,6 +111,50 @@ public sealed class DecisionRequestService
             DecisionRequest.OpenDisciplineRequest,
             "discipline");
 
+    public DecisionRequest OpenBoardDemandRequest(
+        GameDate day,
+        int? deadlineDays = null,
+        bool isHardBlocker = true)
+    {
+        var career = _managerCareerStore.Career;
+        if (!career.IsEmployed || career.ActiveEmployment is null)
+        {
+            throw new InteractionInvariantViolationException(
+                "Manager must be employed to open a board-demand decision request.");
+        }
+
+        var clubId = career.ActiveEmployment.ClubId;
+        var hasOpen = _store.Requests.Any(r =>
+            r.IsOpen
+            && r.Kind == DecisionRequestKind.BoardDemandRequest
+            && r.ClubId == clubId);
+        if (hasOpen)
+        {
+            throw new InteractionInvariantViolationException(
+                $"Club {clubId.Value} already has an open board-demand decision request.");
+        }
+
+        var days = deadlineDays ?? DefaultDeadlineDays;
+        if (days < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(deadlineDays), days, "Deadline days must be positive.");
+        }
+
+        var nextId = _store.Requests.Count == 0
+            ? 1L
+            : _store.Requests.Max(r => r.DecisionRequestId.Value) + 1;
+        var request = DecisionRequest.OpenBoardDemandRequest(
+            new DecisionRequestId(nextId),
+            career.ManagerId,
+            clubId,
+            day,
+            day.AddDays(days),
+            isHardBlocker);
+        _store.Upsert(request);
+        OpenDialogueSession(request);
+        return request;
+    }
+
     public DecisionRequest Answer(
         DecisionRequestId decisionRequestId,
         string optionCode,
@@ -189,6 +233,12 @@ public sealed class DecisionRequestService
                     $"Unsupported discipline option: {answered.SelectedOptionCode}."),
             };
             _discipline.ApplyFromDecision(answered, kind, day);
+        }
+        else if (answered.Kind == DecisionRequestKind.BoardDemandRequest)
+        {
+            var assessment = _managerCareerStore.Career.ApplyBoardDemandResponse(
+                answered.SelectedOptionCode!);
+            _managerCareerStore.Replace(assessment.Career);
         }
 
         _dialogueSessions?.MarkResolved(decisionRequestId, answered.SelectedOptionCode!, day);
@@ -303,6 +353,12 @@ public sealed class DecisionRequestService
                     DecisionRequest.OptionIssueWarning,
                     DecisionRequest.OptionIssueFine,
                     DecisionRequest.OptionOfferSupport,
+                ],
+                DecisionRequestKind.BoardDemandRequest =>
+                [
+                    DecisionRequest.OptionAcceptBoardDemand,
+                    DecisionRequest.OptionCounterBoardDemand,
+                    DecisionRequest.OptionRefuse,
                 ],
                 _ => Array.Empty<string>(),
             };

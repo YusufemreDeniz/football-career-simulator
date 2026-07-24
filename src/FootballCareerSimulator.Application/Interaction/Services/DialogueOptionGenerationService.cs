@@ -9,7 +9,7 @@ using FootballCareerSimulator.Domain.SocialContinuity;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// Sınırlı Dialogue seçenek üretimi (PlayingTime / StartingOpportunity / Transfer / Discipline).
+/// Sınırlı Dialogue seçenek üretimi (PlayingTime / StartingOpportunity / Transfer / Discipline / BoardDemand).
 /// </summary>
 public sealed class DialogueOptionGenerationService
 {
@@ -57,6 +57,7 @@ public sealed class DialogueOptionGenerationService
             DecisionRequestKind.StartingOpportunityRequest => BuildStartingOpportunityOptions(request),
             DecisionRequestKind.TransferRequest => BuildTransferOptions(request),
             DecisionRequestKind.DisciplineRequest => BuildDisciplineOptions(request),
+            DecisionRequestKind.BoardDemandRequest => BuildBoardDemandOptions(),
             _ => Array.Empty<DialogueOptionReadModel>(),
         };
 
@@ -194,6 +195,34 @@ public sealed class DialogueOptionGenerationService
         ];
     }
 
+    private static IReadOnlyList<DialogueOptionReadModel> BuildBoardDemandOptions() =>
+    [
+        new DialogueOptionReadModel(
+            DecisionRequest.OptionAcceptBoardDemand,
+            SemanticIntentName: "AcceptBoardDemand",
+            DisplayText: "Yönetim talebini kabul et",
+            ToneCode: "Compliant",
+            RiskHint: "Board Confidence yükselir.",
+            IsEligible: true,
+            IneligibilityReason: null),
+        new DialogueOptionReadModel(
+            DecisionRequest.OptionCounterBoardDemand,
+            SemanticIntentName: "CounterBoardDemand",
+            DisplayText: "Karşı teklif sun",
+            ToneCode: "Pragmatic",
+            RiskHint: "Board Confidence hafif düşer.",
+            IsEligible: true,
+            IneligibilityReason: null),
+        new DialogueOptionReadModel(
+            DecisionRequest.OptionRefuse,
+            SemanticIntentName: "RefuseBoardDemand",
+            DisplayText: "Yönetim talebini reddet",
+            ToneCode: "Firm",
+            RiskHint: "Board Confidence belirgin düşer.",
+            IsEligible: true,
+            IneligibilityReason: null),
+    ];
+
     private static DialogueOptionReadModel RefuseOption(string semanticIntentName) =>
         new(
             DecisionRequest.OptionRefuse,
@@ -233,6 +262,7 @@ public sealed class DialogueOptionGenerationService
             DecisionRequestKind.StartingOpportunityRequest => "StartingOpportunityRequest",
             DecisionRequestKind.TransferRequest => "TransferRequest",
             DecisionRequestKind.DisciplineRequest => "DisciplineRequest",
+            DecisionRequestKind.BoardDemandRequest => "BoardDemandRequest",
             _ => kind.ToString(),
         };
 }

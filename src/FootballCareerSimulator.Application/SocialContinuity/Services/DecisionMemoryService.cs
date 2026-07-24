@@ -26,6 +26,7 @@ public sealed class DecisionMemoryService
             DecisionRequestKind.StartingOpportunityRequest => RecordStartingOpportunityOutcome(request, day),
             DecisionRequestKind.TransferRequest => RecordTransferOutcome(request, day),
             DecisionRequestKind.DisciplineRequest => RecordDisciplineOutcome(request, day),
+            DecisionRequestKind.BoardDemandRequest => RecordBoardDemandOutcome(request, day),
             _ => 0,
         };
     }
@@ -69,6 +70,46 @@ public sealed class DecisionMemoryService
             MemoryRecord.BuildDecisionDisciplineOutcomeSourceKey,
             MemoryRecord.CreateDecisionDisciplineOutcome,
             day);
+
+    public int RecordBoardDemandOutcome(DecisionRequest request, GameDate day)
+    {
+        if (request.Kind != DecisionRequestKind.BoardDemandRequest)
+        {
+            return 0;
+        }
+
+        if (request.Status is not (
+            DecisionRequestStatus.Answered
+            or DecisionRequestStatus.Expired))
+        {
+            return 0;
+        }
+
+        var outcomeKey = request.Status == DecisionRequestStatus.Expired
+            ? "Expired"
+            : request.SelectedOptionCode!;
+        var sourceKey = MemoryRecord.BuildDecisionBoardDemandOutcomeSourceKey(
+            request.DecisionRequestId,
+            outcomeKey);
+        var remembering = new ActorRef(ActorKind.Manager, request.ManagerId.Value);
+        if (_store.Memories.Any(m =>
+                m.SourceEventKey == sourceKey
+                && m.RememberingActor == remembering
+                && m.RuleId == MemoryRecord.DecisionBoardDemandAnswerRuleId
+                && m.RuleVersion == MemoryRecord.DecisionBoardDemandAnswerRuleVersion))
+        {
+            return 0;
+        }
+
+        var nextId = _store.Memories.Count == 0
+            ? 1L
+            : _store.Memories.Max(m => m.MemoryId.Value) + 1;
+        _store.Upsert(MemoryRecord.CreateDecisionBoardDemandOutcome(
+            new MemoryId(nextId),
+            request,
+            day));
+        return 1;
+    }
 
     private int RecordTypedOutcome(
         DecisionRequest request,
