@@ -30,6 +30,7 @@ public sealed class TransferCompletionService
     private readonly ClubWageBudgetService? _wageBudget;
     private readonly PromiseInvalidationService? _promiseInvalidation;
     private readonly TransferMemoryService? _transferMemory;
+    private readonly ClubHistoryMemoryService? _clubHistoryMemory;
 
     public TransferCompletionService(
         ITransferProcessStore processStore,
@@ -42,7 +43,8 @@ public sealed class TransferCompletionService
         ClubTransferBudgetService? transferBudget = null,
         ClubWageBudgetService? wageBudget = null,
         PromiseInvalidationService? promiseInvalidation = null,
-        TransferMemoryService? transferMemory = null)
+        TransferMemoryService? transferMemory = null,
+        ClubHistoryMemoryService? clubHistoryMemory = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
@@ -56,6 +58,7 @@ public sealed class TransferCompletionService
         _wageBudget = wageBudget;
         _promiseInvalidation = promiseInvalidation;
         _transferMemory = transferMemory;
+        _clubHistoryMemory = clubHistoryMemory;
     }
 
     public TransferProcess Complete(
@@ -107,6 +110,7 @@ public sealed class TransferCompletionService
 
         process = Persist(process.MarkCompleted(day));
         _transferMemory?.RecordCompleted(process, day, ResolveInvolvedManager(process));
+        _clubHistoryMemory?.RecordPlayerTransferClubs(process, day);
         ApplyReservedFee(process);
         ReleaseReservedWage(process);
         return Persist(process.Archive(day));

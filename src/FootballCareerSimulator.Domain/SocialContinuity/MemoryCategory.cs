@@ -7,4 +7,5 @@ public enum MemoryCategory
     Trust = 3,
     Transfer = 4,
     Career = 5,
+    ClubHistory = 6,
 }

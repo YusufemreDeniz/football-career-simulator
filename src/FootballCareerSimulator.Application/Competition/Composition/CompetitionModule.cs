@@ -114,6 +114,7 @@ public sealed class CompetitionModule
         PlayingTimePromiseService? playingTimePromises = null,
         PromiseInvalidationService? promiseInvalidation = null,
         CareerMemoryService? careerMemory = null,
+        ClubHistoryMemoryService? clubHistoryMemory = null,
         long competitionId = 1)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
@@ -133,7 +134,8 @@ public sealed class CompetitionModule
             selectionMemory,
             playingTimePromises,
             promiseInvalidation,
-            careerMemory);
+            careerMemory,
+            clubHistoryMemory);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
@@ -151,7 +153,8 @@ public sealed class CompetitionModule
         SelectionMemoryService? selectionMemory = null,
         PlayingTimePromiseService? playingTimePromises = null,
         PromiseInvalidationService? promiseInvalidation = null,
-        CareerMemoryService? careerMemory = null)
+        CareerMemoryService? careerMemory = null,
+        ClubHistoryMemoryService? clubHistoryMemory = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
@@ -174,7 +177,8 @@ public sealed class CompetitionModule
             selectionMemory,
             playingTimePromises,
             promiseInvalidation,
-            careerMemory);
+            careerMemory,
+            clubHistoryMemory);
 
         return new CompetitionModule(
             store,

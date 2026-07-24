@@ -14,6 +14,7 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
     private readonly IClubRegistryStore _clubRegistryStore;
     private readonly IWorldTimelineStore _timelineStore;
     private CareerMemoryService? _careerMemory;
+    private ClubHistoryMemoryService? _clubHistoryMemory;
     private readonly Dictionary<Guid, AcceptPendingJobOfferResult> _completed = new();
 
     public AcceptPendingJobOfferHandler(
@@ -29,6 +30,9 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
     public void BindCareerMemory(CareerMemoryService careerMemory) =>
         _careerMemory = careerMemory ?? throw new ArgumentNullException(nameof(careerMemory));
 
+    public void BindClubHistoryMemory(ClubHistoryMemoryService clubHistoryMemory) =>
+        _clubHistoryMemory = clubHistoryMemory ?? throw new ArgumentNullException(nameof(clubHistoryMemory));
+
     public AcceptPendingJobOfferResult Handle(AcceptPendingJobOfferCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -41,6 +45,7 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
         var career = _managerStore.Career;
         var offer = career.PendingJobOffer
             ?? throw new ManagerCareerInvariantViolationException("No pending job offer.");
+        var isReturn = career.LastClubId is { } last && last == offer.ClubId;
 
         var club = _clubRegistryStore.Registry.GetClubOrThrow(offer.ClubId);
         var startedAt = _timelineStore.Timeline.CurrentDate;
@@ -49,11 +54,21 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
             SeasonExpectation.FromSportiveStrength(club.SportiveStrength));
 
         _managerStore.Replace(accepted.Career);
+        var hiredClub = new ClubId(accepted.ClubId);
+        var offerId = new JobOfferId(accepted.OfferId);
         _careerMemory?.RecordHiring(
             accepted.Career.ManagerId,
-            new ClubId(accepted.ClubId),
-            new JobOfferId(accepted.OfferId),
+            hiredClub,
+            offerId,
             startedAt);
+        if (isReturn)
+        {
+            _clubHistoryMemory?.RecordManagerReturned(
+                accepted.Career.ManagerId,
+                hiredClub,
+                offerId,
+                startedAt);
+        }
 
         var result = new AcceptPendingJobOfferResult(true, accepted.OfferId, accepted.ClubId);
         _completed[command.CommandId] = result;

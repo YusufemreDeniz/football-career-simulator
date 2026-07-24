@@ -38,6 +38,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly SelectionMemoryService? _selectionMemory;
     private readonly PromiseInvalidationService? _promiseInvalidation;
     private readonly CareerMemoryService? _careerMemory;
+    private readonly ClubHistoryMemoryService? _clubHistoryMemory;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -55,7 +56,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         SelectionMemoryService? selectionMemory = null,
         PlayingTimePromiseService? playingTimePromises = null,
         PromiseInvalidationService? promiseInvalidation = null,
-        CareerMemoryService? careerMemory = null)
+        CareerMemoryService? careerMemory = null,
+        ClubHistoryMemoryService? clubHistoryMemory = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -72,6 +74,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _playingTimePromises = playingTimePromises;
         _promiseInvalidation = promiseInvalidation;
         _careerMemory = careerMemory;
+        _clubHistoryMemory = clubHistoryMemory;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -218,6 +221,11 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 if (dismissal.WasApplied)
                 {
                     _careerMemory?.RecordDismissal(
+                        managerId,
+                        dismissedClub,
+                        fixture.Id,
+                        occurredAt);
+                    _clubHistoryMemory?.RecordManagerLeftDismissed(
                         managerId,
                         dismissedClub,
                         fixture.Id,

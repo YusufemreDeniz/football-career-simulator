@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -7,7 +8,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.SocialContinuity;
 
 /// <summary>
-/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust / Transfer / Career.
+/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust / Transfer / Career / ClubHistory.
 /// </summary>
 public sealed class MemoryRecord
 {
@@ -27,6 +28,14 @@ public sealed class MemoryRecord
     public const int ManagerDismissedRuleVersion = 1;
     public const string ManagerHiredRuleId = "ManagerHired";
     public const int ManagerHiredRuleVersion = 1;
+    public const string ClubHistoryLeftDismissedRuleId = "ClubHistoryLeftDismissed";
+    public const int ClubHistoryLeftDismissedRuleVersion = 1;
+    public const string ClubHistoryReturnedRuleId = "ClubHistoryReturned";
+    public const int ClubHistoryReturnedRuleVersion = 1;
+    public const string ClubHistoryLeftTransferRuleId = "ClubHistoryLeftTransfer";
+    public const int ClubHistoryLeftTransferRuleVersion = 1;
+    public const string ClubHistoryJoinedTransferRuleId = "ClubHistoryJoinedTransfer";
+    public const int ClubHistoryJoinedTransferRuleVersion = 1;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
 
@@ -249,6 +258,119 @@ public sealed class MemoryRecord
             ManagerHiredRuleVersion);
     }
 
+    public static MemoryRecord CreateClubHistoryLeftDismissed(
+        MemoryId memoryId,
+        ManagerId managerId,
+        ClubId clubId,
+        FixtureId causationFixtureId,
+        GameDate day)
+    {
+        const int importance = 75;
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Manager, managerId.Value),
+            MemorySubjectKind.Club,
+            clubId.Value,
+            BuildClubHistoryLeftDismissedSourceKey(causationFixtureId, managerId),
+            MemoryCategory.ClubHistory,
+            day,
+            day,
+            importance,
+            importance,
+            MemoryValence.Negative,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            ClubHistoryLeftDismissedRuleId,
+            ClubHistoryLeftDismissedRuleVersion);
+    }
+
+    public static MemoryRecord CreateClubHistoryReturned(
+        MemoryId memoryId,
+        ManagerId managerId,
+        ClubId clubId,
+        JobOfferId offerId,
+        GameDate day)
+    {
+        const int importance = 80;
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Manager, managerId.Value),
+            MemorySubjectKind.Club,
+            clubId.Value,
+            BuildClubHistoryReturnedSourceKey(offerId),
+            MemoryCategory.ClubHistory,
+            day,
+            day,
+            importance,
+            importance,
+            MemoryValence.Positive,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            ClubHistoryReturnedRuleId,
+            ClubHistoryReturnedRuleVersion);
+    }
+
+    public static MemoryRecord CreateClubHistoryLeftTransfer(
+        MemoryId memoryId,
+        PlayerId playerId,
+        ClubId sellingClubId,
+        TransferProcessId processId,
+        GameDate day)
+    {
+        const int importance = 60;
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Player, playerId.Value),
+            MemorySubjectKind.Club,
+            sellingClubId.Value,
+            BuildClubHistoryLeftTransferSourceKey(processId),
+            MemoryCategory.ClubHistory,
+            day,
+            day,
+            importance,
+            importance,
+            MemoryValence.Neutral,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            ClubHistoryLeftTransferRuleId,
+            ClubHistoryLeftTransferRuleVersion);
+    }
+
+    public static MemoryRecord CreateClubHistoryJoinedTransfer(
+        MemoryId memoryId,
+        PlayerId playerId,
+        ClubId buyingClubId,
+        TransferProcessId processId,
+        GameDate day,
+        bool isFreeAgent)
+    {
+        const int importance = 60;
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Player, playerId.Value),
+            MemorySubjectKind.Club,
+            buyingClubId.Value,
+            BuildClubHistoryJoinedTransferSourceKey(processId),
+            MemoryCategory.ClubHistory,
+            day,
+            day,
+            importance,
+            importance,
+            isFreeAgent ? MemoryValence.Positive : MemoryValence.Neutral,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            ClubHistoryJoinedTransferRuleId,
+            ClubHistoryJoinedTransferRuleVersion);
+    }
+
     public static MemoryRecord CreateTransferCompleted(
         MemoryId memoryId,
         ActorRef rememberingActor,
@@ -442,6 +564,18 @@ public sealed class MemoryRecord
 
     public static string BuildManagerHiredSourceKey(JobOfferId offerId) =>
         $"ManagerHired:{offerId.Value}";
+
+    public static string BuildClubHistoryLeftDismissedSourceKey(FixtureId fixtureId, ManagerId managerId) =>
+        $"ClubHistoryLeftDismissed:{fixtureId.Value}:{managerId.Value}";
+
+    public static string BuildClubHistoryReturnedSourceKey(JobOfferId offerId) =>
+        $"ClubHistoryReturned:{offerId.Value}";
+
+    public static string BuildClubHistoryLeftTransferSourceKey(TransferProcessId processId) =>
+        $"ClubHistoryLeftTransfer:{processId.Value}";
+
+    public static string BuildClubHistoryJoinedTransferSourceKey(TransferProcessId processId) =>
+        $"ClubHistoryJoinedTransfer:{processId.Value}";
 
     public static string BuildSelectionStartedSourceKey(FixtureId fixtureId, long playerId) =>
         $"SelectionStarted:{fixtureId.Value}:{playerId}";
