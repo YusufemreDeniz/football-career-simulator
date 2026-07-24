@@ -31,6 +31,7 @@ public sealed class TransferCompletionService
     private readonly PromiseInvalidationService? _promiseInvalidation;
     private readonly TransferMemoryService? _transferMemory;
     private readonly ClubHistoryMemoryService? _clubHistoryMemory;
+    private readonly RelationshipEvaluationService? _relationships;
 
     public TransferCompletionService(
         ITransferProcessStore processStore,
@@ -44,7 +45,8 @@ public sealed class TransferCompletionService
         ClubWageBudgetService? wageBudget = null,
         PromiseInvalidationService? promiseInvalidation = null,
         TransferMemoryService? transferMemory = null,
-        ClubHistoryMemoryService? clubHistoryMemory = null)
+        ClubHistoryMemoryService? clubHistoryMemory = null,
+        RelationshipEvaluationService? relationships = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
@@ -59,6 +61,7 @@ public sealed class TransferCompletionService
         _promiseInvalidation = promiseInvalidation;
         _transferMemory = transferMemory;
         _clubHistoryMemory = clubHistoryMemory;
+        _relationships = relationships;
     }
 
     public TransferProcess Complete(
@@ -102,6 +105,7 @@ public sealed class TransferCompletionService
             proposal.ContractYears);
 
         _promiseInvalidation?.InvalidateForPlayerLeaving(process.PlayerId, day);
+        _relationships?.MarkDormantForPlayerLeaving(process.PlayerId, day);
 
         var clubIds = process.SellingClubId is { } selling
             ? new[] { process.BuyingClubId.Value, selling.Value }

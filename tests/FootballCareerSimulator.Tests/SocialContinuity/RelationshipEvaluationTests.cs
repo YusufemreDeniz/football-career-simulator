@@ -105,6 +105,79 @@ public sealed class RelationshipEvaluationTests : IDisposable
     }
 
     [Fact]
+    public void PlayerLeaving_MarksRelationshipsDormant_PreservingDimensions()
+    {
+        var social = SocialContinuityModule.Create();
+        social.RelationshipEvaluation.ApplySelectionStarted(
+            new FixtureId(1),
+            new PlayerId(10),
+            new ManagerId(1),
+            Day);
+
+        Assert.Equal(
+            1,
+            social.RelationshipEvaluation.MarkDormantForPlayerLeaving(new PlayerId(10), Day.AddDays(1)));
+
+        var dormant = Assert.Single(social.RelationshipStore.Relationships);
+        Assert.Equal(RelationshipStatus.Dormant, dormant.Status);
+        Assert.Equal(52, dormant.Respect);
+        Assert.Equal("PlayerLeftDormant", dormant.LastChangeReasonCode);
+        Assert.Equal(
+            0,
+            social.RelationshipEvaluation.MarkDormantForPlayerLeaving(new PlayerId(10), Day.AddDays(2)));
+    }
+
+    [Fact]
+    public void ManagerLeaving_MarksDormant_AndHiringReactivates()
+    {
+        var social = SocialContinuityModule.Create();
+        social.RelationshipEvaluation.ApplySelectionStarted(
+            new FixtureId(2),
+            new PlayerId(20),
+            new ManagerId(7),
+            Day);
+
+        Assert.Equal(
+            1,
+            social.RelationshipEvaluation.MarkDormantForManagerLeaving(new ManagerId(7), Day.AddDays(1)));
+        var dormant = social.RelationshipStore.FindPlayerToManager(20, 7)!;
+        Assert.Equal(RelationshipStatus.Dormant, dormant.Status);
+        Assert.Equal(52, dormant.Respect);
+
+        Assert.Equal(
+            1,
+            social.RelationshipEvaluation.ReactivateForManager(new ManagerId(7), Day.AddDays(3)));
+        var active = social.RelationshipStore.FindPlayerToManager(20, 7)!;
+        Assert.Equal(RelationshipStatus.Active, active.Status);
+        Assert.Equal(52, active.Respect);
+        Assert.Equal("ManagerHiredReactivate", active.LastChangeReasonCode);
+    }
+
+    [Fact]
+    public void DormantRelationship_ReactivatesWhenSelectionInputApplies()
+    {
+        var social = SocialContinuityModule.Create();
+        social.RelationshipEvaluation.ApplySelectionStarted(
+            new FixtureId(1),
+            new PlayerId(30),
+            new ManagerId(1),
+            Day);
+        social.RelationshipEvaluation.MarkDormantForPlayerLeaving(new PlayerId(30), Day.AddDays(1));
+
+        Assert.Equal(
+            1,
+            social.RelationshipEvaluation.ApplySelectionStarted(
+                new FixtureId(4),
+                new PlayerId(30),
+                new ManagerId(1),
+                Day.AddDays(5)));
+
+        var relationship = social.RelationshipStore.FindPlayerToManager(30, 1)!;
+        Assert.Equal(RelationshipStatus.Active, relationship.Status);
+        Assert.Equal(54, relationship.Respect);
+    }
+
+    [Fact]
     public void SaveLoad_PreservesRelationshipsAtSchemaV32()
     {
         var social = SocialContinuityModule.Create();

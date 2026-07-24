@@ -8,7 +8,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.SocialContinuity.Services;
 
 /// <summary>
-/// Relationship authoritative owner (iskelet). Promise/Selection girdilerini değerlendirir;
+/// Relationship authoritative owner (iskelet). Promise/Selection girdileri + Dormant/Reactivate.
 /// Memory doğrudan delta uygulamaz.
 /// </summary>
 public sealed class RelationshipEvaluationService
@@ -17,6 +17,9 @@ public sealed class RelationshipEvaluationService
     public const string PromiseBrokenRuleId = "PromiseBrokenTrust";
     public const string SelectionStartedRuleId = "SelectionStartedRespect";
     public const string SelectionOmittedRuleId = "SelectionOmittedCompatibility";
+    public const string PlayerLeftDormantRuleId = "PlayerLeftDormant";
+    public const string ManagerLeftDormantRuleId = "ManagerLeftDormant";
+    public const string ManagerHiredReactivateRuleId = "ManagerHiredReactivate";
     public const int RuleVersion = 1;
 
     private readonly IRelationshipStore _store;
@@ -89,6 +92,73 @@ public sealed class RelationshipEvaluationService
             compatibilityDelta: -3,
             reasonCode: SelectionOmittedRuleId,
             day);
+    }
+
+    public int MarkDormantForPlayerLeaving(PlayerId playerId, GameDate day)
+    {
+        var updated = 0;
+        foreach (var relationship in _store.Relationships
+                     .Where(r =>
+                         r.Status == RelationshipStatus.Active
+                         && r.Observer.Kind == ActorKind.Player
+                         && r.Observer.Id == playerId.Value)
+                     .ToArray())
+        {
+            var effectKey =
+                $"Rel:{PlayerLeftDormantRuleId}:v{RuleVersion}:{relationship.RelationshipId.Value}:{playerId.Value}";
+            var next = relationship.MarkDormant(PlayerLeftDormantRuleId, day, effectKey);
+            if (!ReferenceEquals(next, relationship))
+            {
+                _store.Upsert(next);
+                updated++;
+            }
+        }
+
+        return updated;
+    }
+
+    public int MarkDormantForManagerLeaving(ManagerId managerId, GameDate day)
+    {
+        var updated = 0;
+        foreach (var relationship in _store.Relationships
+                     .Where(r =>
+                         r.Status == RelationshipStatus.Active
+                         && r.Subject.Kind == ActorKind.Manager
+                         && r.Subject.Id == managerId.Value)
+                     .ToArray())
+        {
+            var effectKey =
+                $"Rel:{ManagerLeftDormantRuleId}:v{RuleVersion}:{relationship.RelationshipId.Value}:{managerId.Value}";
+            var next = relationship.MarkDormant(ManagerLeftDormantRuleId, day, effectKey);
+            if (!ReferenceEquals(next, relationship))
+            {
+                _store.Upsert(next);
+                updated++;
+            }
+        }
+
+        return updated;
+    }
+
+    public int ReactivateForManager(ManagerId managerId, GameDate day)
+    {
+        var updated = 0;
+        foreach (var relationship in _store.Relationships
+                     .Where(r =>
+                         r.Status == RelationshipStatus.Dormant
+                         && r.Subject.Kind == ActorKind.Manager
+                         && r.Subject.Id == managerId.Value)
+                     .ToArray())
+        {
+            var next = relationship.Reactivate(ManagerHiredReactivateRuleId, day);
+            if (!ReferenceEquals(next, relationship))
+            {
+                _store.Upsert(next);
+                updated++;
+            }
+        }
+
+        return updated;
     }
 
     private int Apply(

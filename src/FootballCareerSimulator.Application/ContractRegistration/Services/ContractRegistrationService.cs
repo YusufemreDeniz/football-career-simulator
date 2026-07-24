@@ -16,6 +16,7 @@ public sealed class ContractRegistrationService
     private readonly IFreeAgentStore _freeAgentStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private PromiseInvalidationService? _promiseInvalidation;
+    private RelationshipEvaluationService? _relationships;
 
     public ContractRegistrationService(
         IContractStore store,
@@ -30,6 +31,9 @@ public sealed class ContractRegistrationService
 
     public void BindPromiseInvalidation(PromiseInvalidationService invalidation) =>
         _promiseInvalidation = invalidation ?? throw new ArgumentNullException(nameof(invalidation));
+
+    public void BindRelationships(RelationshipEvaluationService relationships) =>
+        _relationships = relationships ?? throw new ArgumentNullException(nameof(relationships));
 
     public bool IsFreeAgent(PlayerId playerId) => _freeAgentStore.Get(playerId) is not null;
 
@@ -79,6 +83,7 @@ public sealed class ContractRegistrationService
             _freeAgentStore.Upsert(
                 PlayerFreeAgency.Release(next.PlayerId, next.ClubId, day));
             _promiseInvalidation?.InvalidateForPlayerLeaving(next.PlayerId, day);
+            _relationships?.MarkDormantForPlayerLeaving(next.PlayerId, day);
             affectedClubs.Add(next.ClubId.Value);
             freeAgentPlayers.Add(next.PlayerId.Value);
             expired++;

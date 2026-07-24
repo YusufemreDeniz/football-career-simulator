@@ -15,6 +15,7 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
     private readonly IWorldTimelineStore _timelineStore;
     private CareerMemoryService? _careerMemory;
     private ClubHistoryMemoryService? _clubHistoryMemory;
+    private RelationshipEvaluationService? _relationships;
     private readonly Dictionary<Guid, AcceptPendingJobOfferResult> _completed = new();
 
     public AcceptPendingJobOfferHandler(
@@ -32,6 +33,9 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
 
     public void BindClubHistoryMemory(ClubHistoryMemoryService clubHistoryMemory) =>
         _clubHistoryMemory = clubHistoryMemory ?? throw new ArgumentNullException(nameof(clubHistoryMemory));
+
+    public void BindRelationships(RelationshipEvaluationService relationships) =>
+        _relationships = relationships ?? throw new ArgumentNullException(nameof(relationships));
 
     public AcceptPendingJobOfferResult Handle(AcceptPendingJobOfferCommand command)
     {
@@ -61,6 +65,7 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
             hiredClub,
             offerId,
             startedAt);
+        _relationships?.ReactivateForManager(accepted.Career.ManagerId, startedAt);
         if (isReturn)
         {
             _clubHistoryMemory?.RecordManagerReturned(

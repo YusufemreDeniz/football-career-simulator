@@ -144,8 +144,10 @@ public sealed class CareerPresentationHost
             socialContinuity.RelationshipEvaluation);
         clubModule.BindWageBudget(contractModule.Store);
         contractModule.Registration.BindPromiseInvalidation(socialContinuity.Invalidation);
+        contractModule.Registration.BindRelationships(socialContinuity.RelationshipEvaluation);
         managerModule.AcceptJobOffer?.BindCareerMemory(socialContinuity.CareerMemory);
         managerModule.AcceptJobOffer?.BindClubHistoryMemory(socialContinuity.ClubHistoryMemory);
+        managerModule.AcceptJobOffer?.BindRelationships(socialContinuity.RelationshipEvaluation);
         var transferModule = TransferModule.Create(
             contractModule.Store,
             teamPreparation.SquadStore,
@@ -160,7 +162,8 @@ public sealed class CareerPresentationHost
             freeAgentStore: contractModule.FreeAgentStore,
             promiseInvalidation: socialContinuity.Invalidation,
             transferMemory: socialContinuity.TransferMemory,
-            clubHistoryMemory: socialContinuity.ClubHistoryMemory);
+            clubHistoryMemory: socialContinuity.ClubHistoryMemory,
+            relationships: socialContinuity.RelationshipEvaluation);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =

@@ -104,10 +104,54 @@ public sealed class RelationshipRecord
             return this;
         }
 
-        if (Status != RelationshipStatus.Active)
+        var working = this;
+        if (working.Status == RelationshipStatus.Dormant)
+        {
+            working = working.Reactivate("ReactivatedByInput", day);
+        }
+
+        if (working.Status != RelationshipStatus.Active)
         {
             throw new SocialContinuityInvariantViolationException(
                 "Only active relationships can apply dimension deltas in this vertical.");
+        }
+
+        var nextKeys = new HashSet<string>(working._processedEffectKeys, StringComparer.Ordinal) { effectKey };
+        return new RelationshipRecord(
+            working.RelationshipId,
+            working.Observer,
+            working.Subject,
+            Clamp(working.Trust + trustDelta),
+            Clamp(working.Respect + respectDelta),
+            Clamp(working.ProfessionalCompatibility + compatibilityDelta),
+            RelationshipStatus.Active,
+            working.CreatedOn,
+            day,
+            reasonCode.Trim(),
+            nextKeys);
+    }
+
+    public RelationshipRecord MarkDormant(string reasonCode, GameDate day, string effectKey)
+    {
+        if (string.IsNullOrWhiteSpace(reasonCode))
+        {
+            throw new SocialContinuityInvariantViolationException("Reason code is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(effectKey))
+        {
+            throw new SocialContinuityInvariantViolationException("Effect key is required.");
+        }
+
+        if (Status == RelationshipStatus.Dormant || _processedEffectKeys.Contains(effectKey))
+        {
+            return this;
+        }
+
+        if (Status != RelationshipStatus.Active)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Only active relationships can become dormant in this vertical.");
         }
 
         var nextKeys = new HashSet<string>(_processedEffectKeys, StringComparer.Ordinal) { effectKey };
@@ -115,14 +159,46 @@ public sealed class RelationshipRecord
             RelationshipId,
             Observer,
             Subject,
-            Clamp(Trust + trustDelta),
-            Clamp(Respect + respectDelta),
-            Clamp(ProfessionalCompatibility + compatibilityDelta),
-            Status,
+            Trust,
+            Respect,
+            ProfessionalCompatibility,
+            RelationshipStatus.Dormant,
             CreatedOn,
             day,
             reasonCode.Trim(),
             nextKeys);
+    }
+
+    public RelationshipRecord Reactivate(string reasonCode, GameDate day)
+    {
+        if (string.IsNullOrWhiteSpace(reasonCode))
+        {
+            throw new SocialContinuityInvariantViolationException("Reason code is required.");
+        }
+
+        if (Status == RelationshipStatus.Active)
+        {
+            return this;
+        }
+
+        if (Status != RelationshipStatus.Dormant)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Only dormant relationships can be reactivated in this vertical.");
+        }
+
+        return new RelationshipRecord(
+            RelationshipId,
+            Observer,
+            Subject,
+            Trust,
+            Respect,
+            ProfessionalCompatibility,
+            RelationshipStatus.Active,
+            CreatedOn,
+            day,
+            reasonCode.Trim(),
+            _processedEffectKeys);
     }
 
     public static RelationshipRecord Rehydrate(

@@ -228,6 +228,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                     occurredAt);
                 if (dismissal.WasApplied)
                 {
+                    _relationships?.MarkDormantForManagerLeaving(managerId, occurredAt);
                     _careerMemory?.RecordDismissal(
                         managerId,
                         dismissedClub,
