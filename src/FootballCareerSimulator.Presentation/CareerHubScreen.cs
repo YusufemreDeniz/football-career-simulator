@@ -18,6 +18,7 @@ public partial class CareerHubScreen : Control
     private Label _trainingLabel = null!;
     private Label _developmentLabel = null!;
     private Label _contractLabel = null!;
+    private Label _memoryLabel = null!;
     private Label _transferWindowLabel = null!;
     private Label _transferBudgetLabel = null!;
     private Button _openTransferWindowButton = null!;
@@ -288,6 +289,8 @@ public partial class CareerHubScreen : Control
         page.AddChild(_developmentLabel);
         _contractLabel = BodyLabel("ContractLabel", autowrap: true);
         page.AddChild(_contractLabel);
+        _memoryLabel = BodyLabel("MemoryLabel", autowrap: true);
+        page.AddChild(_memoryLabel);
 
         _squadList = new ItemList
         {
@@ -754,6 +757,7 @@ public partial class CareerHubScreen : Control
             RefreshTrainingStatus();
             RefreshDevelopmentStatus();
             RefreshContractStatus();
+            RefreshMemoryStatus();
             RefreshTransferWindowStatus();
             RefreshTransferBudgetStatus();
             RefreshTransferNeedStatus();
@@ -787,6 +791,7 @@ public partial class CareerHubScreen : Control
         RefreshTrainingStatus();
         RefreshDevelopmentStatus();
         RefreshContractStatus();
+        RefreshMemoryStatus();
         RefreshTransferWindowStatus();
         RefreshTransferBudgetStatus();
         RefreshTransferNeedStatus();
@@ -1143,6 +1148,28 @@ public partial class CareerHubScreen : Control
             + (contracts.FreeAgentReleasedCount > 0
                 ? $" · serbest {contracts.FreeAgentReleasedCount}"
                 : string.Empty);
+    }
+
+    private void RefreshMemoryStatus()
+    {
+        var manager = _controller.Host.ManagerModule.Queries.GetCareer();
+        var memories = _controller.Host.SocialContinuityModule.Queries.GetActiveForActor(
+            Domain.SocialContinuity.ActorKind.Manager,
+            manager.ManagerId,
+            take: 5);
+
+        if (memories.ActiveCount == 0)
+        {
+            _memoryLabel.Text = "Hafıza: menajer için aktif kayıt yok.";
+            return;
+        }
+
+        var preview = string.Join(
+            " · ",
+            memories.RecentActive.Select(m => $"{m.CategoryName}/{m.ValenceName}"));
+        _memoryLabel.Text =
+            $"Hafıza: {memories.ActiveCount} aktif"
+            + (string.IsNullOrWhiteSpace(preview) ? string.Empty : $" — {preview}");
     }
 
     private void UpdateJobOfferButtons(

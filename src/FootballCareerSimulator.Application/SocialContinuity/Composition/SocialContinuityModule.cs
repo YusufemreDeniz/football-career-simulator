@@ -17,7 +17,8 @@ public sealed class SocialContinuityModule
         TransferMemoryService transferMemory,
         CareerMemoryService careerMemory,
         ClubHistoryMemoryService clubHistoryMemory,
-        PromiseInvalidationService invalidation)
+        PromiseInvalidationService invalidation,
+        MemoryQueryService queries)
     {
         PromiseStore = promiseStore;
         MemoryStore = memoryStore;
@@ -30,6 +31,7 @@ public sealed class SocialContinuityModule
         CareerMemory = careerMemory;
         ClubHistoryMemory = clubHistoryMemory;
         Invalidation = invalidation;
+        Queries = queries;
     }
 
     public IPromiseStore PromiseStore { get; }
@@ -54,6 +56,8 @@ public sealed class SocialContinuityModule
 
     public PromiseInvalidationService Invalidation { get; }
 
+    public MemoryQueryService Queries { get; }
+
     public static SocialContinuityModule Create(
         IPromiseStore? promiseStore = null,
         IMemoryStore? memoryStore = null)
@@ -69,6 +73,7 @@ public sealed class SocialContinuityModule
         var startingOpportunity = new StartingOpportunityPromiseService(promises, promiseMemory);
         var playingTime = new PlayingTimePromiseService(promises, promiseMemory);
         var invalidation = new PromiseInvalidationService(promises, promiseMemory);
+        var queries = new MemoryQueryService(memories);
         return new SocialContinuityModule(
             promises,
             memories,
@@ -80,6 +85,7 @@ public sealed class SocialContinuityModule
             transferMemory,
             careerMemory,
             clubHistoryMemory,
-            invalidation);
+            invalidation,
+            queries);
     }
 }
