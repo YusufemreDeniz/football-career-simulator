@@ -25,6 +25,7 @@ public sealed class DecisionMemoryService
             DecisionRequestKind.PlayingTimeRequest => RecordPlayingTimeOutcome(request, day),
             DecisionRequestKind.StartingOpportunityRequest => RecordStartingOpportunityOutcome(request, day),
             DecisionRequestKind.TransferRequest => RecordTransferOutcome(request, day),
+            DecisionRequestKind.DisciplineRequest => RecordDisciplineOutcome(request, day),
             _ => 0,
         };
     }
@@ -57,6 +58,16 @@ public sealed class DecisionMemoryService
             MemoryRecord.DecisionTransferAnswerRuleVersion,
             MemoryRecord.BuildDecisionTransferOutcomeSourceKey,
             MemoryRecord.CreateDecisionTransferOutcome,
+            day);
+
+    public int RecordDisciplineOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.DisciplineRequest,
+            MemoryRecord.DecisionDisciplineAnswerRuleId,
+            MemoryRecord.DecisionDisciplineAnswerRuleVersion,
+            MemoryRecord.BuildDecisionDisciplineOutcomeSourceKey,
+            MemoryRecord.CreateDecisionDisciplineOutcome,
             day);
 
     private int RecordTypedOutcome(

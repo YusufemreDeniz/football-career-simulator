@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.Discipline.Ports;
 using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.Interaction.Queries;
 using FootballCareerSimulator.Application.SocialContinuity.Ports;
@@ -8,23 +9,25 @@ using FootballCareerSimulator.Domain.SocialContinuity;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// Sınırlı Dialogue seçenek üretimi (PlayingTime / StartingOpportunity / Transfer).
-/// UI seçenek icat etmez; eligibility Application kurallarıyla belirlenir (D-114/D-126).
+/// Sınırlı Dialogue seçenek üretimi (PlayingTime / StartingOpportunity / Transfer / Discipline).
 /// </summary>
 public sealed class DialogueOptionGenerationService
 {
     private readonly IDecisionRequestStore _decisions;
     private readonly IPromiseStore? _promises;
     private readonly TransferNeedService? _transferNeeds;
+    private readonly IDisciplinaryActionStore? _discipline;
 
     public DialogueOptionGenerationService(
         IDecisionRequestStore decisions,
         IPromiseStore? promises = null,
-        TransferNeedService? transferNeeds = null)
+        TransferNeedService? transferNeeds = null,
+        IDisciplinaryActionStore? discipline = null)
     {
         _decisions = decisions ?? throw new ArgumentNullException(nameof(decisions));
         _promises = promises;
         _transferNeeds = transferNeeds;
+        _discipline = discipline;
     }
 
     public DialogueOptionsReadModel GetForDecision(DecisionRequestId decisionRequestId)
@@ -53,6 +56,7 @@ public sealed class DialogueOptionGenerationService
             DecisionRequestKind.PlayingTimeRequest => BuildPlayingTimeOptions(request),
             DecisionRequestKind.StartingOpportunityRequest => BuildStartingOpportunityOptions(request),
             DecisionRequestKind.TransferRequest => BuildTransferOptions(request),
+            DecisionRequestKind.DisciplineRequest => BuildDisciplineOptions(request),
             _ => Array.Empty<DialogueOptionReadModel>(),
         };
 
@@ -154,6 +158,42 @@ public sealed class DialogueOptionGenerationService
         ];
     }
 
+    private IReadOnlyList<DialogueOptionReadModel> BuildDisciplineOptions(DecisionRequest request)
+    {
+        var fineBlocked = _discipline is not null
+            && !_discipline.HasWarningForPlayerAtClub(request.SubjectPlayerId.Value, request.ClubId.Value)
+            ? "Ceza için bu kulüpte önce uyarı kaydı gerekir."
+            : null;
+
+        return
+        [
+            new DialogueOptionReadModel(
+                DecisionRequest.OptionIssueWarning,
+                SemanticIntentName: "IssueWarning",
+                DisplayText: "Uyarı ver",
+                ToneCode: "Firm",
+                RiskHint: "Disciplinary Warning kaydı; Trust↓ Respect↑.",
+                IsEligible: true,
+                IneligibilityReason: null),
+            new DialogueOptionReadModel(
+                DecisionRequest.OptionIssueFine,
+                SemanticIntentName: "IssueFine",
+                DisplayText: "Ceza uygula",
+                ToneCode: "Strict",
+                RiskHint: "Disciplinary Fine kaydı; Trust↓ Respect↑.",
+                IsEligible: fineBlocked is null,
+                IneligibilityReason: fineBlocked),
+            new DialogueOptionReadModel(
+                DecisionRequest.OptionOfferSupport,
+                SemanticIntentName: "OfferSupport",
+                DisplayText: "Destekle",
+                ToneCode: "Supportive",
+                RiskHint: "Disciplinary Support kaydı; Trust↑ Respect↓.",
+                IsEligible: true,
+                IneligibilityReason: null),
+        ];
+    }
+
     private static DialogueOptionReadModel RefuseOption(string semanticIntentName) =>
         new(
             DecisionRequest.OptionRefuse,
@@ -192,6 +232,7 @@ public sealed class DialogueOptionGenerationService
             DecisionRequestKind.PlayingTimeRequest => "PlayingTimeRequest",
             DecisionRequestKind.StartingOpportunityRequest => "StartingOpportunityRequest",
             DecisionRequestKind.TransferRequest => "TransferRequest",
+            DecisionRequestKind.DisciplineRequest => "DisciplineRequest",
             _ => kind.ToString(),
         };
 }

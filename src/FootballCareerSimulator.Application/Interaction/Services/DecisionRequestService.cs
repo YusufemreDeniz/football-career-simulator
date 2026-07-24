@@ -1,7 +1,9 @@
+using FootballCareerSimulator.Application.Discipline.Services;
 using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.Transfer.Services;
+using FootballCareerSimulator.Domain.Discipline;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -9,7 +11,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// DecisionRequest owner: PlayingTime / StartingOpportunity / Transfer → Promise/Need / Relationship / Memory / DialogueSession.
+/// DecisionRequest owner: PlayingTime / StartingOpportunity / Transfer / Discipline.
 /// </summary>
 public sealed class DecisionRequestService
 {
@@ -22,6 +24,7 @@ public sealed class DecisionRequestService
     private readonly PlayingTimePromiseService? _playingTime;
     private readonly StartingOpportunityPromiseService? _startingOpportunity;
     private readonly TransferNeedService? _transferNeeds;
+    private readonly DisciplinaryActionService? _discipline;
     private readonly RelationshipEvaluationService? _relationships;
     private readonly DecisionMemoryService? _decisionMemory;
     private readonly DialogueOptionGenerationService? _dialogueOptions;
@@ -36,7 +39,8 @@ public sealed class DecisionRequestService
         DialogueOptionGenerationService? dialogueOptions = null,
         DialogueSessionService? dialogueSessions = null,
         StartingOpportunityPromiseService? startingOpportunity = null,
-        TransferNeedService? transferNeeds = null)
+        TransferNeedService? transferNeeds = null,
+        DisciplinaryActionService? discipline = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
@@ -44,6 +48,7 @@ public sealed class DecisionRequestService
         _playingTime = playingTime;
         _startingOpportunity = startingOpportunity;
         _transferNeeds = transferNeeds;
+        _discipline = discipline;
         _relationships = relationships;
         _decisionMemory = decisionMemory;
         _dialogueOptions = dialogueOptions;
@@ -91,6 +96,20 @@ public sealed class DecisionRequestService
             isHardBlocker,
             DecisionRequest.OpenTransferRequest,
             "transfer");
+
+    public DecisionRequest OpenDisciplineRequest(
+        PlayerId subjectPlayerId,
+        GameDate day,
+        int? deadlineDays = null,
+        bool isHardBlocker = true) =>
+        OpenRequest(
+            DecisionRequestKind.DisciplineRequest,
+            subjectPlayerId,
+            day,
+            deadlineDays,
+            isHardBlocker,
+            DecisionRequest.OpenDisciplineRequest,
+            "discipline");
 
     public DecisionRequest Answer(
         DecisionRequestId decisionRequestId,
@@ -152,6 +171,24 @@ public sealed class DecisionRequestService
                 answered.ClubId,
                 answered.SubjectPlayerId,
                 day);
+        }
+        else if (answered.Kind == DecisionRequestKind.DisciplineRequest)
+        {
+            if (_discipline is null)
+            {
+                throw new InteractionInvariantViolationException(
+                    "Disciplinary action service is required to resolve a discipline decision.");
+            }
+
+            var kind = answered.SelectedOptionCode switch
+            {
+                DecisionRequest.OptionIssueWarning => DisciplinaryActionKind.Warning,
+                DecisionRequest.OptionIssueFine => DisciplinaryActionKind.Fine,
+                DecisionRequest.OptionOfferSupport => DisciplinaryActionKind.Support,
+                _ => throw new InteractionInvariantViolationException(
+                    $"Unsupported discipline option: {answered.SelectedOptionCode}."),
+            };
+            _discipline.ApplyFromDecision(answered, kind, day);
         }
 
         _dialogueSessions?.MarkResolved(decisionRequestId, answered.SelectedOptionCode!, day);
@@ -260,6 +297,12 @@ public sealed class DecisionRequestService
                 [
                     DecisionRequest.OptionAcknowledgeTransferRequest,
                     DecisionRequest.OptionRefuse,
+                ],
+                DecisionRequestKind.DisciplineRequest =>
+                [
+                    DecisionRequest.OptionIssueWarning,
+                    DecisionRequest.OptionIssueFine,
+                    DecisionRequest.OptionOfferSupport,
                 ],
                 _ => Array.Empty<string>(),
             };

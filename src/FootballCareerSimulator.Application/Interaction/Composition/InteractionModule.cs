@@ -1,3 +1,6 @@
+using FootballCareerSimulator.Application.Discipline.Infrastructure;
+using FootballCareerSimulator.Application.Discipline.Ports;
+using FootballCareerSimulator.Application.Discipline.Services;
 using FootballCareerSimulator.Application.Interaction.Infrastructure;
 using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.Interaction.Services;
@@ -13,24 +16,30 @@ public sealed class InteractionModule
     public InteractionModule(
         IDecisionRequestStore decisionRequestStore,
         IDialogueSessionStore dialogueSessionStore,
+        IDisciplinaryActionStore disciplinaryActionStore,
         DecisionRequestService decisions,
         DecisionRequestQueryService queries,
         DialogueOptionGenerationService dialogueOptions,
         DialogueSessionService dialogueSessions,
+        DisciplinaryActionService discipline,
         DecisionRequestTimeAdvanceBlockerSource timeAdvanceBlocker)
     {
         DecisionRequestStore = decisionRequestStore;
         DialogueSessionStore = dialogueSessionStore;
+        DisciplinaryActionStore = disciplinaryActionStore;
         Decisions = decisions;
         Queries = queries;
         DialogueOptions = dialogueOptions;
         DialogueSessions = dialogueSessions;
+        Discipline = discipline;
         TimeAdvanceBlocker = timeAdvanceBlocker;
     }
 
     public IDecisionRequestStore DecisionRequestStore { get; }
 
     public IDialogueSessionStore DialogueSessionStore { get; }
+
+    public IDisciplinaryActionStore DisciplinaryActionStore { get; }
 
     public DecisionRequestService Decisions { get; }
 
@@ -39,6 +48,8 @@ public sealed class InteractionModule
     public DialogueOptionGenerationService DialogueOptions { get; }
 
     public DialogueSessionService DialogueSessions { get; }
+
+    public DisciplinaryActionService Discipline { get; }
 
     public DecisionRequestTimeAdvanceBlockerSource TimeAdvanceBlocker { get; }
 
@@ -51,12 +62,19 @@ public sealed class InteractionModule
         IPromiseStore? promiseStore = null,
         IDialogueSessionStore? dialogueSessionStore = null,
         StartingOpportunityPromiseService? startingOpportunity = null,
-        TransferNeedService? transferNeeds = null)
+        TransferNeedService? transferNeeds = null,
+        IDisciplinaryActionStore? disciplinaryActionStore = null)
     {
         ArgumentNullException.ThrowIfNull(managerCareerStore);
         var store = decisionRequestStore ?? new InMemoryDecisionRequestStore();
         var sessions = dialogueSessionStore ?? new InMemoryDialogueSessionStore();
-        var dialogueOptions = new DialogueOptionGenerationService(store, promiseStore, transferNeeds);
+        var disciplineStore = disciplinaryActionStore ?? new InMemoryDisciplinaryActionStore();
+        var discipline = new DisciplinaryActionService(disciplineStore);
+        var dialogueOptions = new DialogueOptionGenerationService(
+            store,
+            promiseStore,
+            transferNeeds,
+            disciplineStore);
         var dialogueSessionService = new DialogueSessionService(sessions);
         var decisions = new DecisionRequestService(
             store,
@@ -67,16 +85,19 @@ public sealed class InteractionModule
             dialogueOptions,
             dialogueSessionService,
             startingOpportunity,
-            transferNeeds);
+            transferNeeds,
+            discipline);
         var queries = new DecisionRequestQueryService(store);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
         return new InteractionModule(
             store,
             sessions,
+            disciplineStore,
             decisions,
             queries,
             dialogueOptions,
             dialogueSessionService,
+            discipline,
             blocker);
     }
 }

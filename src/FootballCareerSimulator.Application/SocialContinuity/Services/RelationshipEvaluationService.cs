@@ -30,6 +30,10 @@ public sealed class RelationshipEvaluationService
     public const string DecisionTransferAcknowledgedRuleId = "DecisionTransferAcknowledged";
     public const string DecisionTransferRefusedRuleId = "DecisionTransferRefused";
     public const string DecisionTransferExpiredRuleId = "DecisionTransferExpired";
+    public const string DecisionDisciplineWarningRuleId = "DecisionDisciplineWarning";
+    public const string DecisionDisciplineFineRuleId = "DecisionDisciplineFine";
+    public const string DecisionDisciplineSupportRuleId = "DecisionDisciplineSupport";
+    public const string DecisionDisciplineExpiredRuleId = "DecisionDisciplineExpired";
     public const int RuleVersion = 1;
 
     private readonly IRelationshipStore _store;
@@ -183,6 +187,7 @@ public sealed class RelationshipEvaluationService
             DecisionRequestKind.PlayingTimeRequest => ApplyPlayingTimeDecision(request, day),
             DecisionRequestKind.StartingOpportunityRequest => ApplyStartingOpportunityDecision(request, day),
             DecisionRequestKind.TransferRequest => ApplyTransferDecision(request, day),
+            DecisionRequestKind.DisciplineRequest => ApplyDisciplineDecision(request, day),
             _ => 0,
         };
     }
@@ -297,6 +302,55 @@ public sealed class RelationshipEvaluationService
                     respectDelta: 0,
                     compatibilityDelta: 0,
                     reasonCode: DecisionTransferExpiredRuleId,
+                    day),
+            _ => 0,
+        };
+
+    private int ApplyDisciplineDecision(DecisionRequest request, GameDate day) =>
+        request.Status switch
+        {
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionIssueWarning =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionDisciplineWarningRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -2,
+                    respectDelta: 4,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionDisciplineWarningRuleId,
+                    day),
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionIssueFine =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionDisciplineFineRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -6,
+                    respectDelta: 6,
+                    compatibilityDelta: -2,
+                    reasonCode: DecisionDisciplineFineRuleId,
+                    day),
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionOfferSupport =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionDisciplineSupportRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: 6,
+                    respectDelta: -2,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionDisciplineSupportRuleId,
+                    day),
+            DecisionRequestStatus.Expired =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionDisciplineExpiredRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -6,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionDisciplineExpiredRuleId,
                     day),
             _ => 0,
         };

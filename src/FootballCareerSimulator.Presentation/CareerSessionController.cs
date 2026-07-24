@@ -321,6 +321,11 @@ public sealed class CareerSessionController
             (playerId, day) => Host.InteractionModule.Decisions.OpenTransferRequest(playerId, day),
             "transfer isteği");
 
+    public UiActionResult OpenDisciplineDecisionForOldestSquadPlayer() =>
+        OpenDecisionForOldestSquadPlayer(
+            (playerId, day) => Host.InteractionModule.Decisions.OpenDisciplineRequest(playerId, day),
+            "disiplin görüşmesi");
+
     public UiActionResult AnswerOldestPendingDecision(bool grantPromise)
     {
         try
@@ -357,6 +362,54 @@ public sealed class CareerSessionController
         catch (InteractionInvariantViolationException ex)
         {
             return UiActionResult.Fail($"Karar yanıtlanamadı: {ex.Message}");
+        }
+        catch (SocialContinuityInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Karar/söz hatası: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Karar hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult AnswerOldestPendingWithOption(string optionCode)
+    {
+        try
+        {
+            var pending = Host.InteractionModule.Queries.GetPending(take: 1).OpenRequests.FirstOrDefault()
+                ?? throw new InvalidOperationException("Bekleyen karar yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var dialogue = Host.InteractionModule.DialogueOptions.GetForDecision(
+                new DecisionRequestId(pending.DecisionRequestId));
+            var generated = dialogue.Options.FirstOrDefault(o =>
+                string.Equals(o.OptionCode, optionCode, StringComparison.Ordinal));
+            if (generated is null)
+            {
+                return UiActionResult.Fail("Seçenek diyalog setinde yok.");
+            }
+
+            if (!generated.IsEligible)
+            {
+                return UiActionResult.Fail(
+                    generated.IneligibilityReason ?? "Seçenek şu an uygun değil.");
+            }
+
+            var answered = Host.InteractionModule.Decisions.Answer(
+                new DecisionRequestId(pending.DecisionRequestId),
+                generated.OptionCode,
+                day);
+            return UiActionResult.Ok(
+                $"Karar yanıtlandı: #{answered.DecisionRequestId.Value} → {generated.DisplayText}"
+                + $" ({answered.SelectedOptionCode}).");
+        }
+        catch (InteractionInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Karar yanıtlanamadı: {ex.Message}");
+        }
+        catch (Domain.Discipline.DisciplineInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Disiplin hatası: {ex.Message}");
         }
         catch (SocialContinuityInvariantViolationException ex)
         {

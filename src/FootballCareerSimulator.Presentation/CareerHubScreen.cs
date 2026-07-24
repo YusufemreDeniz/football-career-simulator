@@ -25,8 +25,12 @@ public partial class CareerHubScreen : Control
     private Button _openDecisionButton = null!;
     private Button _openStartingDecisionButton = null!;
     private Button _openTransferDecisionButton = null!;
+    private Button _openDisciplineDecisionButton = null!;
     private Button _grantDecisionButton = null!;
     private Button _refuseDecisionButton = null!;
+    private Button _disciplineWarningButton = null!;
+    private Button _disciplineFineButton = null!;
+    private Button _disciplineSupportButton = null!;
     private Label _transferWindowLabel = null!;
     private Label _transferBudgetLabel = null!;
     private Button _openTransferWindowButton = null!;
@@ -353,12 +357,32 @@ public partial class CareerHubScreen : Control
         _openTransferDecisionButton.Pressed += () =>
             Apply(_controller.OpenTransferDecisionForOldestSquadPlayer());
         decisionRow.AddChild(_openTransferDecisionButton);
+        _openDisciplineDecisionButton = SecondaryButton("Disiplin Aç");
+        _openDisciplineDecisionButton.Pressed += () =>
+            Apply(_controller.OpenDisciplineDecisionForOldestSquadPlayer());
+        decisionRow.AddChild(_openDisciplineDecisionButton);
         _grantDecisionButton = SecondaryButton("Talebi Kabul Et");
         _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
         decisionRow.AddChild(_grantDecisionButton);
         _refuseDecisionButton = SecondaryButton("Talebi Reddet");
         _refuseDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: false));
         decisionRow.AddChild(_refuseDecisionButton);
+
+        var disciplineRow = new HBoxContainer();
+        disciplineRow.AddThemeConstantOverride("separation", 8);
+        page.AddChild(disciplineRow);
+        _disciplineWarningButton = SecondaryButton("Uyarı Ver");
+        _disciplineWarningButton.Pressed += () =>
+            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueWarning));
+        disciplineRow.AddChild(_disciplineWarningButton);
+        _disciplineFineButton = SecondaryButton("Ceza Uygula");
+        _disciplineFineButton.Pressed += () =>
+            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueFine));
+        disciplineRow.AddChild(_disciplineFineButton);
+        _disciplineSupportButton = SecondaryButton("Destekle");
+        _disciplineSupportButton.Pressed += () =>
+            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionOfferSupport));
+        disciplineRow.AddChild(_disciplineSupportButton);
         return page;
     }
 
@@ -1265,6 +1289,9 @@ public partial class CareerHubScreen : Control
             _decisionLabel.Text = "Kararlar: bekleyen zorunlu karar yok.";
             _grantDecisionButton.Disabled = true;
             _refuseDecisionButton.Disabled = true;
+            _disciplineWarningButton.Disabled = true;
+            _disciplineFineButton.Disabled = true;
+            _disciplineSupportButton.Disabled = true;
             _grantDecisionButton.Text = "Talebi Kabul Et";
             _refuseDecisionButton.Text = "Talebi Reddet";
             return;
@@ -1274,9 +1301,19 @@ public partial class CareerHubScreen : Control
         var options = _controller.Host.InteractionModule.DialogueOptions.GetForDecision(
             new Domain.Interaction.DecisionRequestId(first.DecisionRequestId));
         var grant = options.Options.FirstOrDefault(o =>
-            o.OptionCode != Domain.Interaction.DecisionRequest.OptionRefuse);
+            o.OptionCode != Domain.Interaction.DecisionRequest.OptionRefuse
+            && o.OptionCode is not (
+                Domain.Interaction.DecisionRequest.OptionIssueWarning
+                or Domain.Interaction.DecisionRequest.OptionIssueFine
+                or Domain.Interaction.DecisionRequest.OptionOfferSupport));
         var refuse = options.Options.FirstOrDefault(o =>
             o.OptionCode == Domain.Interaction.DecisionRequest.OptionRefuse);
+        var warning = options.Options.FirstOrDefault(o =>
+            o.OptionCode == Domain.Interaction.DecisionRequest.OptionIssueWarning);
+        var fine = options.Options.FirstOrDefault(o =>
+            o.OptionCode == Domain.Interaction.DecisionRequest.OptionIssueFine);
+        var support = options.Options.FirstOrDefault(o =>
+            o.OptionCode == Domain.Interaction.DecisionRequest.OptionOfferSupport);
 
         if (grant is not null)
         {
@@ -1297,6 +1334,10 @@ public partial class CareerHubScreen : Control
         {
             _refuseDecisionButton.Disabled = true;
         }
+
+        _disciplineWarningButton.Disabled = warning is null || !warning.IsEligible;
+        _disciplineFineButton.Disabled = fine is null || !fine.IsEligible;
+        _disciplineSupportButton.Disabled = support is null || !support.IsEligible;
 
         var optionPreview = string.Join(
             " | ",
