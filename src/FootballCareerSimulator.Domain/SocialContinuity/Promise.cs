@@ -7,12 +7,13 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.SocialContinuity;
 
 /// <summary>
-/// Sosyal Continuity söz kaydı. MVP iskelet: yalnızca Starting Opportunity (ilk 11 sayısı + deadline).
+/// Sosyal Continuity söz kaydı.
+/// MVP: Starting Opportunity (ilk 11) + Playing Time (maç günü kadrosu: XI ∪ yedek).
 /// </summary>
 public sealed class Promise
 {
-    public const int MinTargetStarts = 1;
-    public const int MaxTargetStarts = 50;
+    public const int MinTargetCount = 1;
+    public const int MaxTargetCount = 50;
 
     private readonly HashSet<long> _countedFixtureIds;
 
@@ -54,8 +55,10 @@ public sealed class Promise
 
     public ClubId ClubId { get; }
 
+    /// <summary>Count-based hedef (ilk 11 veya maç günü görünümü).</summary>
     public int TargetStarts { get; }
 
+    /// <summary>Count-based ilerleme.</summary>
     public int StartsGiven { get; }
 
     public GameDate DeadlineOn { get; }
@@ -80,29 +83,34 @@ public sealed class Promise
         ClubId clubId,
         int targetStarts,
         GameDate deadlineOn,
-        GameDate createdOn)
-    {
-        ValidateTargetStarts(targetStarts);
-        if (deadlineOn.DayNumber <= createdOn.DayNumber)
-        {
-            throw new SocialContinuityInvariantViolationException(
-                "Starting opportunity deadline must be after creation day.");
-        }
-
-        return new Promise(
+        GameDate createdOn) =>
+        CreateCountBased(
             promiseId,
             PromiseKind.StartingOpportunity,
-            new ActorRef(ActorKind.Manager, managerId.Value),
-            new ActorRef(ActorKind.Player, playerId.Value),
+            managerId,
+            playerId,
             clubId,
             targetStarts,
-            startsGiven: 0,
             deadlineOn,
-            createdOn,
-            PromiseStatus.Active,
-            terminalOn: null,
-            Array.Empty<long>());
-    }
+            createdOn);
+
+    public static Promise CreatePlayingTime(
+        PromiseId promiseId,
+        ManagerId managerId,
+        PlayerId playerId,
+        ClubId clubId,
+        int targetAppearances,
+        GameDate deadlineOn,
+        GameDate createdOn) =>
+        CreateCountBased(
+            promiseId,
+            PromiseKind.PlayingTime,
+            managerId,
+            playerId,
+            clubId,
+            targetAppearances,
+            deadlineOn,
+            createdOn);
 
     public static Promise Rehydrate(
         PromiseId promiseId,
@@ -129,11 +137,11 @@ public sealed class Promise
             throw new SocialContinuityInvariantViolationException($"Unknown promise status: {status}.");
         }
 
-        ValidateTargetStarts(targetStarts);
-        if (startsGiven < 0 || startsGiven > MaxTargetStarts)
+        ValidateTargetCount(targetStarts);
+        if (startsGiven < 0 || startsGiven > MaxTargetCount)
         {
             throw new SocialContinuityInvariantViolationException(
-                $"Starts given must be between 0 and {MaxTargetStarts}.");
+                $"Progress count must be between 0 and {MaxTargetCount}.");
         }
 
         if (status == PromiseStatus.Active && terminalOn is not null)
@@ -164,51 +172,11 @@ public sealed class Promise
             countedFixtureIds);
     }
 
-    public Promise RecordStartingAppearance(FixtureId fixtureId, GameDate day)
-    {
-        if (Status != PromiseStatus.Active || Kind != PromiseKind.StartingOpportunity)
-        {
-            return this;
-        }
+    public Promise RecordStartingAppearance(FixtureId fixtureId, GameDate day) =>
+        RecordProgress(fixtureId, day, PromiseKind.StartingOpportunity);
 
-        if (_countedFixtureIds.Contains(fixtureId.Value))
-        {
-            return this;
-        }
-
-        var nextCounted = _countedFixtureIds.Append(fixtureId.Value).ToArray();
-        var nextStarts = StartsGiven + 1;
-        if (nextStarts >= TargetStarts)
-        {
-            return new Promise(
-                PromiseId,
-                Kind,
-                Promisor,
-                Promisee,
-                ClubId,
-                TargetStarts,
-                nextStarts,
-                DeadlineOn,
-                CreatedOn,
-                PromiseStatus.Fulfilled,
-                day,
-                nextCounted);
-        }
-
-        return new Promise(
-            PromiseId,
-            Kind,
-            Promisor,
-            Promisee,
-            ClubId,
-            TargetStarts,
-            nextStarts,
-            DeadlineOn,
-            CreatedOn,
-            PromiseStatus.Active,
-            terminalOn: null,
-            nextCounted);
-    }
+    public Promise RecordMatchAppearance(FixtureId fixtureId, GameDate day) =>
+        RecordProgress(fixtureId, day, PromiseKind.PlayingTime);
 
     public Promise EvaluateDeadline(GameDate day)
     {
@@ -269,12 +237,90 @@ public sealed class Promise
             _countedFixtureIds);
     }
 
-    private static void ValidateTargetStarts(int targetStarts)
+    private Promise RecordProgress(FixtureId fixtureId, GameDate day, PromiseKind expectedKind)
     {
-        if (targetStarts is < MinTargetStarts or > MaxTargetStarts)
+        if (Status != PromiseStatus.Active || Kind != expectedKind)
+        {
+            return this;
+        }
+
+        if (_countedFixtureIds.Contains(fixtureId.Value))
+        {
+            return this;
+        }
+
+        var nextCounted = _countedFixtureIds.Append(fixtureId.Value).ToArray();
+        var nextCount = StartsGiven + 1;
+        if (nextCount >= TargetStarts)
+        {
+            return new Promise(
+                PromiseId,
+                Kind,
+                Promisor,
+                Promisee,
+                ClubId,
+                TargetStarts,
+                nextCount,
+                DeadlineOn,
+                CreatedOn,
+                PromiseStatus.Fulfilled,
+                day,
+                nextCounted);
+        }
+
+        return new Promise(
+            PromiseId,
+            Kind,
+            Promisor,
+            Promisee,
+            ClubId,
+            TargetStarts,
+            nextCount,
+            DeadlineOn,
+            CreatedOn,
+            PromiseStatus.Active,
+            terminalOn: null,
+            nextCounted);
+    }
+
+    private static Promise CreateCountBased(
+        PromiseId promiseId,
+        PromiseKind kind,
+        ManagerId managerId,
+        PlayerId playerId,
+        ClubId clubId,
+        int targetCount,
+        GameDate deadlineOn,
+        GameDate createdOn)
+    {
+        ValidateTargetCount(targetCount);
+        if (deadlineOn.DayNumber <= createdOn.DayNumber)
         {
             throw new SocialContinuityInvariantViolationException(
-                $"Target starts must be between {MinTargetStarts} and {MaxTargetStarts}.");
+                "Promise deadline must be after creation day.");
+        }
+
+        return new Promise(
+            promiseId,
+            kind,
+            new ActorRef(ActorKind.Manager, managerId.Value),
+            new ActorRef(ActorKind.Player, playerId.Value),
+            clubId,
+            targetCount,
+            startsGiven: 0,
+            deadlineOn,
+            createdOn,
+            PromiseStatus.Active,
+            terminalOn: null,
+            Array.Empty<long>());
+    }
+
+    private static void ValidateTargetCount(int targetCount)
+    {
+        if (targetCount is < MinTargetCount or > MaxTargetCount)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                $"Target count must be between {MinTargetCount} and {MaxTargetCount}.");
         }
     }
 }

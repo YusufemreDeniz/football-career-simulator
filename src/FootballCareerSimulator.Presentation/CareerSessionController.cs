@@ -267,6 +267,44 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult PromisePlayingTimeToOldestSquadPlayer()
+    {
+        try
+        {
+            var career = Host.ManagerModule.Store.Career;
+            var clubId = career.ActiveEmployment?.ClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(clubId, day);
+            var squad = Host.TeamPreparationModule.SquadStore.Get(clubId)
+                ?? throw new InvalidOperationException("Kadro yok.");
+            var member = squad.Members.OrderBy(m => m.SlotIndex).FirstOrDefault()
+                ?? throw new InvalidOperationException("Kadroda oyuncu yok.");
+
+            var promise = Host.SocialContinuityModule.PlayingTime.Create(
+                career.ManagerId,
+                member.PlayerId,
+                clubId,
+                targetAppearances: 5,
+                deadlineOn: day.AddDays(45),
+                createdOn: day);
+
+            return UiActionResult.Ok(
+                $"Oyun süresi sözü verildi: oyuncu #{member.PlayerId.Value}"
+                + $" · hedef {promise.TargetStarts} maç günü"
+                + $" · son gün {promise.DeadlineOn.DayNumber}"
+                + $" · söz #{promise.PromiseId.Value}.");
+        }
+        catch (SocialContinuityInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Söz verilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Söz hatası: {ex.Message}");
+        }
+    }
+
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>
         Host.TrainingModule.Queries.GetManagedClubSummary();
 

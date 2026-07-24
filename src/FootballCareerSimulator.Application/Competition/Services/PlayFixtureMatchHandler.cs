@@ -34,6 +34,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly ITacticPlanStore? _tacticPlanStore;
     private readonly IClubSquadStore? _clubSquadStore;
     private readonly StartingOpportunityPromiseService? _startingOpportunityPromises;
+    private readonly PlayingTimePromiseService? _playingTimePromises;
     private readonly SelectionMemoryService? _selectionMemory;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
@@ -49,7 +50,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         ITacticPlanStore? tacticPlanStore = null,
         IClubSquadStore? clubSquadStore = null,
         StartingOpportunityPromiseService? startingOpportunityPromises = null,
-        SelectionMemoryService? selectionMemory = null)
+        SelectionMemoryService? selectionMemory = null,
+        PlayingTimePromiseService? playingTimePromises = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -63,6 +65,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _clubSquadStore = clubSquadStore;
         _startingOpportunityPromises = startingOpportunityPromises;
         _selectionMemory = selectionMemory;
+        _playingTimePromises = playingTimePromises;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -361,7 +364,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
     private void ApplySocialContinuityAfterMatch(Fixture fixture, GameDate day)
     {
-        if (_startingOpportunityPromises is null && _selectionMemory is null)
+        if (_startingOpportunityPromises is null
+            && _playingTimePromises is null
+            && _selectionMemory is null)
         {
             return;
         }
@@ -372,19 +377,47 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
     private void ApplySocialContinuityForClub(FixtureId fixtureId, ClubId clubId, GameDate day)
     {
-        var playerIds = ResolveStartingPlayerIds(fixtureId, clubId);
-        _startingOpportunityPromises?.RecordStartsForPlayers(fixtureId, clubId, playerIds, day);
-        _selectionMemory?.RecordStarts(fixtureId, playerIds, day);
+        var startingIds = ResolvePlayerIdsForSlots(
+            fixtureId,
+            clubId,
+            ResolveStartingSlots(fixtureId, clubId));
+        var participantIds = ResolvePlayerIdsForSlots(
+            fixtureId,
+            clubId,
+            ResolveMatchdaySlots(fixtureId, clubId));
+
+        _startingOpportunityPromises?.RecordStartsForPlayers(fixtureId, clubId, startingIds, day);
+        _playingTimePromises?.RecordAppearancesForPlayers(fixtureId, clubId, participantIds, day);
+        _selectionMemory?.RecordStarts(fixtureId, startingIds, day);
     }
 
-    private IReadOnlyList<PlayerId> ResolveStartingPlayerIds(FixtureId fixtureId, ClubId clubId)
+    private IReadOnlyList<int> ResolveStartingSlots(FixtureId fixtureId, ClubId clubId)
     {
         var selection = _matchSelectionStore?.Get(fixtureId, clubId);
-        var startingSlots = selection?.StartingSlotIndices
+        return selection?.StartingSlotIndices
             ?? Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
+    }
 
+    private IReadOnlyList<int> ResolveMatchdaySlots(FixtureId fixtureId, ClubId clubId)
+    {
+        var selection = _matchSelectionStore?.Get(fixtureId, clubId);
+        if (selection is null)
+        {
+            return Enumerable.Range(0, MatchSelection.StartingXiSize + MatchSelection.MaxBenchSize)
+                .ToArray();
+        }
+
+        return selection.StartingSlotIndices.Concat(selection.BenchSlotIndices).ToArray();
+    }
+
+    private IReadOnlyList<PlayerId> ResolvePlayerIdsForSlots(
+        FixtureId fixtureId,
+        ClubId clubId,
+        IReadOnlyList<int> slots)
+    {
+        _ = fixtureId;
         var squad = _clubSquadStore?.Get(clubId);
-        return startingSlots
+        return slots
             .Select(slot =>
             {
                 var member = squad?.Members.FirstOrDefault(m => m.SlotIndex == slot);

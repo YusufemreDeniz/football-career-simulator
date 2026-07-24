@@ -37,6 +37,7 @@ public partial class CareerHubScreen : Control
     private Button _acceptOfferButton = null!;
     private Button _signFreeAgentButton = null!;
     private Button _promiseStartButton = null!;
+    private Button _promisePlayingTimeButton = null!;
     private Button _refreshTransferNeedsButton = null!;
     private Button _declareTransferNeedButton = null!;
     private Button _closeTransferNeedButton = null!;
@@ -316,6 +317,10 @@ public partial class CareerHubScreen : Control
         _promiseStartButton = SecondaryButton("İlk 11 Sözü Ver");
         _promiseStartButton.Pressed += () => Apply(_controller.PromiseStartingOpportunityToOldestSquadPlayer());
         jobRow.AddChild(_promiseStartButton);
+
+        _promisePlayingTimeButton = SecondaryButton("Oyun Süresi Sözü");
+        _promisePlayingTimeButton.Pressed += () => Apply(_controller.PromisePlayingTimeToOldestSquadPlayer());
+        jobRow.AddChild(_promisePlayingTimeButton);
         return page;
     }
 

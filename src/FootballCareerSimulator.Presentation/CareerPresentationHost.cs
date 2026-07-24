@@ -135,7 +135,8 @@ public sealed class CareerPresentationHost
             teamPreparation.TacticPlanStore,
             teamPreparation.SquadStore,
             socialContinuity.StartingOpportunity,
-            socialContinuity.SelectionMemory);
+            socialContinuity.SelectionMemory,
+            socialContinuity.PlayingTime);
         clubModule.BindWageBudget(contractModule.Store);
         var transferModule = TransferModule.Create(
             contractModule.Store,
