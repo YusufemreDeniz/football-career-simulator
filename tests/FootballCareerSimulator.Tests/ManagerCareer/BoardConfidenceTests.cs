@@ -172,10 +172,11 @@ public sealed class BoardConfidenceTests : IDisposable
             Array.Empty<Domain.Transfer.TransferProcess>(),
             Array.Empty<Domain.Transfer.ClubOffer>(),
             Array.Empty<Domain.Transfer.PlayerContractProposal>(),
-            Array.Empty<Domain.SocialContinuity.Promise>());
+            Array.Empty<Domain.SocialContinuity.Promise>(),
+            Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(30, loaded.SchemaVersion);
+        Assert.Equal(31, loaded.SchemaVersion);
         Assert.Equal(
             assessed.Career.ActiveEmployment!.BoardConfidence.Value,
             loaded.ManagerCareer.ActiveEmployment!.BoardConfidence.Value);

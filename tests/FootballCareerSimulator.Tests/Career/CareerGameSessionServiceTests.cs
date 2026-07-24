@@ -71,6 +71,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
         var offers = new Application.Transfer.Infrastructure.InMemoryClubOfferStore();
         var proposals = new Application.Transfer.Infrastructure.InMemoryPlayerContractProposalStore();
         var promises = new Application.SocialContinuity.Infrastructure.InMemoryPromiseStore();
+        var memories = new Application.SocialContinuity.Infrastructure.InMemoryMemoryStore();
         return new CareerGameSessionService(
             world.TimelineStore,
             competition.Store,
@@ -86,6 +87,7 @@ public sealed class CareerGameSessionServiceTests : IDisposable
             offers,
             proposals,
             promises,
+            memories,
             training.Store,
             playerCareer.Store,
             contracts.Store,

@@ -124,10 +124,11 @@ public sealed class SportingApprovalTests : IDisposable
             modules.Transfer.ProcessStore.Processes,
             modules.Transfer.OfferStore.Offers,
             modules.Transfer.ProposalStore.Proposals,
-            Array.Empty<Domain.SocialContinuity.Promise>());
+            Array.Empty<Domain.SocialContinuity.Promise>(),
+            Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(30, loaded.SchemaVersion);
+        Assert.Equal(31, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.SportingApproved, loaded.TransferProcesses[0].Status);
     }

@@ -405,7 +405,50 @@ public static class CareerCanonicalStateHasher
         IReadOnlyList<TransferProcess> transferProcesses,
         IReadOnlyList<ClubOffer> clubOffers,
         IReadOnlyList<PlayerContractProposal> contractProposals,
-        IReadOnlyList<Promise> promises)
+        IReadOnlyList<Promise> promises) =>
+        ComputeHash(
+            timeline,
+            league,
+            clubRegistry,
+            managerCareer,
+            matchSelections,
+            trainingPlans,
+            physicalStates,
+            playerCareers,
+            contracts,
+            clubSquads,
+            freeAgents,
+            tacticPlans,
+            transferNeeds,
+            shortlistEntries,
+            transferTargets,
+            transferProcesses,
+            clubOffers,
+            contractProposals,
+            promises,
+            Array.Empty<MemoryRecord>());
+
+    public static string ComputeHash(
+        WorldTimeline timeline,
+        LeagueCompetition league,
+        LeagueClubRegistry clubRegistry,
+        ManagerCareerState managerCareer,
+        IReadOnlyList<MatchSelection> matchSelections,
+        IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
+        IReadOnlyList<PlayerPhysicalState> physicalStates,
+        IReadOnlyList<PlayerCareerAggregate> playerCareers,
+        IReadOnlyList<PlayerContract> contracts,
+        IReadOnlyList<ClubSquad> clubSquads,
+        IReadOnlyList<PlayerFreeAgency> freeAgents,
+        IReadOnlyList<TacticPlan> tacticPlans,
+        IReadOnlyList<TransferNeed> transferNeeds,
+        IReadOnlyList<ShortlistEntry> shortlistEntries,
+        IReadOnlyList<TransferTarget> transferTargets,
+        IReadOnlyList<TransferProcess> transferProcesses,
+        IReadOnlyList<ClubOffer> clubOffers,
+        IReadOnlyList<PlayerContractProposal> contractProposals,
+        IReadOnlyList<Promise> promises,
+        IReadOnlyList<MemoryRecord> memories)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -426,6 +469,7 @@ public static class CareerCanonicalStateHasher
         ArgumentNullException.ThrowIfNull(clubOffers);
         ArgumentNullException.ThrowIfNull(contractProposals);
         ArgumentNullException.ThrowIfNull(promises);
+        ArgumentNullException.ThrowIfNull(memories);
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -460,7 +504,9 @@ public static class CareerCanonicalStateHasher
             "|",
             PlayerContractProposalCanonicalStateHasher.BuildCanonicalText(contractProposals),
             "|",
-            PromiseCanonicalStateHasher.BuildCanonicalText(promises));
+            PromiseCanonicalStateHasher.BuildCanonicalText(promises),
+            "|",
+            MemoryCanonicalStateHasher.BuildCanonicalText(memories));
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

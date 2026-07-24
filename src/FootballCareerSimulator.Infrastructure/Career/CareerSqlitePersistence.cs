@@ -39,7 +39,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<TransferProcess> transferProcesses,
         IReadOnlyList<ClubOffer> clubOffers,
         IReadOnlyList<PlayerContractProposal> contractProposals,
-        IReadOnlyList<Promise> promises)
+        IReadOnlyList<Promise> promises,
+        IReadOnlyList<MemoryRecord> memories)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -61,6 +62,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(clubOffers);
         ArgumentNullException.ThrowIfNull(contractProposals);
         ArgumentNullException.ThrowIfNull(promises);
+        ArgumentNullException.ThrowIfNull(memories);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -81,7 +83,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             transferProcesses,
             clubOffers,
             contractProposals,
-            promises);
+            promises,
+            memories);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -115,6 +118,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertClubOffers(connection, transaction, clubOffers);
             InsertPlayerContractProposals(connection, transaction, contractProposals);
             InsertPromises(connection, transaction, promises);
+            InsertMemories(connection, transaction, memories);
 
             transaction.Commit();
         }
@@ -349,6 +353,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV29ToV30InPlace(filePath);
             wasMigrated = true;
             version = 30;
+        }
+
+        if (version == 30 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 31)
+        {
+            WorldCalendarSqliteMigrator.MigrateV30ToV31InPlace(filePath);
+            wasMigrated = true;
+            version = 31;
         }
 
         if (wasMigrated)
@@ -660,6 +671,29 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 Status INTEGER NOT NULL,
                 TerminalDayNumber INTEGER NULL,
                 CountedFixtureIdsCsv TEXT NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE MemoryState (
+                MemoryId INTEGER PRIMARY KEY,
+                RememberingActorKind INTEGER NOT NULL,
+                RememberingActorId INTEGER NOT NULL,
+                SubjectKind INTEGER NOT NULL,
+                SubjectId INTEGER NOT NULL,
+                SourceEventKey TEXT NOT NULL,
+                Category INTEGER NOT NULL,
+                CreatedDayNumber INTEGER NOT NULL,
+                LastReinforcedDayNumber INTEGER NOT NULL,
+                BaseImportance INTEGER NOT NULL,
+                CurrentInfluence INTEGER NOT NULL,
+                Valence INTEGER NOT NULL,
+                Visibility INTEGER NOT NULL,
+                Status INTEGER NOT NULL,
+                ReinforcementCount INTEGER NOT NULL,
+                RelatedPromiseId INTEGER NULL,
+                RuleId TEXT NOT NULL,
+                RuleVersion INTEGER NOT NULL
             );
             """);
     }
@@ -1341,6 +1375,51 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertMemories(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<MemoryRecord> memories)
+    {
+        foreach (var memory in memories)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO MemoryState (
+                    MemoryId, RememberingActorKind, RememberingActorId, SubjectKind, SubjectId,
+                    SourceEventKey, Category, CreatedDayNumber, LastReinforcedDayNumber,
+                    BaseImportance, CurrentInfluence, Valence, Visibility, Status,
+                    ReinforcementCount, RelatedPromiseId, RuleId, RuleVersion)
+                VALUES (
+                    $memoryId, $actorKind, $actorId, $subjectKind, $subjectId,
+                    $sourceKey, $category, $created, $reinforced,
+                    $baseImportance, $currentInfluence, $valence, $visibility, $status,
+                    $reinforcement, $relatedPromise, $ruleId, $ruleVersion);
+                """;
+            command.Parameters.AddWithValue("$memoryId", memory.MemoryId.Value);
+            command.Parameters.AddWithValue("$actorKind", (int)memory.RememberingActor.Kind);
+            command.Parameters.AddWithValue("$actorId", memory.RememberingActor.Id);
+            command.Parameters.AddWithValue("$subjectKind", (int)memory.SubjectKind);
+            command.Parameters.AddWithValue("$subjectId", memory.SubjectId);
+            command.Parameters.AddWithValue("$sourceKey", memory.SourceEventKey);
+            command.Parameters.AddWithValue("$category", (int)memory.Category);
+            command.Parameters.AddWithValue("$created", memory.CreatedOn.DayNumber);
+            command.Parameters.AddWithValue("$reinforced", memory.LastReinforcedOn.DayNumber);
+            command.Parameters.AddWithValue("$baseImportance", memory.BaseImportance);
+            command.Parameters.AddWithValue("$currentInfluence", memory.CurrentInfluence);
+            command.Parameters.AddWithValue("$valence", (int)memory.Valence);
+            command.Parameters.AddWithValue("$visibility", (int)memory.Visibility);
+            command.Parameters.AddWithValue("$status", (int)memory.Status);
+            command.Parameters.AddWithValue("$reinforcement", memory.ReinforcementCount);
+            command.Parameters.AddWithValue(
+                "$relatedPromise",
+                (object?)memory.RelatedPromiseId?.Value ?? DBNull.Value);
+            command.Parameters.AddWithValue("$ruleId", memory.RuleId);
+            command.Parameters.AddWithValue("$ruleVersion", memory.RuleVersion);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static (int Version, bool IsLegacySpikeSave) ReadSchemaMetadata(string filePath)
     {
         try
@@ -1415,6 +1494,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var clubOffers = ReadClubOffers(connection);
         var contractProposals = ReadPlayerContractProposals(connection);
         var promises = ReadPromises(connection);
+        var memories = ReadMemories(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1434,7 +1514,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             transferProcesses,
             clubOffers,
             contractProposals,
-            promises);
+            promises,
+            memories);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1476,6 +1557,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<ClubOffer> clubOffers;
             IReadOnlyList<PlayerContractProposal> contractProposals;
             IReadOnlyList<Promise> promises;
+            IReadOnlyList<MemoryRecord> memories;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1506,6 +1588,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 clubOffers = ReadClubOffers(connection);
                 contractProposals = ReadPlayerContractProposals(connection);
                 promises = ReadPromises(connection);
+                memories = ReadMemories(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1529,7 +1612,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 transferProcesses,
                 clubOffers,
                 contractProposals,
-                promises);
+                promises,
+                memories);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1556,6 +1640,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 clubOffers,
                 contractProposals,
                 promises,
+                memories,
                 schemaVersion,
                 wasMigrated);
         }
@@ -2327,6 +2412,52 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return promises;
+    }
+
+    private static IReadOnlyList<MemoryRecord> ReadMemories(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "MemoryState"))
+        {
+            return Array.Empty<MemoryRecord>();
+        }
+
+        var memories = new List<MemoryRecord>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT MemoryId, RememberingActorKind, RememberingActorId, SubjectKind, SubjectId,
+                   SourceEventKey, Category, CreatedDayNumber, LastReinforcedDayNumber,
+                   BaseImportance, CurrentInfluence, Valence, Visibility, Status,
+                   ReinforcementCount, RelatedPromiseId, RuleId, RuleVersion
+            FROM MemoryState
+            ORDER BY MemoryId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            PromiseId? relatedPromise = reader.IsDBNull(15)
+                ? null
+                : new PromiseId(reader.GetInt64(15));
+            memories.Add(MemoryRecord.Rehydrate(
+                new MemoryId(reader.GetInt64(0)),
+                new ActorRef((ActorKind)reader.GetInt32(1), reader.GetInt64(2)),
+                (MemorySubjectKind)reader.GetInt32(3),
+                reader.GetInt64(4),
+                reader.GetString(5),
+                (MemoryCategory)reader.GetInt32(6),
+                GameDate.FromDayNumber(reader.GetInt32(7)),
+                GameDate.FromDayNumber(reader.GetInt32(8)),
+                reader.GetInt32(9),
+                reader.GetInt32(10),
+                (MemoryValence)reader.GetInt32(11),
+                (MemoryVisibility)reader.GetInt32(12),
+                (MemoryStatus)reader.GetInt32(13),
+                reader.GetInt32(14),
+                relatedPromise,
+                reader.GetString(16),
+                reader.GetInt32(17)));
+        }
+
+        return memories;
     }
 
     private static IReadOnlyList<long> ParseLongCsv(string csv)

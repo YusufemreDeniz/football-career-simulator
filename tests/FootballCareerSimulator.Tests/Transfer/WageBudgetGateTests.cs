@@ -97,7 +97,7 @@ public sealed class WageBudgetGateTests : IDisposable
     }
 
     [Fact]
-    public void SaveLoad_PreservesWageBudgetAtSchemaV30()
+    public void SaveLoad_PreservesWageBudgetAtSchemaV31()
     {
         var clubs = ClubGovernanceModule.CreateMvpLeague();
         clubs.Store.Replace(
@@ -127,10 +127,11 @@ public sealed class WageBudgetGateTests : IDisposable
             Array.Empty<TransferProcess>(),
             Array.Empty<ClubOffer>(),
             Array.Empty<PlayerContractProposal>(),
-            Array.Empty<Domain.SocialContinuity.Promise>());
+            Array.Empty<Domain.SocialContinuity.Promise>(),
+            Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(30, loaded.SchemaVersion);
+        Assert.Equal(31, loaded.SchemaVersion);
         var club = loaded.ClubRegistry.GetClubOrThrow(new ClubId(1));
         Assert.Equal(12_000, club.ReservedWeeklyWage);
         Assert.Equal(Club.DefaultWageBudgetLimit(club.SportiveStrength), club.WageBudgetLimit);

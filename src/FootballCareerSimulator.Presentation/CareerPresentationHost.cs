@@ -178,6 +178,7 @@ public sealed class CareerPresentationHost
             transferModule.OfferStore,
             transferModule.ProposalStore,
             socialContinuity.PromiseStore,
+            socialContinuity.MemoryStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,

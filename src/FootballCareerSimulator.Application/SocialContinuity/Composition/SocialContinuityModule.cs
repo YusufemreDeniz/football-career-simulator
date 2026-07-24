@@ -8,19 +8,32 @@ public sealed class SocialContinuityModule
 {
     public SocialContinuityModule(
         IPromiseStore promiseStore,
-        StartingOpportunityPromiseService startingOpportunity)
+        IMemoryStore memoryStore,
+        StartingOpportunityPromiseService startingOpportunity,
+        PromiseMemoryService promiseMemory)
     {
         PromiseStore = promiseStore;
+        MemoryStore = memoryStore;
         StartingOpportunity = startingOpportunity;
+        PromiseMemory = promiseMemory;
     }
 
     public IPromiseStore PromiseStore { get; }
 
+    public IMemoryStore MemoryStore { get; }
+
     public StartingOpportunityPromiseService StartingOpportunity { get; }
 
-    public static SocialContinuityModule Create(IPromiseStore? promiseStore = null)
+    public PromiseMemoryService PromiseMemory { get; }
+
+    public static SocialContinuityModule Create(
+        IPromiseStore? promiseStore = null,
+        IMemoryStore? memoryStore = null)
     {
-        var store = promiseStore ?? new InMemoryPromiseStore();
-        return new SocialContinuityModule(store, new StartingOpportunityPromiseService(store));
+        var promises = promiseStore ?? new InMemoryPromiseStore();
+        var memories = memoryStore ?? new InMemoryMemoryStore();
+        var promiseMemory = new PromiseMemoryService(memories);
+        var startingOpportunity = new StartingOpportunityPromiseService(promises, promiseMemory);
+        return new SocialContinuityModule(promises, memories, startingOpportunity, promiseMemory);
     }
 }

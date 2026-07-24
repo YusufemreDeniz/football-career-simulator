@@ -11,10 +11,14 @@ namespace FootballCareerSimulator.Application.SocialContinuity.Services;
 public sealed class StartingOpportunityPromiseService
 {
     private readonly IPromiseStore _store;
+    private readonly PromiseMemoryService? _promiseMemory;
 
-    public StartingOpportunityPromiseService(IPromiseStore store)
+    public StartingOpportunityPromiseService(
+        IPromiseStore store,
+        PromiseMemoryService? promiseMemory = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _promiseMemory = promiseMemory;
     }
 
     public Promise Create(
@@ -82,6 +86,7 @@ public sealed class StartingOpportunityPromiseService
             {
                 _store.Upsert(next);
                 updated++;
+                TryRecordMemory(next, day);
             }
         }
 
@@ -98,9 +103,13 @@ public sealed class StartingOpportunityPromiseService
             {
                 _store.Upsert(next);
                 resolved++;
+                TryRecordMemory(next, day);
             }
         }
 
         return resolved;
     }
+
+    private void TryRecordMemory(Promise promise, GameDate day) =>
+        _promiseMemory?.RecordOutcome(promise, day);
 }

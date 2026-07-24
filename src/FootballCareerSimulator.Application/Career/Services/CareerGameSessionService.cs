@@ -29,6 +29,7 @@ public sealed class CareerGameSessionService
     private readonly IClubOfferStore _clubOfferStore;
     private readonly IPlayerContractProposalStore _playerContractProposalStore;
     private readonly IPromiseStore _promiseStore;
+    private readonly IMemoryStore _memoryStore;
     private readonly ITrainingPhysicalStateStore _trainingStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly IContractStore _contractStore;
@@ -51,6 +52,7 @@ public sealed class CareerGameSessionService
         IClubOfferStore clubOfferStore,
         IPlayerContractProposalStore playerContractProposalStore,
         IPromiseStore promiseStore,
+        IMemoryStore memoryStore,
         ITrainingPhysicalStateStore trainingStore,
         IPlayerCareerStore playerCareerStore,
         IContractStore contractStore,
@@ -73,6 +75,7 @@ public sealed class CareerGameSessionService
         _playerContractProposalStore = playerContractProposalStore
             ?? throw new ArgumentNullException(nameof(playerContractProposalStore));
         _promiseStore = promiseStore ?? throw new ArgumentNullException(nameof(promiseStore));
+        _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
         _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
@@ -111,7 +114,8 @@ public sealed class CareerGameSessionService
             _transferProcessStore.Processes,
             _clubOfferStore.Offers,
             _playerContractProposalStore.Proposals,
-            _promiseStore.Promises);
+            _promiseStore.Promises,
+            _memoryStore.Memories);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -145,6 +149,7 @@ public sealed class CareerGameSessionService
         _clubOfferStore.ReplaceAll(loaded.ClubOffers);
         _playerContractProposalStore.ReplaceAll(loaded.ContractProposals);
         _promiseStore.ReplaceAll(loaded.Promises);
+        _memoryStore.ReplaceAll(loaded.Memories);
 
         foreach (var reset in _idempotencyResets)
         {

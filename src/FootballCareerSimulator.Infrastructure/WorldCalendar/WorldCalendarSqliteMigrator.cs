@@ -1829,6 +1829,77 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV30ToV31InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV30ToV31(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V30 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV30ToV31(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                CREATE TABLE IF NOT EXISTS MemoryState (
+                    MemoryId INTEGER PRIMARY KEY,
+                    RememberingActorKind INTEGER NOT NULL,
+                    RememberingActorId INTEGER NOT NULL,
+                    SubjectKind INTEGER NOT NULL,
+                    SubjectId INTEGER NOT NULL,
+                    SourceEventKey TEXT NOT NULL,
+                    Category INTEGER NOT NULL,
+                    CreatedDayNumber INTEGER NOT NULL,
+                    LastReinforcedDayNumber INTEGER NOT NULL,
+                    BaseImportance INTEGER NOT NULL,
+                    CurrentInfluence INTEGER NOT NULL,
+                    Valence INTEGER NOT NULL,
+                    Visibility INTEGER NOT NULL,
+                    Status INTEGER NOT NULL,
+                    ReinforcementCount INTEGER NOT NULL,
+                    RelatedPromiseId INTEGER NULL,
+                    RuleId TEXT NOT NULL,
+                    RuleVersion INTEGER NOT NULL
+                );
+                """);
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 31);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

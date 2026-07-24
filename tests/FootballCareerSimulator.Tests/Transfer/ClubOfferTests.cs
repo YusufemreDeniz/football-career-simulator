@@ -112,10 +112,11 @@ public sealed class ClubOfferTests : IDisposable
             modules.Transfer.ProcessStore.Processes,
             modules.Transfer.OfferStore.Offers,
             modules.Transfer.ProposalStore.Proposals,
-            Array.Empty<Domain.SocialContinuity.Promise>());
+            Array.Empty<Domain.SocialContinuity.Promise>(),
+            Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(30, loaded.SchemaVersion);
+        Assert.Equal(31, loaded.SchemaVersion);
         Assert.Single(loaded.ClubOffers);
         Assert.Equal(6_000_000, loaded.ClubOffers[0].OfferedFee);
         Assert.Equal(ClubOfferStatus.Pending, loaded.ClubOffers[0].Status);

@@ -179,7 +179,8 @@ public sealed class MatchSelectionTests : IDisposable
             Array.Empty<Domain.Transfer.TransferProcess>(),
             Array.Empty<Domain.Transfer.ClubOffer>(),
             Array.Empty<Domain.Transfer.PlayerContractProposal>(),
-            Array.Empty<Domain.SocialContinuity.Promise>());
+            Array.Empty<Domain.SocialContinuity.Promise>(),
+            Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
         Assert.Single(loaded.MatchSelections);

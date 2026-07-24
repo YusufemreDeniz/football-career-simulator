@@ -118,7 +118,8 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
             Array.Empty<Domain.Transfer.TransferProcess>(),
             Array.Empty<Domain.Transfer.ClubOffer>(),
             Array.Empty<Domain.Transfer.PlayerContractProposal>(),
-            Array.Empty<Domain.SocialContinuity.Promise>());
+            Array.Empty<Domain.SocialContinuity.Promise>(),
+            Array.Empty<Domain.SocialContinuity.MemoryRecord>());
         var loaded = _persistence.Load(path);
 
         Assert.False(loaded.WasMigrated);
@@ -173,7 +174,7 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         var loaded = _persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(30, loaded.SchemaVersion);
+        Assert.Equal(31, loaded.SchemaVersion);
         Assert.Empty(loaded.League.Seasons);
         Assert.Equal(1, loaded.League.CompetitionId.Value);
         Assert.Equal(

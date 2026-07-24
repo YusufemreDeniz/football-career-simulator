@@ -182,7 +182,7 @@ public sealed class StartingOpportunityPromiseTests : IDisposable
     }
 
     [Fact]
-    public void SaveLoad_PreservesPromiseAtSchemaV30()
+    public void SaveLoad_PreservesPromiseAtSchemaV31()
     {
         var social = SocialContinuityModule.Create();
         social.StartingOpportunity.Create(
@@ -220,10 +220,11 @@ public sealed class StartingOpportunityPromiseTests : IDisposable
             Array.Empty<Domain.Transfer.TransferProcess>(),
             Array.Empty<Domain.Transfer.ClubOffer>(),
             Array.Empty<Domain.Transfer.PlayerContractProposal>(),
-            social.PromiseStore.Promises);
+            social.PromiseStore.Promises,
+            social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(30, loaded.SchemaVersion);
+        Assert.Equal(31, loaded.SchemaVersion);
         Assert.Single(loaded.Promises);
         Assert.Equal(4, loaded.Promises[0].TargetStarts);
         Assert.Equal(1, loaded.Promises[0].StartsGiven);
