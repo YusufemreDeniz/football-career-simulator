@@ -7,4 +7,5 @@ public enum MemorySubjectKind
     Manager = 3,
     Player = 4,
     TransferProcess = 5,
+    Club = 6,
 }

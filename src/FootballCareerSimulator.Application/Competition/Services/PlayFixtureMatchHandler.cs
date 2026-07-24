@@ -37,6 +37,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly PlayingTimePromiseService? _playingTimePromises;
     private readonly SelectionMemoryService? _selectionMemory;
     private readonly PromiseInvalidationService? _promiseInvalidation;
+    private readonly CareerMemoryService? _careerMemory;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -53,7 +54,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         StartingOpportunityPromiseService? startingOpportunityPromises = null,
         SelectionMemoryService? selectionMemory = null,
         PlayingTimePromiseService? playingTimePromises = null,
-        PromiseInvalidationService? promiseInvalidation = null)
+        PromiseInvalidationService? promiseInvalidation = null,
+        CareerMemoryService? careerMemory = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -69,6 +71,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _selectionMemory = selectionMemory;
         _playingTimePromises = playingTimePromises;
         _promiseInvalidation = promiseInvalidation;
+        _careerMemory = careerMemory;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -212,6 +215,14 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                     managerId,
                     dismissedClub,
                     occurredAt);
+                if (dismissal.WasApplied)
+                {
+                    _careerMemory?.RecordDismissal(
+                        managerId,
+                        dismissedClub,
+                        fixture.Id,
+                        occurredAt);
+                }
             }
         }
 

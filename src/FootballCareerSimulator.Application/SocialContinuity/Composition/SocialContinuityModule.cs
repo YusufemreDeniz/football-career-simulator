@@ -15,6 +15,7 @@ public sealed class SocialContinuityModule
         SelectionMemoryService selectionMemory,
         TrustMemoryService trustMemory,
         TransferMemoryService transferMemory,
+        CareerMemoryService careerMemory,
         PromiseInvalidationService invalidation)
     {
         PromiseStore = promiseStore;
@@ -25,6 +26,7 @@ public sealed class SocialContinuityModule
         SelectionMemory = selectionMemory;
         TrustMemory = trustMemory;
         TransferMemory = transferMemory;
+        CareerMemory = careerMemory;
         Invalidation = invalidation;
     }
 
@@ -44,6 +46,8 @@ public sealed class SocialContinuityModule
 
     public TransferMemoryService TransferMemory { get; }
 
+    public CareerMemoryService CareerMemory { get; }
+
     public PromiseInvalidationService Invalidation { get; }
 
     public static SocialContinuityModule Create(
@@ -56,6 +60,7 @@ public sealed class SocialContinuityModule
         var promiseMemory = new PromiseMemoryService(memories, trustMemory);
         var selectionMemory = new SelectionMemoryService(memories);
         var transferMemory = new TransferMemoryService(memories);
+        var careerMemory = new CareerMemoryService(memories);
         var startingOpportunity = new StartingOpportunityPromiseService(promises, promiseMemory);
         var playingTime = new PlayingTimePromiseService(promises, promiseMemory);
         var invalidation = new PromiseInvalidationService(promises, promiseMemory);
@@ -68,6 +73,7 @@ public sealed class SocialContinuityModule
             selectionMemory,
             trustMemory,
             transferMemory,
+            careerMemory,
             invalidation);
     }
 }

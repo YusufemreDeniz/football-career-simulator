@@ -137,9 +137,11 @@ public sealed class CareerPresentationHost
             socialContinuity.StartingOpportunity,
             socialContinuity.SelectionMemory,
             socialContinuity.PlayingTime,
-            socialContinuity.Invalidation);
+            socialContinuity.Invalidation,
+            socialContinuity.CareerMemory);
         clubModule.BindWageBudget(contractModule.Store);
         contractModule.Registration.BindPromiseInvalidation(socialContinuity.Invalidation);
+        managerModule.AcceptJobOffer?.BindCareerMemory(socialContinuity.CareerMemory);
         var transferModule = TransferModule.Create(
             contractModule.Store,
             teamPreparation.SquadStore,

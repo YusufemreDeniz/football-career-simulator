@@ -6,4 +6,5 @@ public enum MemoryCategory
     Selection = 2,
     Trust = 3,
     Transfer = 4,
+    Career = 5,
 }

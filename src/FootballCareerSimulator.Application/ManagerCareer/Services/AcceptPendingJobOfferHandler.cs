@@ -1,8 +1,10 @@
 using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Commands;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.Shared;
 
 namespace FootballCareerSimulator.Application.ManagerCareer.Services;
 
@@ -11,6 +13,7 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
     private readonly IManagerCareerStore _managerStore;
     private readonly IClubRegistryStore _clubRegistryStore;
     private readonly IWorldTimelineStore _timelineStore;
+    private CareerMemoryService? _careerMemory;
     private readonly Dictionary<Guid, AcceptPendingJobOfferResult> _completed = new();
 
     public AcceptPendingJobOfferHandler(
@@ -22,6 +25,9 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
     }
+
+    public void BindCareerMemory(CareerMemoryService careerMemory) =>
+        _careerMemory = careerMemory ?? throw new ArgumentNullException(nameof(careerMemory));
 
     public AcceptPendingJobOfferResult Handle(AcceptPendingJobOfferCommand command)
     {
@@ -43,6 +49,11 @@ public sealed class AcceptPendingJobOfferHandler : ICommandIdempotencyReset
             SeasonExpectation.FromSportiveStrength(club.SportiveStrength));
 
         _managerStore.Replace(accepted.Career);
+        _careerMemory?.RecordHiring(
+            accepted.Career.ManagerId,
+            new ClubId(accepted.ClubId),
+            new JobOfferId(accepted.OfferId),
+            startedAt);
 
         var result = new AcceptPendingJobOfferResult(true, accepted.OfferId, accepted.ClubId);
         _completed[command.CommandId] = result;

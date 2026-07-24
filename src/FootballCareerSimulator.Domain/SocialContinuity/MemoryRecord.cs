@@ -1,11 +1,13 @@
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Domain.SocialContinuity;
 
 /// <summary>
-/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust / Transfer.
+/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust / Transfer / Career.
 /// </summary>
 public sealed class MemoryRecord
 {
@@ -21,6 +23,10 @@ public sealed class MemoryRecord
     public const int TrustFromPromiseRuleVersion = 1;
     public const string TransferCompletedRuleId = "TransferCompleted";
     public const int TransferCompletedRuleVersion = 1;
+    public const string ManagerDismissedRuleId = "ManagerDismissed";
+    public const int ManagerDismissedRuleVersion = 1;
+    public const string ManagerHiredRuleId = "ManagerHired";
+    public const int ManagerHiredRuleVersion = 1;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
 
@@ -185,6 +191,62 @@ public sealed class MemoryRecord
             promise.PromiseId,
             TrustFromPromiseRuleId,
             TrustFromPromiseRuleVersion);
+    }
+
+    public static MemoryRecord CreateManagerDismissed(
+        MemoryId memoryId,
+        ManagerId managerId,
+        ClubId clubId,
+        FixtureId causationFixtureId,
+        GameDate day)
+    {
+        const int importance = 85;
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Manager, managerId.Value),
+            MemorySubjectKind.Club,
+            clubId.Value,
+            BuildManagerDismissedSourceKey(causationFixtureId, managerId),
+            MemoryCategory.Career,
+            day,
+            day,
+            importance,
+            importance,
+            MemoryValence.Negative,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            ManagerDismissedRuleId,
+            ManagerDismissedRuleVersion);
+    }
+
+    public static MemoryRecord CreateManagerHired(
+        MemoryId memoryId,
+        ManagerId managerId,
+        ClubId clubId,
+        JobOfferId offerId,
+        GameDate day)
+    {
+        const int importance = 70;
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Manager, managerId.Value),
+            MemorySubjectKind.Club,
+            clubId.Value,
+            BuildManagerHiredSourceKey(offerId),
+            MemoryCategory.Career,
+            day,
+            day,
+            importance,
+            importance,
+            MemoryValence.Positive,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            ManagerHiredRuleId,
+            ManagerHiredRuleVersion);
     }
 
     public static MemoryRecord CreateTransferCompleted(
@@ -374,6 +436,12 @@ public sealed class MemoryRecord
 
     public static string BuildTransferCompletedSourceKey(TransferProcessId processId) =>
         $"TransferCompleted:{processId.Value}";
+
+    public static string BuildManagerDismissedSourceKey(FixtureId fixtureId, ManagerId managerId) =>
+        $"ManagerDismissed:{fixtureId.Value}:{managerId.Value}";
+
+    public static string BuildManagerHiredSourceKey(JobOfferId offerId) =>
+        $"ManagerHired:{offerId.Value}";
 
     public static string BuildSelectionStartedSourceKey(FixtureId fixtureId, long playerId) =>
         $"SelectionStarted:{fixtureId.Value}:{playerId}";
