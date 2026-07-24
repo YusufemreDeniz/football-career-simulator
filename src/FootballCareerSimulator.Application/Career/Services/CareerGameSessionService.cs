@@ -30,6 +30,7 @@ public sealed class CareerGameSessionService
     private readonly IPlayerContractProposalStore _playerContractProposalStore;
     private readonly IPromiseStore _promiseStore;
     private readonly IMemoryStore _memoryStore;
+    private readonly IRelationshipStore _relationshipStore;
     private readonly ITrainingPhysicalStateStore _trainingStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly IContractStore _contractStore;
@@ -53,6 +54,7 @@ public sealed class CareerGameSessionService
         IPlayerContractProposalStore playerContractProposalStore,
         IPromiseStore promiseStore,
         IMemoryStore memoryStore,
+        IRelationshipStore relationshipStore,
         ITrainingPhysicalStateStore trainingStore,
         IPlayerCareerStore playerCareerStore,
         IContractStore contractStore,
@@ -76,6 +78,7 @@ public sealed class CareerGameSessionService
             ?? throw new ArgumentNullException(nameof(playerContractProposalStore));
         _promiseStore = promiseStore ?? throw new ArgumentNullException(nameof(promiseStore));
         _memoryStore = memoryStore ?? throw new ArgumentNullException(nameof(memoryStore));
+        _relationshipStore = relationshipStore ?? throw new ArgumentNullException(nameof(relationshipStore));
         _trainingStore = trainingStore ?? throw new ArgumentNullException(nameof(trainingStore));
         _playerCareerStore = playerCareerStore ?? throw new ArgumentNullException(nameof(playerCareerStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
@@ -115,7 +118,8 @@ public sealed class CareerGameSessionService
             _clubOfferStore.Offers,
             _playerContractProposalStore.Proposals,
             _promiseStore.Promises,
-            _memoryStore.Memories);
+            _memoryStore.Memories,
+            _relationshipStore.Relationships);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -150,6 +154,7 @@ public sealed class CareerGameSessionService
         _playerContractProposalStore.ReplaceAll(loaded.ContractProposals);
         _promiseStore.ReplaceAll(loaded.Promises);
         _memoryStore.ReplaceAll(loaded.Memories);
+        _relationshipStore.ReplaceAll(loaded.Relationships);
 
         foreach (var reset in _idempotencyResets)
         {

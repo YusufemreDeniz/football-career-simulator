@@ -40,7 +40,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<ClubOffer> clubOffers,
         IReadOnlyList<PlayerContractProposal> contractProposals,
         IReadOnlyList<Promise> promises,
-        IReadOnlyList<MemoryRecord> memories)
+        IReadOnlyList<MemoryRecord> memories,
+        IReadOnlyList<RelationshipRecord>? relationships = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -63,6 +64,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(contractProposals);
         ArgumentNullException.ThrowIfNull(promises);
         ArgumentNullException.ThrowIfNull(memories);
+        relationships ??= Array.Empty<RelationshipRecord>();
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -84,7 +86,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             clubOffers,
             contractProposals,
             promises,
-            memories);
+            memories,
+            relationships);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -119,6 +122,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertPlayerContractProposals(connection, transaction, contractProposals);
             InsertPromises(connection, transaction, promises);
             InsertMemories(connection, transaction, memories);
+            InsertRelationships(connection, transaction, relationships);
 
             transaction.Commit();
         }
@@ -360,6 +364,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV30ToV31InPlace(filePath);
             wasMigrated = true;
             version = 31;
+        }
+
+        if (version == 31 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 32)
+        {
+            WorldCalendarSqliteMigrator.MigrateV31ToV32InPlace(filePath);
+            wasMigrated = true;
+            version = 32;
         }
 
         if (wasMigrated)
@@ -694,6 +705,24 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 RelatedPromiseId INTEGER NULL,
                 RuleId TEXT NOT NULL,
                 RuleVersion INTEGER NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE RelationshipState (
+                RelationshipId INTEGER PRIMARY KEY,
+                ObserverKind INTEGER NOT NULL,
+                ObserverId INTEGER NOT NULL,
+                SubjectKind INTEGER NOT NULL,
+                SubjectId INTEGER NOT NULL,
+                Trust INTEGER NOT NULL,
+                Respect INTEGER NOT NULL,
+                ProfessionalCompatibility INTEGER NOT NULL,
+                Status INTEGER NOT NULL,
+                CreatedDayNumber INTEGER NOT NULL,
+                LastChangedDayNumber INTEGER NOT NULL,
+                LastChangeReasonCode TEXT NULL,
+                ProcessedEffectKeysCsv TEXT NOT NULL
             );
             """);
     }
@@ -1375,6 +1404,46 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertRelationships(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<RelationshipRecord> relationships)
+    {
+        foreach (var relationship in relationships)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO RelationshipState (
+                    RelationshipId, ObserverKind, ObserverId, SubjectKind, SubjectId,
+                    Trust, Respect, ProfessionalCompatibility, Status,
+                    CreatedDayNumber, LastChangedDayNumber, LastChangeReasonCode, ProcessedEffectKeysCsv)
+                VALUES (
+                    $id, $observerKind, $observerId, $subjectKind, $subjectId,
+                    $trust, $respect, $compatibility, $status,
+                    $created, $changed, $reason, $effects);
+                """;
+            command.Parameters.AddWithValue("$id", relationship.RelationshipId.Value);
+            command.Parameters.AddWithValue("$observerKind", (int)relationship.Observer.Kind);
+            command.Parameters.AddWithValue("$observerId", relationship.Observer.Id);
+            command.Parameters.AddWithValue("$subjectKind", (int)relationship.Subject.Kind);
+            command.Parameters.AddWithValue("$subjectId", relationship.Subject.Id);
+            command.Parameters.AddWithValue("$trust", relationship.Trust);
+            command.Parameters.AddWithValue("$respect", relationship.Respect);
+            command.Parameters.AddWithValue("$compatibility", relationship.ProfessionalCompatibility);
+            command.Parameters.AddWithValue("$status", (int)relationship.Status);
+            command.Parameters.AddWithValue("$created", relationship.CreatedOn.DayNumber);
+            command.Parameters.AddWithValue("$changed", relationship.LastChangedOn.DayNumber);
+            command.Parameters.AddWithValue(
+                "$reason",
+                (object?)relationship.LastChangeReasonCode ?? DBNull.Value);
+            command.Parameters.AddWithValue(
+                "$effects",
+                string.Join(',', relationship.ProcessedEffectKeys.OrderBy(k => k, StringComparer.Ordinal)));
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static void InsertMemories(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1495,6 +1564,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var contractProposals = ReadPlayerContractProposals(connection);
         var promises = ReadPromises(connection);
         var memories = ReadMemories(connection);
+        var relationships = ReadRelationships(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1515,7 +1585,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             clubOffers,
             contractProposals,
             promises,
-            memories);
+            memories,
+            relationships);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1558,6 +1629,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<PlayerContractProposal> contractProposals;
             IReadOnlyList<Promise> promises;
             IReadOnlyList<MemoryRecord> memories;
+            IReadOnlyList<RelationshipRecord> relationships;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1589,6 +1661,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 contractProposals = ReadPlayerContractProposals(connection);
                 promises = ReadPromises(connection);
                 memories = ReadMemories(connection);
+                relationships = ReadRelationships(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1613,7 +1686,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 clubOffers,
                 contractProposals,
                 promises,
-                memories);
+                memories,
+                relationships);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1641,6 +1715,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 contractProposals,
                 promises,
                 memories,
+                relationships,
                 schemaVersion,
                 wasMigrated);
         }
@@ -2460,6 +2535,42 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         return memories;
     }
 
+    private static IReadOnlyList<RelationshipRecord> ReadRelationships(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "RelationshipState"))
+        {
+            return Array.Empty<RelationshipRecord>();
+        }
+
+        var relationships = new List<RelationshipRecord>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT RelationshipId, ObserverKind, ObserverId, SubjectKind, SubjectId,
+                   Trust, Respect, ProfessionalCompatibility, Status,
+                   CreatedDayNumber, LastChangedDayNumber, LastChangeReasonCode, ProcessedEffectKeysCsv
+            FROM RelationshipState
+            ORDER BY RelationshipId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            relationships.Add(RelationshipRecord.Rehydrate(
+                new RelationshipId(reader.GetInt64(0)),
+                new ActorRef((ActorKind)reader.GetInt32(1), reader.GetInt64(2)),
+                new ActorRef((ActorKind)reader.GetInt32(3), reader.GetInt64(4)),
+                reader.GetInt32(5),
+                reader.GetInt32(6),
+                reader.GetInt32(7),
+                (RelationshipStatus)reader.GetInt32(8),
+                GameDate.FromDayNumber(reader.GetInt32(9)),
+                GameDate.FromDayNumber(reader.GetInt32(10)),
+                reader.IsDBNull(11) ? null : reader.GetString(11),
+                ParseStringCsv(reader.GetString(12))));
+        }
+
+        return relationships;
+    }
+
     private static IReadOnlyList<long> ParseLongCsv(string csv)
     {
         if (string.IsNullOrWhiteSpace(csv))
@@ -2470,6 +2581,16 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(long.Parse)
             .ToArray();
+    }
+
+    private static IReadOnlyList<string> ParseStringCsv(string csv)
+    {
+        if (string.IsNullOrWhiteSpace(csv))
+        {
+            return Array.Empty<string>();
+        }
+
+        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     private static IReadOnlyList<int> ParseSlotCsv(string csv)

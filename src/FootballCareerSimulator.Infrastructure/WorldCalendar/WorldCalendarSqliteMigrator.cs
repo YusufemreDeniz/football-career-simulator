@@ -1900,6 +1900,72 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV31ToV32InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV31ToV32(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V31 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV31ToV32(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                CREATE TABLE IF NOT EXISTS RelationshipState (
+                    RelationshipId INTEGER PRIMARY KEY,
+                    ObserverKind INTEGER NOT NULL,
+                    ObserverId INTEGER NOT NULL,
+                    SubjectKind INTEGER NOT NULL,
+                    SubjectId INTEGER NOT NULL,
+                    Trust INTEGER NOT NULL,
+                    Respect INTEGER NOT NULL,
+                    ProfessionalCompatibility INTEGER NOT NULL,
+                    Status INTEGER NOT NULL,
+                    CreatedDayNumber INTEGER NOT NULL,
+                    LastChangedDayNumber INTEGER NOT NULL,
+                    LastChangeReasonCode TEXT NULL,
+                    ProcessedEffectKeysCsv TEXT NOT NULL
+                );
+                """);
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 32);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

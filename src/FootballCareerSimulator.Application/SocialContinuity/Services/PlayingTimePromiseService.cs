@@ -12,13 +12,16 @@ public sealed class PlayingTimePromiseService
 {
     private readonly IPromiseStore _store;
     private readonly PromiseMemoryService? _promiseMemory;
+    private readonly RelationshipEvaluationService? _relationships;
 
     public PlayingTimePromiseService(
         IPromiseStore store,
-        PromiseMemoryService? promiseMemory = null)
+        PromiseMemoryService? promiseMemory = null,
+        RelationshipEvaluationService? relationships = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _promiseMemory = promiseMemory;
+        _relationships = relationships;
     }
 
     public Promise Create(
@@ -87,6 +90,7 @@ public sealed class PlayingTimePromiseService
                 _store.Upsert(next);
                 updated++;
                 _promiseMemory?.RecordOutcome(next, day);
+                _relationships?.ApplyPromiseOutcome(next, day);
             }
         }
 

@@ -12,13 +12,16 @@ public sealed class StartingOpportunityPromiseService
 {
     private readonly IPromiseStore _store;
     private readonly PromiseMemoryService? _promiseMemory;
+    private readonly RelationshipEvaluationService? _relationships;
 
     public StartingOpportunityPromiseService(
         IPromiseStore store,
-        PromiseMemoryService? promiseMemory = null)
+        PromiseMemoryService? promiseMemory = null,
+        RelationshipEvaluationService? relationships = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _promiseMemory = promiseMemory;
+        _relationships = relationships;
     }
 
     public Promise Create(
@@ -110,6 +113,9 @@ public sealed class StartingOpportunityPromiseService
         return resolved;
     }
 
-    private void TryRecordMemory(Promise promise, GameDate day) =>
+    private void TryRecordMemory(Promise promise, GameDate day)
+    {
         _promiseMemory?.RecordOutcome(promise, day);
+        _relationships?.ApplyPromiseOutcome(promise, day);
+    }
 }

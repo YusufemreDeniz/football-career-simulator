@@ -9,6 +9,7 @@ public sealed class SocialContinuityModule
     public SocialContinuityModule(
         IPromiseStore promiseStore,
         IMemoryStore memoryStore,
+        IRelationshipStore relationshipStore,
         StartingOpportunityPromiseService startingOpportunity,
         PlayingTimePromiseService playingTime,
         PromiseMemoryService promiseMemory,
@@ -18,12 +19,15 @@ public sealed class SocialContinuityModule
         CareerMemoryService careerMemory,
         ClubHistoryMemoryService clubHistoryMemory,
         MatchPerformanceMemoryService matchPerformanceMemory,
+        RelationshipEvaluationService relationshipEvaluation,
         PromiseInvalidationService invalidation,
         MemoryQueryService queries,
-        PromiseQueryService promiseQueries)
+        PromiseQueryService promiseQueries,
+        RelationshipQueryService relationshipQueries)
     {
         PromiseStore = promiseStore;
         MemoryStore = memoryStore;
+        RelationshipStore = relationshipStore;
         StartingOpportunity = startingOpportunity;
         PlayingTime = playingTime;
         PromiseMemory = promiseMemory;
@@ -33,14 +37,18 @@ public sealed class SocialContinuityModule
         CareerMemory = careerMemory;
         ClubHistoryMemory = clubHistoryMemory;
         MatchPerformanceMemory = matchPerformanceMemory;
+        RelationshipEvaluation = relationshipEvaluation;
         Invalidation = invalidation;
         Queries = queries;
         PromiseQueries = promiseQueries;
+        RelationshipQueries = relationshipQueries;
     }
 
     public IPromiseStore PromiseStore { get; }
 
     public IMemoryStore MemoryStore { get; }
+
+    public IRelationshipStore RelationshipStore { get; }
 
     public StartingOpportunityPromiseService StartingOpportunity { get; }
 
@@ -60,18 +68,24 @@ public sealed class SocialContinuityModule
 
     public MatchPerformanceMemoryService MatchPerformanceMemory { get; }
 
+    public RelationshipEvaluationService RelationshipEvaluation { get; }
+
     public PromiseInvalidationService Invalidation { get; }
 
     public MemoryQueryService Queries { get; }
 
     public PromiseQueryService PromiseQueries { get; }
 
+    public RelationshipQueryService RelationshipQueries { get; }
+
     public static SocialContinuityModule Create(
         IPromiseStore? promiseStore = null,
-        IMemoryStore? memoryStore = null)
+        IMemoryStore? memoryStore = null,
+        IRelationshipStore? relationshipStore = null)
     {
         var promises = promiseStore ?? new InMemoryPromiseStore();
         var memories = memoryStore ?? new InMemoryMemoryStore();
+        var relationships = relationshipStore ?? new InMemoryRelationshipStore();
         var trustMemory = new TrustMemoryService(memories);
         var promiseMemory = new PromiseMemoryService(memories, trustMemory);
         var selectionMemory = new SelectionMemoryService(memories);
@@ -79,14 +93,23 @@ public sealed class SocialContinuityModule
         var careerMemory = new CareerMemoryService(memories);
         var clubHistoryMemory = new ClubHistoryMemoryService(memories);
         var matchPerformanceMemory = new MatchPerformanceMemoryService(memories);
-        var startingOpportunity = new StartingOpportunityPromiseService(promises, promiseMemory);
-        var playingTime = new PlayingTimePromiseService(promises, promiseMemory);
+        var relationshipEvaluation = new RelationshipEvaluationService(relationships);
+        var startingOpportunity = new StartingOpportunityPromiseService(
+            promises,
+            promiseMemory,
+            relationshipEvaluation);
+        var playingTime = new PlayingTimePromiseService(
+            promises,
+            promiseMemory,
+            relationshipEvaluation);
         var invalidation = new PromiseInvalidationService(promises, promiseMemory);
         var queries = new MemoryQueryService(memories);
         var promiseQueries = new PromiseQueryService(promises);
+        var relationshipQueries = new RelationshipQueryService(relationships);
         return new SocialContinuityModule(
             promises,
             memories,
+            relationships,
             startingOpportunity,
             playingTime,
             promiseMemory,
@@ -96,8 +119,10 @@ public sealed class SocialContinuityModule
             careerMemory,
             clubHistoryMemory,
             matchPerformanceMemory,
+            relationshipEvaluation,
             invalidation,
             queries,
-            promiseQueries);
+            promiseQueries,
+            relationshipQueries);
     }
 }

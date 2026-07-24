@@ -448,7 +448,8 @@ public static class CareerCanonicalStateHasher
         IReadOnlyList<ClubOffer> clubOffers,
         IReadOnlyList<PlayerContractProposal> contractProposals,
         IReadOnlyList<Promise> promises,
-        IReadOnlyList<MemoryRecord> memories)
+        IReadOnlyList<MemoryRecord> memories,
+        IReadOnlyList<RelationshipRecord>? relationships = null)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -470,6 +471,7 @@ public static class CareerCanonicalStateHasher
         ArgumentNullException.ThrowIfNull(contractProposals);
         ArgumentNullException.ThrowIfNull(promises);
         ArgumentNullException.ThrowIfNull(memories);
+        relationships ??= Array.Empty<RelationshipRecord>();
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -506,7 +508,9 @@ public static class CareerCanonicalStateHasher
             "|",
             PromiseCanonicalStateHasher.BuildCanonicalText(promises),
             "|",
-            MemoryCanonicalStateHasher.BuildCanonicalText(memories));
+            MemoryCanonicalStateHasher.BuildCanonicalText(memories),
+            "|",
+            RelationshipCanonicalStateHasher.BuildCanonicalText(relationships));
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

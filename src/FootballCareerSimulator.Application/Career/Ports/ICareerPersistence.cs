@@ -34,7 +34,8 @@ public interface ICareerPersistence
         IReadOnlyList<ClubOffer> clubOffers,
         IReadOnlyList<PlayerContractProposal> contractProposals,
         IReadOnlyList<Promise> promises,
-        IReadOnlyList<MemoryRecord> memories);
+        IReadOnlyList<MemoryRecord> memories,
+        IReadOnlyList<RelationshipRecord>? relationships = null);
 
     CareerLoadResult Load(string filePath);
 }
@@ -60,5 +61,6 @@ public sealed record CareerLoadResult(
     IReadOnlyList<PlayerContractProposal> ContractProposals,
     IReadOnlyList<Promise> Promises,
     IReadOnlyList<MemoryRecord> Memories,
+    IReadOnlyList<RelationshipRecord> Relationships,
     int SchemaVersion,
     bool WasMigrated);

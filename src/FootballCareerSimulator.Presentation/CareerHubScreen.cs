@@ -20,6 +20,7 @@ public partial class CareerHubScreen : Control
     private Label _contractLabel = null!;
     private Label _memoryLabel = null!;
     private Label _promiseLabel = null!;
+    private Label _relationshipLabel = null!;
     private Label _transferWindowLabel = null!;
     private Label _transferBudgetLabel = null!;
     private Button _openTransferWindowButton = null!;
@@ -294,6 +295,8 @@ public partial class CareerHubScreen : Control
         page.AddChild(_memoryLabel);
         _promiseLabel = BodyLabel("PromiseLabel", autowrap: true);
         page.AddChild(_promiseLabel);
+        _relationshipLabel = BodyLabel("RelationshipLabel", autowrap: true);
+        page.AddChild(_relationshipLabel);
 
         _squadList = new ItemList
         {
@@ -762,6 +765,7 @@ public partial class CareerHubScreen : Control
             RefreshContractStatus();
             RefreshMemoryStatus();
             RefreshPromiseStatus();
+            RefreshRelationshipStatus();
             RefreshTransferWindowStatus();
             RefreshTransferBudgetStatus();
             RefreshTransferNeedStatus();
@@ -797,6 +801,7 @@ public partial class CareerHubScreen : Control
         RefreshContractStatus();
         RefreshMemoryStatus();
         RefreshPromiseStatus();
+        RefreshRelationshipStatus();
         RefreshTransferWindowStatus();
         RefreshTransferBudgetStatus();
         RefreshTransferNeedStatus();
@@ -1197,6 +1202,27 @@ public partial class CareerHubScreen : Control
                 $"{p.KindName} oyuncu#{p.PromiseeId} {p.ProgressCount}/{p.TargetCount}"));
         _promiseLabel.Text =
             $"Sözler: {promises.ActiveCount} aktif"
+            + (string.IsNullOrWhiteSpace(preview) ? string.Empty : $" — {preview}");
+    }
+
+    private void RefreshRelationshipStatus()
+    {
+        var manager = _controller.Host.ManagerModule.Queries.GetCareer();
+        var relationships = _controller.Host.SocialContinuityModule.RelationshipQueries
+            .GetActiveForManager(manager.ManagerId, take: 5);
+
+        if (relationships.ActiveCount == 0)
+        {
+            _relationshipLabel.Text = "İlişki: oyuncu→menajer aktif kayıt yok.";
+            return;
+        }
+
+        var preview = string.Join(
+            " · ",
+            relationships.RecentActive.Select(r =>
+                $"oyuncu#{r.ObserverPlayerId} G:{r.TrustLabel}/S:{r.RespectLabel}/U:{r.CompatibilityLabel}"));
+        _relationshipLabel.Text =
+            $"İlişki: {relationships.ActiveCount} aktif"
             + (string.IsNullOrWhiteSpace(preview) ? string.Empty : $" — {preview}");
     }
 

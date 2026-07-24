@@ -40,6 +40,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly CareerMemoryService? _careerMemory;
     private readonly ClubHistoryMemoryService? _clubHistoryMemory;
     private readonly MatchPerformanceMemoryService? _matchPerformanceMemory;
+    private readonly RelationshipEvaluationService? _relationships;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -59,7 +60,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         PromiseInvalidationService? promiseInvalidation = null,
         CareerMemoryService? careerMemory = null,
         ClubHistoryMemoryService? clubHistoryMemory = null,
-        MatchPerformanceMemoryService? matchPerformanceMemory = null)
+        MatchPerformanceMemoryService? matchPerformanceMemory = null,
+        RelationshipEvaluationService? relationships = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -78,6 +80,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _careerMemory = careerMemory;
         _clubHistoryMemory = clubHistoryMemory;
         _matchPerformanceMemory = matchPerformanceMemory;
+        _relationships = relationships;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -137,6 +140,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         ApplyMatchDevelopment(fixture, occurredAt, rootSeed);
         ApplySocialContinuityAfterMatch(fixture, occurredAt);
         ApplyMatchPerformanceMemory(fixture, score, occurredAt);
+        ApplyRelationshipSelectionEffects(fixture, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
@@ -444,6 +448,51 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             _managerCareerStore.Career.ManagerId,
             startingIds,
             day);
+    }
+
+    private void ApplyRelationshipSelectionEffects(Fixture fixture, GameDate day)
+    {
+        if (_relationships is null || _managerCareerStore is null)
+        {
+            return;
+        }
+
+        var employment = _managerCareerStore.Career.ActiveEmployment;
+        if (employment is null)
+        {
+            return;
+        }
+
+        var managedClubId = employment.ClubId;
+        if (fixture.HomeClubId != managedClubId && fixture.AwayClubId != managedClubId)
+        {
+            return;
+        }
+
+        var managerId = _managerCareerStore.Career.ManagerId;
+        var startingIds = ResolvePlayerIdsForSlots(
+            fixture.Id,
+            managedClubId,
+            ResolveStartingSlots(fixture.Id, managedClubId));
+        var matchdayIds = ResolvePlayerIdsForSlots(
+            fixture.Id,
+            managedClubId,
+            ResolveMatchdaySlots(fixture.Id, managedClubId));
+        var matchdaySet = matchdayIds.ToHashSet();
+        var squadMemberIds = _clubSquadStore?.Get(managedClubId)?.Members
+            .Select(m => m.PlayerId)
+            .ToArray()
+            ?? Array.Empty<PlayerId>();
+
+        foreach (var playerId in startingIds)
+        {
+            _relationships.ApplySelectionStarted(fixture.Id, playerId, managerId, day);
+        }
+
+        foreach (var playerId in squadMemberIds.Where(id => !matchdaySet.Contains(id)))
+        {
+            _relationships.ApplySelectionOmitted(fixture.Id, playerId, managerId, day);
+        }
     }
 
     private void ApplySocialContinuityForClub(FixtureId fixtureId, ClubId clubId, GameDate day)
