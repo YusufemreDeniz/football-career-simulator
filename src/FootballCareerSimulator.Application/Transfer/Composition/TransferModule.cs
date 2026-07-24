@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
@@ -83,7 +84,8 @@ public sealed class TransferModule
         ITransferProcessStore? processStore = null,
         IClubOfferStore? offerStore = null,
         IPlayerContractProposalStore? proposalStore = null,
-        ITransferWindowQuery? transferWindow = null)
+        ITransferWindowQuery? transferWindow = null,
+        ClubTransferBudgetService? transferBudget = null)
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(clubSquad);
@@ -104,17 +106,26 @@ public sealed class TransferModule
             proposals,
             new TransferNeedService(needs, contractStore, squadStore),
             new ShortlistTargetService(shortlist, targets, needs),
-            new TransferProcessService(processes, targets, needs, managerCareerStore, window),
-            new ClubOfferService(offers, processes, managerCareerStore, window),
+            new TransferProcessService(
+                processes,
+                targets,
+                needs,
+                managerCareerStore,
+                window,
+                offers,
+                transferBudget),
+            new ClubOfferService(offers, processes, managerCareerStore, window, transferBudget),
             new PlayerContractProposalService(proposals, processes, managerCareerStore, window),
             new TransferCompletionService(
                 processes,
                 proposals,
+                offers,
                 registration,
                 clubSquad,
                 managerCareerStore,
-                window),
-            new TransferWindowCloseService(processes, offers, proposals),
+                window,
+                transferBudget),
+            new TransferWindowCloseService(processes, offers, proposals, transferBudget),
             new TransferNeedQueryService(
                 needs,
                 shortlist,

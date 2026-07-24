@@ -10,20 +10,29 @@ using FootballCareerSimulator.Domain.ClubGovernance;
 /// </summary>
 public sealed class ClubGovernanceModule
 {
-    public ClubGovernanceModule(IClubRegistryStore store, ClubQueryService queries)
+    public ClubGovernanceModule(
+        IClubRegistryStore store,
+        ClubQueryService queries,
+        ClubTransferBudgetService transferBudget)
     {
         Store = store;
         Queries = queries;
+        TransferBudget = transferBudget;
     }
 
     public IClubRegistryStore Store { get; }
 
     public ClubQueryService Queries { get; }
 
+    public ClubTransferBudgetService TransferBudget { get; }
+
     public static ClubGovernanceModule CreateMvpLeague()
     {
         var registry = LeagueClubRegistry.CreateMvpLeague();
         var store = new InMemoryClubRegistryStore(registry);
-        return new ClubGovernanceModule(store, new ClubQueryService(store));
+        return new ClubGovernanceModule(
+            store,
+            new ClubQueryService(store),
+            new ClubTransferBudgetService(store));
     }
 }

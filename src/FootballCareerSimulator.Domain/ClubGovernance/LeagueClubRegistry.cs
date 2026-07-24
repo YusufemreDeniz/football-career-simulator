@@ -22,6 +22,21 @@ public sealed class LeagueClubRegistry
         _clubs.FirstOrDefault(club => club.Id == clubId)
         ?? throw new ClubGovernanceInvariantViolationException($"Club {clubId.Value} was not found.");
 
+    public LeagueClubRegistry WithClub(Club club)
+    {
+        ArgumentNullException.ThrowIfNull(club);
+        if (_clubs.All(existing => existing.Id != club.Id))
+        {
+            throw new ClubGovernanceInvariantViolationException(
+                $"Club {club.Id.Value} was not found.");
+        }
+
+        var replaced = _clubs
+            .Select(existing => existing.Id == club.Id ? club : existing)
+            .ToArray();
+        return new LeagueClubRegistry(replaced);
+    }
+
     public static LeagueClubRegistry CreateMvpLeague() =>
         new LeagueClubRegistry(MvpLeagueCatalog.CreateClubs());
 

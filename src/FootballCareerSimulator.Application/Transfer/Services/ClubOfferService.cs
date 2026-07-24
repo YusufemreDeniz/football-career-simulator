@@ -1,6 +1,8 @@
+using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -8,7 +10,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.Transfer.Services;
 
 /// <summary>
-/// Club Offer iskeleti: teklif / karşı teklif / kabul / ret. Financial approval yok.
+/// Club Offer iskeleti: teklif / karşı teklif / kabul / ret + bütçe rezervasyonu.
 /// </summary>
 public sealed class ClubOfferService
 {
@@ -16,18 +18,21 @@ public sealed class ClubOfferService
     private readonly ITransferProcessStore _processStore;
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly ITransferWindowQuery _transferWindow;
+    private readonly ClubTransferBudgetService? _transferBudget;
 
     public ClubOfferService(
         IClubOfferStore offerStore,
         ITransferProcessStore processStore,
         IManagerCareerStore managerCareerStore,
-        ITransferWindowQuery? transferWindow = null)
+        ITransferWindowQuery? transferWindow = null,
+        ClubTransferBudgetService? transferBudget = null)
     {
         _offerStore = offerStore ?? throw new ArgumentNullException(nameof(offerStore));
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
+        _transferBudget = transferBudget;
     }
 
     public ClubOffer SubmitClubOffer(TransferProcessId processId, int offeredFee, GameDate day)
@@ -58,6 +63,8 @@ public sealed class ClubOfferService
             throw new TransferInvariantViolationException(
                 "A pending club offer already exists; accept, reject, or counter it first.");
         }
+
+        ReserveBudget(process.BuyingClubId, offeredFee);
 
         var round = _offerStore.GetForProcess(processId).Select(o => o.Round).DefaultIfEmpty(0).Max() + 1;
         var maxId = _offerStore.Offers.Select(o => o.OfferId.Value).DefaultIfEmpty(0).Max();
@@ -92,6 +99,7 @@ public sealed class ClubOfferService
         }
 
         var pending = RequirePending(processId);
+        ReleaseBudget(process.BuyingClubId, pending.OfferedFee);
         var rejected = pending.Reject();
         _offerStore.Upsert(rejected);
         return rejected;
@@ -108,13 +116,49 @@ public sealed class ClubOfferService
         }
 
         var pending = RequirePending(processId);
+        ReleaseBudget(process.BuyingClubId, pending.OfferedFee);
         _offerStore.Upsert(pending.Supersede());
+        ReserveBudget(process.BuyingClubId, offeredFee);
 
         var round = pending.Round + 1;
         var maxId = _offerStore.Offers.Select(o => o.OfferId.Value).DefaultIfEmpty(0).Max();
         var counter = ClubOffer.Submit(new ClubOfferId(maxId + 1), processId, round, offeredFee, day);
         _offerStore.Upsert(counter);
         return counter;
+    }
+
+    private void ReserveBudget(ClubId clubId, int amount)
+    {
+        if (_transferBudget is null || amount <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _transferBudget.Reserve(clubId, amount);
+        }
+        catch (ClubGovernanceInvariantViolationException ex)
+        {
+            throw new TransferInvariantViolationException(ex.Message);
+        }
+    }
+
+    private void ReleaseBudget(ClubId clubId, int amount)
+    {
+        if (_transferBudget is null || amount <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _transferBudget.Release(clubId, amount);
+        }
+        catch (ClubGovernanceInvariantViolationException ex)
+        {
+            throw new TransferInvariantViolationException(ex.Message);
+        }
     }
 
     private ClubOffer RequirePending(TransferProcessId processId) =>

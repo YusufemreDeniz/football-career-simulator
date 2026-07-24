@@ -18,6 +18,9 @@ public static class ClubRegistryCanonicalStateHasher
             builder.Append("DisplayName=").Append(club.DisplayName).Append(';');
             builder.Append("Code=").Append(club.Code.Value).Append(';');
             builder.Append("SportiveStrength=").Append(club.SportiveStrength).Append(';');
+            builder.Append("TransferBudgetLimit=").Append(club.TransferBudgetLimit).Append(';');
+            builder.Append("ReservedTransferFunds=").Append(club.ReservedTransferFunds).Append(';');
+            builder.Append("SpentTransferFunds=").Append(club.SpentTransferFunds).Append(';');
         }
 
         return builder.ToString();

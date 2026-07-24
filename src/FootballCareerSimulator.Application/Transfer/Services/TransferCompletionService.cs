@@ -1,8 +1,10 @@
+using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -17,26 +19,32 @@ public sealed class TransferCompletionService
 {
     private readonly ITransferProcessStore _processStore;
     private readonly IPlayerContractProposalStore _proposalStore;
+    private readonly IClubOfferStore _offerStore;
     private readonly ContractRegistrationService _registration;
     private readonly ClubSquadService _clubSquad;
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly ITransferWindowQuery _transferWindow;
+    private readonly ClubTransferBudgetService? _transferBudget;
 
     public TransferCompletionService(
         ITransferProcessStore processStore,
         IPlayerContractProposalStore proposalStore,
+        IClubOfferStore offerStore,
         ContractRegistrationService registration,
         ClubSquadService clubSquad,
         IManagerCareerStore managerCareerStore,
-        ITransferWindowQuery? transferWindow = null)
+        ITransferWindowQuery? transferWindow = null,
+        ClubTransferBudgetService? transferBudget = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
+        _offerStore = offerStore ?? throw new ArgumentNullException(nameof(offerStore));
         _registration = registration ?? throw new ArgumentNullException(nameof(registration));
         _clubSquad = clubSquad ?? throw new ArgumentNullException(nameof(clubSquad));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
+        _transferBudget = transferBudget;
     }
 
     public TransferProcess Complete(TransferProcessId processId, GameDate day)
@@ -82,7 +90,31 @@ public sealed class TransferCompletionService
         _clubSquad.SyncClubs(clubIds, day);
 
         process = Persist(process.MarkCompleted(day));
+        ApplyReservedFee(process);
         return Persist(process.Archive(day));
+    }
+
+    private void ApplyReservedFee(TransferProcess process)
+    {
+        if (_transferBudget is null || process.IsFreeAgent)
+        {
+            return;
+        }
+
+        var fee = TransferBudgetFeeResolver.ResolveActiveFee(_offerStore, process.ProcessId);
+        if (fee <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _transferBudget.ApplyReservedSpend(process.BuyingClubId, fee);
+        }
+        catch (ClubGovernanceInvariantViolationException ex)
+        {
+            throw new TransferInvariantViolationException(ex.Message);
+        }
     }
 
     private PlayerContractProposal RequireAcceptedProposal(TransferProcessId processId) =>

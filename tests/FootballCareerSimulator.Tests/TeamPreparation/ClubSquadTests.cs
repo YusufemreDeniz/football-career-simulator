@@ -180,7 +180,7 @@ public sealed class ClubSquadTests : IDisposable
             Array.Empty<Domain.Transfer.PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(27, loaded.SchemaVersion);
+        Assert.Equal(28, loaded.SchemaVersion);
         Assert.Single(loaded.ClubSquads);
         Assert.Equal(25, loaded.ClubSquads[0].Members.Count);
         Assert.Equal(1, loaded.ClubSquads[0].ClubId.Value);

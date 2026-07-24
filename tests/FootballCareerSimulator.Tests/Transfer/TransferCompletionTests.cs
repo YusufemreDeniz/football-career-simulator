@@ -145,7 +145,7 @@ public sealed class TransferCompletionTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(27, loaded.SchemaVersion);
+        Assert.Equal(28, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.Archived, loaded.TransferProcesses[0].Status);
         Assert.Equal(
@@ -197,7 +197,8 @@ public sealed class TransferCompletionTests : IDisposable
             teamPrep.SquadStore,
             manager.Store,
             contracts.Registration,
-            teamPrep.ClubSquad);
+            teamPrep.ClubSquad,
+            transferBudget: clubs.TransferBudget);
 
         transfer.Needs.Declare(
             new ClubId(1),

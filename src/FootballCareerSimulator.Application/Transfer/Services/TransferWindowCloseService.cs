@@ -1,4 +1,6 @@
+using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.Transfer.Ports;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
@@ -15,15 +17,18 @@ public sealed class TransferWindowCloseService
     private readonly ITransferProcessStore _processStore;
     private readonly IClubOfferStore _offerStore;
     private readonly IPlayerContractProposalStore _proposalStore;
+    private readonly ClubTransferBudgetService? _transferBudget;
 
     public TransferWindowCloseService(
         ITransferProcessStore processStore,
         IClubOfferStore offerStore,
-        IPlayerContractProposalStore proposalStore)
+        IPlayerContractProposalStore proposalStore,
+        ClubTransferBudgetService? transferBudget = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _offerStore = offerStore ?? throw new ArgumentNullException(nameof(offerStore));
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
+        _transferBudget = transferBudget;
     }
 
     public TransferWindowCloseOutcome ApplyWindowClosed(GameDate day)
@@ -35,6 +40,7 @@ public sealed class TransferWindowCloseService
         {
             if (TransferProcess.IsExpiredByTransferWindowClose(process.Status))
             {
+                ReleaseReservedFee(process);
                 SupersedePendingArtifacts(process.ProcessId);
                 var terminal = process.Expire(WindowClosedReason, day);
                 _processStore.Upsert(terminal);
@@ -50,6 +56,29 @@ public sealed class TransferWindowCloseService
         }
 
         return new TransferWindowCloseOutcome(expired, carried);
+    }
+
+    private void ReleaseReservedFee(TransferProcess process)
+    {
+        if (_transferBudget is null || process.IsFreeAgent)
+        {
+            return;
+        }
+
+        var fee = TransferBudgetFeeResolver.ResolveActiveFee(_offerStore, process.ProcessId);
+        if (fee <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _transferBudget.Release(process.BuyingClubId, fee);
+        }
+        catch (ClubGovernanceInvariantViolationException)
+        {
+            // Expire must proceed even if reservation was already released.
+        }
     }
 
     private void SupersedePendingArtifacts(TransferProcessId processId)

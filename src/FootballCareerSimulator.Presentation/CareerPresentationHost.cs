@@ -134,7 +134,8 @@ public sealed class CareerPresentationHost
             contractModule.Registration,
             teamPreparation.ClubSquad
                 ?? throw new InvalidOperationException("ClubSquad service is required for transfers."),
-            transferWindow: worldModule.TransferWindowQuery);
+            transferWindow: worldModule.TransferWindowQuery,
+            transferBudget: clubModule.TransferBudget);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =

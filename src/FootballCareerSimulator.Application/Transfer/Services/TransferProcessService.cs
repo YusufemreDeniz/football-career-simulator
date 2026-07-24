@@ -1,6 +1,8 @@
+using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
@@ -18,13 +20,17 @@ public sealed class TransferProcessService
     private readonly ITransferNeedStore _needStore;
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly ITransferWindowQuery _transferWindow;
+    private readonly IClubOfferStore? _offerStore;
+    private readonly ClubTransferBudgetService? _transferBudget;
 
     public TransferProcessService(
         ITransferProcessStore processStore,
         ITransferTargetStore targetStore,
         ITransferNeedStore needStore,
         IManagerCareerStore managerCareerStore,
-        ITransferWindowQuery? transferWindow = null)
+        ITransferWindowQuery? transferWindow = null,
+        IClubOfferStore? offerStore = null,
+        ClubTransferBudgetService? transferBudget = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _targetStore = targetStore ?? throw new ArgumentNullException(nameof(targetStore));
@@ -32,6 +38,8 @@ public sealed class TransferProcessService
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
+        _offerStore = offerStore;
+        _transferBudget = transferBudget;
     }
 
     public TransferProcess OpenFromListedTarget(TransferTargetId targetId, GameDate day)
@@ -144,10 +152,35 @@ public sealed class TransferProcessService
         string reasonCode,
         GameDate day)
     {
-        EnsureManagerCanDecide(Require(processId).BuyingClubId);
-        var updated = Require(processId).RejectFinancialApproval(reasonCode, day);
+        var process = Require(processId);
+        EnsureManagerCanDecide(process.BuyingClubId);
+        ReleaseReservedFee(process);
+        var updated = process.RejectFinancialApproval(reasonCode, day);
         _processStore.Upsert(updated);
         return updated;
+    }
+
+    private void ReleaseReservedFee(TransferProcess process)
+    {
+        if (_transferBudget is null || _offerStore is null || process.IsFreeAgent)
+        {
+            return;
+        }
+
+        var fee = TransferBudgetFeeResolver.ResolveActiveFee(_offerStore, process.ProcessId);
+        if (fee <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _transferBudget.Release(process.BuyingClubId, fee);
+        }
+        catch (ClubGovernanceInvariantViolationException ex)
+        {
+            throw new TransferInvariantViolationException(ex.Message);
+        }
     }
 
     public TransferProcess Withdraw(TransferProcessId processId, GameDate day)

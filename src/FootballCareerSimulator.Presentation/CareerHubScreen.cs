@@ -19,6 +19,7 @@ public partial class CareerHubScreen : Control
     private Label _developmentLabel = null!;
     private Label _contractLabel = null!;
     private Label _transferWindowLabel = null!;
+    private Label _transferBudgetLabel = null!;
     private Button _openTransferWindowButton = null!;
     private Button _closeTransferWindowButton = null!;
     private Label _transferNeedLabel = null!;
@@ -319,6 +320,8 @@ public partial class CareerHubScreen : Control
         page.AddChild(SectionTitle("Transfer"));
         _transferWindowLabel = BodyLabel("TransferWindowLabel", autowrap: true);
         page.AddChild(_transferWindowLabel);
+        _transferBudgetLabel = BodyLabel("TransferBudgetLabel", autowrap: true);
+        page.AddChild(_transferBudgetLabel);
 
         var windowRow = new HBoxContainer();
         windowRow.AddThemeConstantOverride("separation", 8);
@@ -742,6 +745,7 @@ public partial class CareerHubScreen : Control
             RefreshDevelopmentStatus();
             RefreshContractStatus();
             RefreshTransferWindowStatus();
+            RefreshTransferBudgetStatus();
             RefreshTransferNeedStatus();
             RefreshShortlistTargetStatus();
             RefreshTransferProcessStatus();
@@ -774,6 +778,7 @@ public partial class CareerHubScreen : Control
         RefreshDevelopmentStatus();
         RefreshContractStatus();
         RefreshTransferWindowStatus();
+        RefreshTransferBudgetStatus();
         RefreshTransferNeedStatus();
         RefreshShortlistTargetStatus();
         RefreshTransferProcessStatus();
@@ -805,6 +810,21 @@ public partial class CareerHubScreen : Control
         _transferWindowLabel.Text = $"Transfer penceresi: {window.StatusName}{openText}{closeText}";
         _openTransferWindowButton.Disabled = window.IsOpen;
         _closeTransferWindowButton.Disabled = !window.IsOpen;
+    }
+
+    private void RefreshTransferBudgetStatus()
+    {
+        var clubId = _controller.Host.ManagerModule.Store.Career.ActiveEmployment?.ClubId;
+        if (clubId is null)
+        {
+            _transferBudgetLabel.Text = "Transfer bütçesi: işsiz — kayıt yok.";
+            return;
+        }
+
+        var budget = _controller.Host.ClubModule.TransferBudget.Get(clubId.Value);
+        _transferBudgetLabel.Text =
+            $"Transfer bütçesi: kullanılabilir {budget.Available:N0} / limit {budget.Limit:N0}"
+            + $" (rezerve {budget.Reserved:N0}, harcanan {budget.Spent:N0})";
     }
 
     private void RefreshClubOfferStatus()

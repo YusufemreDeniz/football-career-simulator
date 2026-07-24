@@ -4,4 +4,8 @@ public sealed record ClubReadModel(
     long ClubId,
     string DisplayName,
     string Code,
-    int SportiveStrength);
+    int SportiveStrength,
+    int TransferBudgetLimit,
+    int ReservedTransferFunds,
+    int SpentTransferFunds,
+    int AvailableTransferFunds);

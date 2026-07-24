@@ -144,7 +144,7 @@ public sealed class TransferNeedTests : IDisposable
             Array.Empty<PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(27, loaded.SchemaVersion);
+        Assert.Equal(28, loaded.SchemaVersion);
         Assert.Single(loaded.TransferNeeds);
         Assert.Equal(TransferNeedKind.ExpiringContract, loaded.TransferNeeds[0].Kind);
         Assert.Equal(TransferNeedStatus.Open, loaded.TransferNeeds[0].Status);
@@ -181,7 +181,7 @@ public sealed class TransferNeedTests : IDisposable
             timelineStore: world.TimelineStore,
             contractStore: contracts.Store,
             playerCareerStore: playerStore);
-        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store, contracts.Registration, teamPrep.ClubSquad!);
+        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store, contracts.Registration, teamPrep.ClubSquad!, transferBudget: clubs.TransferBudget);
         return (world, clubs, manager, teamPrep, transfer);
     }
 }

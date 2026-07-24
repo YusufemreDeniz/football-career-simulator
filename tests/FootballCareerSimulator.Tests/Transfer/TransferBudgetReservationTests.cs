@@ -8,7 +8,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
-using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -17,16 +17,16 @@ using Microsoft.Data.Sqlite;
 
 namespace FootballCareerSimulator.Tests.Transfer;
 
-public sealed class TransferWindowGateTests : IDisposable
+public sealed class TransferBudgetReservationTests : IDisposable
 {
     private static readonly GameDate Day = GameDate.FromCalendarDate(2026, 7, 1);
 
     private readonly string _tempDirectory = Path.Combine(
         Path.GetTempPath(),
-        "fcs-transfer-window",
+        "fcs-transfer-budget",
         Guid.NewGuid().ToString("N"));
 
-    public TransferWindowGateTests() => Directory.CreateDirectory(_tempDirectory);
+    public TransferBudgetReservationTests() => Directory.CreateDirectory(_tempDirectory);
 
     public void Dispose()
     {
@@ -38,63 +38,71 @@ public sealed class TransferWindowGateTests : IDisposable
     }
 
     [Fact]
-    public void ClosedWindow_BlocksOpenProcessAndOffers()
+    public void SubmitOffer_ReservesFee_Reject_Releases()
     {
-        var modules = CreateModulesWithListedTarget();
-        modules.World.TimelineStore.Timeline.CloseTransferWindow();
+        var modules = CreateWithSportingApproval();
+        var before = modules.Clubs.TransferBudget.Get(new ClubId(1));
 
-        Assert.Throws<TransferInvariantViolationException>(() =>
-            modules.Transfer.Processes.OpenOldestListedTargetForClub(new ClubId(1), Day));
+        modules.Transfer.ClubOffers.SubmitClubOffer(
+            modules.Transfer.ProcessStore.Processes.Single().ProcessId,
+            1_000_000,
+            Day);
 
-        modules.World.TimelineStore.Timeline.OpenTransferWindow();
-        var process = modules.Transfer.Processes.OpenOldestListedTargetForClub(new ClubId(1), Day);
-        modules.Transfer.Processes.RequestSportingApproval(process.ProcessId);
-        modules.Transfer.Processes.GrantSportingApproval(process.ProcessId);
+        var reserved = modules.Clubs.TransferBudget.Get(new ClubId(1));
+        Assert.Equal(before.Reserved + 1_000_000, reserved.Reserved);
+        Assert.Equal(before.Available - 1_000_000, reserved.Available);
 
-        modules.World.TimelineStore.Timeline.CloseTransferWindow();
-        Assert.Throws<TransferInvariantViolationException>(() =>
-            modules.Transfer.ClubOffers.SubmitClubOffer(process.ProcessId, 1_000_000, Day));
+        modules.Transfer.ClubOffers.RejectPendingOffer(
+            modules.Transfer.ProcessStore.Processes.Single().ProcessId);
+
+        var after = modules.Clubs.TransferBudget.Get(new ClubId(1));
+        Assert.Equal(before.Reserved, after.Reserved);
+        Assert.Equal(before.Available, after.Available);
     }
 
     [Fact]
-    public void ClosedWindow_AllowsCompletionPendingToFinish()
+    public void OversizedOffer_IsRejectedWithoutReservation()
     {
-        var modules = CreateModulesWithFinancialApproval();
+        var modules = CreateWithSportingApproval();
         var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
-
-        // Start completion while open, then close window and finish.
-        var process = modules.Transfer.ProcessStore.Get(processId)!;
-        modules.Transfer.ProcessStore.Upsert(process.StartCompletion());
-        modules.World.TimelineStore.Timeline.CloseTransferWindow();
-
-        var completed = modules.Transfer.Completion.Complete(processId, Day);
-        Assert.Equal(TransferProcessStatus.Archived, completed.Status);
-    }
-
-    [Fact]
-    public void ClosedWindow_BlocksStartingCompletionFromFinancialApproved()
-    {
-        var modules = CreateModulesWithFinancialApproval();
-        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
-        modules.World.TimelineStore.Timeline.CloseTransferWindow();
+        var before = modules.Clubs.TransferBudget.Get(new ClubId(1));
 
         Assert.Throws<TransferInvariantViolationException>(() =>
-            modules.Transfer.Completion.Complete(processId, Day));
+            modules.Transfer.ClubOffers.SubmitClubOffer(processId, before.Available + 1, Day));
+
+        Assert.Equal(before.Reserved, modules.Clubs.TransferBudget.Get(new ClubId(1)).Reserved);
     }
 
     [Fact]
-    public void SaveLoad_PreservesClosedWindowAtSchemaV27()
+    public void Complete_AppliesReservedSpend()
     {
-        var world = WorldCalendarModule.Create(Day, rootSeed: 91);
-        world.TimelineStore.Timeline.CloseTransferWindow();
+        var modules = CreateWithFinancialApproval();
+        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
+        var fee = 5_000_000;
+        var before = modules.Clubs.TransferBudget.Get(new ClubId(1));
+        Assert.Equal(fee, before.Reserved);
 
+        modules.Transfer.Completion.Complete(processId, Day);
+
+        var after = modules.Clubs.TransferBudget.Get(new ClubId(1));
+        Assert.Equal(0, after.Reserved);
+        Assert.Equal(before.Spent + fee, after.Spent);
+    }
+
+    [Fact]
+    public void SaveLoad_PreservesBudgetAtSchemaV28()
+    {
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        clubs.TransferBudget.Reserve(new ClubId(1), 250_000);
+
+        var world = WorldCalendarModule.Create(Day, rootSeed: 11);
         var persistence = new CareerSqlitePersistence();
-        var path = Path.Combine(_tempDirectory, "window.db");
+        var path = Path.Combine(_tempDirectory, "budget.db");
         persistence.Save(
             path,
             world.TimelineStore.Timeline,
             new Domain.Competition.LeagueCompetition(new Domain.Competition.CompetitionId(1)),
-            ClubGovernanceModule.CreateMvpLeague().Store.Registry,
+            clubs.Store.Registry,
             ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1).Store.Career,
             Array.Empty<Domain.TeamPreparation.MatchSelection>(),
             Array.Empty<Domain.TrainingPhysicalState.WeeklyTrainingPlan>(),
@@ -113,12 +121,15 @@ public sealed class TransferWindowGateTests : IDisposable
 
         var loaded = persistence.Load(path);
         Assert.Equal(28, loaded.SchemaVersion);
-        Assert.False(loaded.Timeline.TransferWindow.IsOpen);
+        var club = loaded.ClubRegistry.GetClubOrThrow(new ClubId(1));
+        Assert.Equal(250_000, club.ReservedTransferFunds);
+        Assert.Equal(Club.DefaultTransferBudgetLimit(club.SportiveStrength), club.TransferBudgetLimit);
     }
 
     private static (
         WorldCalendarModule World,
-        TransferModule Transfer) CreateModulesWithListedTarget()
+        ClubGovernanceModule Clubs,
+        TransferModule Transfer) CreateWithSportingApproval()
     {
         var modules = CreateBase();
         modules.Transfer.Needs.Declare(
@@ -128,12 +139,16 @@ public sealed class TransferWindowGateTests : IDisposable
             "ManualPositionGap",
             Day);
         modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(new ClubId(1), Day);
-        return (modules.World, modules.Transfer);
+        var process = modules.Transfer.Processes.OpenOldestListedTargetForClub(new ClubId(1), Day);
+        modules.Transfer.Processes.RequestSportingApproval(process.ProcessId);
+        modules.Transfer.Processes.GrantSportingApproval(process.ProcessId);
+        return (modules.World, modules.Clubs, modules.Transfer);
     }
 
     private static (
         WorldCalendarModule World,
-        TransferModule Transfer) CreateModulesWithFinancialApproval()
+        ClubGovernanceModule Clubs,
+        TransferModule Transfer) CreateWithFinancialApproval()
     {
         var modules = CreateBase();
         modules.Players.Development.EnsureClub(new ClubId(1), modules.World.TimelineStore.Timeline.RootSeed, Day);
@@ -158,7 +173,6 @@ public sealed class TransferWindowGateTests : IDisposable
         modules.Transfer.Processes.RequestFinancialApproval(process.ProcessId);
         modules.Transfer.Processes.GrantFinancialApproval(process.ProcessId);
 
-        // Free a buying slot for completion path used by other tests.
         var outgoing = modules.Players.Store.Careers
             .Where(c => c.OriginClubId.Value == 1)
             .OrderByDescending(c => c.SlotIndex)
@@ -175,11 +189,12 @@ public sealed class TransferWindowGateTests : IDisposable
             Domain.ContractRegistration.ContractStatus.Expired));
         modules.TeamPrep.ClubSquad.SyncFromActiveContracts(new ClubId(1), Day);
 
-        return (modules.World, modules.Transfer);
+        return (modules.World, modules.Clubs, modules.Transfer);
     }
 
     private static (
         WorldCalendarModule World,
+        ClubGovernanceModule Clubs,
         TransferModule Transfer,
         ContractRegistrationModule Contracts,
         PlayerCareerModule Players,
@@ -214,8 +229,7 @@ public sealed class TransferWindowGateTests : IDisposable
             manager.Store,
             contracts.Registration,
             teamPrep.ClubSquad!,
-            transferWindow: new TimelineTransferWindowQuery(world.TimelineStore),
             transferBudget: clubs.TransferBudget);
-        return (world, transfer, contracts, players, teamPrep);
+        return (world, clubs, transfer, contracts, players, teamPrep);
     }
 }

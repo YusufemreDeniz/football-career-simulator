@@ -163,7 +163,8 @@ public sealed class TransferWindowCloseExpireCarryTests
             manager.Store,
             contracts.Registration,
             teamPrep.ClubSquad!,
-            transferWindow: new TimelineTransferWindowQuery(world.TimelineStore));
+            transferWindow: new TimelineTransferWindowQuery(world.TimelineStore),
+            transferBudget: clubs.TransferBudget);
         return (world, transfer);
     }
 }

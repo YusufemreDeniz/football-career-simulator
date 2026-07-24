@@ -18,7 +18,10 @@ internal static class ClubSnapshotMapper
                 new ClubId(row.ClubId),
                 row.DisplayName,
                 new ClubCode(row.ClubCode),
-                row.SportiveStrength))
+                row.SportiveStrength,
+                row.TransferBudgetLimit,
+                row.ReservedTransferFunds,
+                row.SpentTransferFunds))
             .ToArray();
 
         return LeagueClubRegistry.Rehydrate(clubs);
@@ -28,5 +31,8 @@ internal static class ClubSnapshotMapper
         long ClubId,
         string DisplayName,
         string ClubCode,
-        int SportiveStrength);
+        int SportiveStrength,
+        int TransferBudgetLimit,
+        int ReservedTransferFunds,
+        int SpentTransferFunds);
 }

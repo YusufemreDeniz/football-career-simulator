@@ -325,6 +325,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 27;
         }
 
+        if (version == 27 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 28)
+        {
+            WorldCalendarSqliteMigrator.MigrateV27ToV28InPlace(filePath);
+            wasMigrated = true;
+            version = 28;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -421,7 +428,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ClubId INTEGER PRIMARY KEY,
                 DisplayName TEXT NOT NULL,
                 ClubCode TEXT NOT NULL,
-                SportiveStrength INTEGER NOT NULL
+                SportiveStrength INTEGER NOT NULL,
+                TransferBudgetLimit INTEGER NOT NULL,
+                ReservedTransferFunds INTEGER NOT NULL,
+                SpentTransferFunds INTEGER NOT NULL
             );
             """);
 
@@ -756,13 +766,20 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
-                INSERT INTO ClubState (ClubId, DisplayName, ClubCode, SportiveStrength)
-                VALUES ($clubId, $displayName, $clubCode, $sportiveStrength);
+                INSERT INTO ClubState (
+                    ClubId, DisplayName, ClubCode, SportiveStrength,
+                    TransferBudgetLimit, ReservedTransferFunds, SpentTransferFunds)
+                VALUES (
+                    $clubId, $displayName, $clubCode, $sportiveStrength,
+                    $transferBudgetLimit, $reservedTransferFunds, $spentTransferFunds);
                 """;
             command.Parameters.AddWithValue("$clubId", club.Id.Value);
             command.Parameters.AddWithValue("$displayName", club.DisplayName);
             command.Parameters.AddWithValue("$clubCode", club.Code.Value);
             command.Parameters.AddWithValue("$sportiveStrength", club.SportiveStrength);
+            command.Parameters.AddWithValue("$transferBudgetLimit", club.TransferBudgetLimit);
+            command.Parameters.AddWithValue("$reservedTransferFunds", club.ReservedTransferFunds);
+            command.Parameters.AddWithValue("$spentTransferFunds", club.SpentTransferFunds);
             command.ExecuteNonQuery();
         }
     }
@@ -1642,7 +1659,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var rows = new List<ClubSnapshotMapper.ClubSnapshotRow>();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT ClubId, DisplayName, ClubCode, SportiveStrength
+            SELECT ClubId, DisplayName, ClubCode, SportiveStrength,
+                   TransferBudgetLimit, ReservedTransferFunds, SpentTransferFunds
             FROM ClubState
             ORDER BY ClubId;
             """;
@@ -1653,7 +1671,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 reader.GetInt64(0),
                 reader.GetString(1),
                 reader.GetString(2),
-                reader.GetInt32(3)));
+                reader.GetInt32(3),
+                reader.GetInt32(4),
+                reader.GetInt32(5),
+                reader.GetInt32(6)));
         }
 
         return ClubSnapshotMapper.ToRegistry(rows);

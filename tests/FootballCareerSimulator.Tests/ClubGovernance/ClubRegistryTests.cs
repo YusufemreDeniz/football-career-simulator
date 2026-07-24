@@ -26,6 +26,22 @@ public sealed class ClubRegistryTests
         Assert.Equal(5, club.Id.Value);
         Assert.Equal("AKD", club.Code.Value);
         Assert.Equal("Akdeniz United", club.DisplayName);
+        Assert.Equal(Club.DefaultTransferBudgetLimit(club.SportiveStrength), club.TransferBudgetLimit);
+        Assert.Equal(0, club.ReservedTransferFunds);
+        Assert.Equal(club.TransferBudgetLimit, club.AvailableTransferFunds);
+    }
+
+    [Fact]
+    public void ReserveAndRelease_TransferFunds_RoundTrip()
+    {
+        var registry = LeagueClubRegistry.CreateMvpLeague();
+        var club = registry.GetClubOrThrow(new ClubId(1));
+        var reserved = club.ReserveTransferFunds(500_000);
+        var released = reserved.ReleaseTransferReservation(500_000);
+
+        Assert.Equal(500_000, reserved.ReservedTransferFunds);
+        Assert.Equal(0, released.ReservedTransferFunds);
+        Assert.Equal(club.AvailableTransferFunds, released.AvailableTransferFunds);
     }
 
     [Fact]
