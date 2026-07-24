@@ -2,15 +2,13 @@ using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Domain.Interaction;
-using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.PlayerCareer;
-using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// DecisionRequest owner (iskelet). Forma süresi talebi → Promise entegrasyonu.
+/// DecisionRequest owner (iskelet). Forma süresi talebi → Promise / Relationship / Memory.
 /// </summary>
 public sealed class DecisionRequestService
 {
@@ -20,16 +18,22 @@ public sealed class DecisionRequestService
     private readonly IDecisionRequestStore _store;
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly PlayingTimePromiseService? _playingTime;
+    private readonly RelationshipEvaluationService? _relationships;
+    private readonly DecisionMemoryService? _decisionMemory;
 
     public DecisionRequestService(
         IDecisionRequestStore store,
         IManagerCareerStore managerCareerStore,
-        PlayingTimePromiseService? playingTime = null)
+        PlayingTimePromiseService? playingTime = null,
+        RelationshipEvaluationService? relationships = null,
+        DecisionMemoryService? decisionMemory = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _playingTime = playingTime;
+        _relationships = relationships;
+        _decisionMemory = decisionMemory;
     }
 
     public DecisionRequest OpenPlayingTimeRequest(
@@ -106,6 +110,7 @@ public sealed class DecisionRequestService
                 day);
         }
 
+        ApplySocialOutcomes(answered, day);
         return answered;
     }
 
@@ -118,11 +123,18 @@ public sealed class DecisionRequestService
             if (next.Status != request.Status)
             {
                 _store.Upsert(next);
+                ApplySocialOutcomes(next, day);
                 expired++;
             }
         }
 
         return expired;
+    }
+
+    private void ApplySocialOutcomes(DecisionRequest request, GameDate day)
+    {
+        _relationships?.ApplyDecisionRequestOutcome(request, day);
+        _decisionMemory?.RecordPlayingTimeOutcome(request, day);
     }
 
     private DecisionRequest Require(DecisionRequestId id) =>

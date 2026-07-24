@@ -31,11 +31,18 @@ public sealed class InteractionModule
     public static InteractionModule Create(
         IManagerCareerStore managerCareerStore,
         PlayingTimePromiseService? playingTime = null,
-        IDecisionRequestStore? decisionRequestStore = null)
+        IDecisionRequestStore? decisionRequestStore = null,
+        RelationshipEvaluationService? relationships = null,
+        DecisionMemoryService? decisionMemory = null)
     {
         ArgumentNullException.ThrowIfNull(managerCareerStore);
         var store = decisionRequestStore ?? new InMemoryDecisionRequestStore();
-        var decisions = new DecisionRequestService(store, managerCareerStore, playingTime);
+        var decisions = new DecisionRequestService(
+            store,
+            managerCareerStore,
+            playingTime,
+            relationships,
+            decisionMemory);
         var queries = new DecisionRequestQueryService(store);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
         return new InteractionModule(store, decisions, queries, blocker);

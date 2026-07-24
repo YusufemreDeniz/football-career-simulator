@@ -133,7 +133,9 @@ public sealed class CareerPresentationHost
         var interactionModule = InteractionModule.Create(
             managerModule.Store,
             socialContinuity.PlayingTime,
-            decisionStore);
+            decisionStore,
+            socialContinuity.RelationshipEvaluation,
+            socialContinuity.DecisionMemory);
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,

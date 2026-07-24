@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
@@ -41,6 +42,8 @@ public sealed class MemoryRecord
     public const int MatchBlowoutMinGoalDifference = 3;
     public const string RelationshipTrustBandRuleId = "RelationshipTrustBand";
     public const int RelationshipTrustBandRuleVersion = 1;
+    public const string DecisionPlayingTimeAnswerRuleId = "DecisionPlayingTimeAnswer";
+    public const int DecisionPlayingTimeAnswerRuleVersion = 1;
     public const int InfluenceBonusPerReinforcement = 10;
     public const int MaxReinforcementsPerMemory = 5;
     public const int MinImportance = 1;
@@ -214,6 +217,61 @@ public sealed class MemoryRecord
             promise.PromiseId,
             TrustFromPromiseRuleId,
             TrustFromPromiseRuleVersion);
+    }
+
+    public static MemoryRecord CreateDecisionPlayingTimeOutcome(
+        MemoryId memoryId,
+        DecisionRequest request,
+        GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Kind != DecisionRequestKind.PlayingTimeRequest)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Decision playing-time memory requires PlayingTimeRequest kind.");
+        }
+
+        if (request.Status is not (
+            DecisionRequestStatus.Answered
+            or DecisionRequestStatus.Expired))
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Decision playing-time memory requires Answered or Expired status.");
+        }
+
+        var outcomeKey = request.Status == DecisionRequestStatus.Expired
+            ? "Expired"
+            : request.SelectedOptionCode
+              ?? throw new SocialContinuityInvariantViolationException(
+                  "Answered decision requires a selected option code.");
+
+        var (importance, valence) = outcomeKey switch
+        {
+            DecisionRequest.OptionGrantPlayingTimePromise => (55, MemoryValence.Positive),
+            DecisionRequest.OptionRefuse => (70, MemoryValence.Negative),
+            "Expired" => (60, MemoryValence.Negative),
+            _ => throw new SocialContinuityInvariantViolationException(
+                $"Unsupported decision outcome for memory: {outcomeKey}."),
+        };
+
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Player, request.SubjectPlayerId.Value),
+            MemorySubjectKind.Manager,
+            request.ManagerId.Value,
+            BuildDecisionPlayingTimeOutcomeSourceKey(request.DecisionRequestId, outcomeKey),
+            MemoryCategory.Relationship,
+            day,
+            day,
+            importance,
+            importance,
+            valence,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            DecisionPlayingTimeAnswerRuleId,
+            DecisionPlayingTimeAnswerRuleVersion);
     }
 
     public static MemoryRecord CreateRelationshipTrustBandMilestone(
@@ -749,6 +807,11 @@ public sealed class MemoryRecord
         RelationshipDimensionBand fromBand,
         RelationshipDimensionBand toBand) =>
         $"RelTrustBand:{relationshipId.Value}:{fromBand}:{toBand}";
+
+    public static string BuildDecisionPlayingTimeOutcomeSourceKey(
+        DecisionRequestId decisionRequestId,
+        string outcomeKey) =>
+        $"DecisionPlayingTime:{decisionRequestId.Value}:{outcomeKey}";
 
     public static string BuildTransferCompletedSourceKey(TransferProcessId processId) =>
         $"TransferCompleted:{processId.Value}";

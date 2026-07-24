@@ -37,7 +37,11 @@ public sealed class DecisionRequestTests : IDisposable
     {
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var social = SocialContinuityModule.Create();
-        var interaction = InteractionModule.Create(manager.Store, social.PlayingTime);
+        var interaction = InteractionModule.Create(
+            manager.Store,
+            social.PlayingTime,
+            relationships: social.RelationshipEvaluation,
+            decisionMemory: social.DecisionMemory);
 
         var request = interaction.Decisions.OpenPlayingTimeRequest(new PlayerId(10), Day);
         Assert.True(request.IsHardBlocker);
@@ -53,14 +57,26 @@ public sealed class DecisionRequestTests : IDisposable
         var promise = Assert.Single(social.PromiseStore.Promises);
         Assert.Equal(PromiseKind.PlayingTime, promise.Kind);
         Assert.Equal(10, promise.Promisee.Id);
+
+        var relationship = social.RelationshipStore.FindPlayerToManager(10, 1)!;
+        Assert.Equal(56, relationship.Trust);
+        Assert.Equal("DecisionPlayingTimeGranted", relationship.LastChangeReasonCode);
+        var memory = Assert.Single(
+            social.MemoryStore.Memories,
+            m => m.RuleId == MemoryRecord.DecisionPlayingTimeAnswerRuleId);
+        Assert.Equal(MemoryValence.Positive, memory.Valence);
     }
 
     [Fact]
-    public void RefuseAnswer_DoesNotCreatePromise()
+    public void RefuseAnswer_LowersTrust_AndWritesMemory_WithoutPromise()
     {
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var social = SocialContinuityModule.Create();
-        var interaction = InteractionModule.Create(manager.Store, social.PlayingTime);
+        var interaction = InteractionModule.Create(
+            manager.Store,
+            social.PlayingTime,
+            relationships: social.RelationshipEvaluation,
+            decisionMemory: social.DecisionMemory);
 
         var request = interaction.Decisions.OpenPlayingTimeRequest(new PlayerId(11), Day);
         interaction.Decisions.Answer(
@@ -70,13 +86,23 @@ public sealed class DecisionRequestTests : IDisposable
 
         Assert.Empty(social.PromiseStore.Promises);
         Assert.Equal(0, interaction.Queries.GetPending().OpenCount);
+        Assert.Equal(40, social.RelationshipStore.FindPlayerToManager(11, 1)!.Trust);
+        Assert.Equal(
+            MemoryValence.Negative,
+            Assert.Single(
+                social.MemoryStore.Memories,
+                m => m.RuleId == MemoryRecord.DecisionPlayingTimeAnswerRuleId).Valence);
     }
 
     [Fact]
-    public void SoftDecision_ExpiresWhenDue()
+    public void SoftDecision_ExpiresWhenDue_AppliesSocialPenalty()
     {
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
-        var interaction = InteractionModule.Create(manager.Store);
+        var social = SocialContinuityModule.Create();
+        var interaction = InteractionModule.Create(
+            manager.Store,
+            relationships: social.RelationshipEvaluation,
+            decisionMemory: social.DecisionMemory);
 
         interaction.Decisions.OpenPlayingTimeRequest(
             new PlayerId(12),
@@ -89,6 +115,34 @@ public sealed class DecisionRequestTests : IDisposable
         Assert.Equal(
             DecisionRequestStatus.Expired,
             interaction.DecisionRequestStore.Requests.Single().Status);
+        Assert.Equal(44, social.RelationshipStore.FindPlayerToManager(12, 1)!.Trust);
+        Assert.Single(
+            social.MemoryStore.Memories,
+            m => m.RuleId == MemoryRecord.DecisionPlayingTimeAnswerRuleId);
+    }
+
+    [Fact]
+    public void SocialOutcomes_AreIdempotent_OnRepeatedExpire()
+    {
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var social = SocialContinuityModule.Create();
+        var interaction = InteractionModule.Create(
+            manager.Store,
+            relationships: social.RelationshipEvaluation,
+            decisionMemory: social.DecisionMemory);
+
+        interaction.Decisions.OpenPlayingTimeRequest(
+            new PlayerId(14),
+            Day,
+            deadlineDays: 1,
+            isHardBlocker: false);
+
+        Assert.Equal(1, interaction.Decisions.ExpireDue(Day.AddDays(1)));
+        Assert.Equal(0, interaction.Decisions.ExpireDue(Day.AddDays(1)));
+        Assert.Equal(44, social.RelationshipStore.FindPlayerToManager(14, 1)!.Trust);
+        Assert.Single(
+            social.MemoryStore.Memories,
+            m => m.RuleId == MemoryRecord.DecisionPlayingTimeAnswerRuleId);
     }
 
     [Fact]

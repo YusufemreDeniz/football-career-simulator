@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.SocialContinuity.Ports;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.SocialContinuity;
@@ -20,6 +21,9 @@ public sealed class RelationshipEvaluationService
     public const string PlayerLeftDormantRuleId = "PlayerLeftDormant";
     public const string ManagerLeftDormantRuleId = "ManagerLeftDormant";
     public const string ManagerHiredReactivateRuleId = "ManagerHiredReactivate";
+    public const string DecisionPlayingTimeGrantedRuleId = "DecisionPlayingTimeGranted";
+    public const string DecisionPlayingTimeRefusedRuleId = "DecisionPlayingTimeRefused";
+    public const string DecisionPlayingTimeExpiredRuleId = "DecisionPlayingTimeExpired";
     public const int RuleVersion = 1;
 
     private readonly IRelationshipStore _store;
@@ -163,6 +167,52 @@ public sealed class RelationshipEvaluationService
         }
 
         return updated;
+    }
+
+    public int ApplyDecisionRequestOutcome(DecisionRequest request, GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.Kind != DecisionRequestKind.PlayingTimeRequest)
+        {
+            return 0;
+        }
+
+        return request.Status switch
+        {
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionGrantPlayingTimePromise =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionPlayingTimeGrantedRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: 6,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionPlayingTimeGrantedRuleId,
+                    day),
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionRefuse =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionPlayingTimeRefusedRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -10,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionPlayingTimeRefusedRuleId,
+                    day),
+            DecisionRequestStatus.Expired =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionPlayingTimeExpiredRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -6,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionPlayingTimeExpiredRuleId,
+                    day),
+            _ => 0,
+        };
     }
 
     private int Apply(
