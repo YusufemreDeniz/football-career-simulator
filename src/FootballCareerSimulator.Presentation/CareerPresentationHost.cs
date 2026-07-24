@@ -152,7 +152,8 @@ public sealed class CareerPresentationHost
             wageBudget: clubModule.WageBudget,
             clubRegistry: clubModule.Store,
             freeAgentStore: contractModule.FreeAgentStore,
-            promiseInvalidation: socialContinuity.Invalidation);
+            promiseInvalidation: socialContinuity.Invalidation,
+            transferMemory: socialContinuity.TransferMemory);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =

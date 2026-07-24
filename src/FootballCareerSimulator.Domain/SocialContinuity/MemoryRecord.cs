@@ -1,10 +1,11 @@
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Domain.SocialContinuity;
 
 /// <summary>
-/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust.
+/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust / Transfer.
 /// </summary>
 public sealed class MemoryRecord
 {
@@ -18,6 +19,8 @@ public sealed class MemoryRecord
     public const int SelectionOmittedRuleVersion = 1;
     public const string TrustFromPromiseRuleId = "TrustFromPromise";
     public const int TrustFromPromiseRuleVersion = 1;
+    public const string TransferCompletedRuleId = "TransferCompleted";
+    public const int TransferCompletedRuleVersion = 1;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
 
@@ -184,6 +187,41 @@ public sealed class MemoryRecord
             TrustFromPromiseRuleVersion);
     }
 
+    public static MemoryRecord CreateTransferCompleted(
+        MemoryId memoryId,
+        ActorRef rememberingActor,
+        TransferProcessId processId,
+        GameDate day,
+        bool isFreeAgent)
+    {
+        if (rememberingActor.Kind is not (ActorKind.Player or ActorKind.Manager))
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Transfer-completed memory remembering actor must be a player or manager.");
+        }
+
+        var valence = isFreeAgent ? MemoryValence.Positive : MemoryValence.Neutral;
+        const int importance = 65;
+        return new MemoryRecord(
+            memoryId,
+            rememberingActor,
+            MemorySubjectKind.TransferProcess,
+            processId.Value,
+            BuildTransferCompletedSourceKey(processId),
+            MemoryCategory.Transfer,
+            day,
+            day,
+            importance,
+            importance,
+            valence,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            TransferCompletedRuleId,
+            TransferCompletedRuleVersion);
+    }
+
     public static MemoryRecord CreateSelectionStarted(
         MemoryId memoryId,
         ActorRef rememberingPlayer,
@@ -333,6 +371,9 @@ public sealed class MemoryRecord
 
     public static string BuildTrustFromPromiseSourceKey(PromiseId promiseId, PromiseStatus status) =>
         $"TrustFromPromise:{promiseId.Value}:{status}";
+
+    public static string BuildTransferCompletedSourceKey(TransferProcessId processId) =>
+        $"TransferCompleted:{processId.Value}";
 
     public static string BuildSelectionStartedSourceKey(FixtureId fixtureId, long playerId) =>
         $"SelectionStarted:{fixtureId.Value}:{playerId}";

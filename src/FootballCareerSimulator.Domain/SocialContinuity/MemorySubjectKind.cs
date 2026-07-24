@@ -6,4 +6,5 @@ public enum MemorySubjectKind
     Fixture = 2,
     Manager = 3,
     Player = 4,
+    TransferProcess = 5,
 }

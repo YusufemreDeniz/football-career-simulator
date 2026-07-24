@@ -7,6 +7,7 @@ using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
@@ -28,6 +29,7 @@ public sealed class TransferCompletionService
     private readonly ClubTransferBudgetService? _transferBudget;
     private readonly ClubWageBudgetService? _wageBudget;
     private readonly PromiseInvalidationService? _promiseInvalidation;
+    private readonly TransferMemoryService? _transferMemory;
 
     public TransferCompletionService(
         ITransferProcessStore processStore,
@@ -39,7 +41,8 @@ public sealed class TransferCompletionService
         ITransferWindowQuery? transferWindow = null,
         ClubTransferBudgetService? transferBudget = null,
         ClubWageBudgetService? wageBudget = null,
-        PromiseInvalidationService? promiseInvalidation = null)
+        PromiseInvalidationService? promiseInvalidation = null,
+        TransferMemoryService? transferMemory = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
@@ -52,6 +55,7 @@ public sealed class TransferCompletionService
         _transferBudget = transferBudget;
         _wageBudget = wageBudget;
         _promiseInvalidation = promiseInvalidation;
+        _transferMemory = transferMemory;
     }
 
     public TransferProcess Complete(
@@ -102,9 +106,28 @@ public sealed class TransferCompletionService
         _clubSquad.SyncClubs(clubIds, day);
 
         process = Persist(process.MarkCompleted(day));
+        _transferMemory?.RecordCompleted(process, day, ResolveInvolvedManager(process));
         ApplyReservedFee(process);
         ReleaseReservedWage(process);
         return Persist(process.Archive(day));
+    }
+
+    private ActorRef? ResolveInvolvedManager(TransferProcess process)
+    {
+        var career = _managerCareerStore.Career;
+        if (!career.IsEmployed || career.ActiveEmployment is null)
+        {
+            return null;
+        }
+
+        var clubId = career.ActiveEmployment.ClubId;
+        if (clubId == process.BuyingClubId
+            || (process.SellingClubId is { } selling && clubId == selling))
+        {
+            return new ActorRef(ActorKind.Manager, career.ManagerId.Value);
+        }
+
+        return null;
     }
 
     private void ApplyReservedFee(TransferProcess process)

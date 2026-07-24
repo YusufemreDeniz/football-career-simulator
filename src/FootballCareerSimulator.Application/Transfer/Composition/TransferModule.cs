@@ -98,7 +98,8 @@ public sealed class TransferModule
         ClubWageBudgetService? wageBudget = null,
         IClubRegistryStore? clubRegistry = null,
         IFreeAgentStore? freeAgentStore = null,
-        PromiseInvalidationService? promiseInvalidation = null)
+        PromiseInvalidationService? promiseInvalidation = null,
+        TransferMemoryService? transferMemory = null)
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(clubSquad);
@@ -138,7 +139,8 @@ public sealed class TransferModule
             window,
             transferBudget,
             wageBudget,
-            promiseInvalidation);
+            promiseInvalidation,
+            transferMemory);
 
         var clubs = clubRegistry
             ?? new InMemoryClubRegistryStore(LeagueClubRegistry.CreateMvpLeague());
