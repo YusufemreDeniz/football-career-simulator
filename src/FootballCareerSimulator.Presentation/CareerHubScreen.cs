@@ -1255,16 +1255,50 @@ public partial class CareerHubScreen : Control
             _decisionLabel.Text = "Kararlar: bekleyen zorunlu karar yok.";
             _grantDecisionButton.Disabled = true;
             _refuseDecisionButton.Disabled = true;
+            _grantDecisionButton.Text = "Talebi Kabul Et";
+            _refuseDecisionButton.Text = "Talebi Reddet";
             return;
         }
 
+        var first = pending.OpenRequests[0];
+        var options = _controller.Host.InteractionModule.DialogueOptions.GetForDecision(
+            new Domain.Interaction.DecisionRequestId(first.DecisionRequestId));
+        var grant = options.Options.FirstOrDefault(o =>
+            o.OptionCode == Domain.Interaction.DecisionRequest.OptionGrantPlayingTimePromise);
+        var refuse = options.Options.FirstOrDefault(o =>
+            o.OptionCode == Domain.Interaction.DecisionRequest.OptionRefuse);
+
+        if (grant is not null)
+        {
+            _grantDecisionButton.Text = grant.DisplayText;
+            _grantDecisionButton.Disabled = !grant.IsEligible;
+        }
+        else
+        {
+            _grantDecisionButton.Disabled = true;
+        }
+
+        if (refuse is not null)
+        {
+            _refuseDecisionButton.Text = refuse.DisplayText;
+            _refuseDecisionButton.Disabled = !refuse.IsEligible;
+        }
+        else
+        {
+            _refuseDecisionButton.Disabled = true;
+        }
+
+        var optionPreview = string.Join(
+            " | ",
+            options.Options.Select(o =>
+                $"{o.DisplayText}{(o.IsEligible ? string.Empty : " [kapalı]")}"));
         var preview = string.Join(
             " · ",
             pending.OpenRequests.Select(d =>
                 $"{d.KindName} oyuncu#{d.SubjectPlayerId} son:{d.DeadlineDayNumber}"));
-        _decisionLabel.Text = $"Kararlar: {pending.OpenCount} açık — {preview}";
-        _grantDecisionButton.Disabled = false;
-        _refuseDecisionButton.Disabled = false;
+        _decisionLabel.Text =
+            $"Kararlar: {pending.OpenCount} açık — {preview}"
+            + (string.IsNullOrWhiteSpace(optionPreview) ? string.Empty : $" · seçenekler: {optionPreview}");
     }
 
     private void UpdateJobOfferButtons(

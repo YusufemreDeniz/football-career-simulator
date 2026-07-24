@@ -347,12 +347,28 @@ public sealed class CareerSessionController
             var option = grantPlayingTimePromise
                 ? DecisionRequest.OptionGrantPlayingTimePromise
                 : DecisionRequest.OptionRefuse;
+            var dialogue = Host.InteractionModule.DialogueOptions.GetForDecision(
+                new DecisionRequestId(pending.DecisionRequestId));
+            var generated = dialogue.Options.FirstOrDefault(o =>
+                string.Equals(o.OptionCode, option, StringComparison.Ordinal));
+            if (generated is null)
+            {
+                return UiActionResult.Fail("Seçenek diyalog setinde yok.");
+            }
+
+            if (!generated.IsEligible)
+            {
+                return UiActionResult.Fail(
+                    generated.IneligibilityReason ?? "Seçenek şu an uygun değil.");
+            }
+
             var answered = Host.InteractionModule.Decisions.Answer(
                 new DecisionRequestId(pending.DecisionRequestId),
                 option,
                 day);
             return UiActionResult.Ok(
-                $"Karar yanıtlandı: #{answered.DecisionRequestId.Value} → {answered.SelectedOptionCode}.");
+                $"Karar yanıtlandı: #{answered.DecisionRequestId.Value} → {generated.DisplayText}"
+                + $" ({answered.SelectedOptionCode}).");
         }
         catch (InteractionInvariantViolationException ex)
         {

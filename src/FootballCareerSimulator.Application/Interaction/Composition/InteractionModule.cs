@@ -2,6 +2,7 @@ using FootballCareerSimulator.Application.Interaction.Infrastructure;
 using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.Interaction.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.SocialContinuity.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 
 namespace FootballCareerSimulator.Application.Interaction.Composition;
@@ -12,11 +13,13 @@ public sealed class InteractionModule
         IDecisionRequestStore decisionRequestStore,
         DecisionRequestService decisions,
         DecisionRequestQueryService queries,
+        DialogueOptionGenerationService dialogueOptions,
         DecisionRequestTimeAdvanceBlockerSource timeAdvanceBlocker)
     {
         DecisionRequestStore = decisionRequestStore;
         Decisions = decisions;
         Queries = queries;
+        DialogueOptions = dialogueOptions;
         TimeAdvanceBlocker = timeAdvanceBlocker;
     }
 
@@ -26,6 +29,8 @@ public sealed class InteractionModule
 
     public DecisionRequestQueryService Queries { get; }
 
+    public DialogueOptionGenerationService DialogueOptions { get; }
+
     public DecisionRequestTimeAdvanceBlockerSource TimeAdvanceBlocker { get; }
 
     public static InteractionModule Create(
@@ -33,18 +38,21 @@ public sealed class InteractionModule
         PlayingTimePromiseService? playingTime = null,
         IDecisionRequestStore? decisionRequestStore = null,
         RelationshipEvaluationService? relationships = null,
-        DecisionMemoryService? decisionMemory = null)
+        DecisionMemoryService? decisionMemory = null,
+        IPromiseStore? promiseStore = null)
     {
         ArgumentNullException.ThrowIfNull(managerCareerStore);
         var store = decisionRequestStore ?? new InMemoryDecisionRequestStore();
+        var dialogueOptions = new DialogueOptionGenerationService(store, promiseStore);
         var decisions = new DecisionRequestService(
             store,
             managerCareerStore,
             playingTime,
             relationships,
-            decisionMemory);
+            decisionMemory,
+            dialogueOptions);
         var queries = new DecisionRequestQueryService(store);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
-        return new InteractionModule(store, decisions, queries, blocker);
+        return new InteractionModule(store, decisions, queries, dialogueOptions, blocker);
     }
 }

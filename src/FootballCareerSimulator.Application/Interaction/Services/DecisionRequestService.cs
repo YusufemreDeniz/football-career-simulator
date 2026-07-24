@@ -20,13 +20,15 @@ public sealed class DecisionRequestService
     private readonly PlayingTimePromiseService? _playingTime;
     private readonly RelationshipEvaluationService? _relationships;
     private readonly DecisionMemoryService? _decisionMemory;
+    private readonly DialogueOptionGenerationService? _dialogueOptions;
 
     public DecisionRequestService(
         IDecisionRequestStore store,
         IManagerCareerStore managerCareerStore,
         PlayingTimePromiseService? playingTime = null,
         RelationshipEvaluationService? relationships = null,
-        DecisionMemoryService? decisionMemory = null)
+        DecisionMemoryService? decisionMemory = null,
+        DialogueOptionGenerationService? dialogueOptions = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
@@ -34,6 +36,7 @@ public sealed class DecisionRequestService
         _playingTime = playingTime;
         _relationships = relationships;
         _decisionMemory = decisionMemory;
+        _dialogueOptions = dialogueOptions;
     }
 
     public DecisionRequest OpenPlayingTimeRequest(
@@ -89,6 +92,7 @@ public sealed class DecisionRequestService
         int playingTimeTargetAppearances = DefaultPlayingTimeTargetAppearances)
     {
         var current = Require(decisionRequestId);
+        _dialogueOptions?.EnsureEligible(decisionRequestId, optionCode);
         var answered = current.Answer(optionCode, day);
         _store.Upsert(answered);
 
