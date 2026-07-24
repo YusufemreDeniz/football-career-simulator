@@ -210,6 +210,7 @@ public sealed class TransferNeedQueryService
             TransferProcessStatus.Rejected => "Reddedildi",
             TransferProcessStatus.Withdrawn => "Geri çekildi",
             TransferProcessStatus.Failed => "Başarısız",
+            TransferProcessStatus.Expired => "Süresi doldu",
             TransferProcessStatus.Archived => "Arşiv",
             _ => status.ToString(),
         };

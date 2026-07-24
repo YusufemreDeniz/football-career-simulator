@@ -24,6 +24,7 @@ public sealed class TransferModule
         ClubOfferService clubOffers,
         PlayerContractProposalService contractProposals,
         TransferCompletionService completion,
+        TransferWindowCloseService windowClose,
         TransferNeedQueryService queries)
     {
         NeedStore = needStore;
@@ -38,6 +39,7 @@ public sealed class TransferModule
         ClubOffers = clubOffers;
         ContractProposals = contractProposals;
         Completion = completion;
+        WindowClose = windowClose;
         Queries = queries;
     }
 
@@ -64,6 +66,8 @@ public sealed class TransferModule
     public PlayerContractProposalService ContractProposals { get; }
 
     public TransferCompletionService Completion { get; }
+
+    public TransferWindowCloseService WindowClose { get; }
 
     public TransferNeedQueryService Queries { get; }
 
@@ -110,6 +114,7 @@ public sealed class TransferModule
                 clubSquad,
                 managerCareerStore,
                 window),
+            new TransferWindowCloseService(processes, offers, proposals),
             new TransferNeedQueryService(
                 needs,
                 shortlist,

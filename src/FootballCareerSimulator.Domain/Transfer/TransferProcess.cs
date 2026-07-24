@@ -158,7 +158,9 @@ public sealed class TransferProcess
             throw new TransferInvariantViolationException("Terminal process requires TerminalOn.");
         }
 
-        if (status is TransferProcessStatus.Failed or TransferProcessStatus.Rejected
+        if ((status is TransferProcessStatus.Failed
+                or TransferProcessStatus.Rejected
+                or TransferProcessStatus.Expired)
             && string.IsNullOrWhiteSpace(failureReasonCode))
         {
             throw new TransferInvariantViolationException(
@@ -423,6 +425,34 @@ public sealed class TransferProcess
         EnsureActive();
         return WithStatus(TransferProcessStatus.Failed, RequireReason(reasonCode), day);
     }
+
+    public TransferProcess Expire(string reasonCode, GameDate day)
+    {
+        if (Status == TransferProcessStatus.Expired)
+        {
+            return this;
+        }
+
+        EnsureActive();
+        if (!IsExpiredByTransferWindowClose(Status))
+        {
+            throw new TransferInvariantViolationException(
+                $"Process in {Status} is carried to the next transfer window and cannot expire on close.");
+        }
+
+        return WithStatus(TransferProcessStatus.Expired, RequireReason(reasonCode), day);
+    }
+
+    /// <summary>
+    /// Pencere kapanışında expire edilen müzakere durumları (docs/08 §40.6).
+    /// FinancialApproved / CompletionPending ve diğer aktifler sonraki pencereye taşınır.
+    /// </summary>
+    public static bool IsExpiredByTransferWindowClose(TransferProcessStatus status) =>
+        status is TransferProcessStatus.ClubNegotiation
+            or TransferProcessStatus.PlayerNegotiation;
+
+    public static bool IsCarriedAcrossTransferWindowClose(TransferProcessStatus status) =>
+        IsActiveStatus(status) && !IsExpiredByTransferWindowClose(status);
 
     public TransferProcess Archive(GameDate day)
     {

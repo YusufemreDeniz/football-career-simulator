@@ -20,4 +20,5 @@ public enum TransferProcessStatus
     FinancialApproved = 13,
     CompletionPending = 14,
     Completed = 15,
+    Expired = 16,
 }

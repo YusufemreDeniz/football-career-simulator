@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + MatchSelection + Board Confidence + Dismissal + JobOffer + Training + Injury + PlayerCareer + Aging + Contract + ClubSquad + FreeAgency + FreeAgent resign + TacticPlan + Transfer Need + Shortlist/Target + Transfer Process + Sporting Approval + Club Offer + Player Contract Proposal + Financial Approval + Transfer Completion + kariyer hub sayfa ayrımı + **Transfer Window** (SQLite v27) kilitlenmiştir. Sıradaki aday: pencere kapanışında pending expire / sonraki pencereye taşıma — ilişki/diyalog/medya henüz açılmamalıdır.
+İnce kariyer döngüsü + MatchSelection + Board Confidence + Dismissal + JobOffer + Training + Injury + PlayerCareer + Aging + Contract + ClubSquad + FreeAgency + FreeAgent resign + TacticPlan + Transfer Need + Shortlist/Target + Transfer Process + Sporting Approval + Club Offer + Player Contract Proposal + Financial Approval + Transfer Completion + kariyer hub sayfa ayrımı + Transfer Window (SQLite v27) + **pencere kapanışında expire/carry** kilitlenmiştir. Sıradaki aday: ilişki/diyalog/medya henüz açılmamalıdır; transfer sonrası ince cilalar (AI kulüp davranışı, bütçe rezervasyonu) veya kariyer derinliği ayrı değerlendirilir.
 
 ## Klasör Yapısı
 
