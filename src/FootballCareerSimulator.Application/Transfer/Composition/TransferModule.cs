@@ -94,6 +94,7 @@ public sealed class TransferModule
         IPlayerContractProposalStore? proposalStore = null,
         ITransferWindowQuery? transferWindow = null,
         ClubTransferBudgetService? transferBudget = null,
+        ClubWageBudgetService? wageBudget = null,
         IClubRegistryStore? clubRegistry = null,
         IFreeAgentStore? freeAgentStore = null)
     {
@@ -116,12 +117,15 @@ public sealed class TransferModule
             managerCareerStore,
             window,
             offers,
-            transferBudget);
+            transferBudget,
+            proposals,
+            wageBudget);
         var proposalService = new PlayerContractProposalService(
             proposals,
             processes,
             managerCareerStore,
-            window);
+            window,
+            wageBudget);
         var completionService = new TransferCompletionService(
             processes,
             proposals,
@@ -130,7 +134,8 @@ public sealed class TransferModule
             clubSquad,
             managerCareerStore,
             window,
-            transferBudget);
+            transferBudget,
+            wageBudget);
 
         var clubs = clubRegistry
             ?? new InMemoryClubRegistryStore(LeagueClubRegistry.CreateMvpLeague());
@@ -152,6 +157,7 @@ public sealed class TransferModule
             processes,
             window,
             transferBudget,
+            wageBudget,
             needService,
             shortlistService,
             processService,

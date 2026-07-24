@@ -3,7 +3,7 @@ namespace FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
 
 /// <summary>
-/// Kulüp kimliği + minimal transfer bütçe rezervasyonu (docs/08 §32).
+/// Kulüp kimliği + minimal transfer/maaş bütçe rezervasyonu (docs/08 §32).
 /// Muhasebe/ledger yok; Transfer context bütçeyi doğrudan yazamaz.
 /// </summary>
 public sealed class Club
@@ -11,6 +11,7 @@ public sealed class Club
     public const int MinSportiveStrength = 1;
     public const int MaxSportiveStrength = 100;
     public const int TransferBudgetPerStrengthPoint = 100_000;
+    public const int WageBudgetPerStrengthPoint = 5_000;
 
     private Club(
         ClubId id,
@@ -19,7 +20,9 @@ public sealed class Club
         int sportiveStrength,
         int transferBudgetLimit,
         int reservedTransferFunds,
-        int spentTransferFunds)
+        int spentTransferFunds,
+        int wageBudgetLimit,
+        int reservedWeeklyWage)
     {
         Id = id;
         DisplayName = displayName;
@@ -28,6 +31,8 @@ public sealed class Club
         TransferBudgetLimit = transferBudgetLimit;
         ReservedTransferFunds = reservedTransferFunds;
         SpentTransferFunds = spentTransferFunds;
+        WageBudgetLimit = wageBudgetLimit;
+        ReservedWeeklyWage = reservedWeeklyWage;
     }
 
     public ClubId Id { get; }
@@ -47,22 +52,30 @@ public sealed class Club
     public int AvailableTransferFunds =>
         TransferBudgetLimit - ReservedTransferFunds - SpentTransferFunds;
 
+    public int WageBudgetLimit { get; }
+
+    public int ReservedWeeklyWage { get; }
+
     public static int DefaultTransferBudgetLimit(int sportiveStrength) =>
         sportiveStrength * TransferBudgetPerStrengthPoint;
 
-    public static Club Create(ClubId id, string displayName, ClubCode code, int sportiveStrength)
-    {
-        if (string.IsNullOrWhiteSpace(displayName))
-        {
-            throw new ClubGovernanceInvariantViolationException("Club display name cannot be empty.");
-        }
+    public static int DefaultWageBudgetLimit(int sportiveStrength) =>
+        sportiveStrength * WageBudgetPerStrengthPoint;
 
-        if (sportiveStrength is < MinSportiveStrength or > MaxSportiveStrength)
+    public int AvailableWeeklyWageHeadroom(int committedWeeklyWage)
+    {
+        if (committedWeeklyWage < 0)
         {
             throw new ClubGovernanceInvariantViolationException(
-                $"Sportive strength must be between {MinSportiveStrength} and {MaxSportiveStrength}.");
+                "Committed weekly wage cannot be negative.");
         }
 
+        return WageBudgetLimit - committedWeeklyWage - ReservedWeeklyWage;
+    }
+
+    public static Club Create(ClubId id, string displayName, ClubCode code, int sportiveStrength)
+    {
+        ValidateIdentity(displayName, sportiveStrength);
         return new Club(
             id,
             displayName.Trim(),
@@ -70,7 +83,9 @@ public sealed class Club
             sportiveStrength,
             DefaultTransferBudgetLimit(sportiveStrength),
             reservedTransferFunds: 0,
-            spentTransferFunds: 0);
+            spentTransferFunds: 0,
+            DefaultWageBudgetLimit(sportiveStrength),
+            reservedWeeklyWage: 0);
     }
 
     public static Club Rehydrate(
@@ -80,20 +95,13 @@ public sealed class Club
         int sportiveStrength,
         int transferBudgetLimit,
         int reservedTransferFunds,
-        int spentTransferFunds)
+        int spentTransferFunds,
+        int wageBudgetLimit,
+        int reservedWeeklyWage)
     {
-        if (string.IsNullOrWhiteSpace(displayName))
-        {
-            throw new ClubGovernanceInvariantViolationException("Club display name cannot be empty.");
-        }
-
-        if (sportiveStrength is < MinSportiveStrength or > MaxSportiveStrength)
-        {
-            throw new ClubGovernanceInvariantViolationException(
-                $"Sportive strength must be between {MinSportiveStrength} and {MaxSportiveStrength}.");
-        }
-
-        ValidateFunds(transferBudgetLimit, reservedTransferFunds, spentTransferFunds);
+        ValidateIdentity(displayName, sportiveStrength);
+        ValidateTransferFunds(transferBudgetLimit, reservedTransferFunds, spentTransferFunds);
+        ValidateWageFunds(wageBudgetLimit, reservedWeeklyWage);
         return new Club(
             id,
             displayName.Trim(),
@@ -101,7 +109,9 @@ public sealed class Club
             sportiveStrength,
             transferBudgetLimit,
             reservedTransferFunds,
-            spentTransferFunds);
+            spentTransferFunds,
+            wageBudgetLimit,
+            reservedWeeklyWage);
     }
 
     public Club ReserveTransferFunds(int amount)
@@ -122,7 +132,7 @@ public sealed class Club
                 $"Insufficient transfer budget: need {amount}, available {AvailableTransferFunds}.");
         }
 
-        return WithFunds(ReservedTransferFunds + amount, SpentTransferFunds);
+        return WithTransferFunds(ReservedTransferFunds + amount, SpentTransferFunds);
     }
 
     public Club ReleaseTransferReservation(int amount)
@@ -143,7 +153,7 @@ public sealed class Club
                 $"Cannot release {amount}; only {ReservedTransferFunds} is reserved.");
         }
 
-        return WithFunds(ReservedTransferFunds - amount, SpentTransferFunds);
+        return WithTransferFunds(ReservedTransferFunds - amount, SpentTransferFunds);
     }
 
     public Club ApplyReservedTransferSpend(int amount)
@@ -164,12 +174,55 @@ public sealed class Club
                 $"Cannot apply {amount}; only {ReservedTransferFunds} is reserved.");
         }
 
-        return WithFunds(ReservedTransferFunds - amount, SpentTransferFunds + amount);
+        return WithTransferFunds(ReservedTransferFunds - amount, SpentTransferFunds + amount);
     }
 
-    private Club WithFunds(int reserved, int spent)
+    public Club ReserveWeeklyWage(int amount, int committedWeeklyWage)
     {
-        ValidateFunds(TransferBudgetLimit, reserved, spent);
+        if (amount < 0)
+        {
+            throw new ClubGovernanceInvariantViolationException("Wage reserve amount cannot be negative.");
+        }
+
+        if (amount == 0)
+        {
+            return this;
+        }
+
+        var headroom = AvailableWeeklyWageHeadroom(committedWeeklyWage);
+        if (amount > headroom)
+        {
+            throw new ClubGovernanceInvariantViolationException(
+                $"Insufficient wage budget: need {amount}, available {headroom}.");
+        }
+
+        return WithWageReservation(ReservedWeeklyWage + amount);
+    }
+
+    public Club ReleaseWeeklyWageReservation(int amount)
+    {
+        if (amount < 0)
+        {
+            throw new ClubGovernanceInvariantViolationException("Wage release amount cannot be negative.");
+        }
+
+        if (amount == 0)
+        {
+            return this;
+        }
+
+        if (amount > ReservedWeeklyWage)
+        {
+            throw new ClubGovernanceInvariantViolationException(
+                $"Cannot release wage {amount}; only {ReservedWeeklyWage} is reserved.");
+        }
+
+        return WithWageReservation(ReservedWeeklyWage - amount);
+    }
+
+    private Club WithTransferFunds(int reserved, int spent)
+    {
+        ValidateTransferFunds(TransferBudgetLimit, reserved, spent);
         return new Club(
             Id,
             DisplayName,
@@ -177,10 +230,41 @@ public sealed class Club
             SportiveStrength,
             TransferBudgetLimit,
             reserved,
-            spent);
+            spent,
+            WageBudgetLimit,
+            ReservedWeeklyWage);
     }
 
-    private static void ValidateFunds(int limit, int reserved, int spent)
+    private Club WithWageReservation(int reservedWage)
+    {
+        ValidateWageFunds(WageBudgetLimit, reservedWage);
+        return new Club(
+            Id,
+            DisplayName,
+            Code,
+            SportiveStrength,
+            TransferBudgetLimit,
+            ReservedTransferFunds,
+            SpentTransferFunds,
+            WageBudgetLimit,
+            reservedWage);
+    }
+
+    private static void ValidateIdentity(string displayName, int sportiveStrength)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            throw new ClubGovernanceInvariantViolationException("Club display name cannot be empty.");
+        }
+
+        if (sportiveStrength is < MinSportiveStrength or > MaxSportiveStrength)
+        {
+            throw new ClubGovernanceInvariantViolationException(
+                $"Sportive strength must be between {MinSportiveStrength} and {MaxSportiveStrength}.");
+        }
+    }
+
+    private static void ValidateTransferFunds(int limit, int reserved, int spent)
     {
         if (limit < 0 || reserved < 0 || spent < 0)
         {
@@ -192,6 +276,21 @@ public sealed class Club
         {
             throw new ClubGovernanceInvariantViolationException(
                 "Reserved + spent transfer funds cannot exceed the budget limit.");
+        }
+    }
+
+    private static void ValidateWageFunds(int limit, int reserved)
+    {
+        if (limit < 0 || reserved < 0)
+        {
+            throw new ClubGovernanceInvariantViolationException(
+                "Wage budget values cannot be negative.");
+        }
+
+        if (reserved > limit)
+        {
+            throw new ClubGovernanceInvariantViolationException(
+                "Reserved weekly wage cannot exceed the wage budget limit.");
         }
     }
 }

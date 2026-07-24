@@ -112,7 +112,7 @@ public sealed class TransferWindowGateTests : IDisposable
             Array.Empty<PlayerContractProposal>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(28, loaded.SchemaVersion);
+        Assert.Equal(29, loaded.SchemaVersion);
         Assert.False(loaded.Timeline.TransferWindow.IsOpen);
     }
 

@@ -25,6 +25,7 @@ public sealed class TransferCompletionService
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly ITransferWindowQuery _transferWindow;
     private readonly ClubTransferBudgetService? _transferBudget;
+    private readonly ClubWageBudgetService? _wageBudget;
 
     public TransferCompletionService(
         ITransferProcessStore processStore,
@@ -34,7 +35,8 @@ public sealed class TransferCompletionService
         ClubSquadService clubSquad,
         IManagerCareerStore managerCareerStore,
         ITransferWindowQuery? transferWindow = null,
-        ClubTransferBudgetService? transferBudget = null)
+        ClubTransferBudgetService? transferBudget = null,
+        ClubWageBudgetService? wageBudget = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
@@ -45,6 +47,7 @@ public sealed class TransferCompletionService
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
         _transferBudget = transferBudget;
+        _wageBudget = wageBudget;
     }
 
     public TransferProcess Complete(
@@ -94,6 +97,7 @@ public sealed class TransferCompletionService
 
         process = Persist(process.MarkCompleted(day));
         ApplyReservedFee(process);
+        ReleaseReservedWage(process);
         return Persist(process.Archive(day));
     }
 
@@ -113,6 +117,29 @@ public sealed class TransferCompletionService
         try
         {
             _transferBudget.ApplyReservedSpend(process.BuyingClubId, fee);
+        }
+        catch (ClubGovernanceInvariantViolationException ex)
+        {
+            throw new TransferInvariantViolationException(ex.Message);
+        }
+    }
+
+    private void ReleaseReservedWage(TransferProcess process)
+    {
+        if (_wageBudget is null)
+        {
+            return;
+        }
+
+        var wage = TransferWageResolver.ResolveAcceptedWeeklyWage(_proposalStore, process.ProcessId);
+        if (wage <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _wageBudget.Release(process.BuyingClubId, wage);
         }
         catch (ClubGovernanceInvariantViolationException ex)
         {

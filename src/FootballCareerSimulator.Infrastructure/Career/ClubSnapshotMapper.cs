@@ -21,7 +21,9 @@ internal static class ClubSnapshotMapper
                 row.SportiveStrength,
                 row.TransferBudgetLimit,
                 row.ReservedTransferFunds,
-                row.SpentTransferFunds))
+                row.SpentTransferFunds,
+                row.WageBudgetLimit,
+                row.ReservedWeeklyWage))
             .ToArray();
 
         return LeagueClubRegistry.Rehydrate(clubs);
@@ -34,5 +36,7 @@ internal static class ClubSnapshotMapper
         int SportiveStrength,
         int TransferBudgetLimit,
         int ReservedTransferFunds,
-        int SpentTransferFunds);
+        int SpentTransferFunds,
+        int WageBudgetLimit,
+        int ReservedWeeklyWage);
 }

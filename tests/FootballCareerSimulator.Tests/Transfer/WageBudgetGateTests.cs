@@ -8,6 +8,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
@@ -17,16 +18,16 @@ using Microsoft.Data.Sqlite;
 
 namespace FootballCareerSimulator.Tests.Transfer;
 
-public sealed class TransferBudgetReservationTests : IDisposable
+public sealed class WageBudgetGateTests : IDisposable
 {
     private static readonly GameDate Day = GameDate.FromCalendarDate(2026, 7, 1);
 
     private readonly string _tempDirectory = Path.Combine(
         Path.GetTempPath(),
-        "fcs-transfer-budget",
+        "fcs-wage-budget",
         Guid.NewGuid().ToString("N"));
 
-    public TransferBudgetReservationTests() => Directory.CreateDirectory(_tempDirectory);
+    public WageBudgetGateTests() => Directory.CreateDirectory(_tempDirectory);
 
     public void Dispose()
     {
@@ -38,67 +39,75 @@ public sealed class TransferBudgetReservationTests : IDisposable
     }
 
     [Fact]
-    public void SubmitOffer_ReservesFee_Reject_Releases()
-    {
-        var modules = CreateWithSportingApproval();
-        var before = modules.Clubs.TransferBudget.Get(new ClubId(1));
-
-        modules.Transfer.ClubOffers.SubmitClubOffer(
-            modules.Transfer.ProcessStore.Processes.Single().ProcessId,
-            1_000_000,
-            Day);
-
-        var reserved = modules.Clubs.TransferBudget.Get(new ClubId(1));
-        Assert.Equal(before.Reserved + 1_000_000, reserved.Reserved);
-        Assert.Equal(before.Available - 1_000_000, reserved.Available);
-
-        modules.Transfer.ClubOffers.RejectPendingOffer(
-            modules.Transfer.ProcessStore.Processes.Single().ProcessId);
-
-        var after = modules.Clubs.TransferBudget.Get(new ClubId(1));
-        Assert.Equal(before.Reserved, after.Reserved);
-        Assert.Equal(before.Available, after.Available);
-    }
-
-    [Fact]
-    public void OversizedOffer_IsRejectedWithoutReservation()
+    public void AcceptProposal_ReservesWage_Complete_Releases()
     {
         var modules = CreateWithSportingApproval();
         var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
-        var before = modules.Clubs.TransferBudget.Get(new ClubId(1));
+        modules.Transfer.ClubOffers.SubmitClubOffer(processId, 1_000_000, Day);
+        modules.Transfer.ClubOffers.AcceptPendingOffer(processId);
+        modules.Transfer.ContractProposals.SubmitContractProposal(processId, 20_000, 3, Day);
 
-        Assert.Throws<TransferInvariantViolationException>(() =>
-            modules.Transfer.ClubOffers.SubmitClubOffer(processId, before.Available + 1, Day));
+        modules.Transfer.ContractProposals.AcceptPendingProposal(processId);
+        var reserved = modules.Clubs.WageBudget!.Get(new ClubId(1), Day);
+        Assert.Equal(20_000, reserved.Reserved);
 
-        Assert.Equal(before.Reserved, modules.Clubs.TransferBudget.Get(new ClubId(1)).Reserved);
-    }
-
-    [Fact]
-    public void Complete_AppliesReservedSpend()
-    {
-        var modules = CreateWithFinancialApproval();
-        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
-        var fee = 5_000_000;
-        var before = modules.Clubs.TransferBudget.Get(new ClubId(1));
-        Assert.Equal(fee, before.Reserved);
-
+        modules.Transfer.Processes.RequestFinancialApproval(processId);
+        modules.Transfer.Processes.GrantFinancialApproval(processId);
+        FreeOneBuyingSlot(modules);
         modules.Transfer.Completion.Complete(processId, Day);
 
-        var after = modules.Clubs.TransferBudget.Get(new ClubId(1));
+        var after = modules.Clubs.WageBudget.Get(new ClubId(1), Day);
         Assert.Equal(0, after.Reserved);
-        Assert.Equal(before.Spent + fee, after.Spent);
+        Assert.True(after.Committed >= 20_000);
     }
 
     [Fact]
-    public void SaveLoad_PreservesBudgetAtSchemaV28()
+    public void AcceptProposal_OverWageLimit_Fails()
+    {
+        var modules = CreateWithSportingApproval();
+        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
+        modules.Transfer.ClubOffers.SubmitClubOffer(processId, 1_000_000, Day);
+        modules.Transfer.ClubOffers.AcceptPendingOffer(processId);
+
+        var available = modules.Clubs.WageBudget!.Get(new ClubId(1), Day).Available;
+        modules.Transfer.ContractProposals.SubmitContractProposal(
+            processId,
+            available + 1,
+            3,
+            Day);
+
+        Assert.Throws<TransferInvariantViolationException>(() =>
+            modules.Transfer.ContractProposals.AcceptPendingProposal(processId));
+        Assert.Equal(0, modules.Clubs.WageBudget.Get(new ClubId(1), Day).Reserved);
+    }
+
+    [Fact]
+    public void FinancialReject_ReleasesWageReservation()
+    {
+        var modules = CreateWithSportingApproval();
+        var processId = modules.Transfer.ProcessStore.Processes.Single().ProcessId;
+        modules.Transfer.ClubOffers.SubmitClubOffer(processId, 1_000_000, Day);
+        modules.Transfer.ClubOffers.AcceptPendingOffer(processId);
+        modules.Transfer.ContractProposals.SubmitContractProposal(processId, 18_000, 2, Day);
+        modules.Transfer.ContractProposals.AcceptPendingProposal(processId);
+        modules.Transfer.Processes.RequestFinancialApproval(processId);
+
+        modules.Transfer.Processes.RejectFinancialApproval(processId, "BoardRejected", Day);
+        Assert.Equal(0, modules.Clubs.WageBudget!.Get(new ClubId(1), Day).Reserved);
+    }
+
+    [Fact]
+    public void SaveLoad_PreservesWageBudgetAtSchemaV29()
     {
         var clubs = ClubGovernanceModule.CreateMvpLeague();
-        clubs.TransferBudget.Reserve(new ClubId(1), 250_000);
+        clubs.Store.Replace(
+            clubs.Store.Registry.WithClub(
+                clubs.Store.Registry.GetClubOrThrow(new ClubId(1))
+                    .ReserveWeeklyWage(12_000, committedWeeklyWage: 0)));
 
-        var world = WorldCalendarModule.Create(Day, rootSeed: 11);
-        var persistence = new CareerSqlitePersistence();
-        var path = Path.Combine(_tempDirectory, "budget.db");
-        persistence.Save(
+        var world = WorldCalendarModule.Create(Day, rootSeed: 3);
+        var path = Path.Combine(_tempDirectory, "wage.db");
+        new CareerSqlitePersistence().Save(
             path,
             world.TimelineStore.Timeline,
             new Domain.Competition.LeagueCompetition(new Domain.Competition.CompetitionId(1)),
@@ -119,60 +128,22 @@ public sealed class TransferBudgetReservationTests : IDisposable
             Array.Empty<ClubOffer>(),
             Array.Empty<PlayerContractProposal>());
 
-        var loaded = persistence.Load(path);
+        var loaded = new CareerSqlitePersistence().Load(path);
         Assert.Equal(29, loaded.SchemaVersion);
         var club = loaded.ClubRegistry.GetClubOrThrow(new ClubId(1));
-        Assert.Equal(250_000, club.ReservedTransferFunds);
-        Assert.Equal(Club.DefaultTransferBudgetLimit(club.SportiveStrength), club.TransferBudgetLimit);
+        Assert.Equal(12_000, club.ReservedWeeklyWage);
+        Assert.Equal(Club.DefaultWageBudgetLimit(club.SportiveStrength), club.WageBudgetLimit);
     }
 
-    private static (
-        WorldCalendarModule World,
-        ClubGovernanceModule Clubs,
-        TransferModule Transfer) CreateWithSportingApproval()
+    private static void FreeOneBuyingSlot(
+        (
+            WorldCalendarModule World,
+            ClubGovernanceModule Clubs,
+            TransferModule Transfer,
+            ContractRegistrationModule Contracts,
+            PlayerCareerModule Players,
+            TeamPreparationModule TeamPrep) modules)
     {
-        var modules = CreateBase();
-        modules.Transfer.Needs.Declare(
-            new ClubId(1),
-            TransferNeedKind.PositionGap,
-            priority: 4,
-            "ManualPositionGap",
-            Day);
-        modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(new ClubId(1), Day);
-        var process = modules.Transfer.Processes.OpenOldestListedTargetForClub(new ClubId(1), Day);
-        modules.Transfer.Processes.RequestSportingApproval(process.ProcessId);
-        modules.Transfer.Processes.GrantSportingApproval(process.ProcessId);
-        return (modules.World, modules.Clubs, modules.Transfer);
-    }
-
-    private static (
-        WorldCalendarModule World,
-        ClubGovernanceModule Clubs,
-        TransferModule Transfer) CreateWithFinancialApproval()
-    {
-        var modules = CreateBase();
-        modules.Players.Development.EnsureClub(new ClubId(1), modules.World.TimelineStore.Timeline.RootSeed, Day);
-        modules.Players.Development.EnsureClub(new ClubId(2), modules.World.TimelineStore.Timeline.RootSeed, Day);
-        modules.TeamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
-        modules.TeamPrep.ClubSquad.SyncFromActiveContracts(new ClubId(2), Day);
-
-        modules.Transfer.Needs.Declare(
-            new ClubId(1),
-            TransferNeedKind.PositionGap,
-            priority: 4,
-            "ManualPositionGap",
-            Day);
-        modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(new ClubId(1), Day);
-        var process = modules.Transfer.Processes.OpenOldestListedTargetForClub(new ClubId(1), Day);
-        modules.Transfer.Processes.RequestSportingApproval(process.ProcessId);
-        modules.Transfer.Processes.GrantSportingApproval(process.ProcessId);
-        modules.Transfer.ClubOffers.SubmitClubOffer(process.ProcessId, 5_000_000, Day);
-        modules.Transfer.ClubOffers.AcceptPendingOffer(process.ProcessId);
-        modules.Transfer.ContractProposals.SubmitContractProposal(process.ProcessId, 25_000, 3, Day);
-        modules.Transfer.ContractProposals.AcceptPendingProposal(process.ProcessId);
-        modules.Transfer.Processes.RequestFinancialApproval(process.ProcessId);
-        modules.Transfer.Processes.GrantFinancialApproval(process.ProcessId);
-
         var outgoing = modules.Players.Store.Careers
             .Where(c => c.OriginClubId.Value == 1)
             .OrderByDescending(c => c.SlotIndex)
@@ -187,9 +158,34 @@ public sealed class TransferBudgetReservationTests : IDisposable
             existing.StartDate,
             existing.WeeklyWage,
             Domain.ContractRegistration.ContractStatus.Expired));
-        modules.TeamPrep.ClubSquad.SyncFromActiveContracts(new ClubId(1), Day);
+        modules.TeamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
+    }
 
-        return (modules.World, modules.Clubs, modules.Transfer);
+    private static (
+        WorldCalendarModule World,
+        ClubGovernanceModule Clubs,
+        TransferModule Transfer,
+        ContractRegistrationModule Contracts,
+        PlayerCareerModule Players,
+        TeamPreparationModule TeamPrep) CreateWithSportingApproval()
+    {
+        var modules = CreateBase();
+        modules.Players.Development.EnsureClub(new ClubId(1), 91, Day);
+        modules.Players.Development.EnsureClub(new ClubId(2), 91, Day);
+        modules.TeamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
+        modules.TeamPrep.ClubSquad.SyncFromActiveContracts(new ClubId(2), Day);
+
+        modules.Transfer.Needs.Declare(
+            new ClubId(1),
+            TransferNeedKind.PositionGap,
+            priority: 4,
+            "ManualPositionGap",
+            Day);
+        modules.Transfer.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(new ClubId(1), Day);
+        var process = modules.Transfer.Processes.OpenOldestListedTargetForClub(new ClubId(1), Day);
+        modules.Transfer.Processes.RequestSportingApproval(process.ProcessId);
+        modules.Transfer.Processes.GrantSportingApproval(process.ProcessId);
+        return modules;
     }
 
     private static (
@@ -210,6 +206,7 @@ public sealed class TransferBudgetReservationTests : IDisposable
             playerStore,
             manager.Store,
             world.TimelineStore);
+        clubs.BindWageBudget(contracts.Store);
         var players = PlayerCareerModule.Create(
             manager.Store,
             world.TimelineStore,
@@ -229,7 +226,11 @@ public sealed class TransferBudgetReservationTests : IDisposable
             manager.Store,
             contracts.Registration,
             teamPrep.ClubSquad!,
-            transferBudget: clubs.TransferBudget);
+            transferWindow: new TimelineTransferWindowQuery(world.TimelineStore),
+            transferBudget: clubs.TransferBudget,
+            wageBudget: clubs.WageBudget,
+            clubRegistry: clubs.Store,
+            freeAgentStore: contracts.FreeAgentStore);
         return (world, clubs, transfer, contracts, players, teamPrep);
     }
 }

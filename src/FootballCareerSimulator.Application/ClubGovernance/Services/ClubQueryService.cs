@@ -41,7 +41,9 @@ public sealed class ClubQueryService
             club.TransferBudgetLimit,
             club.ReservedTransferFunds,
             club.SpentTransferFunds,
-            club.AvailableTransferFunds);
+            club.AvailableTransferFunds,
+            club.WageBudgetLimit,
+            club.ReservedWeeklyWage);
 }
 
 public sealed class ClubGovernanceQueryException : Exception

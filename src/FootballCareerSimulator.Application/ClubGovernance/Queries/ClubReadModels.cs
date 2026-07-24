@@ -8,4 +8,6 @@ public sealed record ClubReadModel(
     int TransferBudgetLimit,
     int ReservedTransferFunds,
     int SpentTransferFunds,
-    int AvailableTransferFunds);
+    int AvailableTransferFunds,
+    int WageBudgetLimit,
+    int ReservedWeeklyWage);

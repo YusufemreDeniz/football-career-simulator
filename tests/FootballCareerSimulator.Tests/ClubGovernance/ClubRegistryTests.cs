@@ -29,6 +29,8 @@ public sealed class ClubRegistryTests
         Assert.Equal(Club.DefaultTransferBudgetLimit(club.SportiveStrength), club.TransferBudgetLimit);
         Assert.Equal(0, club.ReservedTransferFunds);
         Assert.Equal(club.TransferBudgetLimit, club.AvailableTransferFunds);
+        Assert.Equal(Club.DefaultWageBudgetLimit(club.SportiveStrength), club.WageBudgetLimit);
+        Assert.Equal(0, club.ReservedWeeklyWage);
     }
 
     [Fact]

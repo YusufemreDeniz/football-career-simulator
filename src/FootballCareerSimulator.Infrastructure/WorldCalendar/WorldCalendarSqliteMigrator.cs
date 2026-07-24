@@ -1724,6 +1724,72 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV28ToV29InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV28ToV29(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V28 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        SqliteConnection.ClearAllPools();
+        File.Move(workingCopyPath, filePath, overwrite: true);
+    }
+
+    private static void MigrateV28ToV29(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(
+                connection,
+                alterTransaction,
+                "ALTER TABLE ClubState ADD COLUMN WageBudgetLimit INTEGER NOT NULL DEFAULT 0;");
+            ProductionSqliteCommands.ExecuteNonQuery(
+                connection,
+                alterTransaction,
+                "ALTER TABLE ClubState ADD COLUMN ReservedWeeklyWage INTEGER NOT NULL DEFAULT 0;");
+            ProductionSqliteCommands.ExecuteNonQuery(
+                connection,
+                alterTransaction,
+                """
+                UPDATE ClubState
+                SET WageBudgetLimit = SportiveStrength * 5000
+                WHERE WageBudgetLimit = 0;
+                """);
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 29);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void TryDelete(string path)
     {
         try
@@ -1738,3 +1804,4 @@ internal static class WorldCalendarSqliteMigrator
         }
     }
 }
+

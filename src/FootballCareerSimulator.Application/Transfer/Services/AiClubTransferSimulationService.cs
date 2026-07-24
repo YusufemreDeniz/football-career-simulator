@@ -33,6 +33,7 @@ public sealed class AiClubTransferSimulationService
     private readonly ITransferProcessStore _processStore;
     private readonly ITransferWindowQuery _transferWindow;
     private readonly ClubTransferBudgetService? _transferBudget;
+    private readonly ClubWageBudgetService? _wageBudget;
     private readonly TransferNeedService _needs;
     private readonly ShortlistTargetService _shortlistTargets;
     private readonly TransferProcessService _processes;
@@ -50,6 +51,7 @@ public sealed class AiClubTransferSimulationService
         ITransferProcessStore processStore,
         ITransferWindowQuery transferWindow,
         ClubTransferBudgetService? transferBudget,
+        ClubWageBudgetService? wageBudget,
         TransferNeedService needs,
         ShortlistTargetService shortlistTargets,
         TransferProcessService processes,
@@ -67,6 +69,7 @@ public sealed class AiClubTransferSimulationService
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _transferWindow = transferWindow ?? throw new ArgumentNullException(nameof(transferWindow));
         _transferBudget = transferBudget;
+        _wageBudget = wageBudget;
         _needs = needs ?? throw new ArgumentNullException(nameof(needs));
         _shortlistTargets = shortlistTargets ?? throw new ArgumentNullException(nameof(shortlistTargets));
         _processes = processes ?? throw new ArgumentNullException(nameof(processes));
@@ -113,7 +116,7 @@ public sealed class AiClubTransferSimulationService
 
     private bool TrySignFreeAgent(ClubId buyingClubId, GameDate day)
     {
-        if (!HasSquadSpace(buyingClubId))
+        if (!HasSquadSpace(buyingClubId) || !CanAffordDefaultWage(buyingClubId, day))
         {
             return false;
         }
@@ -142,7 +145,7 @@ public sealed class AiClubTransferSimulationService
         int worldSeed,
         ClubId? managedClubId)
     {
-        if (!HasSquadSpace(buyingClubId))
+        if (!HasSquadSpace(buyingClubId) || !CanAffordDefaultWage(buyingClubId, day))
         {
             return false;
         }
@@ -259,6 +262,9 @@ public sealed class AiClubTransferSimulationService
         var squadCount = _squadStore.Get(buyingClubId)?.Members.Count ?? 0;
         return squadCount < ClubSquad.MaxMembers;
     }
+
+    private bool CanAffordDefaultWage(ClubId buyingClubId, GameDate day) =>
+        _wageBudget is null || _wageBudget.CanAfford(buyingClubId, DefaultWeeklyWage, day);
 
     private bool HasActiveProcessForPlayer(PlayerId playerId) =>
         _processStore.Processes.Any(p => p.IsActive && p.PlayerId.Value == playerId.Value);

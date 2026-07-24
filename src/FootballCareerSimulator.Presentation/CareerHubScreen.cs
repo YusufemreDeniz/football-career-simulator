@@ -822,9 +822,16 @@ public partial class CareerHubScreen : Control
         }
 
         var budget = _controller.Host.ClubModule.TransferBudget.Get(clubId.Value);
+        var day = _controller.Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+        var wage = _controller.Host.ClubModule.WageBudget?.Get(clubId.Value, day);
+        var wageText = wage is null
+            ? string.Empty
+            : $" · Maaş: kullanılabilir {wage.Available:N0} / limit {wage.Limit:N0}"
+              + $" (taahhüt {wage.Committed:N0}, rezerve {wage.Reserved:N0})";
         _transferBudgetLabel.Text =
             $"Transfer bütçesi: kullanılabilir {budget.Available:N0} / limit {budget.Limit:N0}"
-            + $" (rezerve {budget.Reserved:N0}, harcanan {budget.Spent:N0})";
+            + $" (rezerve {budget.Reserved:N0}, harcanan {budget.Spent:N0})"
+            + wageText;
     }
 
     private void RefreshClubOfferStatus()

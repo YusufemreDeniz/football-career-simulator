@@ -3,6 +3,7 @@ namespace FootballCareerSimulator.Application.ClubGovernance.Composition;
 using FootballCareerSimulator.Application.ClubGovernance.Infrastructure;
 using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ClubGovernance.Services;
+using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Domain.ClubGovernance;
 
 /// <summary>
@@ -13,11 +14,13 @@ public sealed class ClubGovernanceModule
     public ClubGovernanceModule(
         IClubRegistryStore store,
         ClubQueryService queries,
-        ClubTransferBudgetService transferBudget)
+        ClubTransferBudgetService transferBudget,
+        ClubWageBudgetService? wageBudget = null)
     {
         Store = store;
         Queries = queries;
         TransferBudget = transferBudget;
+        WageBudget = wageBudget;
     }
 
     public IClubRegistryStore Store { get; }
@@ -25,6 +28,14 @@ public sealed class ClubGovernanceModule
     public ClubQueryService Queries { get; }
 
     public ClubTransferBudgetService TransferBudget { get; }
+
+    public ClubWageBudgetService? WageBudget { get; private set; }
+
+    public void BindWageBudget(IContractStore contractStore)
+    {
+        ArgumentNullException.ThrowIfNull(contractStore);
+        WageBudget = new ClubWageBudgetService(Store, contractStore);
+    }
 
     public static ClubGovernanceModule CreateMvpLeague()
     {

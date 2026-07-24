@@ -1,6 +1,8 @@
+using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -8,8 +10,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.Transfer.Services;
 
 /// <summary>
-/// Player Contract Proposal iskeleti: teklif / karşı teklif / kabul / ret.
-/// Contract aktivasyonu ve Financial Approval yok.
+/// Player Contract Proposal iskeleti: teklif / karşı teklif / kabul / ret + maaş rezervasyonu.
 /// </summary>
 public sealed class PlayerContractProposalService
 {
@@ -17,18 +18,21 @@ public sealed class PlayerContractProposalService
     private readonly ITransferProcessStore _processStore;
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly ITransferWindowQuery _transferWindow;
+    private readonly ClubWageBudgetService? _wageBudget;
 
     public PlayerContractProposalService(
         IPlayerContractProposalStore proposalStore,
         ITransferProcessStore processStore,
         IManagerCareerStore managerCareerStore,
-        ITransferWindowQuery? transferWindow = null)
+        ITransferWindowQuery? transferWindow = null,
+        ClubWageBudgetService? wageBudget = null)
     {
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
+        _wageBudget = wageBudget;
     }
 
     public PlayerContractProposal SubmitContractProposal(
@@ -86,6 +90,7 @@ public sealed class PlayerContractProposalService
         }
 
         var pending = RequirePending(processId);
+        ReserveWage(process.BuyingClubId, pending.WeeklyWage, pending.SubmittedOn);
         var accepted = pending.Accept();
         _proposalStore.Upsert(accepted);
         _processStore.Upsert(process.ReachPlayerAgreement());
@@ -155,6 +160,23 @@ public sealed class PlayerContractProposalService
             buyingClubId,
             actor,
             "Only the employed manager of the buying club can manage contract proposals.");
+
+    private void ReserveWage(ClubId clubId, int weeklyWage, GameDate day)
+    {
+        if (_wageBudget is null || weeklyWage <= 0)
+        {
+            return;
+        }
+
+        try
+        {
+            _wageBudget.Reserve(clubId, weeklyWage, day);
+        }
+        catch (ClubGovernanceInvariantViolationException ex)
+        {
+            throw new TransferInvariantViolationException(ex.Message);
+        }
+    }
 
     private void EnsureTransferWindowOpen()
     {

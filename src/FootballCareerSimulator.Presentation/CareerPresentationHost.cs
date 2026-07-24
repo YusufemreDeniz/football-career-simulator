@@ -127,6 +127,7 @@ public sealed class CareerPresentationHost
             playerCareer.Store,
             playerCareer.Development,
             teamPreparation.TacticPlanStore);
+        clubModule.BindWageBudget(contractModule.Store);
         var transferModule = TransferModule.Create(
             contractModule.Store,
             teamPreparation.SquadStore,
@@ -136,6 +137,7 @@ public sealed class CareerPresentationHost
                 ?? throw new InvalidOperationException("ClubSquad service is required for transfers."),
             transferWindow: worldModule.TransferWindowQuery,
             transferBudget: clubModule.TransferBudget,
+            wageBudget: clubModule.WageBudget,
             clubRegistry: clubModule.Store,
             freeAgentStore: contractModule.FreeAgentStore);
         var persistence = new CareerSqlitePersistence();
