@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
@@ -26,6 +27,7 @@ public sealed class TransferCompletionService
     private readonly ITransferWindowQuery _transferWindow;
     private readonly ClubTransferBudgetService? _transferBudget;
     private readonly ClubWageBudgetService? _wageBudget;
+    private readonly PromiseInvalidationService? _promiseInvalidation;
 
     public TransferCompletionService(
         ITransferProcessStore processStore,
@@ -36,7 +38,8 @@ public sealed class TransferCompletionService
         IManagerCareerStore managerCareerStore,
         ITransferWindowQuery? transferWindow = null,
         ClubTransferBudgetService? transferBudget = null,
-        ClubWageBudgetService? wageBudget = null)
+        ClubWageBudgetService? wageBudget = null,
+        PromiseInvalidationService? promiseInvalidation = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
@@ -48,6 +51,7 @@ public sealed class TransferCompletionService
         _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
         _transferBudget = transferBudget;
         _wageBudget = wageBudget;
+        _promiseInvalidation = promiseInvalidation;
     }
 
     public TransferProcess Complete(
@@ -89,6 +93,8 @@ public sealed class TransferCompletionService
             day,
             proposal.WeeklyWage,
             proposal.ContractYears);
+
+        _promiseInvalidation?.InvalidateForPlayerLeaving(process.PlayerId, day);
 
         var clubIds = process.SellingClubId is { } selling
             ? new[] { process.BuyingClubId.Value, selling.Value }

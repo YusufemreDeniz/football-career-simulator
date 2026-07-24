@@ -36,6 +36,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly StartingOpportunityPromiseService? _startingOpportunityPromises;
     private readonly PlayingTimePromiseService? _playingTimePromises;
     private readonly SelectionMemoryService? _selectionMemory;
+    private readonly PromiseInvalidationService? _promiseInvalidation;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -51,7 +52,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         IClubSquadStore? clubSquadStore = null,
         StartingOpportunityPromiseService? startingOpportunityPromises = null,
         SelectionMemoryService? selectionMemory = null,
-        PlayingTimePromiseService? playingTimePromises = null)
+        PlayingTimePromiseService? playingTimePromises = null,
+        PromiseInvalidationService? promiseInvalidation = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -66,6 +68,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _startingOpportunityPromises = startingOpportunityPromises;
         _selectionMemory = selectionMemory;
         _playingTimePromises = playingTimePromises;
+        _promiseInvalidation = promiseInvalidation;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -199,8 +202,17 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var career = assessment.Career;
         if (assessment.WasApplied && assessment.RiskBand == EmploymentRiskBand.Critical)
         {
+            var clubId = career.ActiveEmployment?.ClubId;
+            var managerId = career.ManagerId;
             var dismissal = career.DismissDueToBoardConfidence(fixture.Id, occurredAt);
             career = dismissal.Career;
+            if (clubId is ClubId dismissedClub)
+            {
+                _promiseInvalidation?.InvalidateForManagerLeavingClub(
+                    managerId,
+                    dismissedClub,
+                    occurredAt);
+            }
         }
 
         _managerCareerStore.Replace(career);

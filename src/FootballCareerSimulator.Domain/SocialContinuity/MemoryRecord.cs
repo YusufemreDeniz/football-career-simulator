@@ -98,15 +98,21 @@ public sealed class MemoryRecord
         GameDate day)
     {
         ArgumentNullException.ThrowIfNull(promise);
-        if (promise.Status is not (PromiseStatus.Fulfilled or PromiseStatus.Broken))
+        if (promise.Status is not (
+            PromiseStatus.Fulfilled
+            or PromiseStatus.Broken
+            or PromiseStatus.Invalidated))
         {
             throw new SocialContinuityInvariantViolationException(
-                "Promise outcome memory requires Fulfilled or Broken status.");
+                "Promise outcome memory requires Fulfilled, Broken, or Invalidated status.");
         }
 
-        var fulfilled = promise.Status == PromiseStatus.Fulfilled;
-        var importance = fulfilled ? 60 : 80;
-        var valence = fulfilled ? MemoryValence.Positive : MemoryValence.Negative;
+        var (importance, valence) = promise.Status switch
+        {
+            PromiseStatus.Fulfilled => (60, MemoryValence.Positive),
+            PromiseStatus.Broken => (80, MemoryValence.Negative),
+            _ => (55, MemoryValence.Neutral),
+        };
         var sourceKey = BuildPromiseOutcomeSourceKey(promise.PromiseId, promise.Status);
 
         return new MemoryRecord(

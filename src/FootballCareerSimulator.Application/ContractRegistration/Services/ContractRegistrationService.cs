@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Queries;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
@@ -14,6 +15,7 @@ public sealed class ContractRegistrationService
     private readonly IContractStore _store;
     private readonly IFreeAgentStore _freeAgentStore;
     private readonly IPlayerCareerStore _playerCareerStore;
+    private PromiseInvalidationService? _promiseInvalidation;
 
     public ContractRegistrationService(
         IContractStore store,
@@ -25,6 +27,9 @@ public sealed class ContractRegistrationService
         _playerCareerStore = playerCareerStore
             ?? throw new ArgumentNullException(nameof(playerCareerStore));
     }
+
+    public void BindPromiseInvalidation(PromiseInvalidationService invalidation) =>
+        _promiseInvalidation = invalidation ?? throw new ArgumentNullException(nameof(invalidation));
 
     public bool IsFreeAgent(PlayerId playerId) => _freeAgentStore.Get(playerId) is not null;
 
@@ -73,6 +78,7 @@ public sealed class ContractRegistrationService
             _store.Upsert(next);
             _freeAgentStore.Upsert(
                 PlayerFreeAgency.Release(next.PlayerId, next.ClubId, day));
+            _promiseInvalidation?.InvalidateForPlayerLeaving(next.PlayerId, day);
             affectedClubs.Add(next.ClubId.Value);
             freeAgentPlayers.Add(next.PlayerId.Value);
             expired++;

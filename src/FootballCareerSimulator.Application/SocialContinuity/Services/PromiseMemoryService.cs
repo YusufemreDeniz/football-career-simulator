@@ -19,7 +19,10 @@ public sealed class PromiseMemoryService
     public int RecordOutcome(Promise promise, GameDate day)
     {
         ArgumentNullException.ThrowIfNull(promise);
-        if (promise.Status is not (PromiseStatus.Fulfilled or PromiseStatus.Broken))
+        if (promise.Status is not (
+            PromiseStatus.Fulfilled
+            or PromiseStatus.Broken
+            or PromiseStatus.Invalidated))
         {
             return 0;
         }

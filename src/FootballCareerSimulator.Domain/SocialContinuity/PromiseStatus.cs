@@ -6,4 +6,5 @@ public enum PromiseStatus
     Fulfilled = 2,
     Broken = 3,
     Archived = 4,
+    Invalidated = 5,
 }

@@ -74,7 +74,10 @@ public sealed class Promise
     public bool IsActive => Status == PromiseStatus.Active;
 
     public bool IsTerminal =>
-        Status is PromiseStatus.Fulfilled or PromiseStatus.Broken or PromiseStatus.Archived;
+        Status is PromiseStatus.Fulfilled
+            or PromiseStatus.Broken
+            or PromiseStatus.Invalidated
+            or PromiseStatus.Archived;
 
     public static Promise CreateStartingOpportunity(
         PromiseId promiseId,
@@ -150,7 +153,10 @@ public sealed class Promise
                 "Active promise cannot have TerminalOn.");
         }
 
-        if (status is PromiseStatus.Fulfilled or PromiseStatus.Broken or PromiseStatus.Archived
+        if ((status is PromiseStatus.Fulfilled
+                or PromiseStatus.Broken
+                or PromiseStatus.Invalidated
+                or PromiseStatus.Archived)
             && terminalOn is null)
         {
             throw new SocialContinuityInvariantViolationException(
@@ -209,6 +215,34 @@ public sealed class Promise
             _countedFixtureIds);
     }
 
+    public Promise Invalidate(GameDate day)
+    {
+        if (Status == PromiseStatus.Invalidated)
+        {
+            return this;
+        }
+
+        if (Status != PromiseStatus.Active)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                $"Promise #{PromiseId.Value} is {Status} and cannot be invalidated.");
+        }
+
+        return new Promise(
+            PromiseId,
+            Kind,
+            Promisor,
+            Promisee,
+            ClubId,
+            TargetStarts,
+            StartsGiven,
+            DeadlineOn,
+            CreatedOn,
+            PromiseStatus.Invalidated,
+            day,
+            _countedFixtureIds);
+    }
+
     public Promise Archive(GameDate day)
     {
         if (Status == PromiseStatus.Archived)
@@ -216,7 +250,10 @@ public sealed class Promise
             return this;
         }
 
-        if (Status is not (PromiseStatus.Fulfilled or PromiseStatus.Broken))
+        if (Status is not (
+            PromiseStatus.Fulfilled
+            or PromiseStatus.Broken
+            or PromiseStatus.Invalidated))
         {
             throw new SocialContinuityInvariantViolationException(
                 $"Promise #{PromiseId.Value} is {Status} and cannot be archived.");

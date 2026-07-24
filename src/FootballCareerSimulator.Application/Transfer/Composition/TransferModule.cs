@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.ContractRegistration.Infrastructure;
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
@@ -96,7 +97,8 @@ public sealed class TransferModule
         ClubTransferBudgetService? transferBudget = null,
         ClubWageBudgetService? wageBudget = null,
         IClubRegistryStore? clubRegistry = null,
-        IFreeAgentStore? freeAgentStore = null)
+        IFreeAgentStore? freeAgentStore = null,
+        PromiseInvalidationService? promiseInvalidation = null)
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(clubSquad);
@@ -135,7 +137,8 @@ public sealed class TransferModule
             managerCareerStore,
             window,
             transferBudget,
-            wageBudget);
+            wageBudget,
+            promiseInvalidation);
 
         var clubs = clubRegistry
             ?? new InMemoryClubRegistryStore(LeagueClubRegistry.CreateMvpLeague());
