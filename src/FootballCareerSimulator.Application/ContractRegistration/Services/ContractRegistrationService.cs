@@ -131,4 +131,41 @@ public sealed class ContractRegistrationService
             wage,
             endDate.DayNumber);
     }
+
+    /// <summary>
+    /// Transfer completion owner geçişi: teklif şartlarıyla yeni aktif sözleşme.
+    /// Serbest ajan kaydını temizler; LastClub kısıtı yoktur.
+    /// </summary>
+    public TransferContractActivationResult ActivateContractForTransfer(
+        PlayerId playerId,
+        ClubId buyingClubId,
+        GameDate day,
+        int weeklyWage,
+        int contractYears)
+    {
+        if (contractYears < 1 || contractYears > 5)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                "Contract years must be between 1 and 5.");
+        }
+
+        if (weeklyWage < 0)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                "Weekly wage cannot be negative.");
+        }
+
+        var wasFreeAgent = _freeAgentStore.Get(playerId) is not null;
+        var endDate = GameDate.FromCalendarDate(day.Year + contractYears, day.Month, day.Day);
+        var contract = PlayerContract.Activate(playerId, buyingClubId, day, endDate, weeklyWage);
+        _store.Upsert(contract);
+        _freeAgentStore.Remove(playerId);
+
+        return new TransferContractActivationResult(
+            playerId.Value,
+            buyingClubId.Value,
+            weeklyWage,
+            endDate.DayNumber,
+            wasFreeAgent);
+    }
 }

@@ -34,17 +34,50 @@ public sealed class ClubSquadService
             .OrderBy(c => c.PlayerId.Value)
             .ToArray();
 
+        var previousByPlayer = (_squadStore.Get(clubId)?.Members ?? Array.Empty<SquadMember>())
+            .ToDictionary(m => m.PlayerId.Value);
+
+        var usedSlots = new HashSet<int>();
         var members = new List<SquadMember>(active.Length);
+
         foreach (var contract in active)
         {
-            var career = _playerCareerStore.Careers
-                .FirstOrDefault(c => c.Id == contract.PlayerId);
-            if (career is null)
+            if (_playerCareerStore.Careers.All(c => c.Id != contract.PlayerId))
             {
                 continue;
             }
 
-            members.Add(SquadMember.Create(contract.PlayerId, career.SlotIndex, contract.StartDate));
+            if (!previousByPlayer.TryGetValue(contract.PlayerId.Value, out var prior))
+            {
+                continue;
+            }
+
+            members.Add(SquadMember.Create(contract.PlayerId, prior.SlotIndex, contract.StartDate));
+            usedSlots.Add(prior.SlotIndex);
+        }
+
+        foreach (var contract in active)
+        {
+            if (members.Any(m => m.PlayerId == contract.PlayerId))
+            {
+                continue;
+            }
+
+            if (_playerCareerStore.Careers.All(c => c.Id != contract.PlayerId))
+            {
+                continue;
+            }
+
+            var slot = Enumerable.Range(MatchSelection.MinSquadSlot, ClubSquad.MaxMembers)
+                .FirstOrDefault(s => !usedSlots.Contains(s), -1);
+            if (slot < 0)
+            {
+                throw new TeamPreparationInvariantViolationException(
+                    $"Club {clubId.Value} has no free squad slot for incoming player {contract.PlayerId.Value}.");
+            }
+
+            members.Add(SquadMember.Create(contract.PlayerId, slot, contract.StartDate));
+            usedSlots.Add(slot);
         }
 
         var squad = ClubSquad.Rehydrate(clubId, members);
@@ -61,4 +94,3 @@ public sealed class ClubSquadService
         }
     }
 }
-

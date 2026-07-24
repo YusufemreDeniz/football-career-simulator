@@ -117,7 +117,7 @@ public sealed class TransferProcessTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(25, loaded.SchemaVersion);
+        Assert.Equal(26, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.UnderEvaluation, loaded.TransferProcesses[0].Status);
         Assert.Equal(2, loaded.TransferProcesses[0].SellingClubId!.Value.Value);
@@ -152,7 +152,7 @@ public sealed class TransferProcessTests : IDisposable
             timelineStore: world.TimelineStore,
             contractStore: contracts.Store,
             playerCareerStore: playerStore);
-        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store);
+        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store, contracts.Registration, teamPrep.ClubSquad!);
         transfer.Needs.Declare(
             new ClubId(1),
             TransferNeedKind.PositionGap,

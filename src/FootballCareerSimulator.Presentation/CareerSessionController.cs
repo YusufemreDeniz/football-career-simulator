@@ -605,6 +605,36 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult CompleteOldestFinanciallyApprovedProcess()
+    {
+        try
+        {
+            var process = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+                .Where(p =>
+                    p.StatusCode is (int)TransferProcessStatus.FinancialApproved
+                        or (int)TransferProcessStatus.CompletionPending)
+                .OrderBy(p => p.ProcessId)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("Tamamlanacak mali onaylı süreç yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var updated = Host.TransferModule.Completion.Complete(
+                new TransferProcessId(process.ProcessId),
+                day);
+            return UiActionResult.Ok(
+                $"Transfer tamamlandı: süreç #{updated.ProcessId.Value}"
+                + $" · oyuncu {updated.PlayerId.Value} → kulüp {updated.BuyingClubId.Value}"
+                + $" · {TranslateProcessStatus(updated.Status)}.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Transfer tamamlanamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Transfer tamamlama hatası: {ex.Message}");
+        }
+    }
+
     private long ResolveOldestActiveProcessId()
     {
         var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
@@ -848,6 +878,8 @@ public sealed class CareerSessionController
             TransferProcessStatus.PlayerAgreementReached => "Oyuncu anlaşması",
             TransferProcessStatus.FinancialApprovalPending => "Mali onay bekliyor",
             TransferProcessStatus.FinancialApproved => "Mali onaylı",
+            TransferProcessStatus.CompletionPending => "Tamamlanıyor",
+            TransferProcessStatus.Completed => "Tamamlandı",
             TransferProcessStatus.Rejected => "Reddedildi",
             TransferProcessStatus.Withdrawn => "Geri çekildi",
             TransferProcessStatus.Failed => "Başarısız",

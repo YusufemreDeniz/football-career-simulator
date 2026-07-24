@@ -55,6 +55,7 @@ public partial class CareerHubScreen : Control
     private Button _requestFinancialApprovalButton = null!;
     private Button _grantFinancialApprovalButton = null!;
     private Button _rejectFinancialApprovalButton = null!;
+    private Button _completeTransferButton = null!;
     private Button _trainLowButton = null!;
     private Button _trainMediumButton = null!;
     private Button _trainHighButton = null!;
@@ -356,6 +357,11 @@ public partial class CareerHubScreen : Control
         _rejectFinancialApprovalButton.Pressed += () =>
             Apply(_controller.RejectFinancialApprovalForOldestPendingProcess());
         financialRow.AddChild(_rejectFinancialApprovalButton);
+
+        _completeTransferButton = SecondaryButton("Transferi Tamamla");
+        _completeTransferButton.Pressed += () =>
+            Apply(_controller.CompleteOldestFinanciallyApprovedProcess());
+        financialRow.AddChild(_completeTransferButton);
 
         var prepCol = new VBoxContainer
         {
@@ -858,9 +864,13 @@ public partial class CareerHubScreen : Control
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.PlayerAgreementReached);
         var pendingFinancial = employed && processes.Any(p =>
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.FinancialApprovalPending);
+        var canComplete = employed && processes.Any(p =>
+            p.StatusCode is (int)Domain.Transfer.TransferProcessStatus.FinancialApproved
+                or (int)Domain.Transfer.TransferProcessStatus.CompletionPending);
         _requestFinancialApprovalButton.Disabled = !canRequestFinancial;
         _grantFinancialApprovalButton.Disabled = !pendingFinancial;
         _rejectFinancialApprovalButton.Disabled = !pendingFinancial;
+        _completeTransferButton.Disabled = !canComplete;
     }
 
     private void RefreshTrainingStatus()

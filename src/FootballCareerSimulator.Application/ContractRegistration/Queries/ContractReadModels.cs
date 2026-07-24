@@ -19,6 +19,13 @@ public sealed record FreeAgentResignResult(
     int WeeklyWage,
     int EndDayNumber);
 
+public sealed record TransferContractActivationResult(
+    long PlayerId,
+    long ClubId,
+    int WeeklyWage,
+    int EndDayNumber,
+    bool WasFreeAgent);
+
 public sealed record SignableFreeAgentReadModel(
     long PlayerId,
     long LastClubId,

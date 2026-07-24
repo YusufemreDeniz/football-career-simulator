@@ -1,6 +1,8 @@
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
+using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Application.Transfer.Services;
@@ -21,6 +23,7 @@ public sealed class TransferModule
         TransferProcessService processes,
         ClubOfferService clubOffers,
         PlayerContractProposalService contractProposals,
+        TransferCompletionService completion,
         TransferNeedQueryService queries)
     {
         NeedStore = needStore;
@@ -34,6 +37,7 @@ public sealed class TransferModule
         Processes = processes;
         ClubOffers = clubOffers;
         ContractProposals = contractProposals;
+        Completion = completion;
         Queries = queries;
     }
 
@@ -59,12 +63,16 @@ public sealed class TransferModule
 
     public PlayerContractProposalService ContractProposals { get; }
 
+    public TransferCompletionService Completion { get; }
+
     public TransferNeedQueryService Queries { get; }
 
     public static TransferModule Create(
         IContractStore contractStore,
         IClubSquadStore squadStore,
         IManagerCareerStore managerCareerStore,
+        ContractRegistrationService registration,
+        ClubSquadService clubSquad,
         ITransferNeedStore? needStore = null,
         IShortlistStore? shortlistStore = null,
         ITransferTargetStore? targetStore = null,
@@ -72,6 +80,9 @@ public sealed class TransferModule
         IClubOfferStore? offerStore = null,
         IPlayerContractProposalStore? proposalStore = null)
     {
+        ArgumentNullException.ThrowIfNull(registration);
+        ArgumentNullException.ThrowIfNull(clubSquad);
+
         var needs = needStore ?? new InMemoryTransferNeedStore();
         var shortlist = shortlistStore ?? new InMemoryShortlistStore();
         var targets = targetStore ?? new InMemoryTransferTargetStore();
@@ -90,6 +101,12 @@ public sealed class TransferModule
             new TransferProcessService(processes, targets, needs, managerCareerStore),
             new ClubOfferService(offers, processes, managerCareerStore),
             new PlayerContractProposalService(proposals, processes, managerCareerStore),
+            new TransferCompletionService(
+                processes,
+                proposals,
+                registration,
+                clubSquad,
+                managerCareerStore),
             new TransferNeedQueryService(
                 needs,
                 shortlist,

@@ -149,7 +149,7 @@ public sealed class PlayerContractProposalTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(25, loaded.SchemaVersion);
+        Assert.Equal(26, loaded.SchemaVersion);
         Assert.Single(loaded.ContractProposals);
         Assert.Equal(30_000, loaded.ContractProposals[0].WeeklyWage);
         Assert.Equal(4, loaded.ContractProposals[0].ContractYears);
@@ -237,7 +237,7 @@ public sealed class PlayerContractProposalTests : IDisposable
             timelineStore: world.TimelineStore,
             contractStore: contracts.Store,
             playerCareerStore: playerStore);
-        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store);
+        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store, contracts.Registration, teamPrep.ClubSquad!);
         return (world, clubs, manager, transfer);
     }
 }

@@ -127,7 +127,7 @@ public sealed class ShortlistTargetTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(25, loaded.SchemaVersion);
+        Assert.Equal(26, loaded.SchemaVersion);
         Assert.Single(loaded.ShortlistEntries);
         Assert.Single(loaded.TransferTargets);
         Assert.Equal(TransferTargetStatus.Listed, loaded.TransferTargets[0].Status);
@@ -163,7 +163,7 @@ public sealed class ShortlistTargetTests : IDisposable
             timelineStore: world.TimelineStore,
             contractStore: contracts.Store,
             playerCareerStore: playerStore);
-        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store);
+        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store, contracts.Registration, teamPrep.ClubSquad!);
         return (world, clubs, manager, transfer);
     }
 }

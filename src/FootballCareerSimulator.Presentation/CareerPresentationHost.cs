@@ -130,7 +130,10 @@ public sealed class CareerPresentationHost
         var transferModule = TransferModule.Create(
             contractModule.Store,
             teamPreparation.SquadStore,
-            managerModule.Store);
+            managerModule.Store,
+            contractModule.Registration,
+            teamPreparation.ClubSquad
+                ?? throw new InvalidOperationException("ClubSquad service is required for transfers."));
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =

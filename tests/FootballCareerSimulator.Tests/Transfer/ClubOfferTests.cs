@@ -114,7 +114,7 @@ public sealed class ClubOfferTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(25, loaded.SchemaVersion);
+        Assert.Equal(26, loaded.SchemaVersion);
         Assert.Single(loaded.ClubOffers);
         Assert.Equal(6_000_000, loaded.ClubOffers[0].OfferedFee);
         Assert.Equal(ClubOfferStatus.Pending, loaded.ClubOffers[0].Status);
@@ -150,7 +150,7 @@ public sealed class ClubOfferTests : IDisposable
             timelineStore: world.TimelineStore,
             contractStore: contracts.Store,
             playerCareerStore: playerStore);
-        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store);
+        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store, contracts.Registration, teamPrep.ClubSquad!);
         transfer.Needs.Declare(
             new ClubId(1),
             TransferNeedKind.PositionGap,

@@ -205,6 +205,8 @@ public sealed class TransferNeedQueryService
             TransferProcessStatus.PlayerAgreementReached => "Oyuncu anlaşması",
             TransferProcessStatus.FinancialApprovalPending => "Mali onay bekliyor",
             TransferProcessStatus.FinancialApproved => "Mali onaylı",
+            TransferProcessStatus.CompletionPending => "Tamamlanıyor",
+            TransferProcessStatus.Completed => "Tamamlandı",
             TransferProcessStatus.Rejected => "Reddedildi",
             TransferProcessStatus.Withdrawn => "Geri çekildi",
             TransferProcessStatus.Failed => "Başarısız",

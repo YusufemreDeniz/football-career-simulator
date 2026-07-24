@@ -5,7 +5,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.Transfer;
 
 /// <summary>
-/// Transfer süreci: Sporting / Club / Player + Financial Approval iskeleti. Completion yok.
+/// Transfer süreci: müzakere + onay + completion iskeleti. İlişki / diyalog / medya yok.
 /// </summary>
 public sealed class TransferProcess
 {
@@ -70,7 +70,9 @@ public sealed class TransferProcess
             or TransferProcessStatus.PlayerNegotiation
             or TransferProcessStatus.PlayerAgreementReached
             or TransferProcessStatus.FinancialApprovalPending
-            or TransferProcessStatus.FinancialApproved;
+            or TransferProcessStatus.FinancialApproved
+            or TransferProcessStatus.CompletionPending
+            or TransferProcessStatus.Completed;
 
     public bool IsInClubNegotiation => Status == TransferProcessStatus.ClubNegotiation;
 
@@ -82,7 +84,15 @@ public sealed class TransferProcess
 
     public bool AwaitsFinancialDecision => Status == TransferProcessStatus.FinancialApprovalPending;
 
-    public bool HasFinancialApproval => Status == TransferProcessStatus.FinancialApproved;
+    public bool HasFinancialApproval =>
+        Status is TransferProcessStatus.FinancialApproved
+            or TransferProcessStatus.CompletionPending
+            or TransferProcessStatus.Completed;
+
+    public bool IsCompletionPending => Status == TransferProcessStatus.CompletionPending;
+
+    public bool IsCompleted =>
+        Status is TransferProcessStatus.Completed or TransferProcessStatus.Archived;
 
     public static TransferProcess OpenFromTarget(
         TransferProcessId processId,
@@ -363,6 +373,45 @@ public sealed class TransferProcess
             day);
     }
 
+    public TransferProcess StartCompletion()
+    {
+        if (Status == TransferProcessStatus.CompletionPending)
+        {
+            return this;
+        }
+
+        if (Status is TransferProcessStatus.Completed or TransferProcessStatus.Archived)
+        {
+            throw new TransferInvariantViolationException(
+                "Transfer already completed; cannot start completion again.");
+        }
+
+        EnsureActive();
+        if (Status != TransferProcessStatus.FinancialApproved)
+        {
+            throw new TransferInvariantViolationException(
+                "Completion requires financial approval.");
+        }
+
+        return WithStatus(TransferProcessStatus.CompletionPending, FailureReasonCode, terminalOn: null);
+    }
+
+    public TransferProcess MarkCompleted(GameDate day)
+    {
+        if (Status == TransferProcessStatus.Completed)
+        {
+            return this;
+        }
+
+        if (Status != TransferProcessStatus.CompletionPending)
+        {
+            throw new TransferInvariantViolationException(
+                "MarkCompleted requires CompletionPending.");
+        }
+
+        return WithStatus(TransferProcessStatus.Completed, FailureReasonCode, day);
+    }
+
     public TransferProcess Withdraw(GameDate day)
     {
         EnsureActive();
@@ -426,7 +475,8 @@ public sealed class TransferProcess
             or TransferProcessStatus.PlayerNegotiation
             or TransferProcessStatus.PlayerAgreementReached
             or TransferProcessStatus.FinancialApprovalPending
-            or TransferProcessStatus.FinancialApproved;
+            or TransferProcessStatus.FinancialApproved
+            or TransferProcessStatus.CompletionPending;
 
     private static string RequireReason(string reasonCode)
     {

@@ -126,7 +126,7 @@ public sealed class SportingApprovalTests : IDisposable
             modules.Transfer.ProposalStore.Proposals);
 
         var loaded = persistence.Load(path);
-        Assert.Equal(25, loaded.SchemaVersion);
+        Assert.Equal(26, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.SportingApproved, loaded.TransferProcesses[0].Status);
     }
@@ -160,7 +160,7 @@ public sealed class SportingApprovalTests : IDisposable
             timelineStore: world.TimelineStore,
             contractStore: contracts.Store,
             playerCareerStore: playerStore);
-        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store);
+        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store, contracts.Registration, teamPrep.ClubSquad!);
         transfer.Needs.Declare(
             new ClubId(1),
             TransferNeedKind.PositionGap,
