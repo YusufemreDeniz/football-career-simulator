@@ -41,8 +41,11 @@ public sealed class MemoryRecord
     public const int MatchBlowoutMinGoalDifference = 3;
     public const string RelationshipTrustBandRuleId = "RelationshipTrustBand";
     public const int RelationshipTrustBandRuleVersion = 1;
+    public const int InfluenceBonusPerReinforcement = 10;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
+
+    private readonly HashSet<string> _processedReinforcementKeys;
 
     private MemoryRecord(
         MemoryId memoryId,
@@ -61,7 +64,8 @@ public sealed class MemoryRecord
         int reinforcementCount,
         PromiseId? relatedPromiseId,
         string ruleId,
-        int ruleVersion)
+        int ruleVersion,
+        IEnumerable<string>? processedReinforcementKeys = null)
     {
         MemoryId = memoryId;
         RememberingActor = rememberingActor;
@@ -80,6 +84,8 @@ public sealed class MemoryRecord
         RelatedPromiseId = relatedPromiseId;
         RuleId = ruleId;
         RuleVersion = ruleVersion;
+        _processedReinforcementKeys = (processedReinforcementKeys ?? Array.Empty<string>())
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     public MemoryId MemoryId { get; }
@@ -115,6 +121,8 @@ public sealed class MemoryRecord
     public string RuleId { get; }
 
     public int RuleVersion { get; }
+
+    public IReadOnlyCollection<string> ProcessedReinforcementKeys => _processedReinforcementKeys;
 
     public static MemoryRecord CreatePromiseOutcome(
         MemoryId memoryId,
@@ -546,7 +554,8 @@ public sealed class MemoryRecord
             Category,
             BaseImportance,
             LastReinforcedOn,
-            asOf);
+            asOf,
+            ReinforcementCount);
         if (target == CurrentInfluence)
         {
             return this;
@@ -569,7 +578,65 @@ public sealed class MemoryRecord
             ReinforcementCount,
             RelatedPromiseId,
             RuleId,
-            RuleVersion);
+            RuleVersion,
+            _processedReinforcementKeys);
+    }
+
+    public MemoryRecord Reinforce(string reinforcementEventKey, GameDate day)
+    {
+        if (string.IsNullOrWhiteSpace(reinforcementEventKey))
+        {
+            throw new SocialContinuityInvariantViolationException("Reinforcement event key is required.");
+        }
+
+        if (_processedReinforcementKeys.Contains(reinforcementEventKey))
+        {
+            return this;
+        }
+
+        if (Status == MemoryStatus.Archived)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Archived memory cannot be reinforced without an explicit restore rule.");
+        }
+
+        if (Status is not (MemoryStatus.Active or MemoryStatus.Dormant))
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Only active or dormant memories can be reinforced in this vertical.");
+        }
+
+        var nextCount = ReinforcementCount + 1;
+        var nextKeys = new HashSet<string>(_processedReinforcementKeys, StringComparer.Ordinal)
+        {
+            reinforcementEventKey,
+        };
+        var influence = MemoryTimeDecay.ComputeCurrentInfluence(
+            Category,
+            BaseImportance,
+            day,
+            day,
+            nextCount);
+
+        return new MemoryRecord(
+            MemoryId,
+            RememberingActor,
+            SubjectKind,
+            SubjectId,
+            SourceEventKey,
+            Category,
+            CreatedOn,
+            day,
+            BaseImportance,
+            influence,
+            Valence,
+            Visibility,
+            MemoryStatus.Active,
+            nextCount,
+            RelatedPromiseId,
+            RuleId,
+            RuleVersion,
+            nextKeys);
     }
 
     public static MemoryRecord Rehydrate(
@@ -589,7 +656,8 @@ public sealed class MemoryRecord
         int reinforcementCount,
         PromiseId? relatedPromiseId,
         string ruleId,
-        int ruleVersion)
+        int ruleVersion,
+        IEnumerable<string>? processedReinforcementKeys = null)
     {
         if (!Enum.IsDefined(subjectKind))
         {
@@ -665,7 +733,8 @@ public sealed class MemoryRecord
             reinforcementCount,
             relatedPromiseId,
             ruleId,
-            ruleVersion);
+            ruleVersion,
+            processedReinforcementKeys ?? Array.Empty<string>());
     }
 
     public static string BuildPromiseOutcomeSourceKey(PromiseId promiseId, PromiseStatus status) =>

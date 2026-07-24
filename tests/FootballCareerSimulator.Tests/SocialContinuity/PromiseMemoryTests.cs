@@ -139,7 +139,7 @@ public sealed class PromiseMemoryTests : IDisposable
             social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(32, loaded.SchemaVersion);
+        Assert.Equal(33, loaded.SchemaVersion);
         Assert.Equal(3, loaded.Memories.Count);
         Assert.Contains(loaded.Memories, m => m.RememberingActor.Kind == ActorKind.Player);
         Assert.Contains(loaded.Memories, m => m.RememberingActor.Kind == ActorKind.Manager);

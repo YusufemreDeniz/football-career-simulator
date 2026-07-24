@@ -72,19 +72,70 @@ public sealed class SelectionMemoryService
             var matchday = started.Concat(benched).ToHashSet();
             foreach (var playerId in squadMembers.Distinct().Where(id => !matchday.Contains(id)))
             {
-                created += TryCreate(
-                    fixtureId,
-                    playerId,
-                    day,
-                    MemoryRecord.BuildSelectionOmittedSourceKey(fixtureId, playerId.Value),
-                    MemoryRecord.SelectionOmittedRuleId,
-                    MemoryRecord.SelectionOmittedRuleVersion,
-                    MemoryRecord.CreateSelectionOmitted) ? 1 : 0;
+                created += TryCreateOrReinforceOmitted(fixtureId, playerId, day) ? 1 : 0;
             }
         }
 
         return created;
     }
+
+    private bool TryCreateOrReinforceOmitted(FixtureId fixtureId, PlayerId playerId, GameDate day)
+    {
+        var remembering = new ActorRef(ActorKind.Player, playerId.Value);
+        var sourceKey = MemoryRecord.BuildSelectionOmittedSourceKey(fixtureId, playerId.Value);
+        if (IsProcessedEvent(
+                remembering,
+                sourceKey,
+                MemoryRecord.SelectionOmittedRuleId,
+                MemoryRecord.SelectionOmittedRuleVersion))
+        {
+            return false;
+        }
+
+        var existing = _store.Memories
+            .Where(m =>
+                m.RememberingActor == remembering
+                && m.RuleId == MemoryRecord.SelectionOmittedRuleId
+                && m.RuleVersion == MemoryRecord.SelectionOmittedRuleVersion
+                && m.Status is MemoryStatus.Active or MemoryStatus.Dormant)
+            .OrderByDescending(m => m.LastReinforcedOn.DayNumber)
+            .ThenByDescending(m => m.MemoryId.Value)
+            .FirstOrDefault();
+
+        if (existing is not null)
+        {
+            var reinforced = existing.Reinforce(sourceKey, day);
+            if (ReferenceEquals(reinforced, existing))
+            {
+                return false;
+            }
+
+            _store.Upsert(reinforced);
+            return true;
+        }
+
+        return TryCreate(
+            fixtureId,
+            playerId,
+            day,
+            sourceKey,
+            MemoryRecord.SelectionOmittedRuleId,
+            MemoryRecord.SelectionOmittedRuleVersion,
+            MemoryRecord.CreateSelectionOmitted);
+    }
+
+    private bool IsProcessedEvent(
+        ActorRef remembering,
+        string sourceKey,
+        string ruleId,
+        int ruleVersion) =>
+        _store.Memories.Any(m =>
+            (m.SourceEventKey == sourceKey
+             && m.RememberingActor == remembering
+             && m.RuleId == ruleId
+             && m.RuleVersion == ruleVersion)
+            || (m.RememberingActor == remembering
+                && m.ProcessedReinforcementKeys.Contains(sourceKey)));
 
     private bool TryCreate(
         FixtureId fixtureId,
@@ -96,13 +147,7 @@ public sealed class SelectionMemoryService
         Func<MemoryId, ActorRef, FixtureId, GameDate, MemoryRecord> factory)
     {
         var remembering = new ActorRef(ActorKind.Player, playerId.Value);
-        var exists = _store.Memories.Any(m =>
-            m.SourceEventKey == sourceKey
-            && m.RememberingActor == remembering
-            && m.RuleId == ruleId
-            && m.RuleVersion == ruleVersion);
-
-        if (exists)
+        if (IsProcessedEvent(remembering, sourceKey, ruleId, ruleVersion))
         {
             return false;
         }

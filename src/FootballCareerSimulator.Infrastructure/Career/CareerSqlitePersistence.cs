@@ -373,6 +373,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 32;
         }
 
+        if (version == 32 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 33)
+        {
+            WorldCalendarSqliteMigrator.MigrateV32ToV33InPlace(filePath);
+            wasMigrated = true;
+            version = 33;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -704,7 +711,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ReinforcementCount INTEGER NOT NULL,
                 RelatedPromiseId INTEGER NULL,
                 RuleId TEXT NOT NULL,
-                RuleVersion INTEGER NOT NULL
+                RuleVersion INTEGER NOT NULL,
+                ProcessedReinforcementKeysCsv TEXT NOT NULL
             );
             """);
 
@@ -1458,12 +1466,14 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                     MemoryId, RememberingActorKind, RememberingActorId, SubjectKind, SubjectId,
                     SourceEventKey, Category, CreatedDayNumber, LastReinforcedDayNumber,
                     BaseImportance, CurrentInfluence, Valence, Visibility, Status,
-                    ReinforcementCount, RelatedPromiseId, RuleId, RuleVersion)
+                    ReinforcementCount, RelatedPromiseId, RuleId, RuleVersion,
+                    ProcessedReinforcementKeysCsv)
                 VALUES (
                     $memoryId, $actorKind, $actorId, $subjectKind, $subjectId,
                     $sourceKey, $category, $created, $reinforced,
                     $baseImportance, $currentInfluence, $valence, $visibility, $status,
-                    $reinforcement, $relatedPromise, $ruleId, $ruleVersion);
+                    $reinforcement, $relatedPromise, $ruleId, $ruleVersion,
+                    $processedReinforcementKeys);
                 """;
             command.Parameters.AddWithValue("$memoryId", memory.MemoryId.Value);
             command.Parameters.AddWithValue("$actorKind", (int)memory.RememberingActor.Kind);
@@ -1485,6 +1495,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 (object?)memory.RelatedPromiseId?.Value ?? DBNull.Value);
             command.Parameters.AddWithValue("$ruleId", memory.RuleId);
             command.Parameters.AddWithValue("$ruleVersion", memory.RuleVersion);
+            command.Parameters.AddWithValue(
+                "$processedReinforcementKeys",
+                string.Join(',', memory.ProcessedReinforcementKeys.OrderBy(k => k, StringComparer.Ordinal)));
             command.ExecuteNonQuery();
         }
     }
@@ -2502,7 +2515,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             SELECT MemoryId, RememberingActorKind, RememberingActorId, SubjectKind, SubjectId,
                    SourceEventKey, Category, CreatedDayNumber, LastReinforcedDayNumber,
                    BaseImportance, CurrentInfluence, Valence, Visibility, Status,
-                   ReinforcementCount, RelatedPromiseId, RuleId, RuleVersion
+                   ReinforcementCount, RelatedPromiseId, RuleId, RuleVersion,
+                   ProcessedReinforcementKeysCsv
             FROM MemoryState
             ORDER BY MemoryId;
             """;
@@ -2512,6 +2526,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             PromiseId? relatedPromise = reader.IsDBNull(15)
                 ? null
                 : new PromiseId(reader.GetInt64(15));
+            var reinforcementKeysCsv = reader.IsDBNull(18) ? string.Empty : reader.GetString(18);
+            var reinforcementKeys = string.IsNullOrWhiteSpace(reinforcementKeysCsv)
+                ? Array.Empty<string>()
+                : reinforcementKeysCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             memories.Add(MemoryRecord.Rehydrate(
                 new MemoryId(reader.GetInt64(0)),
                 new ActorRef((ActorKind)reader.GetInt32(1), reader.GetInt64(2)),
@@ -2529,7 +2547,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 reader.GetInt32(14),
                 relatedPromise,
                 reader.GetString(16),
-                reader.GetInt32(17)));
+                reader.GetInt32(17),
+                reinforcementKeys));
         }
 
         return memories;

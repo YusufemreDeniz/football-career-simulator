@@ -60,6 +60,54 @@ public sealed class SelectionMemoryTests : IDisposable
     }
 
     [Fact]
+    public void RepeatedOmission_ReinforcesExistingMemory_Idempotently()
+    {
+        var social = SocialContinuityModule.Create();
+        var player = new PlayerId(30);
+
+        Assert.Equal(
+            2,
+            social.SelectionMemory.RecordMatchday(
+                new FixtureId(1),
+                startingPlayerIds: [new PlayerId(1)],
+                benchedPlayerIds: [],
+                squadMembers: [new PlayerId(1), player],
+                Day));
+
+        // Fixture 2: yeni SelectionStarted + mevcut omitted pekiştirme
+        Assert.Equal(
+            2,
+            social.SelectionMemory.RecordMatchday(
+                new FixtureId(2),
+                startingPlayerIds: [new PlayerId(1)],
+                benchedPlayerIds: [],
+                squadMembers: [new PlayerId(1), player],
+                Day.AddDays(1)));
+
+        var omitted = Assert.Single(
+            social.MemoryStore.Memories,
+            m => m.RuleId == MemoryRecord.SelectionOmittedRuleId);
+        Assert.Equal(1, omitted.ReinforcementCount);
+        Assert.Equal(55, omitted.CurrentInfluence); // 45 + 10
+        Assert.Contains(
+            MemoryRecord.BuildSelectionOmittedSourceKey(new FixtureId(2), player.Value),
+            omitted.ProcessedReinforcementKeys);
+
+        Assert.Equal(
+            0,
+            social.SelectionMemory.RecordMatchday(
+                new FixtureId(2),
+                startingPlayerIds: [new PlayerId(1)],
+                benchedPlayerIds: [],
+                squadMembers: [new PlayerId(1), player],
+                Day.AddDays(1)));
+        Assert.Equal(
+            1,
+            social.MemoryStore.Memories.Single(m => m.RuleId == MemoryRecord.SelectionOmittedRuleId)
+                .ReinforcementCount);
+    }
+
+    [Fact]
     public void RecordMatchday_WritesBenchAndOmittedMemories()
     {
         var social = SocialContinuityModule.Create();
@@ -199,7 +247,7 @@ public sealed class SelectionMemoryTests : IDisposable
             social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(32, loaded.SchemaVersion);
+        Assert.Equal(33, loaded.SchemaVersion);
         Assert.Equal(3, loaded.Memories.Count);
         Assert.Contains(loaded.Memories, m => m.RuleId == MemoryRecord.SelectionStartedRuleId);
         Assert.Contains(loaded.Memories, m => m.RuleId == MemoryRecord.SelectionBenchedRuleId);

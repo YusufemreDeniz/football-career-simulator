@@ -46,12 +46,19 @@ public static class MemoryTimeDecay
         MemoryCategory category,
         int baseImportance,
         GameDate lastReinforcedOn,
-        GameDate asOf)
+        GameDate asOf,
+        int reinforcementCount = 0)
     {
         if (baseImportance is < MemoryRecord.MinImportance or > MemoryRecord.MaxImportance)
         {
             throw new SocialContinuityInvariantViolationException(
                 $"Base importance must be between {MemoryRecord.MinImportance} and {MemoryRecord.MaxImportance}.");
+        }
+
+        if (reinforcementCount < 0)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Reinforcement count cannot be negative.");
         }
 
         if (asOf.DayNumber < lastReinforcedOn.DayNumber)
@@ -60,10 +67,13 @@ public static class MemoryTimeDecay
                 "Decay as-of date cannot be before last reinforcement.");
         }
 
+        var peak = Math.Min(
+            MemoryRecord.MaxImportance,
+            baseImportance + (reinforcementCount * MemoryRecord.InfluenceBonusPerReinforcement));
         var days = asOf.DayNumber - lastReinforcedOn.DayNumber;
         var periods = days / PeriodDays(category);
         var lost = periods * LossPerPeriod(category);
         var floor = InfluenceFloor(category);
-        return Math.Clamp(baseImportance - lost, floor, MemoryRecord.MaxImportance);
+        return Math.Clamp(peak - lost, floor, MemoryRecord.MaxImportance);
     }
 }

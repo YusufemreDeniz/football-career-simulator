@@ -1966,6 +1966,64 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV32ToV33InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV32ToV33(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V32 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV32ToV33(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            if (TableExists(connection, "MemoryState")
+                && !ColumnExists(connection, "MemoryState", "ProcessedReinforcementKeysCsv"))
+            {
+                ProductionSqliteCommands.ExecuteNonQuery(
+                    connection,
+                    alterTransaction,
+                    "ALTER TABLE MemoryState ADD COLUMN ProcessedReinforcementKeysCsv TEXT NOT NULL DEFAULT '';");
+            }
+
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 33);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();
@@ -1992,6 +2050,35 @@ internal static class WorldCalendarSqliteMigrator
                 Thread.Sleep(25 * attempt);
             }
         }
+    }
+
+    private static bool TableExists(SqliteConnection connection, string tableName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table' AND name = $tableName
+            LIMIT 1;
+            """;
+        command.Parameters.AddWithValue("$tableName", tableName);
+        return command.ExecuteScalar() is not null;
+    }
+
+    private static bool ColumnExists(SqliteConnection connection, string tableName, string columnName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info({tableName});";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static void TryDelete(string path)

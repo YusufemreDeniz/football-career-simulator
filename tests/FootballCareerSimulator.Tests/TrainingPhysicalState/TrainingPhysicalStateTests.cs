@@ -188,7 +188,7 @@ public sealed class TrainingPhysicalStateTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(32, loaded.SchemaVersion);
+        Assert.Equal(33, loaded.SchemaVersion);
         Assert.Single(loaded.TrainingPlans);
         Assert.Equal(TrainingIntensity.Medium, loaded.TrainingPlans[0].Intensity);
         Assert.Equal(25, loaded.PhysicalStates.Count);
