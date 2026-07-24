@@ -540,6 +540,38 @@ public sealed class MemoryRecord
             SelectionOmittedRuleId,
             SelectionOmittedRuleVersion);
 
+    public MemoryRecord ApplyTimeDecay(GameDate asOf)
+    {
+        var target = MemoryTimeDecay.ComputeCurrentInfluence(
+            Category,
+            BaseImportance,
+            LastReinforcedOn,
+            asOf);
+        if (target == CurrentInfluence)
+        {
+            return this;
+        }
+
+        return new MemoryRecord(
+            MemoryId,
+            RememberingActor,
+            SubjectKind,
+            SubjectId,
+            SourceEventKey,
+            Category,
+            CreatedOn,
+            LastReinforcedOn,
+            BaseImportance,
+            target,
+            Valence,
+            Visibility,
+            Status,
+            ReinforcementCount,
+            RelatedPromiseId,
+            RuleId,
+            RuleVersion);
+    }
+
     public static MemoryRecord Rehydrate(
         MemoryId memoryId,
         ActorRef rememberingActor,

@@ -5,7 +5,7 @@ using FootballCareerSimulator.Domain.SocialContinuity;
 namespace FootballCareerSimulator.Application.SocialContinuity.Services;
 
 /// <summary>
-/// Memory salt-okunur sorguları. Relationship / decay / reinforcement yok.
+/// Memory salt-okunur sorguları. Decay ayrı servisle uygulanır; reinforcement yok.
 /// </summary>
 public sealed class MemoryQueryService
 {

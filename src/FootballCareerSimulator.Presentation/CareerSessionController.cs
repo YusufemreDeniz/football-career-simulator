@@ -1127,6 +1127,7 @@ public sealed class CareerSessionController
         }
 
         var promiseResolved = Host.SocialContinuityModule.StartingOpportunity.EvaluateDeadlines(day);
+        var memoriesDecayed = Host.SocialContinuityModule.MemoryDecay.ApplyDue(day);
 
         var extras = new List<string>();
         if (declined > 0)
@@ -1143,6 +1144,11 @@ public sealed class CareerSessionController
         if (promiseResolved > 0)
         {
             extras.Add($"söz sonuç: {promiseResolved}");
+        }
+
+        if (memoriesDecayed > 0)
+        {
+            extras.Add($"hafıza zayıfladı: {memoriesDecayed}");
         }
 
         var suffix = extras.Count == 0 ? string.Empty : " · " + string.Join(" · ", extras);

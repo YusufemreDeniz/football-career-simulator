@@ -21,6 +21,7 @@ public sealed class SocialContinuityModule
         MatchPerformanceMemoryService matchPerformanceMemory,
         RelationshipMilestoneService relationshipMilestones,
         RelationshipEvaluationService relationshipEvaluation,
+        MemoryDecayService memoryDecay,
         PromiseInvalidationService invalidation,
         MemoryQueryService queries,
         PromiseQueryService promiseQueries,
@@ -40,6 +41,7 @@ public sealed class SocialContinuityModule
         MatchPerformanceMemory = matchPerformanceMemory;
         RelationshipMilestones = relationshipMilestones;
         RelationshipEvaluation = relationshipEvaluation;
+        MemoryDecay = memoryDecay;
         Invalidation = invalidation;
         Queries = queries;
         PromiseQueries = promiseQueries;
@@ -73,6 +75,8 @@ public sealed class SocialContinuityModule
     public RelationshipMilestoneService RelationshipMilestones { get; }
 
     public RelationshipEvaluationService RelationshipEvaluation { get; }
+
+    public MemoryDecayService MemoryDecay { get; }
 
     public PromiseInvalidationService Invalidation { get; }
 
@@ -109,6 +113,7 @@ public sealed class SocialContinuityModule
             promises,
             promiseMemory,
             relationshipEvaluation);
+        var memoryDecay = new MemoryDecayService(memories);
         var invalidation = new PromiseInvalidationService(promises, promiseMemory);
         var queries = new MemoryQueryService(memories);
         var promiseQueries = new PromiseQueryService(promises);
@@ -128,6 +133,7 @@ public sealed class SocialContinuityModule
             matchPerformanceMemory,
             relationshipMilestones,
             relationshipEvaluation,
+            memoryDecay,
             invalidation,
             queries,
             promiseQueries,
