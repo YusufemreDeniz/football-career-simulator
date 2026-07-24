@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + MatchSelection + Board Confidence + Dismissal + JobOffer + Training + Injury + PlayerCareer + Aging + Contract + ClubSquad + FreeAgency + FreeAgent resign + TacticPlan + Transfer Need + Shortlist/Target + Transfer Process + Sporting Approval + Club Offer + Player Contract Proposal + Financial Approval + Transfer Completion + kariyer hub sayfa ayrımı + Transfer Window + pencere kapanışında expire/carry + transfer bütçe rezervasyonu + AI kulüp FA/C2C tick + haftalık maaş bütçe iskeleti + Starting Opportunity Promise + Promise Memory + Selection Memory + **Playing Time Promise iskeleti** (SQLite v31) kilitlenmiştir. Sıradaki aday: ilişki/diyalog/medya henüz açılmamalıdır; yedek/kadro dışı Selection Memory, Promise Invalidation veya ledger/muhasebe ayrı değerlendirilir.
+İnce kariyer döngüsü + MatchSelection + Board Confidence + Dismissal + JobOffer + Training + Injury + PlayerCareer + Aging + Contract + ClubSquad + FreeAgency + FreeAgent resign + TacticPlan + Transfer Need + Shortlist/Target + Transfer Process + Sporting Approval + Club Offer + Player Contract Proposal + Financial Approval + Transfer Completion + kariyer hub sayfa ayrımı + Transfer Window + pencere kapanışında expire/carry + transfer bütçe rezervasyonu + AI kulüp FA/C2C tick + haftalık maaş bütçe iskeleti + Starting Opportunity / Playing Time Promise + Promise Memory + **Selection Memory (ilk 11 / yedek / kadro dışı)** (SQLite v31) kilitlenmiştir. Sıradaki aday: ilişki/diyalog/medya henüz açılmamalıdır; Promise Invalidation (transfer/dismissal) veya ledger/muhasebe ayrı değerlendirilir.
 
 ## Klasör Yapısı
 

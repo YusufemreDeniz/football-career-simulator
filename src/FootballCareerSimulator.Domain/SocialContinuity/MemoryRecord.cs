@@ -12,6 +12,10 @@ public sealed class MemoryRecord
     public const int PromiseOutcomeRuleVersion = 1;
     public const string SelectionStartedRuleId = "SelectionStarted";
     public const int SelectionStartedRuleVersion = 1;
+    public const string SelectionBenchedRuleId = "SelectionBenched";
+    public const int SelectionBenchedRuleVersion = 1;
+    public const string SelectionOmittedRuleId = "SelectionOmitted";
+    public const int SelectionOmittedRuleVersion = 1;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
 
@@ -129,33 +133,49 @@ public sealed class MemoryRecord
         MemoryId memoryId,
         ActorRef rememberingPlayer,
         FixtureId fixtureId,
-        GameDate day)
-    {
-        if (rememberingPlayer.Kind != ActorKind.Player)
-        {
-            throw new SocialContinuityInvariantViolationException(
-                "Selection started memory remembering actor must be a player.");
-        }
-
-        return new MemoryRecord(
+        GameDate day) =>
+        CreateSelectionMemory(
             memoryId,
             rememberingPlayer,
-            MemorySubjectKind.Fixture,
-            fixtureId.Value,
+            fixtureId,
+            day,
             BuildSelectionStartedSourceKey(fixtureId, rememberingPlayer.Id),
-            MemoryCategory.Selection,
-            day,
-            day,
             baseImportance: 35,
-            currentInfluence: 35,
             MemoryValence.Positive,
-            MemoryVisibility.Private,
-            MemoryStatus.Active,
-            reinforcementCount: 0,
-            relatedPromiseId: null,
             SelectionStartedRuleId,
             SelectionStartedRuleVersion);
-    }
+
+    public static MemoryRecord CreateSelectionBenched(
+        MemoryId memoryId,
+        ActorRef rememberingPlayer,
+        FixtureId fixtureId,
+        GameDate day) =>
+        CreateSelectionMemory(
+            memoryId,
+            rememberingPlayer,
+            fixtureId,
+            day,
+            BuildSelectionBenchedSourceKey(fixtureId, rememberingPlayer.Id),
+            baseImportance: 25,
+            MemoryValence.Neutral,
+            SelectionBenchedRuleId,
+            SelectionBenchedRuleVersion);
+
+    public static MemoryRecord CreateSelectionOmitted(
+        MemoryId memoryId,
+        ActorRef rememberingPlayer,
+        FixtureId fixtureId,
+        GameDate day) =>
+        CreateSelectionMemory(
+            memoryId,
+            rememberingPlayer,
+            fixtureId,
+            day,
+            BuildSelectionOmittedSourceKey(fixtureId, rememberingPlayer.Id),
+            baseImportance: 45,
+            MemoryValence.Negative,
+            SelectionOmittedRuleId,
+            SelectionOmittedRuleVersion);
 
     public static MemoryRecord Rehydrate(
         MemoryId memoryId,
@@ -258,4 +278,47 @@ public sealed class MemoryRecord
 
     public static string BuildSelectionStartedSourceKey(FixtureId fixtureId, long playerId) =>
         $"SelectionStarted:{fixtureId.Value}:{playerId}";
+
+    public static string BuildSelectionBenchedSourceKey(FixtureId fixtureId, long playerId) =>
+        $"SelectionBenched:{fixtureId.Value}:{playerId}";
+
+    public static string BuildSelectionOmittedSourceKey(FixtureId fixtureId, long playerId) =>
+        $"SelectionOmitted:{fixtureId.Value}:{playerId}";
+
+    private static MemoryRecord CreateSelectionMemory(
+        MemoryId memoryId,
+        ActorRef rememberingPlayer,
+        FixtureId fixtureId,
+        GameDate day,
+        string sourceEventKey,
+        int baseImportance,
+        MemoryValence valence,
+        string ruleId,
+        int ruleVersion)
+    {
+        if (rememberingPlayer.Kind != ActorKind.Player)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Selection memory remembering actor must be a player.");
+        }
+
+        return new MemoryRecord(
+            memoryId,
+            rememberingPlayer,
+            MemorySubjectKind.Fixture,
+            fixtureId.Value,
+            sourceEventKey,
+            MemoryCategory.Selection,
+            day,
+            day,
+            baseImportance,
+            baseImportance,
+            valence,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            ruleId,
+            ruleVersion);
+    }
 }

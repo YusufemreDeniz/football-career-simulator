@@ -60,7 +60,44 @@ public sealed class SelectionMemoryTests : IDisposable
     }
 
     [Fact]
-    public void PlayFixtureMatch_WritesSelectionMemoriesForStartingXi()
+    public void RecordMatchday_WritesBenchAndOmittedMemories()
+    {
+        var social = SocialContinuityModule.Create();
+        var fixtureId = new FixtureId(12);
+        var started = new PlayerId(1);
+        var benched = new PlayerId(2);
+        var omitted = new PlayerId(3);
+
+        var created = social.SelectionMemory.RecordMatchday(
+            fixtureId,
+            [started],
+            [benched],
+            [started, benched, omitted],
+            Day);
+
+        Assert.Equal(3, created);
+        Assert.Equal(0, social.SelectionMemory.RecordMatchday(
+            fixtureId,
+            [started],
+            [benched],
+            [started, benched, omitted],
+            Day));
+
+        Assert.Contains(
+            social.MemoryStore.Memories,
+            m => m.RuleId == MemoryRecord.SelectionStartedRuleId && m.Valence == MemoryValence.Positive);
+        Assert.Contains(
+            social.MemoryStore.Memories,
+            m => m.RuleId == MemoryRecord.SelectionBenchedRuleId && m.Valence == MemoryValence.Neutral);
+        Assert.Contains(
+            social.MemoryStore.Memories,
+            m => m.RuleId == MemoryRecord.SelectionOmittedRuleId
+                && m.Valence == MemoryValence.Negative
+                && m.RememberingActor.Id == omitted.Value);
+    }
+
+    [Fact]
+    public void PlayFixtureMatch_WritesSelectionMemoriesForStartingXiAndBench()
     {
         var world = WorldCalendarModule.Create(Day, rootSeed: 21);
         var clubs = ClubGovernanceModule.CreateMvpLeague();
@@ -108,19 +145,32 @@ public sealed class SelectionMemoryTests : IDisposable
         var selectionMemories = social.MemoryStore.Memories
             .Where(m => m.Category == MemoryCategory.Selection)
             .ToArray();
-        Assert.Equal(MatchSelection.StartingXiSize * 2, selectionMemories.Length);
+        var expectedPerClub = MatchSelection.StartingXiSize + MatchSelection.MaxBenchSize;
+        Assert.Equal(expectedPerClub * 2, selectionMemories.Length);
+        Assert.Equal(
+            MatchSelection.StartingXiSize * 2,
+            selectionMemories.Count(m => m.RuleId == MemoryRecord.SelectionStartedRuleId));
+        Assert.Equal(
+            MatchSelection.MaxBenchSize * 2,
+            selectionMemories.Count(m => m.RuleId == MemoryRecord.SelectionBenchedRuleId));
         Assert.Contains(
             selectionMemories,
             m => m.RememberingActor.Id == PlayerId.FromClubSlot(1, 0).Value);
+        Assert.Contains(
+            selectionMemories,
+            m => m.RuleId == MemoryRecord.SelectionBenchedRuleId
+                && m.RememberingActor.Id == PlayerId.FromClubSlot(1, MatchSelection.StartingXiSize).Value);
     }
 
     [Fact]
     public void SaveLoad_PreservesSelectionMemories()
     {
         var social = SocialContinuityModule.Create();
-        social.SelectionMemory.RecordStarts(
+        social.SelectionMemory.RecordMatchday(
             new FixtureId(4),
             [new PlayerId(1001)],
+            [new PlayerId(1002)],
+            [new PlayerId(1001), new PlayerId(1002), new PlayerId(1003)],
             Day);
 
         var world = WorldCalendarModule.Create(Day, rootSeed: 4);
@@ -150,8 +200,9 @@ public sealed class SelectionMemoryTests : IDisposable
 
         var loaded = new CareerSqlitePersistence().Load(path);
         Assert.Equal(31, loaded.SchemaVersion);
-        Assert.Single(loaded.Memories);
-        Assert.Equal(MemoryCategory.Selection, loaded.Memories[0].Category);
-        Assert.Equal(4, loaded.Memories[0].SubjectId);
+        Assert.Equal(3, loaded.Memories.Count);
+        Assert.Contains(loaded.Memories, m => m.RuleId == MemoryRecord.SelectionStartedRuleId);
+        Assert.Contains(loaded.Memories, m => m.RuleId == MemoryRecord.SelectionBenchedRuleId);
+        Assert.Contains(loaded.Memories, m => m.RuleId == MemoryRecord.SelectionOmittedRuleId);
     }
 }

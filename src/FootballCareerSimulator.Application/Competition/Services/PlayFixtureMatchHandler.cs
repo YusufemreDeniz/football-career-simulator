@@ -377,18 +377,25 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
     private void ApplySocialContinuityForClub(FixtureId fixtureId, ClubId clubId, GameDate day)
     {
-        var startingIds = ResolvePlayerIdsForSlots(
-            fixtureId,
-            clubId,
-            ResolveStartingSlots(fixtureId, clubId));
-        var participantIds = ResolvePlayerIdsForSlots(
-            fixtureId,
-            clubId,
-            ResolveMatchdaySlots(fixtureId, clubId));
+        var startingSlots = ResolveStartingSlots(fixtureId, clubId);
+        var matchdaySlots = ResolveMatchdaySlots(fixtureId, clubId);
+        var benchSlots = matchdaySlots.Except(startingSlots).ToArray();
+
+        var startingIds = ResolvePlayerIdsForSlots(fixtureId, clubId, startingSlots);
+        var benchedIds = ResolvePlayerIdsForSlots(fixtureId, clubId, benchSlots);
+        var participantIds = startingIds.Concat(benchedIds).Distinct().ToArray();
+        var squadMemberIds = _clubSquadStore?.Get(clubId)?.Members
+            .Select(m => m.PlayerId)
+            .ToArray();
 
         _startingOpportunityPromises?.RecordStartsForPlayers(fixtureId, clubId, startingIds, day);
         _playingTimePromises?.RecordAppearancesForPlayers(fixtureId, clubId, participantIds, day);
-        _selectionMemory?.RecordStarts(fixtureId, startingIds, day);
+        _selectionMemory?.RecordMatchday(
+            fixtureId,
+            startingIds,
+            benchedIds,
+            squadMemberIds,
+            day);
     }
 
     private IReadOnlyList<int> ResolveStartingSlots(FixtureId fixtureId, ClubId clubId)
