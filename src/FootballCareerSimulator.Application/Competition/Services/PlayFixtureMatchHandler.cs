@@ -34,6 +34,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly ITacticPlanStore? _tacticPlanStore;
     private readonly IClubSquadStore? _clubSquadStore;
     private readonly StartingOpportunityPromiseService? _startingOpportunityPromises;
+    private readonly SelectionMemoryService? _selectionMemory;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -47,7 +48,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         PlayerCareerDevelopmentService? playerDevelopment = null,
         ITacticPlanStore? tacticPlanStore = null,
         IClubSquadStore? clubSquadStore = null,
-        StartingOpportunityPromiseService? startingOpportunityPromises = null)
+        StartingOpportunityPromiseService? startingOpportunityPromises = null,
+        SelectionMemoryService? selectionMemory = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -60,6 +62,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _tacticPlanStore = tacticPlanStore;
         _clubSquadStore = clubSquadStore;
         _startingOpportunityPromises = startingOpportunityPromises;
+        _selectionMemory = selectionMemory;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -117,7 +120,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         ApplyMatchPhysicalConsequences(fixture, occurredAt, rootSeed);
         ApplyMatchDevelopment(fixture, occurredAt, rootSeed);
-        ApplyStartingOpportunityProgress(fixture, occurredAt);
+        ApplySocialContinuityAfterMatch(fixture, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
@@ -356,33 +359,37 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             existing.Values.OrderBy(state => state.SlotIndex));
     }
 
-    private void ApplyStartingOpportunityProgress(Fixture fixture, GameDate day)
+    private void ApplySocialContinuityAfterMatch(Fixture fixture, GameDate day)
     {
-        if (_startingOpportunityPromises is null)
+        if (_startingOpportunityPromises is null && _selectionMemory is null)
         {
             return;
         }
 
-        ApplyStartingOpportunityProgressForClub(fixture.Id, fixture.HomeClubId, day);
-        ApplyStartingOpportunityProgressForClub(fixture.Id, fixture.AwayClubId, day);
+        ApplySocialContinuityForClub(fixture.Id, fixture.HomeClubId, day);
+        ApplySocialContinuityForClub(fixture.Id, fixture.AwayClubId, day);
     }
 
-    private void ApplyStartingOpportunityProgressForClub(FixtureId fixtureId, ClubId clubId, GameDate day)
+    private void ApplySocialContinuityForClub(FixtureId fixtureId, ClubId clubId, GameDate day)
     {
-        IReadOnlyList<int> startingSlots;
+        var playerIds = ResolveStartingPlayerIds(fixtureId, clubId);
+        _startingOpportunityPromises?.RecordStartsForPlayers(fixtureId, clubId, playerIds, day);
+        _selectionMemory?.RecordStarts(fixtureId, playerIds, day);
+    }
+
+    private IReadOnlyList<PlayerId> ResolveStartingPlayerIds(FixtureId fixtureId, ClubId clubId)
+    {
         var selection = _matchSelectionStore?.Get(fixtureId, clubId);
-        startingSlots = selection?.StartingSlotIndices
+        var startingSlots = selection?.StartingSlotIndices
             ?? Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
 
         var squad = _clubSquadStore?.Get(clubId);
-        var playerIds = startingSlots
+        return startingSlots
             .Select(slot =>
             {
                 var member = squad?.Members.FirstOrDefault(m => m.SlotIndex == slot);
                 return member?.PlayerId ?? PlayerId.FromClubSlot(clubId.Value, slot);
             })
             .ToArray();
-
-        _startingOpportunityPromises!.RecordStartsForPlayers(fixtureId, clubId, playerIds, day);
     }
 }

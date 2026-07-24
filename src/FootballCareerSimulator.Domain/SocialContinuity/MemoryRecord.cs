@@ -1,14 +1,17 @@
+using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Domain.SocialContinuity;
 
 /// <summary>
-/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise sonucu (Fulfilled/Broken) → Promise Memory.
+/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise sonucu + Selection (ilk 11).
 /// </summary>
 public sealed class MemoryRecord
 {
     public const string PromiseOutcomeRuleId = "PromiseOutcome";
     public const int PromiseOutcomeRuleVersion = 1;
+    public const string SelectionStartedRuleId = "SelectionStarted";
+    public const int SelectionStartedRuleVersion = 1;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
 
@@ -122,6 +125,38 @@ public sealed class MemoryRecord
             PromiseOutcomeRuleVersion);
     }
 
+    public static MemoryRecord CreateSelectionStarted(
+        MemoryId memoryId,
+        ActorRef rememberingPlayer,
+        FixtureId fixtureId,
+        GameDate day)
+    {
+        if (rememberingPlayer.Kind != ActorKind.Player)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Selection started memory remembering actor must be a player.");
+        }
+
+        return new MemoryRecord(
+            memoryId,
+            rememberingPlayer,
+            MemorySubjectKind.Fixture,
+            fixtureId.Value,
+            BuildSelectionStartedSourceKey(fixtureId, rememberingPlayer.Id),
+            MemoryCategory.Selection,
+            day,
+            day,
+            baseImportance: 35,
+            currentInfluence: 35,
+            MemoryValence.Positive,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            SelectionStartedRuleId,
+            SelectionStartedRuleVersion);
+    }
+
     public static MemoryRecord Rehydrate(
         MemoryId memoryId,
         ActorRef rememberingActor,
@@ -220,4 +255,7 @@ public sealed class MemoryRecord
 
     public static string BuildPromiseOutcomeSourceKey(PromiseId promiseId, PromiseStatus status) =>
         $"PromiseTerminal:{promiseId.Value}:{status}";
+
+    public static string BuildSelectionStartedSourceKey(FixtureId fixtureId, long playerId) =>
+        $"SelectionStarted:{fixtureId.Value}:{playerId}";
 }

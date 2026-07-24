@@ -110,6 +110,7 @@ public sealed class CompetitionModule
         ITacticPlanStore? tacticPlanStore = null,
         IClubSquadStore? clubSquadStore = null,
         StartingOpportunityPromiseService? startingOpportunityPromises = null,
+        SelectionMemoryService? selectionMemory = null,
         long competitionId = 1)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
@@ -125,7 +126,8 @@ public sealed class CompetitionModule
             playerDevelopment,
             tacticPlanStore,
             clubSquadStore,
-            startingOpportunityPromises);
+            startingOpportunityPromises,
+            selectionMemory);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
@@ -139,7 +141,8 @@ public sealed class CompetitionModule
         PlayerCareerDevelopmentService? playerDevelopment = null,
         ITacticPlanStore? tacticPlanStore = null,
         IClubSquadStore? clubSquadStore = null,
-        StartingOpportunityPromiseService? startingOpportunityPromises = null)
+        StartingOpportunityPromiseService? startingOpportunityPromises = null,
+        SelectionMemoryService? selectionMemory = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
@@ -158,7 +161,8 @@ public sealed class CompetitionModule
             playerDevelopment,
             tacticPlanStore,
             clubSquadStore,
-            startingOpportunityPromises);
+            startingOpportunityPromises,
+            selectionMemory);
 
         return new CompetitionModule(
             store,
