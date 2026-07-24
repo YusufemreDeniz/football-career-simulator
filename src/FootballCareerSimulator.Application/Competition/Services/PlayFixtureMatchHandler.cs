@@ -6,12 +6,14 @@ using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.Match;
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -30,6 +32,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly IPlayerCareerStore? _playerCareerStore;
     private readonly PlayerCareerDevelopmentService? _playerDevelopment;
     private readonly ITacticPlanStore? _tacticPlanStore;
+    private readonly IClubSquadStore? _clubSquadStore;
+    private readonly StartingOpportunityPromiseService? _startingOpportunityPromises;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -41,7 +45,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         ITrainingPhysicalStateStore? trainingStore = null,
         IPlayerCareerStore? playerCareerStore = null,
         PlayerCareerDevelopmentService? playerDevelopment = null,
-        ITacticPlanStore? tacticPlanStore = null)
+        ITacticPlanStore? tacticPlanStore = null,
+        IClubSquadStore? clubSquadStore = null,
+        StartingOpportunityPromiseService? startingOpportunityPromises = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -52,6 +58,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _playerCareerStore = playerCareerStore;
         _playerDevelopment = playerDevelopment;
         _tacticPlanStore = tacticPlanStore;
+        _clubSquadStore = clubSquadStore;
+        _startingOpportunityPromises = startingOpportunityPromises;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -109,6 +117,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         ApplyMatchPhysicalConsequences(fixture, occurredAt, rootSeed);
         ApplyMatchDevelopment(fixture, occurredAt, rootSeed);
+        ApplyStartingOpportunityProgress(fixture, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
@@ -345,5 +354,35 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _trainingStore.ReplacePhysicalStatesForClub(
             clubId,
             existing.Values.OrderBy(state => state.SlotIndex));
+    }
+
+    private void ApplyStartingOpportunityProgress(Fixture fixture, GameDate day)
+    {
+        if (_startingOpportunityPromises is null)
+        {
+            return;
+        }
+
+        ApplyStartingOpportunityProgressForClub(fixture.Id, fixture.HomeClubId, day);
+        ApplyStartingOpportunityProgressForClub(fixture.Id, fixture.AwayClubId, day);
+    }
+
+    private void ApplyStartingOpportunityProgressForClub(FixtureId fixtureId, ClubId clubId, GameDate day)
+    {
+        IReadOnlyList<int> startingSlots;
+        var selection = _matchSelectionStore?.Get(fixtureId, clubId);
+        startingSlots = selection?.StartingSlotIndices
+            ?? Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
+
+        var squad = _clubSquadStore?.Get(clubId);
+        var playerIds = startingSlots
+            .Select(slot =>
+            {
+                var member = squad?.Members.FirstOrDefault(m => m.SlotIndex == slot);
+                return member?.PlayerId ?? PlayerId.FromClubSlot(clubId.Value, slot);
+            })
+            .ToArray();
+
+        _startingOpportunityPromises!.RecordStartsForPlayers(fixtureId, clubId, playerIds, day);
     }
 }

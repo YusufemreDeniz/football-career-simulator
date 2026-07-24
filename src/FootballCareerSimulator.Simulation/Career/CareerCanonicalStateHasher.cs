@@ -5,6 +5,7 @@ using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using ManagerCareerState = FootballCareerSimulator.Domain.ManagerCareer.ManagerCareer;
@@ -14,6 +15,7 @@ using FootballCareerSimulator.Simulation.Competition;
 using FootballCareerSimulator.Simulation.ContractRegistration;
 using FootballCareerSimulator.Simulation.ManagerCareer;
 using FootballCareerSimulator.Simulation.PlayerCareer;
+using FootballCareerSimulator.Simulation.SocialContinuity;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 using FootballCareerSimulator.Simulation.Transfer;
@@ -362,7 +364,48 @@ public static class CareerCanonicalStateHasher
         IReadOnlyList<TransferTarget> transferTargets,
         IReadOnlyList<TransferProcess> transferProcesses,
         IReadOnlyList<ClubOffer> clubOffers,
-        IReadOnlyList<PlayerContractProposal> contractProposals)
+        IReadOnlyList<PlayerContractProposal> contractProposals) =>
+        ComputeHash(
+            timeline,
+            league,
+            clubRegistry,
+            managerCareer,
+            matchSelections,
+            trainingPlans,
+            physicalStates,
+            playerCareers,
+            contracts,
+            clubSquads,
+            freeAgents,
+            tacticPlans,
+            transferNeeds,
+            shortlistEntries,
+            transferTargets,
+            transferProcesses,
+            clubOffers,
+            contractProposals,
+            Array.Empty<Promise>());
+
+    public static string ComputeHash(
+        WorldTimeline timeline,
+        LeagueCompetition league,
+        LeagueClubRegistry clubRegistry,
+        ManagerCareerState managerCareer,
+        IReadOnlyList<MatchSelection> matchSelections,
+        IReadOnlyList<WeeklyTrainingPlan> trainingPlans,
+        IReadOnlyList<PlayerPhysicalState> physicalStates,
+        IReadOnlyList<PlayerCareerAggregate> playerCareers,
+        IReadOnlyList<PlayerContract> contracts,
+        IReadOnlyList<ClubSquad> clubSquads,
+        IReadOnlyList<PlayerFreeAgency> freeAgents,
+        IReadOnlyList<TacticPlan> tacticPlans,
+        IReadOnlyList<TransferNeed> transferNeeds,
+        IReadOnlyList<ShortlistEntry> shortlistEntries,
+        IReadOnlyList<TransferTarget> transferTargets,
+        IReadOnlyList<TransferProcess> transferProcesses,
+        IReadOnlyList<ClubOffer> clubOffers,
+        IReadOnlyList<PlayerContractProposal> contractProposals,
+        IReadOnlyList<Promise> promises)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -382,6 +425,7 @@ public static class CareerCanonicalStateHasher
         ArgumentNullException.ThrowIfNull(transferProcesses);
         ArgumentNullException.ThrowIfNull(clubOffers);
         ArgumentNullException.ThrowIfNull(contractProposals);
+        ArgumentNullException.ThrowIfNull(promises);
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -414,7 +458,9 @@ public static class CareerCanonicalStateHasher
             "|",
             ClubOfferCanonicalStateHasher.BuildCanonicalText(clubOffers),
             "|",
-            PlayerContractProposalCanonicalStateHasher.BuildCanonicalText(contractProposals));
+            PlayerContractProposalCanonicalStateHasher.BuildCanonicalText(contractProposals),
+            "|",
+            PromiseCanonicalStateHasher.BuildCanonicalText(promises));
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

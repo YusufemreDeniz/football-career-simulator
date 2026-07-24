@@ -4,6 +4,7 @@ using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.Transfer;
@@ -31,7 +32,8 @@ public interface ICareerPersistence
         IReadOnlyList<TransferTarget> transferTargets,
         IReadOnlyList<TransferProcess> transferProcesses,
         IReadOnlyList<ClubOffer> clubOffers,
-        IReadOnlyList<PlayerContractProposal> contractProposals);
+        IReadOnlyList<PlayerContractProposal> contractProposals,
+        IReadOnlyList<Promise> promises);
 
     CareerLoadResult Load(string filePath);
 }
@@ -55,5 +57,6 @@ public sealed record CareerLoadResult(
     IReadOnlyList<TransferProcess> TransferProcesses,
     IReadOnlyList<ClubOffer> ClubOffers,
     IReadOnlyList<PlayerContractProposal> ContractProposals,
+    IReadOnlyList<Promise> Promises,
     int SchemaVersion,
     bool WasMigrated);

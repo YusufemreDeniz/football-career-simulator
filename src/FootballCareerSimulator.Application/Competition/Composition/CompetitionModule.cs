@@ -7,6 +7,7 @@ using FootballCareerSimulator.Application.Competition.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -107,6 +108,8 @@ public sealed class CompetitionModule
         IPlayerCareerStore? playerCareerStore = null,
         PlayerCareerDevelopmentService? playerDevelopment = null,
         ITacticPlanStore? tacticPlanStore = null,
+        IClubSquadStore? clubSquadStore = null,
+        StartingOpportunityPromiseService? startingOpportunityPromises = null,
         long competitionId = 1)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
@@ -120,7 +123,9 @@ public sealed class CompetitionModule
             trainingStore,
             playerCareerStore,
             playerDevelopment,
-            tacticPlanStore);
+            tacticPlanStore,
+            clubSquadStore,
+            startingOpportunityPromises);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
@@ -132,7 +137,9 @@ public sealed class CompetitionModule
         ITrainingPhysicalStateStore? trainingStore = null,
         IPlayerCareerStore? playerCareerStore = null,
         PlayerCareerDevelopmentService? playerDevelopment = null,
-        ITacticPlanStore? tacticPlanStore = null)
+        ITacticPlanStore? tacticPlanStore = null,
+        IClubSquadStore? clubSquadStore = null,
+        StartingOpportunityPromiseService? startingOpportunityPromises = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
@@ -149,7 +156,9 @@ public sealed class CompetitionModule
             trainingStore,
             playerCareerStore,
             playerDevelopment,
-            tacticPlanStore);
+            tacticPlanStore,
+            clubSquadStore,
+            startingOpportunityPromises);
 
         return new CompetitionModule(
             store,

@@ -6,6 +6,7 @@ using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
@@ -37,7 +38,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<TransferTarget> transferTargets,
         IReadOnlyList<TransferProcess> transferProcesses,
         IReadOnlyList<ClubOffer> clubOffers,
-        IReadOnlyList<PlayerContractProposal> contractProposals)
+        IReadOnlyList<PlayerContractProposal> contractProposals,
+        IReadOnlyList<Promise> promises)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -58,6 +60,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ArgumentNullException.ThrowIfNull(transferProcesses);
         ArgumentNullException.ThrowIfNull(clubOffers);
         ArgumentNullException.ThrowIfNull(contractProposals);
+        ArgumentNullException.ThrowIfNull(promises);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -77,7 +80,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             transferTargets,
             transferProcesses,
             clubOffers,
-            contractProposals);
+            contractProposals,
+            promises);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -110,6 +114,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertTransferProcesses(connection, transaction, transferProcesses);
             InsertClubOffers(connection, transaction, clubOffers);
             InsertPlayerContractProposals(connection, transaction, contractProposals);
+            InsertPromises(connection, transaction, promises);
 
             transaction.Commit();
         }
@@ -337,6 +342,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV28ToV29InPlace(filePath);
             wasMigrated = true;
             version = 29;
+        }
+
+        if (version == 29 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 30)
+        {
+            WorldCalendarSqliteMigrator.MigrateV29ToV30InPlace(filePath);
+            wasMigrated = true;
+            version = 30;
         }
 
         if (wasMigrated)
@@ -629,6 +641,25 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ContractYears INTEGER NOT NULL,
                 Status INTEGER NOT NULL,
                 SubmittedDayNumber INTEGER NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE PromiseState (
+                PromiseId INTEGER PRIMARY KEY,
+                Kind INTEGER NOT NULL,
+                PromisorKind INTEGER NOT NULL,
+                PromisorId INTEGER NOT NULL,
+                PromiseeKind INTEGER NOT NULL,
+                PromiseeId INTEGER NOT NULL,
+                ClubId INTEGER NOT NULL,
+                TargetStarts INTEGER NOT NULL,
+                StartsGiven INTEGER NOT NULL,
+                DeadlineDayNumber INTEGER NOT NULL,
+                CreatedDayNumber INTEGER NOT NULL,
+                Status INTEGER NOT NULL,
+                TerminalDayNumber INTEGER NULL,
+                CountedFixtureIdsCsv TEXT NOT NULL
             );
             """);
     }
@@ -1269,6 +1300,47 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertPromises(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<Promise> promises)
+    {
+        foreach (var promise in promises)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO PromiseState (
+                    PromiseId, Kind, PromisorKind, PromisorId, PromiseeKind, PromiseeId,
+                    ClubId, TargetStarts, StartsGiven, DeadlineDayNumber, CreatedDayNumber,
+                    Status, TerminalDayNumber, CountedFixtureIdsCsv)
+                VALUES (
+                    $promiseId, $kind, $promisorKind, $promisorId, $promiseeKind, $promiseeId,
+                    $clubId, $targetStarts, $startsGiven, $deadline, $created,
+                    $status, $terminal, $fixtures);
+                """;
+            command.Parameters.AddWithValue("$promiseId", promise.PromiseId.Value);
+            command.Parameters.AddWithValue("$kind", (int)promise.Kind);
+            command.Parameters.AddWithValue("$promisorKind", (int)promise.Promisor.Kind);
+            command.Parameters.AddWithValue("$promisorId", promise.Promisor.Id);
+            command.Parameters.AddWithValue("$promiseeKind", (int)promise.Promisee.Kind);
+            command.Parameters.AddWithValue("$promiseeId", promise.Promisee.Id);
+            command.Parameters.AddWithValue("$clubId", promise.ClubId.Value);
+            command.Parameters.AddWithValue("$targetStarts", promise.TargetStarts);
+            command.Parameters.AddWithValue("$startsGiven", promise.StartsGiven);
+            command.Parameters.AddWithValue("$deadline", promise.DeadlineOn.DayNumber);
+            command.Parameters.AddWithValue("$created", promise.CreatedOn.DayNumber);
+            command.Parameters.AddWithValue("$status", (int)promise.Status);
+            command.Parameters.AddWithValue(
+                "$terminal",
+                (object?)promise.TerminalOn?.DayNumber ?? DBNull.Value);
+            command.Parameters.AddWithValue(
+                "$fixtures",
+                string.Join(',', promise.CountedFixtureIds.OrderBy(id => id)));
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static (int Version, bool IsLegacySpikeSave) ReadSchemaMetadata(string filePath)
     {
         try
@@ -1342,6 +1414,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var transferProcesses = ReadTransferProcesses(connection);
         var clubOffers = ReadClubOffers(connection);
         var contractProposals = ReadPlayerContractProposals(connection);
+        var promises = ReadPromises(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1360,7 +1433,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             transferTargets,
             transferProcesses,
             clubOffers,
-            contractProposals);
+            contractProposals,
+            promises);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1401,6 +1475,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<TransferProcess> transferProcesses;
             IReadOnlyList<ClubOffer> clubOffers;
             IReadOnlyList<PlayerContractProposal> contractProposals;
+            IReadOnlyList<Promise> promises;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1430,6 +1505,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 transferProcesses = ReadTransferProcesses(connection);
                 clubOffers = ReadClubOffers(connection);
                 contractProposals = ReadPlayerContractProposals(connection);
+                promises = ReadPromises(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1452,7 +1528,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 transferTargets,
                 transferProcesses,
                 clubOffers,
-                contractProposals);
+                contractProposals,
+                promises);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1478,6 +1555,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 transferProcesses,
                 clubOffers,
                 contractProposals,
+                promises,
                 schemaVersion,
                 wasMigrated);
         }
@@ -2209,6 +2287,58 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return proposals;
+    }
+
+    private static IReadOnlyList<Promise> ReadPromises(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "PromiseState"))
+        {
+            return Array.Empty<Promise>();
+        }
+
+        var promises = new List<Promise>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT PromiseId, Kind, PromisorKind, PromisorId, PromiseeKind, PromiseeId,
+                   ClubId, TargetStarts, StartsGiven, DeadlineDayNumber, CreatedDayNumber,
+                   Status, TerminalDayNumber, CountedFixtureIdsCsv
+            FROM PromiseState
+            ORDER BY PromiseId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            GameDate? terminal = reader.IsDBNull(12)
+                ? null
+                : GameDate.FromDayNumber(reader.GetInt32(12));
+            promises.Add(Promise.Rehydrate(
+                new PromiseId(reader.GetInt64(0)),
+                (PromiseKind)reader.GetInt32(1),
+                new ActorRef((ActorKind)reader.GetInt32(2), reader.GetInt64(3)),
+                new ActorRef((ActorKind)reader.GetInt32(4), reader.GetInt64(5)),
+                new ClubId(reader.GetInt64(6)),
+                reader.GetInt32(7),
+                reader.GetInt32(8),
+                GameDate.FromDayNumber(reader.GetInt32(9)),
+                GameDate.FromDayNumber(reader.GetInt32(10)),
+                (PromiseStatus)reader.GetInt32(11),
+                terminal,
+                ParseLongCsv(reader.GetString(13))));
+        }
+
+        return promises;
+    }
+
+    private static IReadOnlyList<long> ParseLongCsv(string csv)
+    {
+        if (string.IsNullOrWhiteSpace(csv))
+        {
+            return Array.Empty<long>();
+        }
+
+        return csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(long.Parse)
+            .ToArray();
     }
 
     private static IReadOnlyList<int> ParseSlotCsv(string csv)

@@ -146,10 +146,11 @@ public sealed class PlayerContractProposalTests : IDisposable
             modules.Transfer.TargetStore.Targets,
             modules.Transfer.ProcessStore.Processes,
             modules.Transfer.OfferStore.Offers,
-            modules.Transfer.ProposalStore.Proposals);
+            modules.Transfer.ProposalStore.Proposals,
+            Array.Empty<Domain.SocialContinuity.Promise>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(29, loaded.SchemaVersion);
+        Assert.Equal(30, loaded.SchemaVersion);
         Assert.Single(loaded.ContractProposals);
         Assert.Equal(30_000, loaded.ContractProposals[0].WeeklyWage);
         Assert.Equal(4, loaded.ContractProposals[0].ContractYears);

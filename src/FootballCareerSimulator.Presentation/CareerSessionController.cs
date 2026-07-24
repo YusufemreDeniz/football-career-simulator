@@ -10,6 +10,7 @@ using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.PlayerCareer;
+using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.Transfer;
@@ -225,6 +226,44 @@ public sealed class CareerSessionController
         catch (Exception ex)
         {
             return UiActionResult.Fail($"Serbest imza hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult PromiseStartingOpportunityToOldestSquadPlayer()
+    {
+        try
+        {
+            var career = Host.ManagerModule.Store.Career;
+            var clubId = career.ActiveEmployment?.ClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(clubId, day);
+            var squad = Host.TeamPreparationModule.SquadStore.Get(clubId)
+                ?? throw new InvalidOperationException("Kadro yok.");
+            var member = squad.Members.OrderBy(m => m.SlotIndex).FirstOrDefault()
+                ?? throw new InvalidOperationException("Kadroda oyuncu yok.");
+
+            var promise = Host.SocialContinuityModule.StartingOpportunity.Create(
+                career.ManagerId,
+                member.PlayerId,
+                clubId,
+                targetStarts: 3,
+                deadlineOn: day.AddDays(30),
+                createdOn: day);
+
+            return UiActionResult.Ok(
+                $"İlk 11 sözü verildi: oyuncu #{member.PlayerId.Value}"
+                + $" · hedef {promise.TargetStarts}"
+                + $" · son gün {promise.DeadlineOn.DayNumber}"
+                + $" · söz #{promise.PromiseId.Value}.");
+        }
+        catch (SocialContinuityInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Söz verilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Söz hatası: {ex.Message}");
         }
     }
 
@@ -1049,6 +1088,8 @@ public sealed class CareerSessionController
             Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
         }
 
+        var promiseResolved = Host.SocialContinuityModule.StartingOpportunity.EvaluateDeadlines(day);
+
         var extras = new List<string>();
         if (declined > 0)
         {
@@ -1059,6 +1100,11 @@ public sealed class CareerSessionController
         {
             extras.Add($"sözleşme bitti: {expiry.ExpiredCount}");
             extras.Add($"serbest: {expiry.FreeAgentPlayerIds.Count}");
+        }
+
+        if (promiseResolved > 0)
+        {
+            extras.Add($"söz sonuç: {promiseResolved}");
         }
 
         var suffix = extras.Count == 0 ? string.Empty : " · " + string.Join(" · ", extras);

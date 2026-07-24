@@ -7,6 +7,7 @@ using FootballCareerSimulator.Application.ContractRegistration.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
+using FootballCareerSimulator.Application.SocialContinuity.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
@@ -35,6 +36,7 @@ public sealed class CareerPresentationHost
         PlayerCareerModule playerCareerModule,
         ContractRegistrationModule contractModule,
         TransferModule transferModule,
+        SocialContinuityModule socialContinuityModule,
         CareerGameSessionService gameSession,
         string defaultSavePath)
     {
@@ -49,6 +51,8 @@ public sealed class CareerPresentationHost
             ?? throw new ArgumentNullException(nameof(playerCareerModule));
         ContractModule = contractModule ?? throw new ArgumentNullException(nameof(contractModule));
         TransferModule = transferModule ?? throw new ArgumentNullException(nameof(transferModule));
+        SocialContinuityModule = socialContinuityModule
+            ?? throw new ArgumentNullException(nameof(socialContinuityModule));
         GameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
         DefaultSavePath = defaultSavePath ?? throw new ArgumentNullException(nameof(defaultSavePath));
     }
@@ -62,6 +66,7 @@ public sealed class CareerPresentationHost
     public PlayerCareerModule PlayerCareerModule { get; }
     public ContractRegistrationModule ContractModule { get; }
     public TransferModule TransferModule { get; }
+    public SocialContinuityModule SocialContinuityModule { get; }
     public CareerGameSessionService GameSession { get; }
     public string DefaultSavePath { get; }
 
@@ -116,6 +121,7 @@ public sealed class CareerPresentationHost
             trainingStore,
             playerCareer.Development,
             teamPreparation.ClubSquad);
+        var socialContinuity = SocialContinuityModule.Create();
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,
@@ -126,7 +132,9 @@ public sealed class CareerPresentationHost
             training.Store,
             playerCareer.Store,
             playerCareer.Development,
-            teamPreparation.TacticPlanStore);
+            teamPreparation.TacticPlanStore,
+            teamPreparation.SquadStore,
+            socialContinuity.StartingOpportunity);
         clubModule.BindWageBudget(contractModule.Store);
         var transferModule = TransferModule.Create(
             contractModule.Store,
@@ -169,6 +177,7 @@ public sealed class CareerPresentationHost
             transferModule.ProcessStore,
             transferModule.OfferStore,
             transferModule.ProposalStore,
+            socialContinuity.PromiseStore,
             training.Store,
             playerCareer.Store,
             contractModule.Store,
@@ -187,6 +196,7 @@ public sealed class CareerPresentationHost
             playerCareer,
             contractModule,
             transferModule,
+            socialContinuity,
             gameSession,
             savePath);
     }

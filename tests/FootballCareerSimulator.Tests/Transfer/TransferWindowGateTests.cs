@@ -109,10 +109,11 @@ public sealed class TransferWindowGateTests : IDisposable
             Array.Empty<TransferTarget>(),
             Array.Empty<TransferProcess>(),
             Array.Empty<ClubOffer>(),
-            Array.Empty<PlayerContractProposal>());
+            Array.Empty<PlayerContractProposal>(),
+            Array.Empty<Domain.SocialContinuity.Promise>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(29, loaded.SchemaVersion);
+        Assert.Equal(30, loaded.SchemaVersion);
         Assert.False(loaded.Timeline.TransferWindow.IsOpen);
     }
 

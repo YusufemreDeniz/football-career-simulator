@@ -36,8 +36,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV1ToV2(string workingCopyPath)
@@ -90,8 +89,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV2ToV3(string workingCopyPath)
@@ -183,8 +181,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV3ToV4(string workingCopyPath)
@@ -258,8 +255,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV4ToV5(string workingCopyPath)
@@ -314,8 +310,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV5ToV6(string workingCopyPath)
@@ -395,8 +390,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV6ToV7(string workingCopyPath)
@@ -455,8 +449,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV7ToV8(string workingCopyPath)
@@ -520,8 +513,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV8ToV9(string workingCopyPath)
@@ -612,8 +604,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV9ToV10(string workingCopyPath)
@@ -674,8 +665,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV10ToV11(string workingCopyPath)
@@ -742,8 +732,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV11ToV12(string workingCopyPath)
@@ -798,8 +787,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV12ToV13(string workingCopyPath)
@@ -859,8 +847,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV13ToV14(string workingCopyPath)
@@ -919,8 +906,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV14ToV15(string workingCopyPath)
@@ -980,8 +966,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV15ToV16(string workingCopyPath)
@@ -1039,8 +1024,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV16ToV17(string workingCopyPath)
@@ -1096,8 +1080,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV17ToV18(string workingCopyPath)
@@ -1154,8 +1137,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV18ToV19(string workingCopyPath)
@@ -1216,8 +1198,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV19ToV20(string workingCopyPath)
@@ -1290,8 +1271,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV20ToV21(string workingCopyPath)
@@ -1355,8 +1335,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV21ToV22(string workingCopyPath)
@@ -1401,8 +1380,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV22ToV23(string workingCopyPath)
@@ -1461,8 +1439,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV23ToV24(string workingCopyPath)
@@ -1522,8 +1499,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV24ToV25(string workingCopyPath)
@@ -1568,8 +1544,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV25ToV26(string workingCopyPath)
@@ -1614,8 +1589,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV26ToV27(string workingCopyPath)
@@ -1681,8 +1655,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV27ToV28(string workingCopyPath)
@@ -1751,8 +1724,7 @@ internal static class WorldCalendarSqliteMigrator
                 ex);
         }
 
-        SqliteConnection.ClearAllPools();
-        File.Move(workingCopyPath, filePath, overwrite: true);
+        ReplaceWorkingCopy(workingCopyPath, filePath);
     }
 
     private static void MigrateV28ToV29(string workingCopyPath)
@@ -1788,6 +1760,101 @@ internal static class WorldCalendarSqliteMigrator
         updateCommand.Parameters.AddWithValue("$version", 29);
         updateCommand.ExecuteNonQuery();
         updateTransaction.Commit();
+    }
+
+    public static void MigrateV29ToV30InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+
+        try
+        {
+            MigrateV29ToV30(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V29 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV29ToV30(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, alterTransaction, """
+                CREATE TABLE IF NOT EXISTS PromiseState (
+                    PromiseId INTEGER PRIMARY KEY,
+                    Kind INTEGER NOT NULL,
+                    PromisorKind INTEGER NOT NULL,
+                    PromisorId INTEGER NOT NULL,
+                    PromiseeKind INTEGER NOT NULL,
+                    PromiseeId INTEGER NOT NULL,
+                    ClubId INTEGER NOT NULL,
+                    TargetStarts INTEGER NOT NULL,
+                    StartsGiven INTEGER NOT NULL,
+                    DeadlineDayNumber INTEGER NOT NULL,
+                    CreatedDayNumber INTEGER NOT NULL,
+                    Status INTEGER NOT NULL,
+                    TerminalDayNumber INTEGER NULL,
+                    CountedFixtureIdsCsv TEXT NOT NULL
+                );
+                """);
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 30);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
+    private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
+    {
+        SqliteConnection.ClearAllPools();
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        SqliteConnection.ClearAllPools();
+
+        const int maxAttempts = 8;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                File.Move(workingCopyPath, filePath, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt == maxAttempts)
+                {
+                    throw;
+                }
+
+                SqliteConnection.ClearAllPools();
+                Thread.Sleep(25 * attempt);
+            }
+        }
     }
 
     private static void TryDelete(string path)

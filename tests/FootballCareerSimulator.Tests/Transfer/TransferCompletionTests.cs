@@ -142,10 +142,11 @@ public sealed class TransferCompletionTests : IDisposable
             modules.Transfer.TargetStore.Targets,
             modules.Transfer.ProcessStore.Processes,
             modules.Transfer.OfferStore.Offers,
-            modules.Transfer.ProposalStore.Proposals);
+            modules.Transfer.ProposalStore.Proposals,
+            Array.Empty<Domain.SocialContinuity.Promise>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(29, loaded.SchemaVersion);
+        Assert.Equal(30, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.Archived, loaded.TransferProcesses[0].Status);
         Assert.Equal(
