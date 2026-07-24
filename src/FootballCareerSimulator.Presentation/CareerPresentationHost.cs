@@ -138,7 +138,8 @@ public sealed class CareerPresentationHost
             socialContinuity.RelationshipEvaluation,
             socialContinuity.DecisionMemory,
             socialContinuity.PromiseStore,
-            dialogueSessionStore);
+            dialogueSessionStore,
+            socialContinuity.StartingOpportunity);
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,

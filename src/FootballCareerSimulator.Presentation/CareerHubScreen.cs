@@ -23,6 +23,7 @@ public partial class CareerHubScreen : Control
     private Label _relationshipLabel = null!;
     private Label _decisionLabel = null!;
     private Button _openDecisionButton = null!;
+    private Button _openStartingDecisionButton = null!;
     private Button _grantDecisionButton = null!;
     private Button _refuseDecisionButton = null!;
     private Label _transferWindowLabel = null!;
@@ -343,11 +344,15 @@ public partial class CareerHubScreen : Control
         _openDecisionButton = SecondaryButton("Süre Talebi Aç");
         _openDecisionButton.Pressed += () => Apply(_controller.OpenPlayingTimeDecisionForOldestSquadPlayer());
         decisionRow.AddChild(_openDecisionButton);
+        _openStartingDecisionButton = SecondaryButton("İlk 11 Talebi Aç");
+        _openStartingDecisionButton.Pressed += () =>
+            Apply(_controller.OpenStartingOpportunityDecisionForOldestSquadPlayer());
+        decisionRow.AddChild(_openStartingDecisionButton);
         _grantDecisionButton = SecondaryButton("Talebi Kabul Et");
-        _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPlayingTimePromise: true));
+        _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
         decisionRow.AddChild(_grantDecisionButton);
         _refuseDecisionButton = SecondaryButton("Talebi Reddet");
-        _refuseDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPlayingTimePromise: false));
+        _refuseDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: false));
         decisionRow.AddChild(_refuseDecisionButton);
         return page;
     }
@@ -1264,7 +1269,7 @@ public partial class CareerHubScreen : Control
         var options = _controller.Host.InteractionModule.DialogueOptions.GetForDecision(
             new Domain.Interaction.DecisionRequestId(first.DecisionRequestId));
         var grant = options.Options.FirstOrDefault(o =>
-            o.OptionCode == Domain.Interaction.DecisionRequest.OptionGrantPlayingTimePromise);
+            o.OptionCode != Domain.Interaction.DecisionRequest.OptionRefuse);
         var refuse = options.Options.FirstOrDefault(o =>
             o.OptionCode == Domain.Interaction.DecisionRequest.OptionRefuse);
 

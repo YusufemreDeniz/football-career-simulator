@@ -7,7 +7,7 @@ using FootballCareerSimulator.Domain.SocialContinuity;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// Sınırlı Dialogue seçenek üretimi (ilk dilim: forma süresi talebi).
+/// Sınırlı Dialogue seçenek üretimi (PlayingTime + StartingOpportunity).
 /// UI seçenek icat etmez; eligibility Application kurallarıyla belirlenir (D-114/D-126).
 /// </summary>
 public sealed class DialogueOptionGenerationService
@@ -47,6 +47,7 @@ public sealed class DialogueOptionGenerationService
         var options = request.Kind switch
         {
             DecisionRequestKind.PlayingTimeRequest => BuildPlayingTimeOptions(request),
+            DecisionRequestKind.StartingOpportunityRequest => BuildStartingOpportunityOptions(request),
             _ => Array.Empty<DialogueOptionReadModel>(),
         };
 
@@ -90,7 +91,7 @@ public sealed class DialogueOptionGenerationService
 
     private IReadOnlyList<DialogueOptionReadModel> BuildPlayingTimeOptions(DecisionRequest request)
     {
-        var grantBlockedReason = FindGrantBlockReason(request);
+        var grantBlockedReason = FindActivePromiseBlockReason(request, PromiseKind.PlayingTime, "forma süresi");
         return
         [
             new DialogueOptionReadModel(
@@ -101,18 +102,44 @@ public sealed class DialogueOptionGenerationService
                 RiskHint: "Aktif PlayingTime Promise oluşur; takip edilir.",
                 IsEligible: grantBlockedReason is null,
                 IneligibilityReason: grantBlockedReason),
-            new DialogueOptionReadModel(
-                DecisionRequest.OptionRefuse,
-                SemanticIntentName: "RefusePlayingTimeRequest",
-                DisplayText: "Talebi reddet",
-                ToneCode: "Firm",
-                RiskHint: "Trust düşebilir; Promise oluşmaz.",
-                IsEligible: true,
-                IneligibilityReason: null),
+            RefuseOption("RefusePlayingTimeRequest"),
         ];
     }
 
-    private string? FindGrantBlockReason(DecisionRequest request)
+    private IReadOnlyList<DialogueOptionReadModel> BuildStartingOpportunityOptions(DecisionRequest request)
+    {
+        var grantBlockedReason = FindActivePromiseBlockReason(
+            request,
+            PromiseKind.StartingOpportunity,
+            "ilk 11 fırsatı");
+        return
+        [
+            new DialogueOptionReadModel(
+                DecisionRequest.OptionGrantStartingOpportunityPromise,
+                SemanticIntentName: "GrantStartingOpportunityPromise",
+                DisplayText: "İlk 11 sözü ver",
+                ToneCode: "Supportive",
+                RiskHint: "Aktif StartingOpportunity Promise oluşur; takip edilir.",
+                IsEligible: grantBlockedReason is null,
+                IneligibilityReason: grantBlockedReason),
+            RefuseOption("RefuseStartingOpportunityRequest"),
+        ];
+    }
+
+    private static DialogueOptionReadModel RefuseOption(string semanticIntentName) =>
+        new(
+            DecisionRequest.OptionRefuse,
+            SemanticIntentName: semanticIntentName,
+            DisplayText: "Talebi reddet",
+            ToneCode: "Firm",
+            RiskHint: "Trust düşebilir; Promise oluşmaz.",
+            IsEligible: true,
+            IneligibilityReason: null);
+
+    private string? FindActivePromiseBlockReason(
+        DecisionRequest request,
+        PromiseKind kind,
+        string label)
     {
         if (_promises is null)
         {
@@ -121,13 +148,13 @@ public sealed class DialogueOptionGenerationService
 
         var hasActive = _promises.Promises.Any(p =>
             p.IsActive
-            && p.Kind == PromiseKind.PlayingTime
+            && p.Kind == kind
             && p.Promisee.Kind == ActorKind.Player
             && p.Promisee.Id == request.SubjectPlayerId.Value
             && p.ClubId == request.ClubId);
 
         return hasActive
-            ? "Oyuncunun bu kulüpte zaten aktif forma süresi sözü var."
+            ? $"Oyuncunun bu kulüpte zaten aktif {label} sözü var."
             : null;
     }
 
@@ -135,6 +162,7 @@ public sealed class DialogueOptionGenerationService
         kind switch
         {
             DecisionRequestKind.PlayingTimeRequest => "PlayingTimeRequest",
+            DecisionRequestKind.StartingOpportunityRequest => "StartingOpportunityRequest",
             _ => kind.ToString(),
         };
 }

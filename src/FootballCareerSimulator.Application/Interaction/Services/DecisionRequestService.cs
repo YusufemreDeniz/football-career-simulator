@@ -8,16 +8,18 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.Interaction.Services;
 
 /// <summary>
-/// DecisionRequest owner (iskelet). Forma süresi talebi → Promise / Relationship / Memory / DialogueSession.
+/// DecisionRequest owner: PlayingTime / StartingOpportunity → Promise / Relationship / Memory / DialogueSession.
 /// </summary>
 public sealed class DecisionRequestService
 {
     public const int DefaultPlayingTimeTargetAppearances = 3;
+    public const int DefaultStartingOpportunityTargetStarts = 2;
     public const int DefaultDeadlineDays = 14;
 
     private readonly IDecisionRequestStore _store;
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly PlayingTimePromiseService? _playingTime;
+    private readonly StartingOpportunityPromiseService? _startingOpportunity;
     private readonly RelationshipEvaluationService? _relationships;
     private readonly DecisionMemoryService? _decisionMemory;
     private readonly DialogueOptionGenerationService? _dialogueOptions;
@@ -30,12 +32,14 @@ public sealed class DecisionRequestService
         RelationshipEvaluationService? relationships = null,
         DecisionMemoryService? decisionMemory = null,
         DialogueOptionGenerationService? dialogueOptions = null,
-        DialogueSessionService? dialogueSessions = null)
+        DialogueSessionService? dialogueSessions = null,
+        StartingOpportunityPromiseService? startingOpportunity = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _playingTime = playingTime;
+        _startingOpportunity = startingOpportunity;
         _relationships = relationships;
         _decisionMemory = decisionMemory;
         _dialogueOptions = dialogueOptions;
@@ -46,54 +50,36 @@ public sealed class DecisionRequestService
         PlayerId subjectPlayerId,
         GameDate day,
         int? deadlineDays = null,
-        bool isHardBlocker = true)
-    {
-        var career = _managerCareerStore.Career;
-        if (!career.IsEmployed || career.ActiveEmployment is null)
-        {
-            throw new InteractionInvariantViolationException(
-                "Manager must be employed to open a playing-time decision request.");
-        }
-
-        var clubId = career.ActiveEmployment.ClubId;
-        var hasOpen = _store.Requests.Any(r =>
-            r.IsOpen
-            && r.Kind == DecisionRequestKind.PlayingTimeRequest
-            && r.SubjectPlayerId == subjectPlayerId
-            && r.ClubId == clubId);
-        if (hasOpen)
-        {
-            throw new InteractionInvariantViolationException(
-                $"Player {subjectPlayerId.Value} already has an open playing-time decision request.");
-        }
-
-        var days = deadlineDays ?? DefaultDeadlineDays;
-        if (days < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(deadlineDays), days, "Deadline days must be positive.");
-        }
-
-        var nextId = _store.Requests.Count == 0
-            ? 1L
-            : _store.Requests.Max(r => r.DecisionRequestId.Value) + 1;
-        var request = DecisionRequest.OpenPlayingTimeRequest(
-            new DecisionRequestId(nextId),
-            career.ManagerId,
+        bool isHardBlocker = true) =>
+        OpenRequest(
+            DecisionRequestKind.PlayingTimeRequest,
             subjectPlayerId,
-            clubId,
             day,
-            day.AddDays(days),
-            isHardBlocker);
-        _store.Upsert(request);
-        OpenDialogueSession(request);
-        return request;
-    }
+            deadlineDays,
+            isHardBlocker,
+            DecisionRequest.OpenPlayingTimeRequest,
+            "playing-time");
+
+    public DecisionRequest OpenStartingOpportunityRequest(
+        PlayerId subjectPlayerId,
+        GameDate day,
+        int? deadlineDays = null,
+        bool isHardBlocker = true) =>
+        OpenRequest(
+            DecisionRequestKind.StartingOpportunityRequest,
+            subjectPlayerId,
+            day,
+            deadlineDays,
+            isHardBlocker,
+            DecisionRequest.OpenStartingOpportunityRequest,
+            "starting-opportunity");
 
     public DecisionRequest Answer(
         DecisionRequestId decisionRequestId,
         string optionCode,
         GameDate day,
-        int playingTimeTargetAppearances = DefaultPlayingTimeTargetAppearances)
+        int playingTimeTargetAppearances = DefaultPlayingTimeTargetAppearances,
+        int startingOpportunityTargetStarts = DefaultStartingOpportunityTargetStarts)
     {
         var current = Require(decisionRequestId);
         _dialogueOptions?.EnsureEligible(decisionRequestId, optionCode);
@@ -115,6 +101,23 @@ public sealed class DecisionRequestService
                 answered.SubjectPlayerId,
                 answered.ClubId,
                 playingTimeTargetAppearances,
+                answered.DeadlineOn,
+                day);
+        }
+        else if (answered.Kind == DecisionRequestKind.StartingOpportunityRequest
+                 && answered.SelectedOptionCode == DecisionRequest.OptionGrantStartingOpportunityPromise)
+        {
+            if (_startingOpportunity is null)
+            {
+                throw new InteractionInvariantViolationException(
+                    "Starting-opportunity promise service is required to grant a starting decision.");
+            }
+
+            _startingOpportunity.Create(
+                answered.ManagerId,
+                answered.SubjectPlayerId,
+                answered.ClubId,
+                startingOpportunityTargetStarts,
                 answered.DeadlineOn,
                 day);
         }
@@ -142,6 +145,56 @@ public sealed class DecisionRequestService
         return expired;
     }
 
+    private DecisionRequest OpenRequest(
+        DecisionRequestKind kind,
+        PlayerId subjectPlayerId,
+        GameDate day,
+        int? deadlineDays,
+        bool isHardBlocker,
+        Func<DecisionRequestId, Domain.ManagerCareer.ManagerId, PlayerId, Domain.Shared.ClubId, GameDate, GameDate, bool, DecisionRequest> factory,
+        string kindLabel)
+    {
+        var career = _managerCareerStore.Career;
+        if (!career.IsEmployed || career.ActiveEmployment is null)
+        {
+            throw new InteractionInvariantViolationException(
+                $"Manager must be employed to open a {kindLabel} decision request.");
+        }
+
+        var clubId = career.ActiveEmployment.ClubId;
+        var hasOpen = _store.Requests.Any(r =>
+            r.IsOpen
+            && r.Kind == kind
+            && r.SubjectPlayerId == subjectPlayerId
+            && r.ClubId == clubId);
+        if (hasOpen)
+        {
+            throw new InteractionInvariantViolationException(
+                $"Player {subjectPlayerId.Value} already has an open {kindLabel} decision request.");
+        }
+
+        var days = deadlineDays ?? DefaultDeadlineDays;
+        if (days < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(deadlineDays), days, "Deadline days must be positive.");
+        }
+
+        var nextId = _store.Requests.Count == 0
+            ? 1L
+            : _store.Requests.Max(r => r.DecisionRequestId.Value) + 1;
+        var request = factory(
+            new DecisionRequestId(nextId),
+            career.ManagerId,
+            subjectPlayerId,
+            clubId,
+            day,
+            day.AddDays(days),
+            isHardBlocker);
+        _store.Upsert(request);
+        OpenDialogueSession(request);
+        return request;
+    }
+
     private void OpenDialogueSession(DecisionRequest request)
     {
         if (_dialogueSessions is null)
@@ -157,15 +210,25 @@ public sealed class DecisionRequestService
                 .Select(o => o.OptionCode)
                 .ToArray();
         }
-        else if (request.Kind == DecisionRequestKind.PlayingTimeRequest)
-        {
-            optionCodes =
-            [
-                DecisionRequest.OptionGrantPlayingTimePromise,
-                DecisionRequest.OptionRefuse,
-            ];
-        }
         else
+        {
+            optionCodes = request.Kind switch
+            {
+                DecisionRequestKind.PlayingTimeRequest =>
+                [
+                    DecisionRequest.OptionGrantPlayingTimePromise,
+                    DecisionRequest.OptionRefuse,
+                ],
+                DecisionRequestKind.StartingOpportunityRequest =>
+                [
+                    DecisionRequest.OptionGrantStartingOpportunityPromise,
+                    DecisionRequest.OptionRefuse,
+                ],
+                _ => Array.Empty<string>(),
+            };
+        }
+
+        if (optionCodes.Count == 0)
         {
             return;
         }
@@ -176,7 +239,7 @@ public sealed class DecisionRequestService
     private void ApplySocialOutcomes(DecisionRequest request, GameDate day)
     {
         _relationships?.ApplyDecisionRequestOutcome(request, day);
-        _decisionMemory?.RecordPlayingTimeOutcome(request, day);
+        _decisionMemory?.RecordOutcome(request, day);
     }
 
     private DecisionRequest Require(DecisionRequestId id) =>

@@ -37,6 +37,7 @@ public sealed class DecisionRequestQueryService
             request.Kind switch
             {
                 DecisionRequestKind.PlayingTimeRequest => "Forma süresi talebi",
+                DecisionRequestKind.StartingOpportunityRequest => "İlk 11 fırsatı talebi",
                 _ => request.Kind.ToString(),
             },
             request.SubjectPlayerId.Value,

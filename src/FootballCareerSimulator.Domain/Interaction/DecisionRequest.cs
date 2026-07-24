@@ -6,11 +6,13 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.Interaction;
 
 /// <summary>
-/// Interaction & Narrative: bekleyen zorunlu/kritik karar isteği (ilk dilim: forma süresi talebi).
+/// Interaction & Narrative: bekleyen zorunlu/kritik karar isteği
+/// (forma süresi + ilk 11 fırsatı talepleri).
 /// </summary>
 public sealed class DecisionRequest
 {
     public const string OptionGrantPlayingTimePromise = "GrantPlayingTimePromise";
+    public const string OptionGrantStartingOpportunityPromise = "GrantStartingOpportunityPromise";
     public const string OptionRefuse = "Refuse";
 
     private DecisionRequest(
@@ -92,6 +94,35 @@ public sealed class DecisionRequest
             resolvedOn: null);
     }
 
+    public static DecisionRequest OpenStartingOpportunityRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.StartingOpportunityRequest,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
     public DecisionRequest Answer(string optionCode, GameDate day)
     {
         EnsureOpen();
@@ -101,11 +132,18 @@ public sealed class DecisionRequest
         }
 
         var trimmed = optionCode.Trim();
-        if (Kind == DecisionRequestKind.PlayingTimeRequest
-            && trimmed is not (OptionGrantPlayingTimePromise or OptionRefuse))
+        var supported = Kind switch
+        {
+            DecisionRequestKind.PlayingTimeRequest =>
+                trimmed is OptionGrantPlayingTimePromise or OptionRefuse,
+            DecisionRequestKind.StartingOpportunityRequest =>
+                trimmed is OptionGrantStartingOpportunityPromise or OptionRefuse,
+            _ => false,
+        };
+        if (!supported)
         {
             throw new InteractionInvariantViolationException(
-                $"Unsupported option for playing-time request: {trimmed}.");
+                $"Unsupported option for {Kind}: {trimmed}.");
         }
 
         return new DecisionRequest(

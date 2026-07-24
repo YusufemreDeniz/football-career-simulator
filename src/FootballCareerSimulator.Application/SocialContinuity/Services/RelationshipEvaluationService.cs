@@ -24,6 +24,9 @@ public sealed class RelationshipEvaluationService
     public const string DecisionPlayingTimeGrantedRuleId = "DecisionPlayingTimeGranted";
     public const string DecisionPlayingTimeRefusedRuleId = "DecisionPlayingTimeRefused";
     public const string DecisionPlayingTimeExpiredRuleId = "DecisionPlayingTimeExpired";
+    public const string DecisionStartingOpportunityGrantedRuleId = "DecisionStartingOpportunityGranted";
+    public const string DecisionStartingOpportunityRefusedRuleId = "DecisionStartingOpportunityRefused";
+    public const string DecisionStartingOpportunityExpiredRuleId = "DecisionStartingOpportunityExpired";
     public const int RuleVersion = 1;
 
     private readonly IRelationshipStore _store;
@@ -172,12 +175,16 @@ public sealed class RelationshipEvaluationService
     public int ApplyDecisionRequestOutcome(DecisionRequest request, GameDate day)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.Kind != DecisionRequestKind.PlayingTimeRequest)
+        return request.Kind switch
         {
-            return 0;
-        }
+            DecisionRequestKind.PlayingTimeRequest => ApplyPlayingTimeDecision(request, day),
+            DecisionRequestKind.StartingOpportunityRequest => ApplyStartingOpportunityDecision(request, day),
+            _ => 0,
+        };
+    }
 
-        return request.Status switch
+    private int ApplyPlayingTimeDecision(DecisionRequest request, GameDate day) =>
+        request.Status switch
         {
             DecisionRequestStatus.Answered when
                 request.SelectedOptionCode == DecisionRequest.OptionGrantPlayingTimePromise =>
@@ -213,7 +220,44 @@ public sealed class RelationshipEvaluationService
                     day),
             _ => 0,
         };
-    }
+
+    private int ApplyStartingOpportunityDecision(DecisionRequest request, GameDate day) =>
+        request.Status switch
+        {
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionGrantStartingOpportunityPromise =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionStartingOpportunityGrantedRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: 6,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionStartingOpportunityGrantedRuleId,
+                    day),
+            DecisionRequestStatus.Answered when
+                request.SelectedOptionCode == DecisionRequest.OptionRefuse =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionStartingOpportunityRefusedRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -10,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionStartingOpportunityRefusedRuleId,
+                    day),
+            DecisionRequestStatus.Expired =>
+                Apply(
+                    request.SubjectPlayerId,
+                    request.ManagerId,
+                    $"Rel:{DecisionStartingOpportunityExpiredRuleId}:v{RuleVersion}:{request.DecisionRequestId.Value}",
+                    trustDelta: -6,
+                    respectDelta: 0,
+                    compatibilityDelta: 0,
+                    reasonCode: DecisionStartingOpportunityExpiredRuleId,
+                    day),
+            _ => 0,
+        };
 
     private int Apply(
         PlayerId playerId,

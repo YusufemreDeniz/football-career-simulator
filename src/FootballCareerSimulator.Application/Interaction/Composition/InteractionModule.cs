@@ -48,7 +48,8 @@ public sealed class InteractionModule
         RelationshipEvaluationService? relationships = null,
         DecisionMemoryService? decisionMemory = null,
         IPromiseStore? promiseStore = null,
-        IDialogueSessionStore? dialogueSessionStore = null)
+        IDialogueSessionStore? dialogueSessionStore = null,
+        StartingOpportunityPromiseService? startingOpportunity = null)
     {
         ArgumentNullException.ThrowIfNull(managerCareerStore);
         var store = decisionRequestStore ?? new InMemoryDecisionRequestStore();
@@ -62,7 +63,8 @@ public sealed class InteractionModule
             relationships,
             decisionMemory,
             dialogueOptions,
-            dialogueSessionService);
+            dialogueSessionService,
+            startingOpportunity);
         var queries = new DecisionRequestQueryService(store);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
         return new InteractionModule(

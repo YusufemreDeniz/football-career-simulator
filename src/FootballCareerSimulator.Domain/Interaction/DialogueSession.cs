@@ -11,6 +11,7 @@ namespace FootballCareerSimulator.Domain.Interaction;
 public sealed class DialogueSession
 {
     public const string PlayingTimeRequestType = "PlayingTimeRequest";
+    public const string StartingOpportunityRequestType = "StartingOpportunityRequest";
 
     private readonly string[] _availableOptionCodes;
 
@@ -101,6 +102,7 @@ public sealed class DialogueSession
         var typeCode = request.Kind switch
         {
             DecisionRequestKind.PlayingTimeRequest => PlayingTimeRequestType,
+            DecisionRequestKind.StartingOpportunityRequest => StartingOpportunityRequestType,
             _ => request.Kind.ToString(),
         };
 

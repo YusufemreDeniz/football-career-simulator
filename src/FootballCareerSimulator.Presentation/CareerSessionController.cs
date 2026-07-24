@@ -306,51 +306,30 @@ public sealed class CareerSessionController
         }
     }
 
-    public UiActionResult OpenPlayingTimeDecisionForOldestSquadPlayer()
-    {
-        try
-        {
-            var clubId = Host.ManagerModule.Store.Career.ActiveEmployment?.ClubId
-                ?? throw new InvalidOperationException("Menajer kulübü yok.");
-            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(clubId, day);
-            var squad = Host.TeamPreparationModule.SquadStore.Get(clubId)
-                ?? throw new InvalidOperationException("Kadro yok.");
-            var member = squad.Members.OrderBy(m => m.SlotIndex).FirstOrDefault()
-                ?? throw new InvalidOperationException("Kadroda oyuncu yok.");
+    public UiActionResult OpenPlayingTimeDecisionForOldestSquadPlayer() =>
+        OpenDecisionForOldestSquadPlayer(
+            (playerId, day) => Host.InteractionModule.Decisions.OpenPlayingTimeRequest(playerId, day),
+            "forma süresi talebi");
 
-            var request = Host.InteractionModule.Decisions.OpenPlayingTimeRequest(
-                member.PlayerId,
-                day);
-            return UiActionResult.Ok(
-                $"Karar açıldı: forma süresi talebi · oyuncu #{member.PlayerId.Value}"
-                + $" · karar #{request.DecisionRequestId.Value}"
-                + $" · son gün {request.DeadlineOn.DayNumber}.");
-        }
-        catch (InteractionInvariantViolationException ex)
-        {
-            return UiActionResult.Fail($"Karar açılamadı: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            return UiActionResult.Fail($"Karar hatası: {ex.Message}");
-        }
-    }
+    public UiActionResult OpenStartingOpportunityDecisionForOldestSquadPlayer() =>
+        OpenDecisionForOldestSquadPlayer(
+            (playerId, day) => Host.InteractionModule.Decisions.OpenStartingOpportunityRequest(playerId, day),
+            "ilk 11 fırsatı talebi");
 
-    public UiActionResult AnswerOldestPendingDecision(bool grantPlayingTimePromise)
+    public UiActionResult AnswerOldestPendingDecision(bool grantPromise)
     {
         try
         {
             var pending = Host.InteractionModule.Queries.GetPending(take: 1).OpenRequests.FirstOrDefault()
                 ?? throw new InvalidOperationException("Bekleyen karar yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-            var option = grantPlayingTimePromise
-                ? DecisionRequest.OptionGrantPlayingTimePromise
-                : DecisionRequest.OptionRefuse;
             var dialogue = Host.InteractionModule.DialogueOptions.GetForDecision(
                 new DecisionRequestId(pending.DecisionRequestId));
-            var generated = dialogue.Options.FirstOrDefault(o =>
-                string.Equals(o.OptionCode, option, StringComparison.Ordinal));
+            var generated = grantPromise
+                ? dialogue.Options.FirstOrDefault(o =>
+                    !string.Equals(o.OptionCode, DecisionRequest.OptionRefuse, StringComparison.Ordinal))
+                : dialogue.Options.FirstOrDefault(o =>
+                    string.Equals(o.OptionCode, DecisionRequest.OptionRefuse, StringComparison.Ordinal));
             if (generated is null)
             {
                 return UiActionResult.Fail("Seçenek diyalog setinde yok.");
@@ -364,7 +343,7 @@ public sealed class CareerSessionController
 
             var answered = Host.InteractionModule.Decisions.Answer(
                 new DecisionRequestId(pending.DecisionRequestId),
-                option,
+                generated.OptionCode,
                 day);
             return UiActionResult.Ok(
                 $"Karar yanıtlandı: #{answered.DecisionRequestId.Value} → {generated.DisplayText}"
@@ -377,6 +356,37 @@ public sealed class CareerSessionController
         catch (SocialContinuityInvariantViolationException ex)
         {
             return UiActionResult.Fail($"Karar/söz hatası: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Karar hatası: {ex.Message}");
+        }
+    }
+
+    private UiActionResult OpenDecisionForOldestSquadPlayer(
+        Func<PlayerId, GameDate, DecisionRequest> open,
+        string kindLabel)
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Store.Career.ActiveEmployment?.ClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(clubId, day);
+            var squad = Host.TeamPreparationModule.SquadStore.Get(clubId)
+                ?? throw new InvalidOperationException("Kadro yok.");
+            var member = squad.Members.OrderBy(m => m.SlotIndex).FirstOrDefault()
+                ?? throw new InvalidOperationException("Kadroda oyuncu yok.");
+
+            var request = open(member.PlayerId, day);
+            return UiActionResult.Ok(
+                $"Karar açıldı: {kindLabel} · oyuncu #{member.PlayerId.Value}"
+                + $" · karar #{request.DecisionRequestId.Value}"
+                + $" · son gün {request.DeadlineOn.DayNumber}.");
+        }
+        catch (InteractionInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Karar açılamadı: {ex.Message}");
         }
         catch (Exception ex)
         {

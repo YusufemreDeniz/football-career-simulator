@@ -17,10 +17,47 @@ public sealed class DecisionMemoryService
         _store = store ?? throw new ArgumentNullException(nameof(store));
     }
 
-    public int RecordPlayingTimeOutcome(DecisionRequest request, GameDate day)
+    public int RecordOutcome(DecisionRequest request, GameDate day)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.Kind != DecisionRequestKind.PlayingTimeRequest)
+        return request.Kind switch
+        {
+            DecisionRequestKind.PlayingTimeRequest => RecordPlayingTimeOutcome(request, day),
+            DecisionRequestKind.StartingOpportunityRequest => RecordStartingOpportunityOutcome(request, day),
+            _ => 0,
+        };
+    }
+
+    public int RecordPlayingTimeOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.PlayingTimeRequest,
+            MemoryRecord.DecisionPlayingTimeAnswerRuleId,
+            MemoryRecord.DecisionPlayingTimeAnswerRuleVersion,
+            MemoryRecord.BuildDecisionPlayingTimeOutcomeSourceKey,
+            MemoryRecord.CreateDecisionPlayingTimeOutcome,
+            day);
+
+    public int RecordStartingOpportunityOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.StartingOpportunityRequest,
+            MemoryRecord.DecisionStartingOpportunityAnswerRuleId,
+            MemoryRecord.DecisionStartingOpportunityAnswerRuleVersion,
+            MemoryRecord.BuildDecisionStartingOpportunityOutcomeSourceKey,
+            MemoryRecord.CreateDecisionStartingOpportunityOutcome,
+            day);
+
+    private int RecordTypedOutcome(
+        DecisionRequest request,
+        DecisionRequestKind expectedKind,
+        string ruleId,
+        int ruleVersion,
+        Func<DecisionRequestId, string, string> sourceKeyBuilder,
+        Func<MemoryId, DecisionRequest, GameDate, MemoryRecord> factory,
+        GameDate day)
+    {
+        if (request.Kind != expectedKind)
         {
             return 0;
         }
@@ -35,15 +72,13 @@ public sealed class DecisionMemoryService
         var outcomeKey = request.Status == DecisionRequestStatus.Expired
             ? "Expired"
             : request.SelectedOptionCode!;
-        var sourceKey = MemoryRecord.BuildDecisionPlayingTimeOutcomeSourceKey(
-            request.DecisionRequestId,
-            outcomeKey);
+        var sourceKey = sourceKeyBuilder(request.DecisionRequestId, outcomeKey);
         var remembering = new ActorRef(ActorKind.Player, request.SubjectPlayerId.Value);
         if (_store.Memories.Any(m =>
                 m.SourceEventKey == sourceKey
                 && m.RememberingActor == remembering
-                && m.RuleId == MemoryRecord.DecisionPlayingTimeAnswerRuleId
-                && m.RuleVersion == MemoryRecord.DecisionPlayingTimeAnswerRuleVersion))
+                && m.RuleId == ruleId
+                && m.RuleVersion == ruleVersion))
         {
             return 0;
         }
@@ -51,10 +86,7 @@ public sealed class DecisionMemoryService
         var nextId = _store.Memories.Count == 0
             ? 1L
             : _store.Memories.Max(m => m.MemoryId.Value) + 1;
-        _store.Upsert(MemoryRecord.CreateDecisionPlayingTimeOutcome(
-            new MemoryId(nextId),
-            request,
-            day));
+        _store.Upsert(factory(new MemoryId(nextId), request, day));
         return 1;
     }
 }
