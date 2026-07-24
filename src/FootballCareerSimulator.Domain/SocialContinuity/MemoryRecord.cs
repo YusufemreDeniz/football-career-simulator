@@ -4,7 +4,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.SocialContinuity;
 
 /// <summary>
-/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise sonucu + Selection (ilk 11).
+/// Sosyal Continuity hafıza kaydı. MVP iskelet: Promise / Selection / Trust.
 /// </summary>
 public sealed class MemoryRecord
 {
@@ -16,6 +16,8 @@ public sealed class MemoryRecord
     public const int SelectionBenchedRuleVersion = 1;
     public const string SelectionOmittedRuleId = "SelectionOmitted";
     public const int SelectionOmittedRuleVersion = 1;
+    public const string TrustFromPromiseRuleId = "TrustFromPromise";
+    public const int TrustFromPromiseRuleVersion = 1;
     public const int MinImportance = 1;
     public const int MaxImportance = 100;
 
@@ -133,6 +135,53 @@ public sealed class MemoryRecord
             promise.PromiseId,
             PromiseOutcomeRuleId,
             PromiseOutcomeRuleVersion);
+    }
+
+    public static MemoryRecord CreateTrustFromPromiseOutcome(
+        MemoryId memoryId,
+        Promise promise,
+        GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(promise);
+        if (promise.Status is not (PromiseStatus.Fulfilled or PromiseStatus.Broken))
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Trust-from-promise memory requires Fulfilled or Broken status.");
+        }
+
+        if (promise.Promisee.Kind != ActorKind.Player)
+        {
+            throw new SocialContinuityInvariantViolationException(
+                "Trust-from-promise remembering actor must be the player promisee.");
+        }
+
+        var subjectKind = promise.Promisor.Kind switch
+        {
+            ActorKind.Manager => MemorySubjectKind.Manager,
+            ActorKind.Player => MemorySubjectKind.Player,
+            _ => throw new SocialContinuityInvariantViolationException(
+                $"Unsupported trust subject kind: {promise.Promisor.Kind}."),
+        };
+
+        var reliable = promise.Status == PromiseStatus.Fulfilled;
+        return new MemoryRecord(
+            memoryId,
+            promise.Promisee,
+            subjectKind,
+            promise.Promisor.Id,
+            BuildTrustFromPromiseSourceKey(promise.PromiseId, promise.Status),
+            MemoryCategory.Trust,
+            day,
+            day,
+            baseImportance: reliable ? 50 : 70,
+            currentInfluence: reliable ? 50 : 70,
+            reliable ? MemoryValence.Positive : MemoryValence.Negative,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            promise.PromiseId,
+            TrustFromPromiseRuleId,
+            TrustFromPromiseRuleVersion);
     }
 
     public static MemoryRecord CreateSelectionStarted(
@@ -281,6 +330,9 @@ public sealed class MemoryRecord
 
     public static string BuildPromiseOutcomeSourceKey(PromiseId promiseId, PromiseStatus status) =>
         $"PromiseTerminal:{promiseId.Value}:{status}";
+
+    public static string BuildTrustFromPromiseSourceKey(PromiseId promiseId, PromiseStatus status) =>
+        $"TrustFromPromise:{promiseId.Value}:{status}";
 
     public static string BuildSelectionStartedSourceKey(FixtureId fixtureId, long playerId) =>
         $"SelectionStarted:{fixtureId.Value}:{playerId}";

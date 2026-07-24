@@ -5,15 +5,17 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.SocialContinuity.Services;
 
 /// <summary>
-/// Promise terminal sonucu → Promise Memory (idempotent).
+/// Promise terminal sonucu → Promise Memory; Fulfilled/Broken için Trust Memory tetikler.
 /// </summary>
 public sealed class PromiseMemoryService
 {
     private readonly IMemoryStore _store;
+    private readonly TrustMemoryService? _trustMemory;
 
-    public PromiseMemoryService(IMemoryStore store)
+    public PromiseMemoryService(IMemoryStore store, TrustMemoryService? trustMemory = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _trustMemory = trustMemory;
     }
 
     public int RecordOutcome(Promise promise, GameDate day)
@@ -30,6 +32,7 @@ public sealed class PromiseMemoryService
         var created = 0;
         created += TryCreateForActor(promise.Promisee, promise, day) ? 1 : 0;
         created += TryCreateForActor(promise.Promisor, promise, day) ? 1 : 0;
+        created += _trustMemory?.RecordFromPromiseOutcome(promise, day) ?? 0;
         return created;
     }
 

@@ -4,4 +4,5 @@ public enum MemoryCategory
 {
     Promise = 1,
     Selection = 2,
+    Trust = 3,
 }

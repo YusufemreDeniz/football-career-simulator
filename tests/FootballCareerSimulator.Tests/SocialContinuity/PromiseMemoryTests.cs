@@ -53,16 +53,20 @@ public sealed class PromiseMemoryTests : IDisposable
             [new PlayerId(1001)],
             Day);
 
-        Assert.Equal(2, social.MemoryStore.Memories.Count);
-        Assert.All(social.MemoryStore.Memories, m =>
+        Assert.Equal(3, social.MemoryStore.Memories.Count);
+        var promiseMemories = social.MemoryStore.Memories
+            .Where(m => m.Category == MemoryCategory.Promise)
+            .ToArray();
+        Assert.Equal(2, promiseMemories.Length);
+        Assert.All(promiseMemories, m =>
         {
-            Assert.Equal(MemoryCategory.Promise, m.Category);
             Assert.Equal(MemoryValence.Positive, m.Valence);
             Assert.Equal(PromiseStatus.Fulfilled.ToString(), m.SourceEventKey.Split(':')[^1]);
         });
+        Assert.Contains(social.MemoryStore.Memories, m => m.Category == MemoryCategory.Trust);
 
         social.PromiseMemory.RecordOutcome(social.PromiseStore.Promises.Single(), Day);
-        Assert.Equal(2, social.MemoryStore.Memories.Count);
+        Assert.Equal(3, social.MemoryStore.Memories.Count);
     }
 
     [Fact]
@@ -79,8 +83,12 @@ public sealed class PromiseMemoryTests : IDisposable
 
         social.StartingOpportunity.EvaluateDeadlines(Day.AddDays(5));
 
-        Assert.Equal(2, social.MemoryStore.Memories.Count);
-        Assert.All(social.MemoryStore.Memories, m =>
+        Assert.Equal(3, social.MemoryStore.Memories.Count);
+        var promiseMemories = social.MemoryStore.Memories
+            .Where(m => m.Category == MemoryCategory.Promise)
+            .ToArray();
+        Assert.Equal(2, promiseMemories.Length);
+        Assert.All(promiseMemories, m =>
         {
             Assert.Equal(MemoryValence.Negative, m.Valence);
             Assert.Equal(80, m.BaseImportance);
@@ -132,8 +140,9 @@ public sealed class PromiseMemoryTests : IDisposable
 
         var loaded = new CareerSqlitePersistence().Load(path);
         Assert.Equal(31, loaded.SchemaVersion);
-        Assert.Equal(2, loaded.Memories.Count);
+        Assert.Equal(3, loaded.Memories.Count);
         Assert.Contains(loaded.Memories, m => m.RememberingActor.Kind == ActorKind.Player);
         Assert.Contains(loaded.Memories, m => m.RememberingActor.Kind == ActorKind.Manager);
+        Assert.Contains(loaded.Memories, m => m.Category == MemoryCategory.Trust);
     }
 }

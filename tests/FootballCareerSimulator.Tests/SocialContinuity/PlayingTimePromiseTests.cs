@@ -89,7 +89,8 @@ public sealed class PlayingTimePromiseTests : IDisposable
         Assert.Equal(
             PromiseStatus.Broken,
             social.PromiseStore.Promises.Single(p => p.Kind == PromiseKind.PlayingTime).Status);
-        Assert.Equal(2, social.MemoryStore.Memories.Count);
+        Assert.Equal(2, social.MemoryStore.Memories.Count(m => m.Category == MemoryCategory.Promise));
+        Assert.Equal(1, social.MemoryStore.Memories.Count(m => m.Category == MemoryCategory.Trust));
     }
 
     [Fact]
