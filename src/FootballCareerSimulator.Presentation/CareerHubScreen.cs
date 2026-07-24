@@ -68,6 +68,19 @@ public partial class CareerHubScreen : Control
     private Button _playButton = null!;
     private Button _advanceDayButton = null!;
     private Button _advanceWeekButton = null!;
+    private Control[] _pages = null!;
+    private Button[] _navButtons = null!;
+    private HubPage _currentPage = HubPage.Today;
+
+    private enum HubPage
+    {
+        Today = 0,
+        Club = 1,
+        Transfer = 2,
+        Prep = 3,
+        World = 4,
+        File = 5,
+    }
 
     public event Action? BackToMenuRequested;
 
@@ -101,28 +114,22 @@ public partial class CareerHubScreen : Control
         margin.AddThemeConstantOverride("margin_bottom", 16);
         AddChild(margin);
 
-        var scroll = new ScrollContainer
+        var shell = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        margin.AddChild(scroll);
+        shell.AddThemeConstantOverride("separation", 14);
+        margin.AddChild(shell);
 
-        var layout = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
-        layout.AddThemeConstantOverride("separation", 18);
-        scroll.AddChild(layout);
-
-        // —— Marka / üst şerit ——
+        // —— Marka / üst şerit (sabit) ——
         var brand = new Label
         {
             Text = "Football Career Simulator",
             MouseFilter = MouseFilterEnum.Ignore,
         };
         CareerUiTheme.StyleBrand(brand);
-        layout.AddChild(brand);
+        shell.AddChild(brand);
 
         var brandLine = new ColorRect
         {
@@ -131,31 +138,121 @@ public partial class CareerHubScreen : Control
             SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        layout.AddChild(brandLine);
+        shell.AddChild(brandLine);
 
         var hubTitle = new Label { Text = "Kariyer Merkezi" };
         CareerUiTheme.StyleHeadline(hubTitle);
-        layout.AddChild(hubTitle);
+        shell.AddChild(hubTitle);
 
         _dateLabel = BodyLabel("DateLabel");
-        layout.AddChild(_dateLabel);
+        shell.AddChild(_dateLabel);
         _managerLabel = BodyLabel("ManagerLabel", autowrap: true);
-        layout.AddChild(_managerLabel);
+        shell.AddChild(_managerLabel);
         _seasonLabel = BodyLabel("SeasonLabel", muted: true);
-        layout.AddChild(_seasonLabel);
+        shell.AddChild(_seasonLabel);
         _progressLabel = BodyLabel("ProgressLabel", muted: true);
-        layout.AddChild(_progressLabel);
+        shell.AddChild(_progressLabel);
 
-        // —— Bugün ——
-        layout.AddChild(SectionTitle("Bugün"));
+        BuildNavBar(shell);
+
+        var scroll = new ScrollContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        shell.AddChild(scroll);
+
+        var pageHost = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        pageHost.AddThemeConstantOverride("separation", 0);
+        scroll.AddChild(pageHost);
+
+        _pages =
+        [
+            BuildTodayPage(),
+            BuildClubPage(),
+            BuildTransferPage(),
+            BuildPrepPage(),
+            BuildWorldPage(),
+            BuildFilePage(),
+        ];
+        foreach (var page in _pages)
+        {
+            page.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            pageHost.AddChild(page);
+        }
+
+        _statusLabel = BodyLabel("StatusLabel", autowrap: true);
+        shell.AddChild(_statusLabel);
+
+        ShowPage(HubPage.Today);
+
+        brandLine.CustomMinimumSize = new Vector2(24, 3);
+        var brandTween = CreateTween();
+        brandTween.TweenProperty(brandLine, "custom_minimum_size", new Vector2(160, 3), 0.55f)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.Out);
+
+        shell.Modulate = new Color(1f, 1f, 1f, 0f);
+        var fadeTween = CreateTween();
+        fadeTween.TweenProperty(shell, "modulate:a", 1f, 0.4f)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.Out);
+    }
+
+    private void BuildNavBar(Control parent)
+    {
+        var nav = new HBoxContainer();
+        nav.AddThemeConstantOverride("separation", 8);
+        parent.AddChild(nav);
+
+        var labels = new[] { "Bugün", "Kulüp", "Transfer", "Hazırlık", "Dünya", "Dosya" };
+        _navButtons = new Button[labels.Length];
+        for (var i = 0; i < labels.Length; i++)
+        {
+            var page = (HubPage)i;
+            var button = new Button { Text = labels[i], ToggleMode = false };
+            button.Pressed += () => ShowPage(page);
+            nav.AddChild(button);
+            _navButtons[i] = button;
+        }
+    }
+
+    private void ShowPage(HubPage page)
+    {
+        _currentPage = page;
+        for (var i = 0; i < _pages.Length; i++)
+        {
+            _pages[i].Visible = i == (int)page;
+            CareerUiTheme.StyleNavButton(_navButtons[i], selected: i == (int)page);
+        }
+    }
+
+    private VBoxContainer PageRoot()
+    {
+        var page = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Visible = false,
+        };
+        page.AddThemeConstantOverride("separation", 12);
+        return page;
+    }
+
+    private Control BuildTodayPage()
+    {
+        var page = PageRoot();
+        page.AddChild(SectionTitle("Bugün"));
         _blockerLabel = BodyLabel("BlockerLabel", autowrap: true);
-        layout.AddChild(_blockerLabel);
+        page.AddChild(_blockerLabel);
         _selectionLabel = BodyLabel("SelectionLabel", autowrap: true);
-        layout.AddChild(_selectionLabel);
+        page.AddChild(_selectionLabel);
 
         var primaryRow = new HBoxContainer();
         primaryRow.AddThemeConstantOverride("separation", 10);
-        layout.AddChild(primaryRow);
+        page.AddChild(primaryRow);
 
         _approveSelectionButton = PrimaryButton("Kadro Onayla");
         _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
@@ -172,45 +269,32 @@ public partial class CareerHubScreen : Control
         _advanceWeekButton = SecondaryButton("7 Gün İlerlet");
         _advanceWeekButton.Pressed += () => Apply(_controller.AdvanceDays(7));
         primaryRow.AddChild(_advanceWeekButton);
+        return page;
+    }
 
-        // —— İki sütun: Kulüp | Hazırlık ——
-        var columns = new HBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
-        columns.AddThemeConstantOverride("separation", 28);
-        layout.AddChild(columns);
-
-        var clubCol = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsStretchRatio = 1f,
-        };
-        clubCol.AddThemeConstantOverride("separation", 8);
-        columns.AddChild(clubCol);
-
-        clubCol.AddChild(SectionTitle("Kulüp"));
+    private Control BuildClubPage()
+    {
+        var page = PageRoot();
+        page.AddChild(SectionTitle("Kulüp"));
         _squadStatusLabel = BodyLabel("SquadStatusLabel", autowrap: true);
-        clubCol.AddChild(_squadStatusLabel);
+        page.AddChild(_squadStatusLabel);
         _developmentLabel = BodyLabel("DevelopmentLabel", autowrap: true);
-        clubCol.AddChild(_developmentLabel);
+        page.AddChild(_developmentLabel);
         _contractLabel = BodyLabel("ContractLabel", autowrap: true);
-        clubCol.AddChild(_contractLabel);
-        _transferNeedLabel = BodyLabel("TransferNeedLabel", autowrap: true);
-        clubCol.AddChild(_transferNeedLabel);
+        page.AddChild(_contractLabel);
 
         _squadList = new ItemList
         {
             Name = "SquadList",
-            CustomMinimumSize = new Vector2(0, 120),
+            CustomMinimumSize = new Vector2(0, 180),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StyleList(_squadList);
-        clubCol.AddChild(_squadList);
+        page.AddChild(_squadList);
 
         var jobRow = new HBoxContainer();
         jobRow.AddThemeConstantOverride("separation", 8);
-        clubCol.AddChild(jobRow);
+        page.AddChild(jobRow);
 
         _generateOfferButton = SecondaryButton("İş Teklifi Ara");
         _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
@@ -223,10 +307,19 @@ public partial class CareerHubScreen : Control
         _signFreeAgentButton = SecondaryButton("Serbesti Geri İmzala");
         _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
         jobRow.AddChild(_signFreeAgentButton);
+        return page;
+    }
+
+    private Control BuildTransferPage()
+    {
+        var page = PageRoot();
+        page.AddChild(SectionTitle("Transfer"));
+        _transferNeedLabel = BodyLabel("TransferNeedLabel", autowrap: true);
+        page.AddChild(_transferNeedLabel);
 
         var needRow = new HBoxContainer();
         needRow.AddThemeConstantOverride("separation", 8);
-        clubCol.AddChild(needRow);
+        page.AddChild(needRow);
 
         _refreshTransferNeedsButton = SecondaryButton("İhtiyaç Tara");
         _refreshTransferNeedsButton.Pressed += () => Apply(_controller.RefreshTransferNeedSuggestions());
@@ -241,11 +334,11 @@ public partial class CareerHubScreen : Control
         needRow.AddChild(_closeTransferNeedButton);
 
         _shortlistTargetLabel = BodyLabel("ShortlistTargetLabel", autowrap: true);
-        clubCol.AddChild(_shortlistTargetLabel);
+        page.AddChild(_shortlistTargetLabel);
 
         var targetRow = new HBoxContainer();
         targetRow.AddThemeConstantOverride("separation", 8);
-        clubCol.AddChild(targetRow);
+        page.AddChild(targetRow);
 
         _suggestTargetButton = SecondaryButton("Hedef Öner");
         _suggestTargetButton.Pressed += () => Apply(_controller.SuggestTransferTarget());
@@ -256,11 +349,11 @@ public partial class CareerHubScreen : Control
         targetRow.AddChild(_dropTargetButton);
 
         _transferProcessLabel = BodyLabel("TransferProcessLabel", autowrap: true);
-        clubCol.AddChild(_transferProcessLabel);
+        page.AddChild(_transferProcessLabel);
 
         var processRow = new HBoxContainer();
         processRow.AddThemeConstantOverride("separation", 8);
-        clubCol.AddChild(processRow);
+        page.AddChild(processRow);
 
         _openProcessButton = SecondaryButton("Süreç Aç");
         _openProcessButton.Pressed += () => Apply(_controller.OpenTransferProcessFromOldestTarget());
@@ -272,7 +365,7 @@ public partial class CareerHubScreen : Control
 
         var sportingRow = new HBoxContainer();
         sportingRow.AddThemeConstantOverride("separation", 8);
-        clubCol.AddChild(sportingRow);
+        page.AddChild(sportingRow);
 
         _requestSportingApprovalButton = SecondaryButton("Sportif Onay İste");
         _requestSportingApprovalButton.Pressed += () =>
@@ -290,11 +383,11 @@ public partial class CareerHubScreen : Control
         sportingRow.AddChild(_rejectSportingApprovalButton);
 
         _clubOfferLabel = BodyLabel("ClubOfferLabel", autowrap: true);
-        clubCol.AddChild(_clubOfferLabel);
+        page.AddChild(_clubOfferLabel);
 
         var offerRow = new HBoxContainer();
         offerRow.AddThemeConstantOverride("separation", 8);
-        clubCol.AddChild(offerRow);
+        page.AddChild(offerRow);
 
         _submitClubOfferButton = SecondaryButton("Teklif Sun");
         _submitClubOfferButton.Pressed += () => Apply(_controller.SubmitDefaultClubOffer());
@@ -313,11 +406,11 @@ public partial class CareerHubScreen : Control
         offerRow.AddChild(_counterClubOfferButton);
 
         _contractProposalLabel = BodyLabel("ContractProposalLabel", autowrap: true);
-        clubCol.AddChild(_contractProposalLabel);
+        page.AddChild(_contractProposalLabel);
 
         var proposalRow = new HBoxContainer();
         proposalRow.AddThemeConstantOverride("separation", 8);
-        clubCol.AddChild(proposalRow);
+        page.AddChild(proposalRow);
 
         _submitContractProposalButton = SecondaryButton("Sözleşme Teklif");
         _submitContractProposalButton.Pressed += () =>
@@ -341,7 +434,7 @@ public partial class CareerHubScreen : Control
 
         var financialRow = new HBoxContainer();
         financialRow.AddThemeConstantOverride("separation", 8);
-        clubCol.AddChild(financialRow);
+        page.AddChild(financialRow);
 
         _requestFinancialApprovalButton = SecondaryButton("Mali Onay İste");
         _requestFinancialApprovalButton.Pressed += () =>
@@ -362,22 +455,19 @@ public partial class CareerHubScreen : Control
         _completeTransferButton.Pressed += () =>
             Apply(_controller.CompleteOldestFinanciallyApprovedProcess());
         financialRow.AddChild(_completeTransferButton);
+        return page;
+    }
 
-        var prepCol = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsStretchRatio = 1f,
-        };
-        prepCol.AddThemeConstantOverride("separation", 8);
-        columns.AddChild(prepCol);
-
-        prepCol.AddChild(SectionTitle("Hazırlık"));
+    private Control BuildPrepPage()
+    {
+        var page = PageRoot();
+        page.AddChild(SectionTitle("Hazırlık"));
         _trainingLabel = BodyLabel("TrainingLabel", autowrap: true);
-        prepCol.AddChild(_trainingLabel);
+        page.AddChild(_trainingLabel);
 
         var trainingRow = new HBoxContainer();
         trainingRow.AddThemeConstantOverride("separation", 8);
-        prepCol.AddChild(trainingRow);
+        page.AddChild(trainingRow);
 
         _trainLowButton = SecondaryButton("Hafif");
         _trainLowButton.Pressed += () => Apply(_controller.SetWeeklyTraining(TrainingIntensity.Low));
@@ -392,11 +482,11 @@ public partial class CareerHubScreen : Control
         trainingRow.AddChild(_trainHighButton);
 
         _tacticLabel = BodyLabel("TacticLabel", autowrap: true);
-        prepCol.AddChild(_tacticLabel);
+        page.AddChild(_tacticLabel);
 
         var formationRow = new HBoxContainer();
         formationRow.AddThemeConstantOverride("separation", 8);
-        prepCol.AddChild(formationRow);
+        page.AddChild(formationRow);
 
         _formation442Button = SecondaryButton("4-4-2");
         _formation442Button.Pressed += () => Apply(_controller.SetTacticFormation(Formation.F442));
@@ -412,7 +502,7 @@ public partial class CareerHubScreen : Control
 
         var approachRow = new HBoxContainer();
         approachRow.AddThemeConstantOverride("separation", 8);
-        prepCol.AddChild(approachRow);
+        page.AddChild(approachRow);
 
         _approachBalancedButton = SecondaryButton("Dengeli");
         _approachBalancedButton.Pressed += () => Apply(_controller.SetTacticApproach(TacticalApproach.Balanced));
@@ -425,15 +515,19 @@ public partial class CareerHubScreen : Control
         _approachDefensiveButton = SecondaryButton("Defans");
         _approachDefensiveButton.Pressed += () => Apply(_controller.SetTacticApproach(TacticalApproach.Defensive));
         approachRow.AddChild(_approachDefensiveButton);
+        return page;
+    }
 
-        // —— Dünya ——
-        layout.AddChild(SectionTitle("Dünya"));
+    private Control BuildWorldPage()
+    {
+        var page = PageRoot();
+        page.AddChild(SectionTitle("Dünya"));
         _standingsLabel = BodyLabel("StandingsLabel", autowrap: true);
-        layout.AddChild(_standingsLabel);
+        page.AddChild(_standingsLabel);
 
         var roundRow = new HBoxContainer();
         roundRow.AddThemeConstantOverride("separation", 8);
-        layout.AddChild(roundRow);
+        page.AddChild(roundRow);
         var weekLabel = new Label { Text = "Hafta" };
         CareerUiTheme.StyleBody(weekLabel, muted: true);
         roundRow.AddChild(weekLabel);
@@ -449,37 +543,18 @@ public partial class CareerHubScreen : Control
         _fixtureList = new ItemList
         {
             Name = "FixtureList",
-            CustomMinimumSize = new Vector2(0, 150),
+            CustomMinimumSize = new Vector2(0, 220),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StyleList(_fixtureList);
-        layout.AddChild(_fixtureList);
+        page.AddChild(_fixtureList);
 
-        // —— Dosya ——
-        layout.AddChild(SectionTitle("Dosya"));
-        var saveLoadRow = new HBoxContainer();
-        saveLoadRow.AddThemeConstantOverride("separation", 8);
-        layout.AddChild(saveLoadRow);
-
-        var saveButton = SecondaryButton("Kaydet");
-        saveButton.Pressed += () => Apply(_controller.SaveGame());
-        saveLoadRow.AddChild(saveButton);
-
-        var loadButton = SecondaryButton("Yükle");
-        loadButton.Pressed += () => Apply(_controller.LoadGame());
-        saveLoadRow.AddChild(loadButton);
-
-        var menuButton = SecondaryButton("Ana Menü");
-        menuButton.Pressed += () => BackToMenuRequested?.Invoke();
-        saveLoadRow.AddChild(menuButton);
-
-        // —— Gelişmiş (kapalı varsayılan) ——
         var advancedToggle = SecondaryButton("Gelişmiş sezon araçları");
-        layout.AddChild(advancedToggle);
+        page.AddChild(advancedToggle);
 
         var advanced = new VBoxContainer { Visible = false };
         advanced.AddThemeConstantOverride("separation", 8);
-        layout.AddChild(advanced);
+        page.AddChild(advanced);
         advancedToggle.Pressed += () =>
         {
             advanced.Visible = !advanced.Visible;
@@ -501,22 +576,29 @@ public partial class CareerHubScreen : Control
         advanced.AddChild(planningRow);
         AddActionButton(planningRow, "Planlama Dönemi Aç", () => Apply(_controller.OpenPlanningPeriod()));
         AddActionButton(planningRow, "Planlama Dönemini Bitir", () => Apply(_controller.CompletePlanningPeriod()));
+        return page;
+    }
 
-        _statusLabel = BodyLabel("StatusLabel", autowrap: true);
-        layout.AddChild(_statusLabel);
+    private Control BuildFilePage()
+    {
+        var page = PageRoot();
+        page.AddChild(SectionTitle("Dosya"));
+        var saveLoadRow = new HBoxContainer();
+        saveLoadRow.AddThemeConstantOverride("separation", 8);
+        page.AddChild(saveLoadRow);
 
-        // Giriş: marka çizgisi genişler, içerik hafif kayar
-        brandLine.CustomMinimumSize = new Vector2(24, 3);
-        var brandTween = CreateTween();
-        brandTween.TweenProperty(brandLine, "custom_minimum_size", new Vector2(160, 3), 0.55f)
-            .SetTrans(Tween.TransitionType.Cubic)
-            .SetEase(Tween.EaseType.Out);
+        var saveButton = SecondaryButton("Kaydet");
+        saveButton.Pressed += () => Apply(_controller.SaveGame());
+        saveLoadRow.AddChild(saveButton);
 
-        layout.Modulate = new Color(1f, 1f, 1f, 0f);
-        var fadeTween = CreateTween();
-        fadeTween.TweenProperty(layout, "modulate:a", 1f, 0.4f)
-            .SetTrans(Tween.TransitionType.Sine)
-            .SetEase(Tween.EaseType.Out);
+        var loadButton = SecondaryButton("Yükle");
+        loadButton.Pressed += () => Apply(_controller.LoadGame());
+        saveLoadRow.AddChild(loadButton);
+
+        var menuButton = SecondaryButton("Ana Menü");
+        menuButton.Pressed += () => BackToMenuRequested?.Invoke();
+        saveLoadRow.AddChild(menuButton);
+        return page;
     }
 
     private static Label SectionTitle(string text)

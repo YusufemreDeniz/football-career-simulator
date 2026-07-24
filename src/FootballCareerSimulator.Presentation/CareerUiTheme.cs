@@ -117,6 +117,33 @@ internal static class CareerUiTheme
         button.CustomMinimumSize = new Vector2(0, 32);
     }
 
+    public static void StyleNavButton(Button button, bool selected)
+    {
+        EnsureLoaded();
+        if (_body is not null)
+        {
+            button.AddThemeFontOverride("font", _body);
+        }
+
+        button.AddThemeFontSizeOverride("font_size", 14);
+        button.AddThemeColorOverride("font_color", selected ? Colors.White : Ink);
+        button.AddThemeColorOverride("font_hover_color", selected ? Colors.White : Ink);
+        if (selected)
+        {
+            button.AddThemeStyleboxOverride("normal", SolidButton(Action));
+            button.AddThemeStyleboxOverride("hover", SolidButton(ActionHover));
+            button.AddThemeStyleboxOverride("pressed", SolidButton(Action));
+        }
+        else
+        {
+            button.AddThemeStyleboxOverride("normal", OutlineButton(new Color(Ink.R, Ink.G, Ink.B, 0.35f)));
+            button.AddThemeStyleboxOverride("hover", OutlineButton(Action));
+            button.AddThemeStyleboxOverride("pressed", SolidButton(new Color(Action.R, Action.G, Action.B, 0.12f)));
+        }
+
+        button.CustomMinimumSize = new Vector2(0, 34);
+    }
+
     public static void StyleList(ItemList list)
     {
         EnsureLoaded();
