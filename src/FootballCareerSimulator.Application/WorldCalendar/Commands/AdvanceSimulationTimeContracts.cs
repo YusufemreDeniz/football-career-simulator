@@ -29,6 +29,15 @@ public sealed record AdvanceSimulationTimeResult
 
     public IReadOnlyList<string> ReactionIntentTypeCodes { get; init; } = Array.Empty<string>();
 
+    /// <summary>Reaction intent'ten üretilen scheduled evaluation sayısı.</summary>
+    public int ScheduledEvaluationCount { get; init; }
+
+    /// <summary>Due scheduled evaluation işlenen sayısı.</summary>
+    public int DueEvaluationsProcessed { get; init; }
+
+    /// <summary>Due evaluation ile kapanan transfer penceresi sayısı.</summary>
+    public int TransferWindowsClosedBySchedule { get; init; }
+
     public static AdvanceSimulationTimeResult Blocked(
         int currentDayNumber,
         IReadOnlyList<TimeAdvanceBlockedItem> blockers) =>
@@ -44,6 +53,9 @@ public sealed record AdvanceSimulationTimeResult
             DuplicateEffectCount = 0,
             ReactionIntentCount = 0,
             ReactionIntentTypeCodes = Array.Empty<string>(),
+            ScheduledEvaluationCount = 0,
+            DueEvaluationsProcessed = 0,
+            TransferWindowsClosedBySchedule = 0,
         };
 
     public static AdvanceSimulationTimeResult Advanced(
@@ -53,7 +65,10 @@ public sealed record AdvanceSimulationTimeResult
         int appliedEffectCount = 0,
         int duplicateEffectCount = 0,
         int reactionIntentCount = 0,
-        IReadOnlyList<string>? reactionIntentTypeCodes = null) =>
+        IReadOnlyList<string>? reactionIntentTypeCodes = null,
+        int scheduledEvaluationCount = 0,
+        int dueEvaluationsProcessed = 0,
+        int transferWindowsClosedBySchedule = 0) =>
         new()
         {
             Succeeded = true,
@@ -66,6 +81,9 @@ public sealed record AdvanceSimulationTimeResult
             DuplicateEffectCount = duplicateEffectCount,
             ReactionIntentCount = reactionIntentCount,
             ReactionIntentTypeCodes = reactionIntentTypeCodes ?? Array.Empty<string>(),
+            ScheduledEvaluationCount = scheduledEvaluationCount,
+            DueEvaluationsProcessed = dueEvaluationsProcessed,
+            TransferWindowsClosedBySchedule = transferWindowsClosedBySchedule,
         };
 }
 

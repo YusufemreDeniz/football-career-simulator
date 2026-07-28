@@ -12,16 +12,22 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
     private readonly IWorldTimelineStore _timelineStore;
     private readonly TimeAdvanceBlockerAggregator _blockerAggregator;
     private readonly WorldCalendarEventEvaluationService? _eventEvaluation;
+    private readonly TransferWindowCloseReactionScheduler? _reactionScheduler;
+    private readonly DueScheduledEvaluationProcessor? _dueProcessor;
     private readonly Dictionary<Guid, AdvanceSimulationTimeResult> _completedCommands = new();
 
     public AdvanceSimulationTimeHandler(
         IWorldTimelineStore timelineStore,
         TimeAdvanceBlockerAggregator blockerAggregator,
-        WorldCalendarEventEvaluationService? eventEvaluation = null)
+        WorldCalendarEventEvaluationService? eventEvaluation = null,
+        TransferWindowCloseReactionScheduler? reactionScheduler = null,
+        DueScheduledEvaluationProcessor? dueProcessor = null)
     {
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _blockerAggregator = blockerAggregator ?? throw new ArgumentNullException(nameof(blockerAggregator));
         _eventEvaluation = eventEvaluation;
+        _reactionScheduler = reactionScheduler;
+        _dueProcessor = dueProcessor;
     }
 
     public AdvanceSimulationTimeResult Handle(AdvanceSimulationTimeCommand command)
@@ -77,6 +83,9 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
         var duplicates = 0;
         var reactionCount = 0;
         IReadOnlyList<string> reactionTypes = Array.Empty<string>();
+        var scheduledCount = 0;
+        var dueProcessed = 0;
+        var windowsClosed = 0;
         if (_eventEvaluation is not null)
         {
             var evaluated = _eventEvaluation.Evaluate(
@@ -91,6 +100,21 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(code => code, StringComparer.Ordinal)
                 .ToArray();
+
+            if (_reactionScheduler is not null)
+            {
+                scheduledCount = _reactionScheduler.ScheduleFromReactions(evaluated.ReactionIntents);
+            }
+
+            if (_dueProcessor is not null)
+            {
+                var due = _dueProcessor.ProcessDueThrough(
+                    advancement.NewDate.DayNumber,
+                    timeline.RootSeed,
+                    command.CommandId);
+                dueProcessed = due.ProcessedCount;
+                windowsClosed = due.TransferWindowsClosed;
+            }
         }
 
         timeline.ClearUncommittedEvents();
@@ -102,7 +126,10 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
             applied,
             duplicates,
             reactionCount,
-            reactionTypes);
+            reactionTypes,
+            scheduledCount,
+            dueProcessed,
+            windowsClosed);
 
         _completedCommands[command.CommandId] = result;
         return result;

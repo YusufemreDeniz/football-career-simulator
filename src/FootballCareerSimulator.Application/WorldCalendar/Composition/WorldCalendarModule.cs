@@ -80,15 +80,17 @@ public sealed class WorldCalendarModule
             ?? new InMemoryWorldTimelineStore(WorldTimeline.Create(startingDate, rootSeed, rngVersion));
         var sources = blockerSources?.ToArray() ?? Array.Empty<ITimeAdvanceBlockerSource>();
         var aggregator = new TimeAdvanceBlockerAggregator(sources);
-        var eventRule = EventRuleEvaluationModule.Create();
-        var advanceHandler = new AdvanceSimulationTimeHandler(
-            store,
-            aggregator,
-            eventRule.WorldCalendarEvaluation);
         var openPlanningHandler = new OpenPlanningPeriodHandler(store);
         var completePlanningHandler = new CompletePlanningPeriodHandler(store);
         var openWindowHandler = new OpenTransferWindowHandler(store);
         var closeWindowHandler = new CloseTransferWindowHandler(store);
+        var eventRule = EventRuleEvaluationModule.CreateForWorldCalendar(store, closeWindowHandler);
+        var advanceHandler = new AdvanceSimulationTimeHandler(
+            store,
+            aggregator,
+            eventRule.WorldCalendarEvaluation,
+            eventRule.TransferWindowCloseScheduler,
+            eventRule.DueProcessor);
         var windowQuery = new TimelineTransferWindowQuery(store);
         var idempotencyResets = new ICommandIdempotencyReset[]
         {
