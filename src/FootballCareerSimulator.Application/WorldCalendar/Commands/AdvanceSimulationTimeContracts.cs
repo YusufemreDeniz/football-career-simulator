@@ -38,6 +38,13 @@ public sealed record AdvanceSimulationTimeResult
     /// <summary>Due evaluation ile kapanan transfer penceresi sayısı.</summary>
     public int TransferWindowsClosedBySchedule { get; init; }
 
+    /// <summary>DayBoundaryObserved → süresi dolan sözleşme sayısı.</summary>
+    public int ExpiredContractCount { get; init; }
+
+    public IReadOnlyList<long> ContractExpiryAffectedClubIds { get; init; } = Array.Empty<long>();
+
+    public IReadOnlyList<long> NewlyFreeAgentPlayerIds { get; init; } = Array.Empty<long>();
+
     public static AdvanceSimulationTimeResult Blocked(
         int currentDayNumber,
         IReadOnlyList<TimeAdvanceBlockedItem> blockers) =>
@@ -56,6 +63,9 @@ public sealed record AdvanceSimulationTimeResult
             ScheduledEvaluationCount = 0,
             DueEvaluationsProcessed = 0,
             TransferWindowsClosedBySchedule = 0,
+            ExpiredContractCount = 0,
+            ContractExpiryAffectedClubIds = Array.Empty<long>(),
+            NewlyFreeAgentPlayerIds = Array.Empty<long>(),
         };
 
     public static AdvanceSimulationTimeResult Advanced(
@@ -68,7 +78,10 @@ public sealed record AdvanceSimulationTimeResult
         IReadOnlyList<string>? reactionIntentTypeCodes = null,
         int scheduledEvaluationCount = 0,
         int dueEvaluationsProcessed = 0,
-        int transferWindowsClosedBySchedule = 0) =>
+        int transferWindowsClosedBySchedule = 0,
+        int expiredContractCount = 0,
+        IReadOnlyList<long>? contractExpiryAffectedClubIds = null,
+        IReadOnlyList<long>? newlyFreeAgentPlayerIds = null) =>
         new()
         {
             Succeeded = true,
@@ -84,6 +97,9 @@ public sealed record AdvanceSimulationTimeResult
             ScheduledEvaluationCount = scheduledEvaluationCount,
             DueEvaluationsProcessed = dueEvaluationsProcessed,
             TransferWindowsClosedBySchedule = transferWindowsClosedBySchedule,
+            ExpiredContractCount = expiredContractCount,
+            ContractExpiryAffectedClubIds = contractExpiryAffectedClubIds ?? Array.Empty<long>(),
+            NewlyFreeAgentPlayerIds = newlyFreeAgentPlayerIds ?? Array.Empty<long>(),
         };
 }
 

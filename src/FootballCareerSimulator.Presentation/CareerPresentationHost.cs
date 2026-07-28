@@ -14,6 +14,7 @@ using FootballCareerSimulator.Application.SocialContinuity.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
+using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.Transfer.Composition;
 using FootballCareerSimulator.Application.Transfer.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
@@ -160,6 +161,10 @@ public sealed class CareerPresentationHost
         worldModule.CloseTransferWindow.BindWindowClosedConsequences(
             new TransferWindowClosedConsequenceApplier(
                 transferModule.WindowClose,
+                eventRuleForBind.Gate));
+        worldModule.AdvanceSimulationTime.BindContractExpiryConsequences(
+            new ContractExpiryDayBoundaryApplier(
+                contractModule.Registration,
                 eventRuleForBind.Gate));
         var interactionModule = InteractionModule.Create(
             managerModule.Store,

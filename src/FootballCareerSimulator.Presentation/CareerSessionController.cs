@@ -1493,8 +1493,7 @@ public sealed class CareerSessionController
 
         var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
         var declined = Host.PlayerCareerModule.Development.ApplyDueAging(day);
-        var expiry = Host.ContractModule.Registration.ExpireDueContracts(day);
-        Host.TeamPreparationModule.ClubSquad?.SyncClubs(expiry.AffectedClubIds, day);
+        Host.TeamPreparationModule.ClubSquad?.SyncClubs(result.ContractExpiryAffectedClubIds, day);
         if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
         {
             var id = new Domain.Shared.ClubId(clubId);
@@ -1525,10 +1524,10 @@ public sealed class CareerSessionController
             extras.Add($"yaşlanma: {declined}");
         }
 
-        if (expiry.ExpiredCount > 0)
+        if (result.ExpiredContractCount > 0)
         {
-            extras.Add($"sözleşme bitti: {expiry.ExpiredCount}");
-            extras.Add($"serbest: {expiry.FreeAgentPlayerIds.Count}");
+            extras.Add($"sözleşme bitti: {result.ExpiredContractCount}");
+            extras.Add($"serbest: {result.NewlyFreeAgentPlayerIds.Count}");
         }
 
         if (promiseResolved > 0)

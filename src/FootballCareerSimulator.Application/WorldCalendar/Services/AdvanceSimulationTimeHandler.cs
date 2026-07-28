@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Application.WorldCalendar.Services;
 
+using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -14,6 +15,7 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
     private readonly WorldCalendarEventEvaluationService? _eventEvaluation;
     private readonly TransferWindowCloseReactionScheduler? _reactionScheduler;
     private readonly DueScheduledEvaluationProcessor? _dueProcessor;
+    private ContractExpiryDayBoundaryApplier? _contractExpiry;
     private readonly Dictionary<Guid, AdvanceSimulationTimeResult> _completedCommands = new();
 
     public AdvanceSimulationTimeHandler(
@@ -29,6 +31,9 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
         _reactionScheduler = reactionScheduler;
         _dueProcessor = dueProcessor;
     }
+
+    public void BindContractExpiryConsequences(ContractExpiryDayBoundaryApplier applier) =>
+        _contractExpiry = applier ?? throw new ArgumentNullException(nameof(applier));
 
     public AdvanceSimulationTimeResult Handle(AdvanceSimulationTimeCommand command)
     {
@@ -86,6 +91,9 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
         var scheduledCount = 0;
         var dueProcessed = 0;
         var windowsClosed = 0;
+        var expiredContracts = 0;
+        IReadOnlyList<long> affectedClubs = Array.Empty<long>();
+        IReadOnlyList<long> freeAgents = Array.Empty<long>();
         if (_eventEvaluation is not null)
         {
             var evaluated = _eventEvaluation.Evaluate(
@@ -100,6 +108,14 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(code => code, StringComparer.Ordinal)
                 .ToArray();
+
+            if (_contractExpiry is not null)
+            {
+                var expiry = _contractExpiry.ApplyFromReactions(evaluated.ReactionIntents);
+                expiredContracts = expiry.ExpiredCount;
+                affectedClubs = expiry.AffectedClubIds;
+                freeAgents = expiry.FreeAgentPlayerIds;
+            }
 
             if (_reactionScheduler is not null)
             {
@@ -129,7 +145,10 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
             reactionTypes,
             scheduledCount,
             dueProcessed,
-            windowsClosed);
+            windowsClosed,
+            expiredContracts,
+            affectedClubs,
+            freeAgents);
 
         _completedCommands[command.CommandId] = result;
         return result;
