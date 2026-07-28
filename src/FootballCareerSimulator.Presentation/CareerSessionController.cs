@@ -1562,6 +1562,9 @@ public sealed class CareerSessionController
             var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
             var nextSeasonId = ResolveNextSeasonId();
 
+            // FixtureId sezonlar arası yeniden kullanılır; eski onaylar hayalet kapı açmasın.
+            ClearMatchSelections();
+
             competition.CreateSeason.Handle(
                 new CreateSeasonCommand(Guid.NewGuid(), nextSeasonId, currentDay));
 
@@ -1581,7 +1584,8 @@ public sealed class CareerSessionController
                     ComputeFirstMatchdayDayNumber(currentDay),
                     StartingFixtureId: 1));
 
-            return UiActionResult.Ok($"Yeni sezon #{nextSeasonId} başlatıldı.");
+            return UiActionResult.Ok(
+                $"Yeni sezon #{nextSeasonId} başlatıldı · kadro onayları temizlendi.");
         }
         catch (Exception ex)
         {
@@ -1642,13 +1646,17 @@ public sealed class CareerSessionController
 
             var nextSeasonId = Host.CompetitionModule.Queries.GetCurrentSeason()?.SeasonId;
             return UiActionResult.Ok(
-                $"Sezon geçişi tamam: #{previousSeasonId} arşiv · #{nextSeasonId} aktif.");
+                $"Sezon geçişi tamam: #{previousSeasonId} arşiv · #{nextSeasonId} aktif · kadro onayları temizlendi.");
         }
         catch (Exception ex)
         {
             return UiActionResult.Fail($"Sezon geçişi başarısız: {ex.Message}");
         }
     }
+
+    private void ClearMatchSelections() =>
+        Host.TeamPreparationModule.SelectionStore.ReplaceAll(
+            Array.Empty<Domain.TeamPreparation.MatchSelection>());
 
     private long ResolveNextSeasonId()
     {

@@ -1,9 +1,15 @@
 using FootballCareerSimulator.Application.ClubGovernance.Composition;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.ManagerCareer.Composition;
+using FootballCareerSimulator.Application.TeamPreparation.Commands;
+using FootballCareerSimulator.Application.TeamPreparation.Composition;
+using FootballCareerSimulator.Application.TeamPreparation.Infrastructure;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Match;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Tests.Competition;
@@ -119,5 +125,71 @@ public sealed class SeasonTransitionTests
         Assert.Equal(nameof(SeasonStatus.Active), current.Status);
         Assert.True(current.FixtureCount > 0);
         Assert.Equal(SeasonStatus.Archived, module.Store.League.Seasons.Single(s => s.SeasonId.Value == 1).Status);
+    }
+
+    [Fact]
+    public void NewSeason_PurgesStaleMatchSelections_SoFixtureIdsAreNotGhostApproved()
+    {
+        var world = WorldCalendarModule.Create(FirstMatchday, rootSeed: 9);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var manager = ManagerCareerModule.CreateNewCareer(FirstMatchday, startingClubId: 1);
+        var selectionStore = new InMemoryMatchSelectionStore();
+        var training = TrainingPhysicalStateModule.Create(
+            manager.Store,
+            world.TimelineStore,
+            matchSelectionStore: selectionStore);
+        var competition = CompetitionModule.CreateForCareer(
+            world.TimelineStore,
+            clubs.Store,
+            manager.Store,
+            selectionStore,
+            training.Store);
+        var teamPrep = TeamPreparationModule.Create(
+            competition.Store,
+            manager.Store,
+            selectionStore,
+            training.Store,
+            world.TimelineStore);
+
+        SetupActiveSeason(competition, seasonId: 1);
+
+        var managedFixtureId = competition.Queries.GetSeasonFixtures(1)
+            .First(fixture => fixture.HomeClubId == 1 || fixture.AwayClubId == 1)
+            .FixtureId;
+
+        teamPrep.ApproveDefaultSelection.Handle(
+            new ApproveDefaultMatchSelectionCommand(Guid.NewGuid(), managedFixtureId, ClubId: 1));
+        Assert.True(teamPrep.SelectionQueries.IsApproved(managedFixtureId, 1));
+
+        AcceptAllFixtures(competition, seasonId: 1);
+        // AcceptFixtureResult bypasses RemoveForFixture — stale approval remains (ghost risk).
+        Assert.True(teamPrep.SelectionQueries.IsApproved(managedFixtureId, 1));
+
+        competition.CompleteSeason.Handle(
+            new CompleteSeasonCommand(Guid.NewGuid(), 1, FirstMatchday.AddDays(200).DayNumber));
+        competition.ArchiveSeason.Handle(
+            new ArchiveSeasonCommand(Guid.NewGuid(), 1, FirstMatchday.AddDays(210).DayNumber));
+
+        // Same purge StartNewSeason / TransitionToNextSeason performs.
+        selectionStore.ReplaceAll(Array.Empty<MatchSelection>());
+
+        var startDay = FirstMatchday.AddDays(220).DayNumber;
+        competition.CreateSeason.Handle(new CreateSeasonCommand(Guid.NewGuid(), 2, startDay));
+        for (var club = 1L; club <= CompetitionMvpConstraints.LeagueTeamCount; club++)
+        {
+            competition.RegisterSeasonParticipant.Handle(
+                new RegisterSeasonParticipantCommand(Guid.NewGuid(), 2, club));
+        }
+
+        competition.StartSeason.Handle(new StartSeasonCommand(Guid.NewGuid(), 2, startDay));
+        competition.PlanLeagueFixtures.Handle(
+            new PlanLeagueFixturesCommand(Guid.NewGuid(), 2, startDay, StartingFixtureId: 1));
+
+        Assert.Empty(selectionStore.Selections);
+
+        var nextDue = teamPrep.SelectionQueries.GetNextDueManagedFixture(startDay);
+        Assert.NotNull(nextDue);
+        Assert.False(nextDue.IsApproved);
+        Assert.False(teamPrep.SelectionQueries.IsApproved(nextDue.FixtureId, 1));
     }
 }
