@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.Competition.Queries;
 using Godot;
 
 namespace FootballCareerSimulator.Presentation;
@@ -15,96 +16,150 @@ public partial class MatchResultScreen : Control
 
     public override void _Ready()
     {
+        CareerUiTheme.EnsureLoaded();
+        AddChild(CareerUiTheme.CreateAtmosphereBackground());
+
+        var narrative = _results.Narrative
+            ?? MatchNightNarrative.Failure(_results.Message);
+
         var margin = new MarginContainer();
-        margin.AnchorRight = 1f;
-        margin.AnchorBottom = 1f;
+        margin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         margin.GrowHorizontal = GrowDirection.Both;
         margin.GrowVertical = GrowDirection.Both;
-        margin.AddThemeConstantOverride("margin_left", 32);
-        margin.AddThemeConstantOverride("margin_top", 32);
-        margin.AddThemeConstantOverride("margin_right", 32);
-        margin.AddThemeConstantOverride("margin_bottom", 32);
+        margin.AddThemeConstantOverride("margin_left", 40);
+        margin.AddThemeConstantOverride("margin_top", 40);
+        margin.AddThemeConstantOverride("margin_right", 40);
+        margin.AddThemeConstantOverride("margin_bottom", 36);
         AddChild(margin);
 
-        var layout = new VBoxContainer();
-        layout.AddThemeConstantOverride("separation", 12);
-        margin.AddChild(layout);
-
-        layout.AddChild(new Label
+        var layout = new VBoxContainer
         {
-            Text = _results.Succeeded ? "Maç Sonuçları" : "Maç Oynatılamadı",
-            HorizontalAlignment = HorizontalAlignment.Center,
-        });
-
-        layout.AddChild(new Label
-        {
-            Text = _results.Message,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        });
-
-        var list = new ItemList
-        {
-            CustomMinimumSize = new Vector2(0, 140),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        foreach (var line in _results.MatchLines)
+        layout.AddThemeConstantOverride("separation", 10);
+        margin.AddChild(layout);
+
+        var brand = new Label
         {
-            list.AddItem(line);
+            Text = narrative.BrandTitle,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.StyleBrand(brand);
+        layout.AddChild(brand);
+
+        var brandLine = new ColorRect
+        {
+            Color = new Color(CareerUiTheme.Accent.R, CareerUiTheme.Accent.G, CareerUiTheme.Accent.B, 0.55f),
+            CustomMinimumSize = new Vector2(48, 3),
+            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        layout.AddChild(brandLine);
+
+        var score = new Label
+        {
+            Text = narrative.Scoreline,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        StyleScore(score);
+        score.Modulate = new Color(1f, 1f, 1f, 0f);
+        layout.AddChild(score);
+
+        var tone = new Label
+        {
+            Text = narrative.OutcomeTone,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleHeadline(tone);
+        tone.Modulate = new Color(1f, 1f, 1f, 0f);
+        layout.AddChild(tone);
+
+        if (!string.IsNullOrWhiteSpace(narrative.SupportingLine))
+        {
+            var support = new Label
+            {
+                Text = narrative.SupportingLine,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            CareerUiTheme.StyleBody(support, muted: true);
+            layout.AddChild(support);
         }
 
-        if (_results.MatchLines.Count == 0)
+        if (narrative.BeatLines.Count > 0)
         {
-            list.AddItem("(Sonuç satırı yok)");
+            layout.AddChild(SectionLabel("Anlar"));
+            foreach (var beat in narrative.BeatLines.Take(6))
+            {
+                var line = new Label
+                {
+                    Text = beat,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                };
+                CareerUiTheme.StyleBody(line);
+                layout.AddChild(line);
+            }
         }
 
-        layout.AddChild(list);
-
-        var keyMoments = _results.KeyMomentLines ?? Array.Empty<string>();
-        if (keyMoments.Count > 0)
+        if (narrative.AfterWhistleLines.Count > 0)
         {
-            layout.AddChild(new Label
+            layout.AddChild(SectionLabel("Düdük sonrası"));
+            foreach (var lineText in narrative.AfterWhistleLines)
             {
-                Text = "Önemli anlar",
-                HorizontalAlignment = HorizontalAlignment.Left,
-            });
+                var line = new Label
+                {
+                    Text = lineText,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                };
+                CareerUiTheme.StyleBody(line);
+                layout.AddChild(line);
+            }
+        }
 
-            var momentList = new ItemList
+        if (narrative.OtherScorelines.Count > 0)
+        {
+            layout.AddChild(SectionLabel("Diğer sonuçlar"));
+            var list = new ItemList
             {
-                CustomMinimumSize = new Vector2(0, 120),
+                CustomMinimumSize = new Vector2(0, 88),
                 SizeFlagsVertical = SizeFlags.ExpandFill,
             };
-            foreach (var line in keyMoments)
+            CareerUiTheme.StyleList(list);
+            foreach (var other in narrative.OtherScorelines)
             {
-                momentList.AddItem(line);
+                list.AddItem(other);
             }
 
-            layout.AddChild(momentList);
+            layout.AddChild(list);
         }
 
-        var consequences = _results.ConsequenceLines ?? Array.Empty<string>();
-        if (consequences.Count > 0)
-        {
-            layout.AddChild(new Label
-            {
-                Text = "Sonuçlar",
-                HorizontalAlignment = HorizontalAlignment.Left,
-            });
-
-            var consequenceList = new ItemList
-            {
-                CustomMinimumSize = new Vector2(0, 120),
-                SizeFlagsVertical = SizeFlags.ExpandFill,
-            };
-            foreach (var line in consequences)
-            {
-                consequenceList.AddItem(line);
-            }
-
-            layout.AddChild(consequenceList);
-        }
+        layout.AddChild(new Control { SizeFlagsVertical = SizeFlags.ExpandFill });
 
         var continueButton = new Button { Text = "Kariyere Dön" };
+        CareerUiTheme.StylePrimaryButton(continueButton);
         continueButton.Pressed += () => ContinueRequested?.Invoke();
         layout.AddChild(continueButton);
+
+        var tween = CreateTween();
+        tween.SetParallel(true);
+        tween.TweenProperty(score, "modulate:a", 1f, 0.4f).SetTrans(Tween.TransitionType.Cubic);
+        tween.TweenProperty(tone, "modulate:a", 1f, 0.55f).SetDelay(0.12f);
+    }
+
+    private static Label SectionLabel(string text)
+    {
+        var label = new Label { Text = text };
+        CareerUiTheme.StyleSection(label);
+        return label;
+    }
+
+    private static void StyleScore(Label label)
+    {
+        CareerUiTheme.EnsureLoaded();
+        CareerUiTheme.StyleHeadline(label);
+        label.AddThemeFontSizeOverride("font_size", 28);
+        label.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
     }
 }

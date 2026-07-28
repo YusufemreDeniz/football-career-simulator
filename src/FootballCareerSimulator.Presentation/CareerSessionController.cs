@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.ManagerCareer.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Commands;
@@ -1324,7 +1325,9 @@ public sealed class CareerSessionController
                 return new PlayMatchesUiResult(
                     false,
                     "Önce kendi maçın için kadroyu onayla (Kadro Onayla).",
-                    Array.Empty<string>());
+                    Array.Empty<string>(),
+                    Narrative: MatchNightNarrative.Failure(
+                        "Önce kendi maçın için kadroyu onayla."));
             }
 
             var dueFixtures = competition.Queries
@@ -1339,13 +1342,28 @@ public sealed class CareerSessionController
                 return new PlayMatchesUiResult(
                     false,
                     "Oynanacak planlı maç yok. Tarihi ilerlet veya başka bir haftaya bak.",
-                    Array.Empty<string>());
+                    Array.Empty<string>(),
+                    Narrative: MatchNightNarrative.Failure(
+                        "Bu gece sahada maç yok — tarihi ilerlet."));
             }
 
             var lines = new List<string>(dueFixtures.Length);
             var consequenceLines = new List<string>();
             var keyMomentLines = new List<string>();
             var invalidatedTotal = 0;
+
+            string? heroScoreline = null;
+            int heroHomeGoals = 0;
+            int heroAwayGoals = 0;
+            var heroManagedIsHome = true;
+            var hasManaged = false;
+            string? heroTacticNote = null;
+            var beatLines = new List<string>();
+            var afterWhistle = new List<string>();
+            var otherScores = new List<string>();
+
+            var managedClubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
+
             foreach (var fixture in dueFixtures)
             {
                 var result = playHandler.Handle(
@@ -1357,19 +1375,59 @@ public sealed class CareerSessionController
 
                 var home = GetClubDisplayName(fixture.HomeClubId);
                 var away = GetClubDisplayName(fixture.AwayClubId);
+                var scoreline = $"{home} {result.HomeGoals}-{result.AwayGoals} {away}";
                 var tacticNote = result.ManagedTacticModifier is int tacticMod
-                    ? $" · taktik {FormatSigned(tacticMod)}"
-                    : string.Empty;
-                lines.Add($"{home} {result.HomeGoals}-{result.AwayGoals} {away}{tacticNote}");
+                    ? $"taktik {FormatSigned(tacticMod)}"
+                    : null;
+                lines.Add(tacticNote is null ? scoreline : $"{scoreline} · {tacticNote}");
                 invalidatedTotal += result.InvalidatedSelectionCount;
                 consequenceLines.AddRange(FormatMatchConsequences(result, home, away));
                 keyMomentLines.AddRange(FormatMatchKeyMoments(result, home, away));
+
+                var isManaged = result.Consequences is { IsManagedMatch: true }
+                    && managedClubId is long clubId
+                    && (fixture.HomeClubId == clubId || fixture.AwayClubId == clubId);
+
+                if (isManaged && !hasManaged)
+                {
+                    hasManaged = true;
+                    heroScoreline = scoreline;
+                    heroHomeGoals = result.HomeGoals;
+                    heroAwayGoals = result.AwayGoals;
+                    heroManagedIsHome = fixture.HomeClubId == managedClubId;
+                    heroTacticNote = tacticNote;
+                    beatLines.AddRange(FormatMatchKeyMomentBeats(result));
+                    afterWhistle.AddRange(FormatMatchAfterWhistle(result));
+                }
+                else
+                {
+                    otherScores.Add(scoreline);
+                }
             }
 
             if (invalidatedTotal > 0)
             {
                 consequenceLines.Add($"Kadro onayı düştü ({invalidatedTotal}).");
+                afterWhistle.Add($"Kadro onayı düştü ({invalidatedTotal}).");
             }
+
+            if (!hasManaged && lines.Count > 0)
+            {
+                heroScoreline = lines[0].Split(" · ")[0];
+                otherScores = lines.Skip(1).Select(l => l.Split(" · ")[0]).ToList();
+            }
+
+            var narrative = MatchNightNarrative.Compose(
+                heroScoreline ?? "—",
+                heroHomeGoals,
+                heroAwayGoals,
+                heroManagedIsHome,
+                hasManaged,
+                heroTacticNote,
+                currentDay,
+                beatLines,
+                afterWhistle,
+                otherScores);
 
             var invalidatedNote = invalidatedTotal > 0
                 ? $" · kadro onayı düştü ({invalidatedTotal})"
@@ -1379,15 +1437,74 @@ public sealed class CareerSessionController
                 $"{lines.Count} maç oynandı (gün {currentDay}){invalidatedNote}.",
                 lines,
                 consequenceLines,
-                keyMomentLines);
+                keyMomentLines,
+                narrative);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
-            return new PlayMatchesUiResult(false, $"Kadro engeli: {ex.Message}", Array.Empty<string>());
+            return new PlayMatchesUiResult(
+                false,
+                $"Kadro engeli: {ex.Message}",
+                Array.Empty<string>(),
+                Narrative: MatchNightNarrative.Failure($"Kadro engeli: {ex.Message}"));
         }
         catch (Exception ex)
         {
-            return new PlayMatchesUiResult(false, $"Maç oynatma hatası: {ex.Message}", Array.Empty<string>());
+            return new PlayMatchesUiResult(
+                false,
+                $"Maç oynatma hatası: {ex.Message}",
+                Array.Empty<string>(),
+                Narrative: MatchNightNarrative.Failure($"Maç oynatılamadı: {ex.Message}"));
+        }
+    }
+
+    private static IEnumerable<string> FormatMatchKeyMomentBeats(PlayFixtureMatchResult result)
+    {
+        if (result.KeyMoments is null || result.KeyMoments.Count == 0)
+        {
+            yield break;
+        }
+
+        foreach (var moment in result.KeyMoments)
+        {
+            var side = moment.IsHomeSide ? "Ev" : "Dep";
+            yield return FormatKeyMomentLine(moment, side);
+        }
+    }
+
+    private static IEnumerable<string> FormatMatchAfterWhistle(PlayFixtureMatchResult result)
+    {
+        if (result.Consequences is not { IsManagedMatch: true } c)
+        {
+            yield break;
+        }
+
+        if (c.BoardConfidenceDelta is int delta && c.BoardConfidenceAfter is int after)
+        {
+            var risk = c.BoardRiskBand switch
+            {
+                nameof(EmploymentRiskBand.Secure) => "Güvenli",
+                nameof(EmploymentRiskBand.Stable) => "Stabil",
+                nameof(EmploymentRiskBand.UnderReview) => "İncelemede",
+                nameof(EmploymentRiskBand.Critical) => "Kritik",
+                _ => c.BoardRiskBand ?? "-",
+            };
+            yield return $"Yönetim güveni {FormatSigned(delta)} → {after} ({risk})";
+        }
+
+        if (c.ManagerDismissed)
+        {
+            yield return "Yönetim seni işten çıkardı.";
+        }
+
+        if (c.NewlyInjuredSlots.Count > 0)
+        {
+            yield return $"Sakatlık: slot {string.Join(", ", c.NewlyInjuredSlots)}";
+        }
+
+        if (c.PressQuestionOpened)
+        {
+            yield return "Basın sorusu açıldı.";
         }
     }
 
@@ -1848,4 +1965,5 @@ public sealed record PlayMatchesUiResult(
     string Message,
     IReadOnlyList<string> MatchLines,
     IReadOnlyList<string>? ConsequenceLines = null,
-    IReadOnlyList<string>? KeyMomentLines = null);
+    IReadOnlyList<string>? KeyMomentLines = null,
+    MatchNightNarrative? Narrative = null);
