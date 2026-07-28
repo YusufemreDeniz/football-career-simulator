@@ -15,6 +15,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.Transfer.Composition;
 using FootballCareerSimulator.Application.Transfer.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
@@ -176,6 +177,11 @@ public sealed class CareerPresentationHost
             dialogueSessionStore,
             socialContinuity.StartingOpportunity,
             transferModule.Needs);
+        worldModule.AdvanceSimulationTime.BindPromiseDeadlineConsequences(
+            new PromiseDeadlineDayBoundaryApplier(
+                socialContinuity.StartingOpportunity,
+                eventRuleForBind.Gate,
+                interactionModule.PromiseBroken));
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,

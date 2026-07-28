@@ -2,6 +2,7 @@ namespace FootballCareerSimulator.Application.WorldCalendar.Services;
 
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.EventRuleEvaluation;
@@ -16,6 +17,7 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
     private readonly TransferWindowCloseReactionScheduler? _reactionScheduler;
     private readonly DueScheduledEvaluationProcessor? _dueProcessor;
     private ContractExpiryDayBoundaryApplier? _contractExpiry;
+    private PromiseDeadlineDayBoundaryApplier? _promiseDeadlines;
     private readonly Dictionary<Guid, AdvanceSimulationTimeResult> _completedCommands = new();
 
     public AdvanceSimulationTimeHandler(
@@ -34,6 +36,9 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
 
     public void BindContractExpiryConsequences(ContractExpiryDayBoundaryApplier applier) =>
         _contractExpiry = applier ?? throw new ArgumentNullException(nameof(applier));
+
+    public void BindPromiseDeadlineConsequences(PromiseDeadlineDayBoundaryApplier applier) =>
+        _promiseDeadlines = applier ?? throw new ArgumentNullException(nameof(applier));
 
     public AdvanceSimulationTimeResult Handle(AdvanceSimulationTimeCommand command)
     {
@@ -94,6 +99,8 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
         var expiredContracts = 0;
         IReadOnlyList<long> affectedClubs = Array.Empty<long>();
         IReadOnlyList<long> freeAgents = Array.Empty<long>();
+        var promisesResolved = 0;
+        var promiseCrises = 0;
         if (_eventEvaluation is not null)
         {
             var evaluated = _eventEvaluation.Evaluate(
@@ -115,6 +122,13 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
                 expiredContracts = expiry.ExpiredCount;
                 affectedClubs = expiry.AffectedClubIds;
                 freeAgents = expiry.FreeAgentPlayerIds;
+            }
+
+            if (_promiseDeadlines is not null)
+            {
+                var deadlines = _promiseDeadlines.ApplyFromReactions(evaluated.ReactionIntents);
+                promisesResolved = deadlines.ResolvedCount;
+                promiseCrises = deadlines.CrisisOpenedCount;
             }
 
             if (_reactionScheduler is not null)
@@ -148,7 +162,9 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
             windowsClosed,
             expiredContracts,
             affectedClubs,
-            freeAgents);
+            freeAgents,
+            promisesResolved,
+            promiseCrises);
 
         _completedCommands[command.CommandId] = result;
         return result;

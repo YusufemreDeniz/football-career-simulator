@@ -1505,16 +1505,8 @@ public sealed class CareerSessionController
             Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
         }
 
-        var crisisOpened = 0;
-        var promiseResolved = Host.SocialContinuityModule.StartingOpportunity.EvaluateDeadlines(
-            day,
-            promise =>
-            {
-                if (Host.InteractionModule.PromiseBroken.TryOpenAfterBroken(promise, day) is not null)
-                {
-                    crisisOpened++;
-                }
-            });
+        var crisisOpened = result.PromiseBrokenCrisisOpenedCount;
+        var promiseResolved = result.PromiseDeadlineResolvedCount;
         var memoriesDecayed = Host.SocialContinuityModule.MemoryDecay.ApplyDue(day);
         var decisionsExpired = Host.InteractionModule.Decisions.ExpireDue(day);
 

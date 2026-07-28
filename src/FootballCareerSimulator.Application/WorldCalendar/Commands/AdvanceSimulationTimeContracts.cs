@@ -45,6 +45,12 @@ public sealed record AdvanceSimulationTimeResult
 
     public IReadOnlyList<long> NewlyFreeAgentPlayerIds { get; init; } = Array.Empty<long>();
 
+    /// <summary>DayBoundaryObserved → deadline ile çözülen promise sayısı.</summary>
+    public int PromiseDeadlineResolvedCount { get; init; }
+
+    /// <summary>Broken promise sonrası açılan kriz kararı sayısı.</summary>
+    public int PromiseBrokenCrisisOpenedCount { get; init; }
+
     public static AdvanceSimulationTimeResult Blocked(
         int currentDayNumber,
         IReadOnlyList<TimeAdvanceBlockedItem> blockers) =>
@@ -66,6 +72,8 @@ public sealed record AdvanceSimulationTimeResult
             ExpiredContractCount = 0,
             ContractExpiryAffectedClubIds = Array.Empty<long>(),
             NewlyFreeAgentPlayerIds = Array.Empty<long>(),
+            PromiseDeadlineResolvedCount = 0,
+            PromiseBrokenCrisisOpenedCount = 0,
         };
 
     public static AdvanceSimulationTimeResult Advanced(
@@ -81,7 +89,9 @@ public sealed record AdvanceSimulationTimeResult
         int transferWindowsClosedBySchedule = 0,
         int expiredContractCount = 0,
         IReadOnlyList<long>? contractExpiryAffectedClubIds = null,
-        IReadOnlyList<long>? newlyFreeAgentPlayerIds = null) =>
+        IReadOnlyList<long>? newlyFreeAgentPlayerIds = null,
+        int promiseDeadlineResolvedCount = 0,
+        int promiseBrokenCrisisOpenedCount = 0) =>
         new()
         {
             Succeeded = true,
@@ -100,6 +110,8 @@ public sealed record AdvanceSimulationTimeResult
             ExpiredContractCount = expiredContractCount,
             ContractExpiryAffectedClubIds = contractExpiryAffectedClubIds ?? Array.Empty<long>(),
             NewlyFreeAgentPlayerIds = newlyFreeAgentPlayerIds ?? Array.Empty<long>(),
+            PromiseDeadlineResolvedCount = promiseDeadlineResolvedCount,
+            PromiseBrokenCrisisOpenedCount = promiseBrokenCrisisOpenedCount,
         };
 }
 
