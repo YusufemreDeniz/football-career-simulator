@@ -77,4 +77,5 @@ public sealed record PlayFixtureMatchResult(
     int HomeGoals,
     int AwayGoals,
     string Status,
-    int InvalidatedSelectionCount = 0);
+    int InvalidatedSelectionCount = 0,
+    int? ManagedTacticModifier = null);

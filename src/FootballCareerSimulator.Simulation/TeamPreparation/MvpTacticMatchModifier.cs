@@ -3,7 +3,7 @@ using FootballCareerSimulator.Domain.TeamPreparation;
 namespace FootballCareerSimulator.Simulation.TeamPreparation;
 
 /// <summary>
-/// Taktik yaklaşımından sade maç gücü modifier'ı (-1..+2).
+/// Formasyon + taktik yaklaşımdan sade maç gücü modifier'ı (toplam clamp -1..+4).
 /// </summary>
 public static class MvpTacticMatchModifier
 {
@@ -21,5 +21,34 @@ public static class MvpTacticMatchModifier
             TacticalApproach.Balanced => 0,
             _ => 0,
         };
+    }
+
+    public static int ComputeFormationModifier(TacticPlan? plan)
+    {
+        if (plan is null)
+        {
+            return 0;
+        }
+
+        return plan.Formation switch
+        {
+            Formation.F433 => 1,
+            Formation.F352 => 1,
+            Formation.F442 => 0,
+            _ => 0,
+        };
+    }
+
+    public static int ComputeTacticModifier(TacticPlan? plan)
+    {
+        if (plan is null)
+        {
+            return 0;
+        }
+
+        return Math.Clamp(
+            ComputeApproachModifier(plan) + ComputeFormationModifier(plan),
+            -1,
+            4);
     }
 }

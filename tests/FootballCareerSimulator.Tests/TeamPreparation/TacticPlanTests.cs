@@ -66,6 +66,7 @@ public sealed class TacticPlanTests : IDisposable
             Day);
 
         Assert.Equal(2, MvpTacticMatchModifier.ComputeApproachModifier(attacking));
+        Assert.Equal(2, MvpTacticMatchModifier.ComputeTacticModifier(attacking));
         Assert.Equal("Hücum", teamPrep.TacticQueries.GetManagedClubPlan().ApproachName);
 
         var defensive = teamPrep.TacticPlans.SetApproach(
@@ -73,6 +74,36 @@ public sealed class TacticPlanTests : IDisposable
             TacticalApproach.Defensive,
             Day.AddDays(1));
         Assert.Equal(1, MvpTacticMatchModifier.ComputeApproachModifier(defensive));
+        Assert.Equal(1, MvpTacticMatchModifier.ComputeTacticModifier(defensive));
+    }
+
+    [Fact]
+    public void Formation_AddsToTacticMatchModifier()
+    {
+        var world = WorldCalendarModule.Create(Day, rootSeed: 4);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
+        var teamPrep = TeamPreparationModule.Create(competition.Store, manager.Store);
+
+        var balanced442 = teamPrep.TacticPlans.EnsureDefault(new ClubId(1), Day);
+        Assert.Equal(0, MvpTacticMatchModifier.ComputeFormationModifier(balanced442));
+        Assert.Equal(0, MvpTacticMatchModifier.ComputeTacticModifier(balanced442));
+
+        var f433 = teamPrep.TacticPlans.SetFormation(new ClubId(1), Formation.F433, Day);
+        Assert.Equal(1, MvpTacticMatchModifier.ComputeFormationModifier(f433));
+        Assert.Equal(1, MvpTacticMatchModifier.ComputeTacticModifier(f433));
+
+        var attacking433 = teamPrep.TacticPlans.SetApproach(
+            new ClubId(1),
+            TacticalApproach.Attacking,
+            Day);
+        Assert.Equal(3, MvpTacticMatchModifier.ComputeTacticModifier(attacking433));
+
+        var f352 = teamPrep.TacticPlans.SetFormation(new ClubId(1), Formation.F352, Day);
+        Assert.Equal(1, MvpTacticMatchModifier.ComputeFormationModifier(f352));
+        Assert.Equal(3, MvpTacticMatchModifier.ComputeTacticModifier(f352));
+        Assert.Equal(0, MvpTacticMatchModifier.ComputeTacticModifier(null));
     }
 
     [Fact]

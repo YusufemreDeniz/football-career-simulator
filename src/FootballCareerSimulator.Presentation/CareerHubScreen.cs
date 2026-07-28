@@ -1253,7 +1253,7 @@ public partial class CareerHubScreen : Control
 
         _tacticLabel.Text =
             $"Taktik: {tactic.FormationName} · {tactic.ApproachName}"
-            + $" (maç gücünü etkiler)";
+            + $" · maç {_controller.GetManagedTacticModifierLabel()}";
     }
 
     private void UpdateTacticButtons(

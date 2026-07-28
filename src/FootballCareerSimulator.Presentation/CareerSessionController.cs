@@ -16,6 +16,7 @@ using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.TeamPreparation;
 
 namespace FootballCareerSimulator.Presentation;
 
@@ -529,8 +530,10 @@ public sealed class CareerSessionController
                 approach,
                 day);
             var view = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+            var plan = Host.TeamPreparationModule.TacticPlanStore.Get(new Domain.Shared.ClubId(clubId));
+            var tacticMod = MvpTacticMatchModifier.ComputeTacticModifier(plan);
             return UiActionResult.Ok(
-                $"Taktik yaklaşım: {view.ApproachName} · formasyon {view.FormationName}.");
+                $"Taktik yaklaşım: {view.ApproachName} · formasyon {view.FormationName} · maç {FormatSigned(tacticMod)}.");
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -553,8 +556,11 @@ public sealed class CareerSessionController
                 new Domain.Shared.ClubId(clubId),
                 formation,
                 day);
-            var plan = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
-            return UiActionResult.Ok($"Formasyon: {plan.FormationName} · yaklaşım {plan.ApproachName}.");
+            var view = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+            var plan = Host.TeamPreparationModule.TacticPlanStore.Get(new Domain.Shared.ClubId(clubId));
+            var tacticMod = MvpTacticMatchModifier.ComputeTacticModifier(plan);
+            return UiActionResult.Ok(
+                $"Formasyon: {view.FormationName} · yaklaşım {view.ApproachName} · maç {FormatSigned(tacticMod)}.");
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -564,6 +570,21 @@ public sealed class CareerSessionController
         {
             return UiActionResult.Fail($"Formasyon hatası: {ex.Message}");
         }
+    }
+
+    private static string FormatSigned(int value) =>
+        value > 0 ? $"+{value}" : value.ToString();
+
+    public string GetManagedTacticModifierLabel()
+    {
+        var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
+        if (clubId is null)
+        {
+            return "±0";
+        }
+
+        var plan = Host.TeamPreparationModule.TacticPlanStore.Get(new Domain.Shared.ClubId(clubId.Value));
+        return FormatSigned(MvpTacticMatchModifier.ComputeTacticModifier(plan));
     }
 
     public UiActionResult RefreshTransferNeedSuggestions()
@@ -1339,7 +1360,10 @@ public sealed class CareerSessionController
 
                 var home = GetClubDisplayName(fixture.HomeClubId);
                 var away = GetClubDisplayName(fixture.AwayClubId);
-                lines.Add($"{home} {result.HomeGoals}-{result.AwayGoals} {away}");
+                var tacticNote = result.ManagedTacticModifier is int tacticMod
+                    ? $" · taktik {FormatSigned(tacticMod)}"
+                    : string.Empty;
+                lines.Add($"{home} {result.HomeGoals}-{result.AwayGoals} {away}{tacticNote}");
                 invalidatedTotal += result.InvalidatedSelectionCount;
             }
 

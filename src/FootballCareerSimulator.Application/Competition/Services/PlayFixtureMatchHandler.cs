@@ -123,12 +123,14 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         RecoverInjuriesToDate(occurredAt);
 
+        var homeTactic = ResolveTacticModifier(fixture.HomeClubId);
+        var awayTactic = ResolveTacticModifier(fixture.AwayClubId);
         var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
-            + ResolveTacticModifier(fixture.HomeClubId);
+            + homeTactic;
         var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
-            + ResolveTacticModifier(fixture.AwayClubId);
+            + awayTactic;
 
         var score = MvpFixtureMatchSimulator.Simulate(
             rootSeed,
@@ -169,6 +171,20 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         TryApplyBoardAssessment(fixture, score, updatedSeason, occurredAt);
         updatedSeason.ClearUncommittedEvents();
 
+        int? managedTacticModifier = null;
+        var managedClubId = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
+        if (managedClubId is ClubId managed)
+        {
+            if (fixture.HomeClubId == managed)
+            {
+                managedTacticModifier = homeTactic;
+            }
+            else if (fixture.AwayClubId == managed)
+            {
+                managedTacticModifier = awayTactic;
+            }
+        }
+
         var result = new PlayFixtureMatchResult(
             true,
             command.SeasonId,
@@ -176,7 +192,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             score.HomeGoals,
             score.AwayGoals,
             nameof(FixtureStatus.ResultAccepted),
-            invalidated);
+            invalidated,
+            managedTacticModifier);
 
         _completedCommands[command.CommandId] = result;
         return result;
@@ -369,7 +386,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     }
 
     private int ResolveTacticModifier(ClubId clubId) =>
-        MvpTacticMatchModifier.ComputeApproachModifier(_tacticPlanStore?.Get(clubId));
+        MvpTacticMatchModifier.ComputeTacticModifier(_tacticPlanStore?.Get(clubId));
 
     private void RecoverInjuriesToDate(GameDate day)
     {
