@@ -96,6 +96,39 @@ public sealed class ContractRegistrationService
     }
 
     /// <summary>
+    /// MVP yer açma: aktif sözleşmeyi erken bitirip serbest ajan kaydı oluşturur.
+    /// </summary>
+    public ClubPlayerReleaseResult ReleasePlayerFromClub(
+        PlayerId playerId,
+        ClubId clubId,
+        GameDate day,
+        bool wasOverflow)
+    {
+        var contract = _store.GetActiveForPlayer(playerId, day)
+            ?? throw new ContractRegistrationInvariantViolationException(
+                $"Player {playerId.Value} has no active contract on day {day.DayNumber}.");
+
+        if (contract.ClubId != clubId)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                $"Player {playerId.Value} is not contracted to club {clubId.Value}.");
+        }
+
+        var next = contract.ReleaseEarly(day);
+        _store.Upsert(next);
+        _freeAgentStore.Upsert(PlayerFreeAgency.Release(playerId, clubId, day));
+        _promiseInvalidation?.InvalidateForPlayerLeaving(playerId, day);
+        _relationships?.MarkDormantForPlayerLeaving(playerId, day);
+
+        var remaining = _store.GetForClub(clubId).Count(c => c.IsActiveOn(day));
+        return new ClubPlayerReleaseResult(
+            playerId.Value,
+            clubId.Value,
+            wasOverflow,
+            remaining);
+    }
+
+    /// <summary>
     /// Transfer olmadan MVP: serbest ajanı yalnızca son kulübüne geri imzalar.
     /// </summary>
     public FreeAgentResignResult SignFreeAgentToLastClub(

@@ -132,4 +132,31 @@ public sealed class PlayerContract
             WeeklyWage,
             ContractStatus.Expired);
     }
+
+    /// <summary>
+    /// Kulüp kararıyla erken fesih — süre bitmeden serbest ajanlığa geçiş.
+    /// </summary>
+    public PlayerContract ReleaseEarly(GameDate day)
+    {
+        if (Status != ContractStatus.Active)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                $"Contract {Id.Value} is not active.");
+        }
+
+        if (!IsActiveOn(day))
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                $"Contract {Id.Value} is not active on day {day.DayNumber}.");
+        }
+
+        return new PlayerContract(
+            Id,
+            PlayerId,
+            ClubId,
+            StartDate,
+            EndDate,
+            WeeklyWage,
+            ContractStatus.Expired);
+    }
 }

@@ -268,6 +268,50 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult ReleaseToFreeSquadCapacity()
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var id = new Domain.Shared.ClubId(clubId);
+            var squad = Host.TeamPreparationModule.ClubSquad
+                ?? throw new InvalidOperationException("Kadro servisi yok.");
+
+            var candidateId = squad.SuggestReleaseCandidatePlayerId(id, day)
+                ?? throw new InvalidOperationException(
+                    "Yer açılacak oyuncu yok — kadro zaten açık.");
+
+            var before = squad.GetCapacityDigest(id, day);
+            var wasOverflow = before.OverflowPlayerIds.Contains(candidateId);
+            var result = Host.ContractModule.Registration.ReleasePlayerFromClub(
+                new PlayerId(candidateId),
+                id,
+                day,
+                wasOverflow);
+            squad.SyncFromActiveContracts(id, day);
+            var after = squad.GetCapacityDigest(id, day);
+
+            var kind = result.WasOverflow ? "Taşan serbest bırakıldı" : "Kadrodan serbest bırakıldı";
+            return UiActionResult.Ok(
+                $"Yer Açıldı\n{kind}: #{result.PlayerId}."
+                + $"\n· Aktif sözleşme {result.RemainingActiveContracts}/{ClubSquad.MaxMembers}"
+                + (after.IsOverCapacity
+                    ? $" · hâlâ {after.OverflowPlayerIds.Count} taşan"
+                    : " · kapasite rahatladı")
+                + "\nÖneri: Serbesti Geri İmzala veya yeni imza artık mümkün olabilir.");
+        }
+        catch (ContractRegistrationInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Serbest bırakılamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Yer açma hatası: {ex.Message}");
+        }
+    }
+
     public UiActionResult SignNextFreeAgentToManagedClub()
     {
         try
@@ -615,6 +659,18 @@ public sealed class CareerSessionController
         return Host.TeamPreparationModule.ClubSquad.GetCapacityDigest(
             new Domain.Shared.ClubId(clubId),
             day);
+    }
+
+    public long? SuggestReleaseCandidatePlayerId()
+    {
+        if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is not long clubId
+            || Host.TeamPreparationModule.ClubSquad is not { } squad)
+        {
+            return null;
+        }
+
+        var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+        return squad.SuggestReleaseCandidatePlayerId(new Domain.Shared.ClubId(clubId), day);
     }
 
     public LeagueWorldBriefing BuildLeagueWorldBriefing()

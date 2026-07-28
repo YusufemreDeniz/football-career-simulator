@@ -13,6 +13,12 @@ public sealed record FreeAgencyExpiryResult(
     IReadOnlyList<long> AffectedClubIds,
     IReadOnlyList<long> FreeAgentPlayerIds);
 
+public sealed record ClubPlayerReleaseResult(
+    long PlayerId,
+    long ClubId,
+    bool WasOverflow,
+    int RemainingActiveContracts);
+
 public sealed record FreeAgentResignResult(
     long PlayerId,
     long ClubId,

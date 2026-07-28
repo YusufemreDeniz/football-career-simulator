@@ -126,6 +126,31 @@ public sealed class ClubSquadService
     }
 
     /// <summary>
+    /// Yer açma adayı: önce taşan (kadrodışı) oyuncu, yoksa en yüksek slot.
+    /// </summary>
+    public long? SuggestReleaseCandidatePlayerId(ClubId clubId, GameDate day)
+    {
+        var capacity = GetCapacityDigest(clubId, day);
+        if (capacity.OverflowPlayerIds.Count > 0)
+        {
+            return capacity.OverflowPlayerIds[0];
+        }
+
+        if (!capacity.IsFull)
+        {
+            return null;
+        }
+
+        var squad = _squadStore.Get(clubId);
+        if (squad is null || squad.Members.Count == 0)
+        {
+            return null;
+        }
+
+        return squad.Members.OrderByDescending(m => m.SlotIndex).First().PlayerId.Value;
+    }
+
+    /// <summary>
     /// Taşan (sözleşmeli ama kadro dışı) oyuncuyu en yüksek slotlu üyenin yerine alır.
     /// Sözleşmeler değişmez; yalnızca maç günü membership değişir.
     /// </summary>

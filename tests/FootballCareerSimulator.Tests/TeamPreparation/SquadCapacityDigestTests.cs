@@ -18,6 +18,7 @@ public sealed class SquadCapacityDigestTests
         Assert.True(digest.IsFull);
         Assert.Contains("sığmıyor", digest.Headline, StringComparison.Ordinal);
         Assert.Contains("#2001", digest.ToDisplayText(), StringComparison.Ordinal);
+        Assert.Contains("Taşanı Serbest Bırak", digest.AdviceLine, StringComparison.Ordinal);
         Assert.Contains("Öneri:", digest.ToDisplayText(), StringComparison.Ordinal);
     }
 
@@ -28,5 +29,17 @@ public sealed class SquadCapacityDigestTests
         Assert.False(digest.IsOverCapacity);
         Assert.Contains("açık", digest.Headline, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("5 slot boş", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FullSquad_AdvicePointsToReleaseAction()
+    {
+        var digest = SquadCapacityDigest.Compose(
+            ClubSquad.MaxMembers,
+            ClubSquad.MaxMembers,
+            ClubSquad.MaxMembers,
+            Array.Empty<long>());
+        Assert.True(digest.IsFull);
+        Assert.Contains("Yer Aç", digest.AdviceLine, StringComparison.Ordinal);
     }
 }

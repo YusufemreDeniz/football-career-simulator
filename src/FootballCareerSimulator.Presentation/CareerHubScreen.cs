@@ -65,6 +65,7 @@ public partial class CareerHubScreen : Control
     private Button _acceptOfferButton = null!;
     private Button _signFreeAgentButton = null!;
     private Button _promoteOverflowButton = null!;
+    private Button _releaseCapacityButton = null!;
     private Button _promiseStartButton = null!;
     private Button _promisePlayingTimeButton = null!;
     private Button _refreshTransferNeedsButton = null!;
@@ -444,6 +445,10 @@ public partial class CareerHubScreen : Control
         _promoteOverflowButton = PrimaryButton("Taşanı Kadroya Al");
         _promoteOverflowButton.Pressed += () => Apply(_controller.PromoteOverflowPlayerToSquad());
         jobRow.AddChild(_promoteOverflowButton);
+
+        _releaseCapacityButton = PrimaryButton("Yer Aç");
+        _releaseCapacityButton.Pressed += () => Apply(_controller.ReleaseToFreeSquadCapacity());
+        jobRow.AddChild(_releaseCapacityButton);
 
         _promiseStartButton = SecondaryButton("İlk 11 Sözü Ver");
         _promiseStartButton.Pressed += () => Apply(_controller.PromiseStartingOpportunityToOldestSquadPlayer());
@@ -1598,6 +1603,16 @@ public partial class CareerHubScreen : Control
         _promoteOverflowButton.Text = capacity.IsOverCapacity && capacity.OverflowPlayerIds.Count > 0
             ? $"Taşanı Kadroya Al (#{capacity.OverflowPlayerIds[0]})"
             : "Taşanı Kadroya Al";
+
+        var releaseId = !unemployed
+            ? _controller.SuggestReleaseCandidatePlayerId()
+            : null;
+        _releaseCapacityButton.Disabled = releaseId is null;
+        _releaseCapacityButton.Text = releaseId is long rid
+            ? (capacity.IsOverCapacity
+                ? $"Taşanı Serbest Bırak (#{rid})"
+                : $"Yer Aç (#{rid})")
+            : "Yer Aç";
     }
 
     private string GetClubDisplayNameSafe(long clubId) => _controller.GetClubDisplayName(clubId);

@@ -132,6 +132,79 @@ public sealed class ClubSquadTests : IDisposable
     }
 
     [Fact]
+    public void ReleaseOverflow_FreesCapacityAndRemovesFromContracts()
+    {
+        var world = WorldCalendarModule.Create(Day, rootSeed: 11);
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var trainingStore = new InMemoryTrainingPhysicalStateStore();
+        var players = PlayerCareerModule.Create(manager.Store, world.TimelineStore, trainingStore);
+        var contracts = ContractRegistrationModule.Create(
+            players.Store,
+            manager.Store,
+            world.TimelineStore);
+        players = PlayerCareerModule.Create(
+            manager.Store,
+            world.TimelineStore,
+            trainingStore,
+            players.Store,
+            contracts.Registration);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
+        var teamPrep = TeamPreparationModule.Create(
+            competition.Store,
+            manager.Store,
+            contractStore: contracts.Store,
+            playerCareerStore: players.Store);
+
+        players.Development.EnsureClub(new ClubId(1), world.TimelineStore.Timeline.RootSeed, Day);
+        teamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
+
+        var incoming = PlayerId.FromClubSlot(2, 0);
+        players.Store.Upsert(Domain.PlayerCareer.PlayerCareer.CreateForSlot(
+            new ClubId(2),
+            slotIndex: 0,
+            currentAbility: 60,
+            potentialAbility: 70,
+            birthYear: 1999));
+        contracts.Store.Upsert(PlayerContract.Activate(
+            incoming,
+            new ClubId(1),
+            Day,
+            GameDate.FromCalendarDate(2028, 7, 1),
+            weeklyWage: 1200));
+        teamPrep.ClubSquad.SyncFromActiveContracts(new ClubId(1), Day);
+
+        var candidate = teamPrep.ClubSquad.SuggestReleaseCandidatePlayerId(new ClubId(1), Day);
+        Assert.Equal(incoming.Value, candidate);
+
+        var release = contracts.Registration.ReleasePlayerFromClub(
+            incoming,
+            new ClubId(1),
+            Day,
+            wasOverflow: true);
+        teamPrep.ClubSquad.SyncFromActiveContracts(new ClubId(1), Day);
+
+        Assert.True(release.WasOverflow);
+        Assert.Equal(ClubSquad.MaxMembers, release.RemainingActiveContracts);
+        Assert.True(contracts.Registration.IsFreeAgent(incoming));
+        Assert.False(teamPrep.ClubSquad.GetCapacityDigest(new ClubId(1), Day).IsOverCapacity);
+        Assert.True(teamPrep.ClubSquad.GetCapacityDigest(new ClubId(1), Day).IsFull);
+        Assert.False(teamPrep.ClubSquad.HasFreeSquadCapacity(new ClubId(1), Day));
+
+        // Dolu ama taşmasız: yer açmak için son slot serbest bırakılır.
+        var fullCandidate = teamPrep.ClubSquad.SuggestReleaseCandidatePlayerId(new ClubId(1), Day);
+        Assert.NotNull(fullCandidate);
+        var second = contracts.Registration.ReleasePlayerFromClub(
+            new PlayerId(fullCandidate!.Value),
+            new ClubId(1),
+            Day,
+            wasOverflow: false);
+        teamPrep.ClubSquad.SyncFromActiveContracts(new ClubId(1), Day);
+        Assert.Equal(ClubSquad.MaxMembers - 1, second.RemainingActiveContracts);
+        Assert.True(teamPrep.ClubSquad.HasFreeSquadCapacity(new ClubId(1), Day));
+    }
+
+    [Fact]
     public void PromoteOverflow_WhenNone_Throws()
     {
         var world = WorldCalendarModule.Create(Day, rootSeed: 5);
