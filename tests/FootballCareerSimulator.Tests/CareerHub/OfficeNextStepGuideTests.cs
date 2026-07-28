@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.CareerHub.Queries;
+using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
 
@@ -173,5 +174,34 @@ public sealed class OfficeNextStepGuideTests
         Assert.Equal(OfficeNextStepGuide.ActionApplyPrepSuggestion, step!.ActionCode);
         Assert.Equal("Toparlanma Uygula", step.ButtonLabel);
         Assert.Equal(OfficeNextStepGuide.TargetPrep, step.TargetPageCode);
+    }
+
+    [Fact]
+    public void LeagueSurvival_RoutesPrimaryCtaToToday()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusLeague,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            leagueNextStep: LeagueNextStep.ChaseSurvival());
+
+        Assert.Equal(OfficeNextStepGuide.ActionNavigate, step!.ActionCode);
+        Assert.Equal(OfficeNextStepGuide.TargetToday, step.TargetPageCode);
+        Assert.Contains("Puan Avı", step.ButtonLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LeagueKickstart_AdvancesDay()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusLeague,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            leagueNextStep: LeagueNextStep.KickstartCalendar());
+
+        Assert.Equal(OfficeNextStepGuide.ActionAdvanceDay, step!.ActionCode);
+        Assert.Contains("İlerlet", step.ButtonLabel, StringComparison.Ordinal);
     }
 }

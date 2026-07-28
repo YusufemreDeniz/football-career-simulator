@@ -53,7 +53,7 @@ public sealed record CareerResumeDigest(
             TodayPulseDigest.FocusTransfer => "Transfer Masası — pencere, Satışa Çıkar veya süreç.",
             TodayPulseDigest.FocusSeason => "Bugün'de sezon geçişini tamamla.",
             TodayPulseDigest.FocusPrep => "Hazırlık'ta önerilen planı uygula.",
-            TodayPulseDigest.FocusLeague => "Lig Masası'na bir bak.",
+            TodayPulseDigest.FocusLeague => "Lig baskısına göre sıradaki adımı uygula.",
             _ => "Bugün nabzını oku — sonra günü ilerlet.",
         };
 

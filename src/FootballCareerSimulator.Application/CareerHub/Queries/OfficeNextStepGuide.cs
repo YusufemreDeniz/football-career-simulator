@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
+using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
 
@@ -71,7 +72,7 @@ public static class OfficeNextStepGuide
     }
 
     /// <summary>
-    /// Nabız + maç/ilerleme/engel/sezon/hazırlık — Bugün ekranının canlı birincil CTA'sı.
+    /// Nabız + maç/ilerleme/engel/sezon/hazırlık/lig — Bugün ekranının canlı birincil CTA'sı.
     /// </summary>
     public static OfficeNextStep? ResolveFromPulse(
         string focusCode,
@@ -81,7 +82,8 @@ public static class OfficeNextStepGuide
         string? primaryBlockerCode = null,
         bool seasonTransitionReady = false,
         bool seasonArchivePhase = false,
-        PrepPlanSuggestion? prepSuggestion = null)
+        PrepPlanSuggestion? prepSuggestion = null,
+        LeagueNextStep? leagueNextStep = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(focusCode);
 
@@ -115,6 +117,16 @@ public static class OfficeNextStepGuide
                 TargetPrep,
                 TodayPulseDigest.FocusPrep,
                 ActionApplyPrepSuggestion);
+        }
+
+        if (string.Equals(focusCode, TodayPulseDigest.FocusLeague, StringComparison.Ordinal)
+            && leagueNextStep is not null)
+        {
+            return new OfficeNextStep(
+                leagueNextStep.ButtonLabel,
+                leagueNextStep.TargetPageCode,
+                TodayPulseDigest.FocusLeague,
+                MapLeagueAction(leagueNextStep.ActionCode));
         }
 
         if (string.Equals(focusCode, TodayPulseDigest.FocusMatch, StringComparison.Ordinal))
@@ -209,6 +221,11 @@ public static class OfficeNextStepGuide
             TodayPulseDigest.FocusDesk,
             ActionNavigate);
     }
+
+    private static string MapLeagueAction(string leagueActionCode) =>
+        string.Equals(leagueActionCode, LeagueNextStep.ActionAdvanceDay, StringComparison.Ordinal)
+            ? ActionAdvanceDay
+            : ActionNavigate;
 }
 
 public sealed record OfficeNextStep(

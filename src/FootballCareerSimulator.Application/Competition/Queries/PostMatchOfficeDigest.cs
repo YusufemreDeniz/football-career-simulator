@@ -104,7 +104,7 @@ public sealed record PostMatchOfficeDigest(
         TodayPulseDigest.FocusTransfer => "Transfer Masası — pencere, Satışa Çıkar veya süreç.",
         TodayPulseDigest.FocusSeason => "Sezon geçişini tamamla — Bitir / Yeni Sezon.",
         TodayPulseDigest.FocusPrep => "Hazırlık'ta öneriyi uygula — Toparlanma / Kondisyon.",
-        TodayPulseDigest.FocusLeague => "Lig Masası'na bir bak — sıralama konuşuyor.",
+        TodayPulseDigest.FocusLeague => "Lig baskısı var — birincil CTA ile devam et.",
         _ => "Bugün nabzına bak — sonra günü ilerlet.",
     };
 

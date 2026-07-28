@@ -1733,6 +1733,7 @@ public partial class CareerHubScreen : Control
         var blocker = _controller.BuildTimeAdvanceBlockerDigest();
         var archivePhase = _controller.IsSeasonArchivePhase();
         var prepSuggestion = _controller.BuildPreparationBriefing().Suggestion;
+        var leagueNextStep = _controller.BuildLeagueWorldBriefing().NextStep;
 
         BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
             pulse.PrimaryFocusCode,
@@ -1742,7 +1743,8 @@ public partial class CareerHubScreen : Control
             primaryBlockerCode: blocker.PrimaryBlockerCode,
             seasonTransitionReady: _controller.CanTransitionToNextSeason(),
             seasonArchivePhase: archivePhase,
-            prepSuggestion: prepSuggestion));
+            prepSuggestion: prepSuggestion,
+            leagueNextStep: leagueNextStep));
     }
 
     private void RefreshSelectionStatus()

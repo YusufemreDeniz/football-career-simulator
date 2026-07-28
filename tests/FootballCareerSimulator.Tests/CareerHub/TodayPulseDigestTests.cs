@@ -117,6 +117,60 @@ public sealed class TodayPulseDigestTests
     }
 
     [Fact]
+    public void BottomTableLeague_SurfacesSurvivalFocus()
+    {
+        var league = LeagueWorldBriefing.Compose(
+            "Active",
+            12,
+            30,
+            clubCount: 10,
+            managedRank: 10,
+            managedPoints: 5,
+            managedPlayed: 12,
+            managedGoalDifference: -14,
+            managedClubName: "Struggle",
+            leaderClubName: "Giants",
+            leaderPoints: 28,
+            nextMatchLine: null);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            league);
+
+        Assert.Equal(TodayPulseDigest.FocusLeague, pulse.PrimaryFocusCode);
+        Assert.Contains("Küme", pulse.Headline, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SummitLeague_SurfacesProtectPrepFocus()
+    {
+        var league = LeagueWorldBriefing.Compose(
+            "Active",
+            10,
+            30,
+            clubCount: 8,
+            managedRank: 1,
+            managedPoints: 22,
+            managedPlayed: 10,
+            managedGoalDifference: 8,
+            managedClubName: "Home",
+            leaderClubName: "Home",
+            leaderPoints: 22,
+            nextMatchLine: null);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            league);
+
+        Assert.Equal(TodayPulseDigest.FocusLeague, pulse.PrimaryFocusCode);
+        Assert.Contains("Hazırlık", pulse.Headline, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CalmDay_WhenEverythingQuiet()
     {
         var pulse = TodayPulseDigest.Compose(

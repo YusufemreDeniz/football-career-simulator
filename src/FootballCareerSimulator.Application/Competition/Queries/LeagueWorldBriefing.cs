@@ -8,7 +8,9 @@ public sealed record LeagueWorldBriefing(
     string BrandTitle,
     string Headline,
     string AdviceLine,
-    IReadOnlyList<string> BeatLines)
+    IReadOnlyList<string> BeatLines,
+    bool DemandsAttention = false,
+    LeagueNextStep? NextStep = null)
 {
     public const string Brand = "Lig Masası";
 
@@ -18,7 +20,9 @@ public sealed record LeagueWorldBriefing(
             Brand,
             "Lig henüz kurulmadı.",
             "Gelişmiş araçlardan ligi kur; sonra puan durumu burada canlanır.",
-            Array.Empty<string>());
+            Array.Empty<string>(),
+            DemandsAttention: false,
+            NextStep: null);
 
     public static LeagueWorldBriefing Compose(
         string seasonStatus,
@@ -87,8 +91,23 @@ public sealed record LeagueWorldBriefing(
             managedRank,
             managedPoints,
             leaderPoints);
+        var nextStep = ResolveNextStep(
+            seasonStatus,
+            acceptedFixtureCount,
+            totalFixtureCount,
+            clubCount,
+            managedRank,
+            managedPoints,
+            leaderPoints);
 
-        return new LeagueWorldBriefing(true, Brand, headline, advice, beats);
+        return new LeagueWorldBriefing(
+            true,
+            Brand,
+            headline,
+            advice,
+            beats,
+            DemandsAttention: nextStep is not null,
+            NextStep: nextStep);
     }
 
     public string ToDisplayText()
@@ -207,6 +226,54 @@ public sealed record LeagueWorldBriefing(
         return "Puan durumunu takip et; detay için hafta fikstürüne bak.";
     }
 
+    /// <summary>
+    /// Nabız odak + birincil CTA — sezon geçişi FocusSeason'a bırakılır.
+    /// </summary>
+    private static LeagueNextStep? ResolveNextStep(
+        string status,
+        int accepted,
+        int total,
+        int clubCount,
+        int? managedRank,
+        int? managedPoints,
+        int? leaderPoints)
+    {
+        if (string.Equals(status, "Completed", StringComparison.Ordinal)
+            || string.Equals(status, "Archived", StringComparison.Ordinal)
+            || (total > 0 && accepted == total))
+        {
+            return null;
+        }
+
+        if (accepted == 0)
+        {
+            return LeagueNextStep.KickstartCalendar();
+        }
+
+        if (managedRank is 1)
+        {
+            return LeagueNextStep.ProtectSummit();
+        }
+
+        if (managedRank is int rank
+            && clubCount > 0
+            && rank > clubCount - Math.Max(2, clubCount / 5))
+        {
+            return LeagueNextStep.ChaseSurvival();
+        }
+
+        if (managedRank is int r
+            && r > 1
+            && managedPoints is int mp
+            && leaderPoints is int lp
+            && lp - mp <= 3)
+        {
+            return LeagueNextStep.ChaseTitle();
+        }
+
+        return null;
+    }
+
     private static string TranslateStatus(string status) => status switch
     {
         "Preseason" => "Hazırlık",
@@ -218,4 +285,59 @@ public sealed record LeagueWorldBriefing(
 
     private static string FormatSigned(int value) =>
         value > 0 ? $"+{value}" : value.ToString();
+}
+
+/// <summary>
+/// Lig baskısı için Bugün birincil CTA — puan durumu sayfasına gömülmez, aksiyona götürür.
+/// </summary>
+public sealed record LeagueNextStep(
+    string ReasonCode,
+    string ButtonLabel,
+    string TargetPageCode,
+    string ActionCode,
+    string PulseHeadline)
+{
+    public const string Kickstart = "Kickstart";
+    public const string Summit = "Summit";
+    public const string Survival = "Survival";
+    public const string TitleRace = "TitleRace";
+
+    public const string TargetToday = "Today";
+    public const string TargetPrep = "Prep";
+    public const string TargetWorld = "World";
+
+    public const string ActionNavigate = "Navigate";
+    public const string ActionAdvanceDay = "AdvanceDay";
+
+    public static LeagueNextStep KickstartCalendar() =>
+        new(
+            Kickstart,
+            "1 Gün İlerlet",
+            TargetToday,
+            ActionAdvanceDay,
+            "Lig kuruldu — fikstürü doldurmak için günü ilerlet.");
+
+    public static LeagueNextStep ProtectSummit() =>
+        new(
+            Summit,
+            "Hazırlık'ı Koru",
+            TargetPrep,
+            ActionNavigate,
+            "Zirvedesin — yorgunluğu Hazırlık'ta tut.");
+
+    public static LeagueNextStep ChaseSurvival() =>
+        new(
+            Survival,
+            "Bugün / Puan Avı",
+            TargetToday,
+            ActionNavigate,
+            "Küme hattı — puan Bugün'de kazanılır.");
+
+    public static LeagueNextStep ChaseTitle() =>
+        new(
+            TitleRace,
+            "Sıradaki Maça Git",
+            TargetToday,
+            ActionNavigate,
+            "Lidere yakınsın — sıradaki üç puan.");
 }

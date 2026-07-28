@@ -43,6 +43,9 @@ public sealed class LeagueWorldBriefingTests
             nextMatchLine: "Ev vs Rival · yarın");
 
         Assert.Equal("Zirvedesin — hedefi koru.", briefing.Headline);
+        Assert.True(briefing.DemandsAttention);
+        Assert.Equal(LeagueNextStep.Summit, briefing.NextStep!.ReasonCode);
+        Assert.Equal(LeagueNextStep.TargetPrep, briefing.NextStep.TargetPageCode);
         Assert.Contains(briefing.BeatLines, b => b.Contains("1. Home FC", StringComparison.Ordinal));
         Assert.Contains(briefing.BeatLines, b => b.Contains("Sıradaki senin maçın", StringComparison.Ordinal));
         Assert.Contains("Liderliği koru", briefing.AdviceLine, StringComparison.Ordinal);
@@ -68,6 +71,31 @@ public sealed class LeagueWorldBriefingTests
 
         Assert.Contains("Alt sıralar", briefing.Headline, StringComparison.Ordinal);
         Assert.Contains("Küme hattı", briefing.AdviceLine, StringComparison.Ordinal);
+        Assert.True(briefing.DemandsAttention);
+        Assert.Equal(LeagueNextStep.Survival, briefing.NextStep!.ReasonCode);
+        Assert.Equal(LeagueNextStep.TargetToday, briefing.NextStep.TargetPageCode);
+    }
+
+    [Fact]
+    public void TitleRace_RoutesToNextMatch()
+    {
+        var briefing = LeagueWorldBriefing.Compose(
+            "Active",
+            18,
+            30,
+            clubCount: 8,
+            managedRank: 2,
+            managedPoints: 40,
+            managedPlayed: 18,
+            managedGoalDifference: 6,
+            managedClubName: "Chasers",
+            leaderClubName: "Leaders",
+            leaderPoints: 42,
+            nextMatchLine: "Ev vs Rival · yarın");
+
+        Assert.True(briefing.DemandsAttention);
+        Assert.Equal(LeagueNextStep.TitleRace, briefing.NextStep!.ReasonCode);
+        Assert.Contains("Sıradaki Maç", briefing.NextStep.ButtonLabel, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -89,5 +117,29 @@ public sealed class LeagueWorldBriefingTests
 
         Assert.Equal("Lig kuruldu — ilk düdükleri bekliyor.", briefing.Headline);
         Assert.Contains("günü ilerlet", briefing.AdviceLine, StringComparison.OrdinalIgnoreCase);
+        Assert.True(briefing.DemandsAttention);
+        Assert.Equal(LeagueNextStep.Kickstart, briefing.NextStep!.ReasonCode);
+        Assert.Equal(LeagueNextStep.ActionAdvanceDay, briefing.NextStep.ActionCode);
+    }
+
+    [Fact]
+    public void MidTable_DoesNotDemandAttention()
+    {
+        var briefing = LeagueWorldBriefing.Compose(
+            "Active",
+            10,
+            30,
+            clubCount: 8,
+            managedRank: 4,
+            managedPoints: 14,
+            managedPlayed: 10,
+            managedGoalDifference: 1,
+            managedClubName: "Mid FC",
+            leaderClubName: "Leaders",
+            leaderPoints: 22,
+            nextMatchLine: null);
+
+        Assert.False(briefing.DemandsAttention);
+        Assert.Null(briefing.NextStep);
     }
 }

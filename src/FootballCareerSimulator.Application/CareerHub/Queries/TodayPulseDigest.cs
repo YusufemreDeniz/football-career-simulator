@@ -163,11 +163,11 @@ public sealed record TodayPulseDigest(
             return (FocusPrep, prepHeadline);
         }
 
-        if (league.HasSeason
-            && (league.Headline.Contains("Alt sıralar", StringComparison.Ordinal)
-                || league.Headline.Contains("Zirvedesin", StringComparison.Ordinal)))
+        if (league is { HasSeason: true, DemandsAttention: true })
         {
-            return (FocusLeague, "Lig Masası'na bir bak — sıralama konuşuyor.");
+            return (
+                FocusLeague,
+                league.NextStep?.PulseHeadline ?? "Lig Masası'na bir bak — sıralama konuşuyor.");
         }
 
         if (match.HasMatch && match.IsReadyToKickOff)
