@@ -31,39 +31,41 @@ public sealed class ClubSquadService
     {
         var active = _contractStore.GetForClub(clubId)
             .Where(c => c.IsActiveOn(day))
+            .Where(c => _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId))
             .OrderBy(c => c.PlayerId.Value)
             .ToArray();
 
         var previousByPlayer = (_squadStore.Get(clubId)?.Members ?? Array.Empty<SquadMember>())
             .ToDictionary(m => m.PlayerId.Value);
 
+        // Önce mevcut slot sahipleri, sonra yeni gelenler — kapasite dolunca fazlası kadro dışı kalır
+        // (sözleşme aktif olabilir; maç günü listesine giremez).
+        var ordered = active
+            .OrderByDescending(c => previousByPlayer.ContainsKey(c.PlayerId.Value))
+            .ThenBy(c =>
+                previousByPlayer.TryGetValue(c.PlayerId.Value, out var prior)
+                    ? prior.SlotIndex
+                    : int.MaxValue)
+            .ThenBy(c => c.PlayerId.Value)
+            .Take(ClubSquad.MaxMembers)
+            .ToArray();
+
         var usedSlots = new HashSet<int>();
-        var members = new List<SquadMember>(active.Length);
+        var members = new List<SquadMember>(ordered.Length);
 
-        foreach (var contract in active)
+        foreach (var contract in ordered)
         {
-            if (_playerCareerStore.Careers.All(c => c.Id != contract.PlayerId))
+            if (previousByPlayer.TryGetValue(contract.PlayerId.Value, out var prior)
+                && !usedSlots.Contains(prior.SlotIndex))
             {
-                continue;
+                members.Add(SquadMember.Create(contract.PlayerId, prior.SlotIndex, contract.StartDate));
+                usedSlots.Add(prior.SlotIndex);
             }
-
-            if (!previousByPlayer.TryGetValue(contract.PlayerId.Value, out var prior))
-            {
-                continue;
-            }
-
-            members.Add(SquadMember.Create(contract.PlayerId, prior.SlotIndex, contract.StartDate));
-            usedSlots.Add(prior.SlotIndex);
         }
 
-        foreach (var contract in active)
+        foreach (var contract in ordered)
         {
             if (members.Any(m => m.PlayerId == contract.PlayerId))
-            {
-                continue;
-            }
-
-            if (_playerCareerStore.Careers.All(c => c.Id != contract.PlayerId))
             {
                 continue;
             }
@@ -72,8 +74,8 @@ public sealed class ClubSquadService
                 .FirstOrDefault(s => !usedSlots.Contains(s), -1);
             if (slot < 0)
             {
-                throw new TeamPreparationInvariantViolationException(
-                    $"Club {clubId.Value} has no free squad slot for incoming player {contract.PlayerId.Value}.");
+                // Take(MaxMembers) sonrası teorik olarak olmamalı; savunma.
+                break;
             }
 
             members.Add(SquadMember.Create(contract.PlayerId, slot, contract.StartDate));
@@ -93,4 +95,10 @@ public sealed class ClubSquadService
             SyncFromActiveContracts(new ClubId(clubId), day);
         }
     }
+
+    public int CountActiveContracts(ClubId clubId, GameDate day) =>
+        _contractStore.GetForClub(clubId).Count(c => c.IsActiveOn(day));
+
+    public bool HasFreeSquadCapacity(ClubId clubId, GameDate day) =>
+        CountActiveContracts(clubId, day) < ClubSquad.MaxMembers;
 }

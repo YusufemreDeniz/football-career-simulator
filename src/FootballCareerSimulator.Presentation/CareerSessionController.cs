@@ -253,6 +253,13 @@ public sealed class CareerSessionController
 
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
             var id = new Domain.Shared.ClubId(clubId);
+            if (Host.TeamPreparationModule.ClubSquad is { } squadService
+                && !squadService.HasFreeSquadCapacity(id, day))
+            {
+                return UiActionResult.Fail(
+                    $"Kadro dolu ({ClubSquad.MaxMembers}/{ClubSquad.MaxMembers}) — önce yer aç veya sözleşme bitmesini bekle.");
+            }
+
             var result = Host.ContractModule.Registration.SignFreeAgentToLastClub(
                 new PlayerId(signable.PlayerId),
                 id,
@@ -1759,35 +1766,46 @@ public sealed class CareerSessionController
 
     public UiActionResult AdvanceDays(int dayCount)
     {
-        var world = Host.WorldModule;
-        var current = world.Queries.GetCurrentGameDate();
-        var result = world.AdvanceSimulationTime.Handle(
-            new AdvanceSimulationTimeCommand(Guid.NewGuid(), current.DayNumber + dayCount));
-
-        if (result.WasBlocked)
+        try
         {
-            var blocked = FormatBlockers(result.Blockers.Select(b =>
-                (b.SourceContext, b.DescriptionCode)));
-            return UiActionResult.Fail(
-                TimeAdvanceDigest.Blocked(blocked).ToStatusMessage());
-        }
+            var world = Host.WorldModule;
+            var current = world.Queries.GetCurrentGameDate();
+            var result = world.AdvanceSimulationTime.Handle(
+                new AdvanceSimulationTimeCommand(Guid.NewGuid(), current.DayNumber + dayCount));
 
-        var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-        Host.TeamPreparationModule.ClubSquad?.SyncClubs(result.ContractExpiryAffectedClubIds, day);
-        if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
+            if (result.WasBlocked)
+            {
+                var blocked = FormatBlockers(result.Blockers.Select(b =>
+                    (b.SourceContext, b.DescriptionCode)));
+                return UiActionResult.Fail(
+                    TimeAdvanceDigest.Blocked(blocked).ToStatusMessage());
+            }
+
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TeamPreparationModule.ClubSquad?.SyncClubs(result.ContractExpiryAffectedClubIds, day);
+            if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
+            {
+                var id = new Domain.Shared.ClubId(clubId);
+                Host.PlayerCareerModule.Development.EnsureClub(
+                    id,
+                    Host.WorldModule.TimelineStore.Timeline.RootSeed,
+                    day);
+                Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, day);
+                Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
+            }
+
+            var nextHint = BuildNextMatchHint(day.DayNumber);
+            var digest = TimeAdvanceDigest.Compose(result, dayCount, nextHint);
+            return UiActionResult.Ok(digest.ToStatusMessage(), digest);
+        }
+        catch (TeamPreparationInvariantViolationException ex)
         {
-            var id = new Domain.Shared.ClubId(clubId);
-            Host.PlayerCareerModule.Development.EnsureClub(
-                id,
-                Host.WorldModule.TimelineStore.Timeline.RootSeed,
-                day);
-            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, day);
-            Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
+            return UiActionResult.Fail($"Gün ilerletilemedi (kadro): {ex.Message}");
         }
-
-        var nextHint = BuildNextMatchHint(day.DayNumber);
-        var digest = TimeAdvanceDigest.Compose(result, dayCount, nextHint);
-        return UiActionResult.Ok(digest.ToStatusMessage(), digest);
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Gün ilerletilemedi: {ex.Message}");
+        }
     }
 
     private PreMatchBriefing CaptureKickoffBriefing(

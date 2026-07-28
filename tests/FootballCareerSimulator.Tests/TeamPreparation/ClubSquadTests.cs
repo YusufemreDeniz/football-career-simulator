@@ -73,6 +73,55 @@ public sealed class ClubSquadTests : IDisposable
     }
 
     [Fact]
+    public void Sync_WhenOverCapacity_KeepsMaxMembersWithoutThrowing()
+    {
+        var world = WorldCalendarModule.Create(Day, rootSeed: 5);
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var trainingStore = new InMemoryTrainingPhysicalStateStore();
+        var players = PlayerCareerModule.Create(manager.Store, world.TimelineStore, trainingStore);
+        var contracts = ContractRegistrationModule.Create(
+            players.Store,
+            manager.Store,
+            world.TimelineStore);
+        players = PlayerCareerModule.Create(
+            manager.Store,
+            world.TimelineStore,
+            trainingStore,
+            players.Store,
+            contracts.Registration);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
+        var teamPrep = TeamPreparationModule.Create(
+            competition.Store,
+            manager.Store,
+            contractStore: contracts.Store,
+            playerCareerStore: players.Store);
+
+        players.Development.EnsureClub(new ClubId(1), world.TimelineStore.Timeline.RootSeed, Day);
+        teamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
+
+        // Transfer/gelen oyuncu: kulüp 2 kökenli, kulüp 1'de aktif sözleşme → 26. sözleşme.
+        var incoming = PlayerId.FromClubSlot(2, 0);
+        players.Store.Upsert(Domain.PlayerCareer.PlayerCareer.CreateForSlot(
+            new ClubId(2),
+            slotIndex: 0,
+            currentAbility: 60,
+            potentialAbility: 70,
+            birthYear: 1999));
+        contracts.Store.Upsert(PlayerContract.Activate(
+            incoming,
+            new ClubId(1),
+            Day,
+            GameDate.FromCalendarDate(2028, 7, 1),
+            weeklyWage: 1200));
+
+        var synced = teamPrep.ClubSquad.SyncFromActiveContracts(new ClubId(1), Day);
+        Assert.Equal(ClubSquad.MaxMembers, synced.Members.Count);
+        Assert.True(teamPrep.ClubSquad.CountActiveContracts(new ClubId(1), Day) > ClubSquad.MaxMembers);
+        Assert.False(teamPrep.ClubSquad.HasFreeSquadCapacity(new ClubId(1), Day));
+    }
+
+    [Fact]
     public void Sync_RemovesMembersWhenContractExpires()
     {
         var world = WorldCalendarModule.Create(Day, rootSeed: 3);
