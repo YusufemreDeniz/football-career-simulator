@@ -6,6 +6,7 @@ using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.Discipline.Ports;
+using FootballCareerSimulator.Application.EventRuleEvaluation.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.Interaction.Ports;
@@ -42,6 +43,7 @@ public sealed class CareerGameSessionService
     private readonly IFreeAgentStore _freeAgentStore;
     private readonly ICareerPersistence _persistence;
     private readonly IReadOnlyList<ICommandIdempotencyReset> _idempotencyResets;
+    private readonly IEventEffectIdempotencyRegistry? _eventEffectRegistry;
 
     public CareerGameSessionService(
         IWorldTimelineStore timelineStore,
@@ -68,7 +70,8 @@ public sealed class CareerGameSessionService
         IContractStore contractStore,
         IFreeAgentStore freeAgentStore,
         ICareerPersistence persistence,
-        IEnumerable<ICommandIdempotencyReset> idempotencyResets)
+        IEnumerable<ICommandIdempotencyReset> idempotencyResets,
+        IEventEffectIdempotencyRegistry? eventEffectRegistry = null)
     {
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
@@ -100,6 +103,7 @@ public sealed class CareerGameSessionService
         _persistence = persistence ?? throw new ArgumentNullException(nameof(persistence));
         _idempotencyResets = idempotencyResets?.ToArray()
             ?? throw new ArgumentNullException(nameof(idempotencyResets));
+        _eventEffectRegistry = eventEffectRegistry;
     }
 
     public SaveCareerGameResult Save(string filePath)
@@ -136,7 +140,8 @@ public sealed class CareerGameSessionService
             _relationshipStore.Relationships,
             _decisionRequestStore.Requests,
             _dialogueSessionStore.Sessions,
-            _disciplinaryActionStore.Actions);
+            _disciplinaryActionStore.Actions,
+            _eventEffectRegistry?.SnapshotKeys());
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -180,6 +185,8 @@ public sealed class CareerGameSessionService
         {
             reset.ResetIdempotencyCache();
         }
+
+        _eventEffectRegistry?.ReplaceAll(loaded.EventEffectProcessingKeys ?? Array.Empty<string>());
 
         var fixtureCount = loaded.League.Seasons.Sum(season => season.Fixtures.Count);
 

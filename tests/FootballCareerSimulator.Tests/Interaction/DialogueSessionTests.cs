@@ -138,7 +138,7 @@ public sealed class DialogueSessionTests : IDisposable
             interaction.DialogueSessionStore.Sessions);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(37, loaded.SchemaVersion);
+        Assert.Equal(38, loaded.SchemaVersion);
         var session = Assert.Single(loaded.DialogueSessions);
         Assert.Equal(DialogueSessionStatus.AwaitingPlayerDecision, session.Status);
         Assert.Equal(33, session.PrimaryParticipantPlayerId.Value);

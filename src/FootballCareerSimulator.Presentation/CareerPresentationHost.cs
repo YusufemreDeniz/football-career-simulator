@@ -187,6 +187,9 @@ public sealed class CareerPresentationHost
             interactionModule.PostMatchPress);
         var persistence = new CareerSqlitePersistence();
 
+        var eventRule = worldModule.EventRuleEvaluation
+            ?? throw new InvalidOperationException("Event & Rule Evaluation iskeleti bağlı değil.");
+
         ICommandIdempotencyReset[] idempotencyResets =
         [
             worldModule.AdvanceSimulationTime,
@@ -194,6 +197,7 @@ public sealed class CareerPresentationHost
             worldModule.CompletePlanningPeriod,
             worldModule.OpenTransferWindow,
             worldModule.CloseTransferWindow,
+            eventRule,
             .. competitionModule.IdempotencyResets,
             .. teamPreparation.IdempotencyResets,
             training.IdempotencyReset,
@@ -225,7 +229,8 @@ public sealed class CareerPresentationHost
             contractModule.Store,
             contractModule.FreeAgentStore,
             persistence,
-            idempotencyResets);
+            idempotencyResets,
+            eventRule.Registry);
 
         var savePath = defaultSavePath ?? Path.Combine(OS.GetUserDataDir(), "career_save.db");
         return new CareerPresentationHost(

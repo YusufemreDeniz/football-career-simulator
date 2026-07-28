@@ -181,7 +181,7 @@ public sealed class DecisionRequestTests : IDisposable
             interaction.DialogueSessionStore.Sessions);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(37, loaded.SchemaVersion);
+        Assert.Equal(38, loaded.SchemaVersion);
         var request = Assert.Single(loaded.DecisionRequests);
         Assert.Equal(DecisionRequestKind.PlayingTimeRequest, request.Kind);
         Assert.Equal(13, request.SubjectPlayerId.Value);

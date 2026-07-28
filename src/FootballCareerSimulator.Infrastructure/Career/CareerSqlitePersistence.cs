@@ -46,7 +46,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<RelationshipRecord>? relationships = null,
         IReadOnlyList<DecisionRequest>? decisionRequests = null,
         IReadOnlyList<DialogueSession>? dialogueSessions = null,
-        IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null)
+        IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null,
+        IReadOnlyList<string>? eventEffectProcessingKeys = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -73,6 +74,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         decisionRequests ??= Array.Empty<DecisionRequest>();
         dialogueSessions ??= Array.Empty<DialogueSession>();
         disciplinaryActions ??= Array.Empty<DisciplinaryAction>();
+        eventEffectProcessingKeys ??= Array.Empty<string>();
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -98,7 +100,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             relationships,
             decisionRequests,
             dialogueSessions,
-            disciplinaryActions);
+            disciplinaryActions,
+            eventEffectProcessingKeys);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -137,6 +140,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertDecisionRequests(connection, transaction, decisionRequests);
             InsertDialogueSessions(connection, transaction, dialogueSessions);
             InsertDisciplinaryActions(connection, transaction, disciplinaryActions);
+            InsertEventEffectProcessingKeys(connection, transaction, eventEffectProcessingKeys);
 
             transaction.Commit();
         }
@@ -420,6 +424,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV36ToV37InPlace(filePath);
             wasMigrated = true;
             version = 37;
+        }
+
+        if (version == 37 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 38)
+        {
+            WorldCalendarSqliteMigrator.MigrateV37ToV38InPlace(filePath);
+            wasMigrated = true;
+            version = 38;
         }
 
         if (wasMigrated)
@@ -819,6 +830,12 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ClubId INTEGER NOT NULL,
                 SourceDecisionRequestId INTEGER NULL,
                 AppliedDayNumber INTEGER NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE EventEffectIdempotencyState (
+                ProcessingKey TEXT PRIMARY KEY
             );
             """);
     }
@@ -1654,6 +1671,29 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertEventEffectProcessingKeys(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<string> processingKeys)
+    {
+        foreach (var key in processingKeys.OrderBy(k => k, StringComparer.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO EventEffectIdempotencyState (ProcessingKey)
+                VALUES ($key);
+                """;
+            command.Parameters.AddWithValue("$key", key);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static void InsertMemories(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1783,6 +1823,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var decisionRequests = ReadDecisionRequests(connection);
         var dialogueSessions = ReadDialogueSessions(connection);
         var disciplinaryActions = ReadDisciplinaryActions(connection);
+        var eventEffectProcessingKeys = ReadEventEffectProcessingKeys(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1807,7 +1848,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             relationships,
             decisionRequests,
             dialogueSessions,
-            disciplinaryActions);
+            disciplinaryActions,
+            eventEffectProcessingKeys);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1854,6 +1896,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<DecisionRequest> decisionRequests;
             IReadOnlyList<DialogueSession> dialogueSessions;
             IReadOnlyList<DisciplinaryAction> disciplinaryActions;
+            IReadOnlyList<string> eventEffectProcessingKeys;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1889,6 +1932,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 decisionRequests = ReadDecisionRequests(connection);
                 dialogueSessions = ReadDialogueSessions(connection);
                 disciplinaryActions = ReadDisciplinaryActions(connection);
+                eventEffectProcessingKeys = ReadEventEffectProcessingKeys(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1917,7 +1961,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 relationships,
                 decisionRequests,
                 dialogueSessions,
-                disciplinaryActions);
+                disciplinaryActions,
+                eventEffectProcessingKeys);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1950,7 +1995,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 dialogueSessions,
                 disciplinaryActions,
                 schemaVersion,
-                wasMigrated);
+                wasMigrated,
+                eventEffectProcessingKeys);
         }
         catch (SaveIntegrityException)
         {
@@ -2887,6 +2933,29 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return sessions;
+    }
+
+    private static IReadOnlyList<string> ReadEventEffectProcessingKeys(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "EventEffectIdempotencyState"))
+        {
+            return Array.Empty<string>();
+        }
+
+        var keys = new List<string>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ProcessingKey
+            FROM EventEffectIdempotencyState
+            ORDER BY ProcessingKey;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            keys.Add(reader.GetString(0));
+        }
+
+        return keys;
     }
 
     private static IReadOnlyList<DisciplinaryAction> ReadDisciplinaryActions(SqliteConnection connection)

@@ -40,7 +40,8 @@ public interface ICareerPersistence
         IReadOnlyList<RelationshipRecord>? relationships = null,
         IReadOnlyList<DecisionRequest>? decisionRequests = null,
         IReadOnlyList<DialogueSession>? dialogueSessions = null,
-        IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null);
+        IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null,
+        IReadOnlyList<string>? eventEffectProcessingKeys = null);
 
     CareerLoadResult Load(string filePath);
 }
@@ -71,4 +72,5 @@ public sealed record CareerLoadResult(
     IReadOnlyList<DialogueSession> DialogueSessions,
     IReadOnlyList<DisciplinaryAction> DisciplinaryActions,
     int SchemaVersion,
-    bool WasMigrated);
+    bool WasMigrated,
+    IReadOnlyList<string>? EventEffectProcessingKeys = null);
