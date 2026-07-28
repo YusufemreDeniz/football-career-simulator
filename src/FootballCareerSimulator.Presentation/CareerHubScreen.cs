@@ -21,6 +21,7 @@ public partial class CareerHubScreen : Control
     private Label _memoryLabel = null!;
     private Label _promiseLabel = null!;
     private Label _relationshipLabel = null!;
+    private Label _deskLabel = null!;
     private Label _decisionLabel = null!;
     private Button _openDecisionButton = null!;
     private Button _openStartingDecisionButton = null!;
@@ -279,6 +280,43 @@ public partial class CareerHubScreen : Control
         page.AddChild(SectionTitle("Bugün"));
         _blockerLabel = BodyLabel("BlockerLabel", autowrap: true);
         page.AddChild(_blockerLabel);
+
+        page.AddChild(SectionTitle("Masada"));
+        _deskLabel = BodyLabel("DeskLabel", autowrap: true);
+        page.AddChild(_deskLabel);
+
+        var deskRow = new HBoxContainer();
+        deskRow.AddThemeConstantOverride("separation", 8);
+        page.AddChild(deskRow);
+        _grantDecisionButton = PrimaryButton("Talebi Kabul Et");
+        _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
+        deskRow.AddChild(_grantDecisionButton);
+        _refuseDecisionButton = SecondaryButton("Talebi Reddet");
+        _refuseDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: false));
+        deskRow.AddChild(_refuseDecisionButton);
+        _disciplineWarningButton = SecondaryButton("Uyarı Ver");
+        _disciplineWarningButton.Pressed += () =>
+            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueWarning));
+        deskRow.AddChild(_disciplineWarningButton);
+        _disciplineFineButton = SecondaryButton("Ceza Uygula");
+        _disciplineFineButton.Pressed += () =>
+            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueFine));
+        deskRow.AddChild(_disciplineFineButton);
+        _disciplineSupportButton = SecondaryButton("Destekle");
+        _disciplineSupportButton.Pressed += () =>
+            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionOfferSupport));
+        deskRow.AddChild(_disciplineSupportButton);
+        _boardCounterButton = SecondaryButton("Karşı Teklif");
+        _boardCounterButton.Pressed += () =>
+            Apply(_controller.AnswerOldestPendingWithOption(
+                Domain.Interaction.DecisionRequest.OptionCounterBoardDemand));
+        deskRow.AddChild(_boardCounterButton);
+        _pressCriticizeButton = SecondaryButton("Kamuya Eleştir");
+        _pressCriticizeButton.Pressed += () =>
+            Apply(_controller.AnswerOldestPendingWithOption(
+                Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
+        deskRow.AddChild(_pressCriticizeButton);
+
         _selectionLabel = BodyLabel("SelectionLabel", autowrap: true);
         page.AddChild(_selectionLabel);
 
@@ -390,38 +428,6 @@ public partial class CareerHubScreen : Control
         _openPressQuestionDecisionButton.Pressed += () =>
             Apply(_controller.OpenPressQuestionDecisionForOldestSquadPlayer());
         decisionRow.AddChild(_openPressQuestionDecisionButton);
-        _grantDecisionButton = SecondaryButton("Talebi Kabul Et");
-        _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
-        decisionRow.AddChild(_grantDecisionButton);
-        _refuseDecisionButton = SecondaryButton("Talebi Reddet");
-        _refuseDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: false));
-        decisionRow.AddChild(_refuseDecisionButton);
-
-        var disciplineRow = new HBoxContainer();
-        disciplineRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(disciplineRow);
-        _disciplineWarningButton = SecondaryButton("Uyarı Ver");
-        _disciplineWarningButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueWarning));
-        disciplineRow.AddChild(_disciplineWarningButton);
-        _disciplineFineButton = SecondaryButton("Ceza Uygula");
-        _disciplineFineButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueFine));
-        disciplineRow.AddChild(_disciplineFineButton);
-        _disciplineSupportButton = SecondaryButton("Destekle");
-        _disciplineSupportButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionOfferSupport));
-        disciplineRow.AddChild(_disciplineSupportButton);
-        _boardCounterButton = SecondaryButton("Karşı Teklif");
-        _boardCounterButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(
-                Domain.Interaction.DecisionRequest.OptionCounterBoardDemand));
-        disciplineRow.AddChild(_boardCounterButton);
-        _pressCriticizeButton = SecondaryButton("Kamuya Eleştir");
-        _pressCriticizeButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(
-                Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
-        disciplineRow.AddChild(_pressCriticizeButton);
         return page;
     }
 
@@ -1396,9 +1402,13 @@ public partial class CareerHubScreen : Control
     private void RefreshDecisionStatus()
     {
         var pending = _controller.Host.InteractionModule.Queries.GetPending(take: 5);
+        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var desk = Application.Interaction.Queries.DecisionDeskDigest.Compose(pending, currentDay);
+        _deskLabel.Text = desk.ToDisplayText();
+
         if (pending.OpenCount == 0)
         {
-            _decisionLabel.Text = "Kararlar: bekleyen zorunlu karar yok.";
+            _decisionLabel.Text = "Kararlar: masada bekleyen yok (cevaplar Bugün → Masada).";
             _grantDecisionButton.Disabled = true;
             _refuseDecisionButton.Disabled = true;
             _disciplineWarningButton.Disabled = true;
@@ -1461,17 +1471,12 @@ public partial class CareerHubScreen : Control
         _boardCounterButton.Disabled = counter is null || !counter.IsEligible;
         _pressCriticizeButton.Disabled = criticize is null || !criticize.IsEligible;
 
-        var optionPreview = string.Join(
-            " | ",
-            options.Options.Select(o =>
-                $"{o.DisplayText}{(o.IsEligible ? string.Empty : " [kapalı]")}"));
         var preview = string.Join(
             " · ",
             pending.OpenRequests.Select(d =>
-                $"{d.KindName} oyuncu#{d.SubjectPlayerId} son:{d.DeadlineDayNumber}"));
+                $"{d.KindName}{(d.IsHardBlocker ? " [zorunlu]" : string.Empty)} son:{d.DeadlineDayNumber}"));
         _decisionLabel.Text =
-            $"Kararlar: {pending.OpenCount} açık — {preview}"
-            + (string.IsNullOrWhiteSpace(optionPreview) ? string.Empty : $" · seçenekler: {optionPreview}");
+            $"Kararlar: {pending.OpenCount} açık — cevaplar Bugün → Masada. {preview}";
 
         var awaiting = _controller.Host.InteractionModule.DialogueSessionStore.Sessions
             .Count(s => s.IsAwaitingPlayer);
