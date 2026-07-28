@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Application.WorldCalendar.Composition;
 
+using FootballCareerSimulator.Application.EventRuleEvaluation.Composition;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -22,7 +23,8 @@ public sealed class WorldCalendarModule
         CloseTransferWindowHandler closeTransferWindow,
         WorldCalendarQueryService queries,
         ITransferWindowQuery transferWindowQuery,
-        WorldCalendarGameSessionService? gameSession = null)
+        WorldCalendarGameSessionService? gameSession = null,
+        EventRuleEvaluationModule? eventRuleEvaluation = null)
     {
         TimelineStore = timelineStore;
         BlockerAggregator = blockerAggregator;
@@ -34,6 +36,7 @@ public sealed class WorldCalendarModule
         Queries = queries;
         TransferWindowQuery = transferWindowQuery;
         GameSession = gameSession;
+        EventRuleEvaluation = eventRuleEvaluation;
     }
 
     public IWorldTimelineStore TimelineStore { get; }
@@ -56,6 +59,8 @@ public sealed class WorldCalendarModule
 
     public WorldCalendarGameSessionService? GameSession { get; }
 
+    public EventRuleEvaluationModule? EventRuleEvaluation { get; }
+
     public static WorldCalendarModule CreateNewGame(int rootSeed = 42, IWorldCalendarPersistence? persistence = null) =>
         Create(
             GameDate.FromCalendarDate(2026, 7, 1),
@@ -75,7 +80,11 @@ public sealed class WorldCalendarModule
             ?? new InMemoryWorldTimelineStore(WorldTimeline.Create(startingDate, rootSeed, rngVersion));
         var sources = blockerSources?.ToArray() ?? Array.Empty<ITimeAdvanceBlockerSource>();
         var aggregator = new TimeAdvanceBlockerAggregator(sources);
-        var advanceHandler = new AdvanceSimulationTimeHandler(store, aggregator);
+        var eventRule = EventRuleEvaluationModule.Create();
+        var advanceHandler = new AdvanceSimulationTimeHandler(
+            store,
+            aggregator,
+            eventRule.WorldCalendarEvaluation);
         var openPlanningHandler = new OpenPlanningPeriodHandler(store);
         var completePlanningHandler = new CompletePlanningPeriodHandler(store);
         var openWindowHandler = new OpenTransferWindowHandler(store);
@@ -88,6 +97,7 @@ public sealed class WorldCalendarModule
             completePlanningHandler,
             openWindowHandler,
             closeWindowHandler,
+            eventRule,
         };
 
         WorldCalendarGameSessionService? gameSession = persistence is null
@@ -104,6 +114,7 @@ public sealed class WorldCalendarModule
             closeWindowHandler,
             new WorldCalendarQueryService(store, aggregator),
             windowQuery,
-            gameSession);
+            gameSession,
+            eventRule);
     }
 }

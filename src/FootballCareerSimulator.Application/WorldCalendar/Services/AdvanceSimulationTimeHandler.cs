@@ -1,7 +1,9 @@
 namespace FootballCareerSimulator.Application.WorldCalendar.Services;
 
+using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
+using FootballCareerSimulator.Domain.EventRuleEvaluation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Domain.WorldCalendar.Events;
 
@@ -9,14 +11,17 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
 {
     private readonly IWorldTimelineStore _timelineStore;
     private readonly TimeAdvanceBlockerAggregator _blockerAggregator;
+    private readonly WorldCalendarEventEvaluationService? _eventEvaluation;
     private readonly Dictionary<Guid, AdvanceSimulationTimeResult> _completedCommands = new();
 
     public AdvanceSimulationTimeHandler(
         IWorldTimelineStore timelineStore,
-        TimeAdvanceBlockerAggregator blockerAggregator)
+        TimeAdvanceBlockerAggregator blockerAggregator,
+        WorldCalendarEventEvaluationService? eventEvaluation = null)
     {
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _blockerAggregator = blockerAggregator ?? throw new ArgumentNullException(nameof(blockerAggregator));
+        _eventEvaluation = eventEvaluation;
     }
 
     public AdvanceSimulationTimeResult Handle(AdvanceSimulationTimeCommand command)
@@ -68,12 +73,26 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
             throw;
         }
 
+        var applied = 0;
+        var duplicates = 0;
+        if (_eventEvaluation is not null)
+        {
+            var evaluated = _eventEvaluation.Evaluate(
+                advancement.RaisedEvents,
+                timeline.RootSeed,
+                command.CommandId);
+            applied = evaluated.Count(e => e.Status == EventEffectApplicationStatus.Applied);
+            duplicates = evaluated.Count(e => e.Status == EventEffectApplicationStatus.Duplicate);
+        }
+
         timeline.ClearUncommittedEvents();
 
         var result = AdvanceSimulationTimeResult.Advanced(
             advancement.PreviousDate.DayNumber,
             advancement.NewDate.DayNumber,
-            advancement.RaisedEvents.Select(MapEventType).ToArray());
+            advancement.RaisedEvents.Select(MapEventType).ToArray(),
+            applied,
+            duplicates);
 
         _completedCommands[command.CommandId] = result;
         return result;

@@ -18,6 +18,12 @@ public sealed record AdvanceSimulationTimeResult
 
     public required IReadOnlyList<TimeAdvanceBlockedItem> Blockers { get; init; }
 
+    /// <summary>Event & Rule Evaluation: ilk kez commit edilen effect sayısı.</summary>
+    public int AppliedEffectCount { get; init; }
+
+    /// <summary>Event & Rule Evaluation: duplicate sayılan effect sayısı.</summary>
+    public int DuplicateEffectCount { get; init; }
+
     public static AdvanceSimulationTimeResult Blocked(
         int currentDayNumber,
         IReadOnlyList<TimeAdvanceBlockedItem> blockers) =>
@@ -29,12 +35,16 @@ public sealed record AdvanceSimulationTimeResult
             NewDayNumber = currentDayNumber,
             RaisedEventTypes = Array.Empty<string>(),
             Blockers = blockers,
+            AppliedEffectCount = 0,
+            DuplicateEffectCount = 0,
         };
 
     public static AdvanceSimulationTimeResult Advanced(
         int previousDayNumber,
         int newDayNumber,
-        IReadOnlyList<string> raisedEventTypes) =>
+        IReadOnlyList<string> raisedEventTypes,
+        int appliedEffectCount = 0,
+        int duplicateEffectCount = 0) =>
         new()
         {
             Succeeded = true,
@@ -43,6 +53,8 @@ public sealed record AdvanceSimulationTimeResult
             NewDayNumber = newDayNumber,
             RaisedEventTypes = raisedEventTypes,
             Blockers = Array.Empty<TimeAdvanceBlockedItem>(),
+            AppliedEffectCount = appliedEffectCount,
+            DuplicateEffectCount = duplicateEffectCount,
         };
 }
 
