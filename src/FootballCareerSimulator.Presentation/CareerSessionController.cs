@@ -3,7 +3,7 @@ using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.ManagerCareer.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
-using FootballCareerSimulator.Application.TeamPreparation.Services;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Commands;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
@@ -1656,17 +1656,21 @@ public sealed class CareerSessionController
         }
 
         var opponent = GetClubDisplayName(pending.OpponentClubId);
-        var venue = pending.IsHome ? "Ev" : "Dep";
         var tension = Host.TeamPreparationModule.PromiseTension
             .GetForNextDueMatch(currentDayNumber);
-        if (tension is { HasTension: true, ToneCode: PreMatchPromiseTensionQueryService.ToneAtRisk })
-        {
-            return $"Sıradaki maç: {venue} vs {opponent} — söz riski var.";
-        }
-
-        return pending.IsApproved
-            ? $"Sıradaki maç hazır: {venue} vs {opponent}."
-            : $"Sıradaki maç: {venue} vs {opponent} — kadro onayı bekliyor.";
+        var tactic = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+        var training = GetTrainingSummary();
+        var briefing = PreMatchBriefing.Compose(
+            pending,
+            opponent,
+            currentDayNumber,
+            tactic.FormationName,
+            tactic.ApproachName,
+            training.HasPlan ? training.AverageFatigue : null,
+            training.HasPlan ? training.AverageFitness : null,
+            training.InjuredSlotCount,
+            tension);
+        return $"{briefing.FixtureLine} — {briefing.Headline}";
     }
 
     public UiActionResult CompleteSeason()

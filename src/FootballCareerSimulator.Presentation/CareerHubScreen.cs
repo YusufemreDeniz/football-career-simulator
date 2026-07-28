@@ -22,6 +22,7 @@ public partial class CareerHubScreen : Control
     private Label _promiseLabel = null!;
     private Label _relationshipLabel = null!;
     private Label _deskLabel = null!;
+    private Label _briefingLabel = null!;
     private Label _decisionLabel = null!;
     private Button _openDecisionButton = null!;
     private Button _openStartingDecisionButton = null!;
@@ -316,6 +317,10 @@ public partial class CareerHubScreen : Control
             Apply(_controller.AnswerOldestPendingWithOption(
                 Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
         deskRow.AddChild(_pressCriticizeButton);
+
+        page.AddChild(SectionTitle("Sıradaki Maç"));
+        _briefingLabel = BodyLabel("BriefingLabel", autowrap: true);
+        page.AddChild(_briefingLabel);
 
         _selectionLabel = BodyLabel("SelectionLabel", autowrap: true);
         page.AddChild(_selectionLabel);
@@ -1505,38 +1510,34 @@ public partial class CareerHubScreen : Control
         var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         var pending = _controller.Host.TeamPreparationModule.SelectionQueries
             .GetNextDueManagedFixture(currentDay);
+        var tension = _controller.Host.TeamPreparationModule.PromiseTension
+            .GetForNextDueMatch(currentDay);
+        var tactic = _controller.Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+        var training = _controller.GetTrainingSummary();
+
+        var briefing = Application.TeamPreparation.Queries.PreMatchBriefing.Compose(
+            pending,
+            pending is null ? "—" : _controller.GetClubDisplayName(pending.OpponentClubId),
+            currentDay,
+            tactic.FormationName,
+            tactic.ApproachName,
+            training.HasPlan ? training.AverageFatigue : null,
+            training.HasPlan ? training.AverageFitness : null,
+            training.InjuredSlotCount,
+            tension);
+        _briefingLabel.Text = briefing.ToDisplayText();
 
         if (pending is null)
         {
-            _selectionLabel.Text = "Kadro onayı: vadesi gelmiş kendi maçın yok.";
+            _selectionLabel.Text = "Kadro: vadesi gelmiş maç yok.";
             _approveSelectionButton.Disabled = true;
             _swapSelectionButton.Disabled = true;
             return;
         }
 
-        var opponent = _controller.GetClubDisplayName(pending.OpponentClubId);
-        var venue = pending.IsHome ? "Ev" : "Dep";
-        var baseText = pending.IsApproved
-            ? $"Kadro onayı: hazır · fikstür #{pending.FixtureId} ({venue} vs {opponent})"
-            : $"Kadro onayı: gerekli · fikstür #{pending.FixtureId} ({venue} vs {opponent}, {pending.ScheduledIsoDate})";
-
-        var tension = _controller.Host.TeamPreparationModule.PromiseTension
-            .GetForNextDueMatch(currentDay);
-        if (tension is { HasTension: true })
-        {
-            var marker = string.Equals(
-                tension.ToneCode,
-                Application.TeamPreparation.Services.PreMatchPromiseTensionQueryService.ToneAtRisk,
-                StringComparison.Ordinal)
-                ? "[Risk] "
-                : "[Tamam] ";
-            _selectionLabel.Text = $"{baseText}\n{marker}{tension.Headline}";
-        }
-        else
-        {
-            _selectionLabel.Text = baseText;
-        }
-
+        _selectionLabel.Text = pending.IsApproved
+            ? "Kadro: onaylı — gerekirse XI↔Yedek ile dokun."
+            : "Kadro: onay gerekli — aşağıdaki butonlarla XI'yi kilitle.";
         _approveSelectionButton.Disabled = pending.IsApproved;
         _swapSelectionButton.Disabled = false;
     }
