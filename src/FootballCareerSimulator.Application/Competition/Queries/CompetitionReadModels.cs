@@ -34,6 +34,17 @@ public sealed record StandingEntryReadModel(
     int Points,
     int GoalDifference);
 
+public sealed record StandingStripEntryReadModel(
+    int Rank,
+    long ClubId,
+    int Points,
+    int Played,
+    bool IsManaged);
+
+public sealed record StandingStripReadModel(
+    IReadOnlyList<StandingStripEntryReadModel> Entries,
+    bool ManagedOutsideTop);
+
 public sealed record SeasonProgressReadModel(
     long SeasonId,
     string Status,

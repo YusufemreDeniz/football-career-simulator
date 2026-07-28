@@ -1608,19 +1608,39 @@ public partial class CareerHubScreen : Control
             return;
         }
 
-        var standings = _controller.Host.CompetitionModule.Queries.GetStandings(season.SeasonId);
-        if (standings.Count == 0)
+        var managedClubId = _controller.Host.ManagerModule.Queries.GetCareer().EmployedClubId;
+        var strip = _controller.Host.CompetitionModule.Queries.GetStandingsStrip(
+            season.SeasonId,
+            managedClubId);
+        if (strip.Entries.Count == 0)
         {
             _standingsLabel.Text = "Puan durumu: henüz maç yok";
             return;
         }
 
-        var preview = string.Join(
-            " | ",
-            standings.Take(5).Select((entry, index) =>
-                $"{index + 1}. {_controller.GetClubDisplayName(entry.ClubId)} {entry.Points}p ({entry.Played}M)"));
+        var parts = new List<string>();
+        var topLimit = strip.ManagedOutsideTop
+            ? strip.Entries.Count - 1
+            : strip.Entries.Count;
+        for (var i = 0; i < topLimit; i++)
+        {
+            parts.Add(FormatStripEntry(strip.Entries[i]));
+        }
 
-        _standingsLabel.Text = $"Puan durumu (ilk 5): {preview}";
+        if (strip.ManagedOutsideTop)
+        {
+            parts.Add("··");
+            parts.Add(FormatStripEntry(strip.Entries[^1]));
+        }
+
+        _standingsLabel.Text = $"Puan durumu: {string.Join(" · ", parts)}";
+    }
+
+    private string FormatStripEntry(Application.Competition.Queries.StandingStripEntryReadModel entry)
+    {
+        var name = _controller.GetClubDisplayName(entry.ClubId);
+        var mark = entry.IsManaged ? " (sen)" : string.Empty;
+        return $"{entry.Rank}. {name} {entry.Points}p ({entry.Played}M){mark}";
     }
 
     private static string TranslateExpectation(string? code) =>

@@ -69,6 +69,60 @@ public sealed class CompetitionQueryService
             .ToArray();
     }
 
+    public StandingStripReadModel GetStandingsStrip(
+        long seasonId,
+        long? managedClubId = null,
+        int topCount = 5)
+    {
+        if (topCount < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(topCount));
+        }
+
+        var standings = GetStandings(seasonId);
+        var ranked = standings
+            .Select((entry, index) => (
+                Rank: index + 1,
+                entry.ClubId,
+                entry.Points,
+                entry.Played,
+                IsManaged: managedClubId is long managed && managed == entry.ClubId))
+            .ToArray();
+
+        if (ranked.Length == 0)
+        {
+            return new StandingStripReadModel(Array.Empty<StandingStripEntryReadModel>(), false);
+        }
+
+        var top = ranked
+            .Take(topCount)
+            .Select(entry => new StandingStripEntryReadModel(
+                entry.Rank,
+                entry.ClubId,
+                entry.Points,
+                entry.Played,
+                entry.IsManaged))
+            .ToList();
+
+        var managedOutsideTop = false;
+        if (managedClubId is long clubId)
+        {
+            var managed = ranked.FirstOrDefault(entry => entry.ClubId == clubId);
+            if (managed.Rank > 0 && managed.Rank > topCount)
+            {
+                managedOutsideTop = true;
+                top.Add(new StandingStripEntryReadModel(
+                    managed.Rank,
+                    managed.ClubId,
+                    managed.Points,
+                    managed.Played,
+                    IsManaged: true));
+            }
+        }
+
+        return new StandingStripReadModel(top, managedOutsideTop);
+    }
+
     public SeasonProgressReadModel? GetSeasonProgress(long seasonId)
     {
         var season = FindSeason(seasonId);
