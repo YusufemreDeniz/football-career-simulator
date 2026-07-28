@@ -194,7 +194,7 @@ public sealed class CareerPresentationHost
             worldModule.OpenTransferWindow,
             worldModule.CloseTransferWindow,
             .. competitionModule.IdempotencyResets,
-            teamPreparation.IdempotencyReset,
+            .. teamPreparation.IdempotencyResets,
             training.IdempotencyReset,
             .. managerModule.IdempotencyResets,
         ];

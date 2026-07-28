@@ -50,6 +50,7 @@ public partial class CareerHubScreen : Control
     private ItemList _fixtureList = null!;
     private ItemList _squadList = null!;
     private Button _approveSelectionButton = null!;
+    private Button _swapSelectionButton = null!;
     private Button _generateOfferButton = null!;
     private Button _acceptOfferButton = null!;
     private Button _signFreeAgentButton = null!;
@@ -280,6 +281,11 @@ public partial class CareerHubScreen : Control
         _approveSelectionButton = PrimaryButton("Kadro Onayla");
         _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
         primaryRow.AddChild(_approveSelectionButton);
+
+        _swapSelectionButton = SecondaryButton("XI↔Yedek");
+        _swapSelectionButton.Pressed += () =>
+            Apply(_controller.SwapLastStarterWithFirstBenchForNextDueMatch());
+        primaryRow.AddChild(_swapSelectionButton);
 
         _playButton = PrimaryButton("Bugünün Maçlarını Oyna");
         _playButton.Pressed += OnPlayMatches;
@@ -1415,6 +1421,7 @@ public partial class CareerHubScreen : Control
         {
             _selectionLabel.Text = "Kadro onayı: vadesi gelmiş kendi maçın yok.";
             _approveSelectionButton.Disabled = true;
+            _swapSelectionButton.Disabled = true;
             return;
         }
 
@@ -1424,6 +1431,7 @@ public partial class CareerHubScreen : Control
             ? $"Kadro onayı: hazır · fikstür #{pending.FixtureId} ({venue} vs {opponent})"
             : $"Kadro onayı: gerekli · fikstür #{pending.FixtureId} ({venue} vs {opponent}, {pending.ScheduledIsoDate})";
         _approveSelectionButton.Disabled = pending.IsApproved;
+        _swapSelectionButton.Disabled = false;
     }
 
     private void UpdatePrimaryHints(int dueMatchCount, bool canAdvance)

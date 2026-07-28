@@ -19,6 +19,8 @@ public sealed class TeamPreparationModule
         ClubSquadService? clubSquadService,
         TacticPlanService tacticPlans,
         ApproveDefaultMatchSelectionHandler approveDefaultSelection,
+        ApproveMatchSelectionHandler approveSelection,
+        SwapStarterWithBenchHandler swapStarterWithBench,
         MatchSelectionQueryService selectionQueries,
         SquadQueryService squadQueries,
         TacticPlanQueryService tacticQueries)
@@ -29,9 +31,17 @@ public sealed class TeamPreparationModule
         ClubSquad = clubSquadService;
         TacticPlans = tacticPlans;
         ApproveDefaultSelection = approveDefaultSelection;
+        ApproveSelection = approveSelection;
+        SwapStarterWithBench = swapStarterWithBench;
         SelectionQueries = selectionQueries;
         SquadQueries = squadQueries;
         TacticQueries = tacticQueries;
+        IdempotencyResets =
+        [
+            approveDefaultSelection,
+            approveSelection,
+            swapStarterWithBench,
+        ];
     }
 
     public IMatchSelectionStore SelectionStore { get; }
@@ -46,11 +56,17 @@ public sealed class TeamPreparationModule
 
     public ApproveDefaultMatchSelectionHandler ApproveDefaultSelection { get; }
 
+    public ApproveMatchSelectionHandler ApproveSelection { get; }
+
+    public SwapStarterWithBenchHandler SwapStarterWithBench { get; }
+
     public MatchSelectionQueryService SelectionQueries { get; }
 
     public SquadQueryService SquadQueries { get; }
 
     public TacticPlanQueryService TacticQueries { get; }
+
+    public IReadOnlyList<ICommandIdempotencyReset> IdempotencyResets { get; }
 
     public ICommandIdempotencyReset IdempotencyReset => ApproveDefaultSelection;
 
@@ -81,6 +97,18 @@ public sealed class TeamPreparationModule
             clubSquadService,
             new TacticPlanService(tactics),
             new ApproveDefaultMatchSelectionHandler(
+                store,
+                competitionStore,
+                trainingStore,
+                timelineStore,
+                clubSquadStore),
+            new ApproveMatchSelectionHandler(
+                store,
+                competitionStore,
+                trainingStore,
+                timelineStore,
+                clubSquadStore),
+            new SwapStarterWithBenchHandler(
                 store,
                 competitionStore,
                 trainingStore,

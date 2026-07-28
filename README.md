@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Interaction + Reputation (v37) + blowout PressQuestion + **Promise Broken → otomatik PlayingTime/StartingOpportunity DecisionRequest** kilitlenmiştir. Sıradaki aday: Team Preparation derinliği; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + Interaction otomatik tetikleyiciler + **Team Preparation: özel kadro onayı / XI↔yedek değişimi + sakatın XI’ye sert reddi** kilitlenmiştir. Sıradaki aday: Training/Physical derinliği veya Event & Rule iskeleti; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

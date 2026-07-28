@@ -148,6 +148,40 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult SwapLastStarterWithFirstBenchForNextDueMatch()
+    {
+        try
+        {
+            var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+            var pending = Host.TeamPreparationModule.SelectionQueries.GetNextDueManagedFixture(currentDay)
+                ?? throw new InvalidOperationException("Değiştirilecek vadesi gelmiş maç yok.");
+
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+
+            var result = Host.TeamPreparationModule.SwapStarterWithBench.Handle(
+                new SwapStarterWithBenchCommand(
+                    Guid.NewGuid(),
+                    pending.FixtureId,
+                    clubId,
+                    StartingIndex: MatchSelection.StartingXiSize - 1,
+                    BenchIndex: 0));
+
+            return UiActionResult.Ok(
+                $"Kadro değişti: fikstür #{result.FixtureId}"
+                + $" · XI[{MatchSelection.StartingXiSize - 1}]={result.StartingSlotIndices[^1]}"
+                + $" · Yedek[0]={result.BenchSlotIndices[0]}.");
+        }
+        catch (TeamPreparationInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Kadro değiştirilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Kadro değişim hatası: {ex.Message}");
+        }
+    }
+
     public UiActionResult GenerateJobOffer()
     {
         try
