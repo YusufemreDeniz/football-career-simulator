@@ -51,6 +51,12 @@ public sealed record AdvanceSimulationTimeResult
     /// <summary>Broken promise sonrası açılan kriz kararı sayısı.</summary>
     public int PromiseBrokenCrisisOpenedCount { get; init; }
 
+    /// <summary>DayBoundaryObserved → zayıflatılan hafıza kaydı sayısı.</summary>
+    public int MemoriesDecayedCount { get; init; }
+
+    /// <summary>DayBoundaryObserved → süresi dolan karar talebi sayısı.</summary>
+    public int DecisionsExpiredCount { get; init; }
+
     public static AdvanceSimulationTimeResult Blocked(
         int currentDayNumber,
         IReadOnlyList<TimeAdvanceBlockedItem> blockers) =>
@@ -74,6 +80,8 @@ public sealed record AdvanceSimulationTimeResult
             NewlyFreeAgentPlayerIds = Array.Empty<long>(),
             PromiseDeadlineResolvedCount = 0,
             PromiseBrokenCrisisOpenedCount = 0,
+            MemoriesDecayedCount = 0,
+            DecisionsExpiredCount = 0,
         };
 
     public static AdvanceSimulationTimeResult Advanced(
@@ -91,7 +99,9 @@ public sealed record AdvanceSimulationTimeResult
         IReadOnlyList<long>? contractExpiryAffectedClubIds = null,
         IReadOnlyList<long>? newlyFreeAgentPlayerIds = null,
         int promiseDeadlineResolvedCount = 0,
-        int promiseBrokenCrisisOpenedCount = 0) =>
+        int promiseBrokenCrisisOpenedCount = 0,
+        int memoriesDecayedCount = 0,
+        int decisionsExpiredCount = 0) =>
         new()
         {
             Succeeded = true,
@@ -112,6 +122,8 @@ public sealed record AdvanceSimulationTimeResult
             NewlyFreeAgentPlayerIds = newlyFreeAgentPlayerIds ?? Array.Empty<long>(),
             PromiseDeadlineResolvedCount = promiseDeadlineResolvedCount,
             PromiseBrokenCrisisOpenedCount = promiseBrokenCrisisOpenedCount,
+            MemoriesDecayedCount = memoriesDecayedCount,
+            DecisionsExpiredCount = decisionsExpiredCount,
         };
 }
 

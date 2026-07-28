@@ -2,6 +2,7 @@ namespace FootballCareerSimulator.Application.WorldCalendar.Services;
 
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
+using FootballCareerSimulator.Application.Interaction.Services;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -18,6 +19,8 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
     private readonly DueScheduledEvaluationProcessor? _dueProcessor;
     private ContractExpiryDayBoundaryApplier? _contractExpiry;
     private PromiseDeadlineDayBoundaryApplier? _promiseDeadlines;
+    private MemoryDecayDayBoundaryApplier? _memoryDecay;
+    private DecisionExpireDayBoundaryApplier? _decisionExpire;
     private readonly Dictionary<Guid, AdvanceSimulationTimeResult> _completedCommands = new();
 
     public AdvanceSimulationTimeHandler(
@@ -39,6 +42,12 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
 
     public void BindPromiseDeadlineConsequences(PromiseDeadlineDayBoundaryApplier applier) =>
         _promiseDeadlines = applier ?? throw new ArgumentNullException(nameof(applier));
+
+    public void BindMemoryDecayConsequences(MemoryDecayDayBoundaryApplier applier) =>
+        _memoryDecay = applier ?? throw new ArgumentNullException(nameof(applier));
+
+    public void BindDecisionExpireConsequences(DecisionExpireDayBoundaryApplier applier) =>
+        _decisionExpire = applier ?? throw new ArgumentNullException(nameof(applier));
 
     public AdvanceSimulationTimeResult Handle(AdvanceSimulationTimeCommand command)
     {
@@ -101,6 +110,8 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
         IReadOnlyList<long> freeAgents = Array.Empty<long>();
         var promisesResolved = 0;
         var promiseCrises = 0;
+        var memoriesDecayed = 0;
+        var decisionsExpired = 0;
         if (_eventEvaluation is not null)
         {
             var evaluated = _eventEvaluation.Evaluate(
@@ -129,6 +140,16 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
                 var deadlines = _promiseDeadlines.ApplyFromReactions(evaluated.ReactionIntents);
                 promisesResolved = deadlines.ResolvedCount;
                 promiseCrises = deadlines.CrisisOpenedCount;
+            }
+
+            if (_memoryDecay is not null)
+            {
+                memoriesDecayed = _memoryDecay.ApplyFromReactions(evaluated.ReactionIntents);
+            }
+
+            if (_decisionExpire is not null)
+            {
+                decisionsExpired = _decisionExpire.ApplyFromReactions(evaluated.ReactionIntents);
             }
 
             if (_reactionScheduler is not null)
@@ -164,7 +185,9 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
             affectedClubs,
             freeAgents,
             promisesResolved,
-            promiseCrises);
+            promiseCrises,
+            memoriesDecayed,
+            decisionsExpired);
 
         _completedCommands[command.CommandId] = result;
         return result;

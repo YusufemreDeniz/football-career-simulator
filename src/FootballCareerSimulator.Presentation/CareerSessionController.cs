@@ -1507,8 +1507,8 @@ public sealed class CareerSessionController
 
         var crisisOpened = result.PromiseBrokenCrisisOpenedCount;
         var promiseResolved = result.PromiseDeadlineResolvedCount;
-        var memoriesDecayed = Host.SocialContinuityModule.MemoryDecay.ApplyDue(day);
-        var decisionsExpired = Host.InteractionModule.Decisions.ExpireDue(day);
+        var memoriesDecayed = result.MemoriesDecayedCount;
+        var decisionsExpired = result.DecisionsExpiredCount;
 
         var extras = new List<string>();
         if (declined > 0)

@@ -11,11 +11,11 @@ using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
 using FootballCareerSimulator.Application.SocialContinuity.Composition;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
-using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.Transfer.Composition;
 using FootballCareerSimulator.Application.Transfer.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
@@ -182,6 +182,14 @@ public sealed class CareerPresentationHost
                 socialContinuity.StartingOpportunity,
                 eventRuleForBind.Gate,
                 interactionModule.PromiseBroken));
+        worldModule.AdvanceSimulationTime.BindMemoryDecayConsequences(
+            new MemoryDecayDayBoundaryApplier(
+                socialContinuity.MemoryDecay,
+                eventRuleForBind.Gate));
+        worldModule.AdvanceSimulationTime.BindDecisionExpireConsequences(
+            new DecisionExpireDayBoundaryApplier(
+                interactionModule.Decisions,
+                eventRuleForBind.Gate));
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,
