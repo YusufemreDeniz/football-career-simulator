@@ -2070,13 +2070,57 @@ public sealed class CareerSessionController
         return seasons.Max(season => season.SeasonId.Value) + 1;
     }
 
+    public SaveDeskDigest BuildSaveDeskDigest()
+    {
+        var path = Host.DefaultSavePath;
+        var exists = File.Exists(path);
+        DateTimeOffset? stamp = null;
+        if (exists)
+        {
+            stamp = File.GetLastWriteTimeUtc(path);
+        }
+
+        var day = Host.WorldModule.Queries.GetCurrentGameDate();
+        var manager = Host.ManagerModule.Queries.GetCareer();
+        string? clubName = manager.EmployedClubId is long clubId
+            ? GetClubDisplayName(clubId)
+            : null;
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        long? seasonId = season?.SeasonId;
+        string? seasonStatus = season?.Status;
+        var accepted = 0;
+        var total = 0;
+        if (season is not null)
+        {
+            var progress = Host.CompetitionModule.Queries.GetSeasonProgress(season.SeasonId);
+            accepted = progress?.AcceptedFixtureCount ?? 0;
+            total = progress?.TotalFixtureCount ?? season.FixtureCount;
+        }
+
+        return SaveDeskDigest.Compose(
+            path,
+            exists,
+            stamp,
+            day.DayNumber,
+            day.IsoDate,
+            manager.DisplayName,
+            clubName,
+            seasonId,
+            seasonStatus,
+            accepted,
+            total);
+    }
+
     public UiActionResult SaveGame()
     {
         try
         {
             var result = Host.GameSession.Save(Host.DefaultSavePath);
+            var desk = BuildSaveDeskDigest();
             return UiActionResult.Ok(
-                $"Kayıt tamam: gün {result.SavedDayNumber}, {result.SavedFixtureCount} maç.\n{result.SavePath}");
+                $"Kayıt Masası\nKariyer diske işlendi — gün {result.SavedDayNumber}, {result.SavedFixtureCount} maç."
+                + $"\n· {result.SavePath}"
+                + $"\nÖneri: {desk.AdviceLine}");
         }
         catch (Exception ex)
         {
@@ -2090,13 +2134,15 @@ public sealed class CareerSessionController
         {
             if (!File.Exists(Host.DefaultSavePath))
             {
-                return UiActionResult.Fail("Kayıt dosyası bulunamadı.");
+                return UiActionResult.Fail(
+                    "Kayıt Masası\nDiskte kayıt yok — önce Kaydet.");
             }
 
             var result = Host.GameSession.Load(Host.DefaultSavePath);
             var migrateNote = result.WasMigrated ? " (şema migrate edildi)" : string.Empty;
             return UiActionResult.Ok(
-                $"Yükleme tamam{migrateNote}: gün {result.LoadedDayNumber}, {result.LoadedFixtureCount} maç.");
+                $"Kayıt Masası\nYükleme tamam{migrateNote}: gün {result.LoadedDayNumber}, {result.LoadedFixtureCount} maç."
+                + "\nÖneri: Bugün nabzına bak — ofis ve maç durumunu doğrula.");
         }
         catch (Exception ex)
         {

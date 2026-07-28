@@ -53,6 +53,9 @@ public partial class CareerHubScreen : Control
     private Label _standingsLabel = null!;
     private Label _leagueBriefingLabel = null!;
     private Label _statusLabel = null!;
+    private Label _saveDeskLabel = null!;
+    private Button _saveGameButton = null!;
+    private Button _loadGameButton = null!;
     private SpinBox _roundSelector = null!;
     private ItemList _fixtureList = null!;
     private ItemList _squadList = null!;
@@ -816,17 +819,20 @@ public partial class CareerHubScreen : Control
     {
         var page = PageRoot();
         page.AddChild(SectionTitle("Dosya"));
+        _saveDeskLabel = BodyLabel("SaveDeskLabel", autowrap: true);
+        page.AddChild(_saveDeskLabel);
+
         var saveLoadRow = new HBoxContainer();
         saveLoadRow.AddThemeConstantOverride("separation", 8);
         page.AddChild(saveLoadRow);
 
-        var saveButton = SecondaryButton("Kaydet");
-        saveButton.Pressed += () => Apply(_controller.SaveGame());
-        saveLoadRow.AddChild(saveButton);
+        _saveGameButton = PrimaryButton("Kaydet");
+        _saveGameButton.Pressed += () => Apply(_controller.SaveGame());
+        saveLoadRow.AddChild(_saveGameButton);
 
-        var loadButton = SecondaryButton("Yükle");
-        loadButton.Pressed += () => Apply(_controller.LoadGame());
-        saveLoadRow.AddChild(loadButton);
+        _loadGameButton = SecondaryButton("Yükle");
+        _loadGameButton.Pressed += () => Apply(_controller.LoadGame());
+        saveLoadRow.AddChild(_loadGameButton);
 
         var menuButton = SecondaryButton("Ana Menü");
         menuButton.Pressed += () => BackToMenuRequested?.Invoke();
@@ -972,6 +978,7 @@ public partial class CareerHubScreen : Control
             RefreshContractProposalStatus();
             RefreshTacticStatus();
             RefreshSquadList();
+            RefreshSaveDesk();
             UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
             UpdateJobOfferButtons(manager);
             UpdateTransferNeedButtons(manager);
@@ -1012,6 +1019,7 @@ public partial class CareerHubScreen : Control
         RefreshStandings();
         RefreshFixtureList();
         RefreshSquadList();
+        RefreshSaveDesk();
 
         var dueCount = competition.Queries
             .GetSeasonFixtures(season.SeasonId)
@@ -1024,6 +1032,21 @@ public partial class CareerHubScreen : Control
         UpdateTransferNeedButtons(manager);
         UpdateTrainingButtons(manager);
         UpdateTacticButtons(manager);
+        UpdateSaveDeskButtons();
+    }
+
+    private void RefreshSaveDesk()
+    {
+        var desk = _controller.BuildSaveDeskDigest();
+        _saveDeskLabel.Text = desk.ToDisplayText();
+        UpdateSaveDeskButtons();
+    }
+
+    private void UpdateSaveDeskButtons()
+    {
+        var exists = _controller.SaveFileExists();
+        _loadGameButton.Disabled = !exists;
+        _loadGameButton.Text = exists ? "Yükle" : "Yükle (kayıt yok)";
     }
 
     private void RefreshTransferWindowStatus()
