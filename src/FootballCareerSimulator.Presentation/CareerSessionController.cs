@@ -1278,6 +1278,7 @@ public sealed class CareerSessionController
             }
 
             var lines = new List<string>(dueFixtures.Length);
+            var invalidatedTotal = 0;
             foreach (var fixture in dueFixtures)
             {
                 var result = playHandler.Handle(
@@ -1290,11 +1291,15 @@ public sealed class CareerSessionController
                 var home = GetClubDisplayName(fixture.HomeClubId);
                 var away = GetClubDisplayName(fixture.AwayClubId);
                 lines.Add($"{home} {result.HomeGoals}-{result.AwayGoals} {away}");
+                invalidatedTotal += result.InvalidatedSelectionCount;
             }
 
+            var invalidatedNote = invalidatedTotal > 0
+                ? $" · kadro onayı düştü ({invalidatedTotal})"
+                : string.Empty;
             return new PlayMatchesUiResult(
                 true,
-                $"{lines.Count} maç oynandı (gün {currentDay}).",
+                $"{lines.Count} maç oynandı (gün {currentDay}){invalidatedNote}.",
                 lines);
         }
         catch (TeamPreparationInvariantViolationException ex)

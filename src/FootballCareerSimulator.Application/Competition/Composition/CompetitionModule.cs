@@ -10,6 +10,7 @@ using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
@@ -172,6 +173,14 @@ public sealed class CompetitionModule
         var planLeagueFixtures = new PlanLeagueFixturesHandler(store);
         var completeSeason = new CompleteSeasonHandler(store);
         var archiveSeason = new ArchiveSeasonHandler(store);
+        MatchSelectionAvailabilityRevalidationService? selectionRevalidation = null;
+        if (matchSelectionStore is not null && trainingStore is not null)
+        {
+            selectionRevalidation = new MatchSelectionAvailabilityRevalidationService(
+                matchSelectionStore,
+                trainingStore);
+        }
+
         var playFixtureMatch = new PlayFixtureMatchHandler(
             store,
             clubRegistryStore,
@@ -191,7 +200,8 @@ public sealed class CompetitionModule
             clubHistoryMemory,
             matchPerformanceMemory,
             relationships,
-            postMatchPress);
+            postMatchPress,
+            selectionRevalidation);
 
         return new CompetitionModule(
             store,

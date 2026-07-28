@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Interaction + **Team Preparation: sakat starter → onaylı kadro düşer / maç sert reddeder** kilitlenmiştir. Sıradaki aday: Training/Physical derinliği veya Event & Rule iskeleti; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + **maç/antrenman sonrası sakat starter → onaylı kadro düşer** kilitlenmiştir. Sıradaki aday: Training Focus/Rest hub derinliği veya Event & Rule iskeleti; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

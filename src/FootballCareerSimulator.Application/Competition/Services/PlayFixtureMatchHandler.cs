@@ -1,5 +1,3 @@
-namespace FootballCareerSimulator.Application.Competition.Services;
-
 using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Ports;
@@ -9,6 +7,7 @@ using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
@@ -21,6 +20,8 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.Match;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
+
+namespace FootballCareerSimulator.Application.Competition.Services;
 
 public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 {
@@ -43,6 +44,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly MatchPerformanceMemoryService? _matchPerformanceMemory;
     private readonly RelationshipEvaluationService? _relationships;
     private readonly PostMatchPressDecisionTrigger? _postMatchPress;
+    private readonly MatchSelectionAvailabilityRevalidationService? _selectionRevalidation;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -64,7 +66,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         ClubHistoryMemoryService? clubHistoryMemory = null,
         MatchPerformanceMemoryService? matchPerformanceMemory = null,
         RelationshipEvaluationService? relationships = null,
-        PostMatchPressDecisionTrigger? postMatchPress = null)
+        PostMatchPressDecisionTrigger? postMatchPress = null,
+        MatchSelectionAvailabilityRevalidationService? selectionRevalidation = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -85,6 +88,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _matchPerformanceMemory = matchPerformanceMemory;
         _relationships = relationships;
         _postMatchPress = postMatchPress;
+        _selectionRevalidation = selectionRevalidation;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -148,6 +152,17 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         ApplyRelationshipSelectionEffects(fixture, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
+        var invalidated = 0;
+        if (_selectionRevalidation is not null)
+        {
+            invalidated += _selectionRevalidation.InvalidateUnavailableForClub(
+                fixture.HomeClubId,
+                occurredAt);
+            invalidated += _selectionRevalidation.InvalidateUnavailableForClub(
+                fixture.AwayClubId,
+                occurredAt);
+        }
+
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
             _competitionStore,
             command.SeasonId);
@@ -160,7 +175,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             command.FixtureId,
             score.HomeGoals,
             score.AwayGoals,
-            nameof(FixtureStatus.ResultAccepted));
+            nameof(FixtureStatus.ResultAccepted),
+            invalidated);
 
         _completedCommands[command.CommandId] = result;
         return result;

@@ -65,10 +65,16 @@ public sealed class MatchSelectionAvailabilityRevalidationTests
         return (competition, teamPrep, training, revalidation);
     }
 
-    private static long ManagedFixtureId(CompetitionModule competition) =>
+    private static long[] ManagedFixtureIds(CompetitionModule competition) =>
         competition.Queries.GetSeasonFixtures(1)
-            .First(fixture => fixture.HomeClubId == 1 || fixture.AwayClubId == 1)
-            .FixtureId;
+            .Where(fixture => fixture.HomeClubId == 1 || fixture.AwayClubId == 1)
+            .OrderBy(fixture => fixture.ScheduledDayNumber)
+            .ThenBy(fixture => fixture.FixtureId)
+            .Select(fixture => fixture.FixtureId)
+            .ToArray();
+
+    private static long ManagedFixtureId(CompetitionModule competition) =>
+        ManagedFixtureIds(competition)[0];
 
     [Fact]
     public void Invalidate_RemovesSelection_WhenStarterBecomesUnavailable()
@@ -143,5 +149,54 @@ public sealed class MatchSelectionAvailabilityRevalidationTests
                 new PlayFixtureMatchCommand(Guid.NewGuid(), 1, fixtureId, Day.DayNumber)));
 
         Assert.Contains("unavailable slot", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void PlayFixture_InvalidatesLaterSelection_WhenBenchPlayerIsInjuredStarterElsewhere()
+    {
+        var (competition, teamPrep, training, _) = CreateStack();
+        var managed = ManagedFixtureIds(competition);
+        Assert.True(managed.Length >= 2, "Need at least two managed fixtures.");
+
+        var firstFixtureId = managed[0];
+        var laterFixtureId = managed[1];
+
+        var firstStarting = Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
+        var firstBench = Enumerable.Range(MatchSelection.StartingXiSize, MatchSelection.MaxBenchSize)
+            .ToArray();
+        var laterStarting = new[] { 11 }.Concat(Enumerable.Range(0, MatchSelection.StartingXiSize - 1))
+            .ToArray();
+        var laterBench = Enumerable.Range(12, MatchSelection.MaxBenchSize).ToArray();
+
+        teamPrep.ApproveSelection.Handle(
+            new ApproveMatchSelectionCommand(
+                Guid.NewGuid(),
+                firstFixtureId,
+                ClubId: 1,
+                firstStarting,
+                firstBench));
+        teamPrep.ApproveSelection.Handle(
+            new ApproveMatchSelectionCommand(
+                Guid.NewGuid(),
+                laterFixtureId,
+                ClubId: 1,
+                laterStarting,
+                laterBench));
+
+        var clubId = new ClubId(1);
+        training.Store.ReplacePhysicalStatesForClub(
+            clubId,
+            [
+                PlayerPhysicalState.CreateRested(clubId, 11)
+                    .WithInjury(InjurySeverity.Serious, Day.AddDays(10)),
+            ]);
+
+        var result = competition.PlayFixtureMatch!.Handle(
+            new PlayFixtureMatchCommand(Guid.NewGuid(), 1, firstFixtureId, Day.DayNumber));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(1, result.InvalidatedSelectionCount);
+        Assert.False(teamPrep.SelectionQueries.IsApproved(firstFixtureId, 1));
+        Assert.False(teamPrep.SelectionQueries.IsApproved(laterFixtureId, 1));
     }
 }

@@ -76,4 +76,5 @@ public sealed record PlayFixtureMatchResult(
     long FixtureId,
     int HomeGoals,
     int AwayGoals,
-    string Status);
+    string Status,
+    int InvalidatedSelectionCount = 0);
