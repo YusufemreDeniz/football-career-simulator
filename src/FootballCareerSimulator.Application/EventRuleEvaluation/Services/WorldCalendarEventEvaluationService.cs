@@ -83,6 +83,8 @@ public sealed class WorldCalendarEventEvaluationService
         GameTimeAdvanced => nameof(GameTimeAdvanced),
         PlanningPeriodStarted => nameof(PlanningPeriodStarted),
         PlanningPeriodCompleted => nameof(PlanningPeriodCompleted),
+        TransferWindowOpened => nameof(TransferWindowOpened),
+        TransferWindowClosed => nameof(TransferWindowClosed),
         _ => domainEvent.GetType().Name,
     };
 }

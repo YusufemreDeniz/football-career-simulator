@@ -82,9 +82,8 @@ public sealed class WorldCalendarModule
         var aggregator = new TimeAdvanceBlockerAggregator(sources);
         var openPlanningHandler = new OpenPlanningPeriodHandler(store);
         var completePlanningHandler = new CompletePlanningPeriodHandler(store);
-        var openWindowHandler = new OpenTransferWindowHandler(store);
-        var closeWindowHandler = new CloseTransferWindowHandler(store);
-        var eventRule = EventRuleEvaluationModule.CreateForWorldCalendar(store, closeWindowHandler);
+        var (eventRule, closeWindowHandler, openWindowHandler) =
+            EventRuleEvaluationModule.CreateWiredToWorldCalendar(store);
         var advanceHandler = new AdvanceSimulationTimeHandler(
             store,
             aggregator,

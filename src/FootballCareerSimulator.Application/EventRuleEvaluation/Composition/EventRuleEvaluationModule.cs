@@ -56,25 +56,36 @@ public sealed class EventRuleEvaluationModule : ICommandIdempotencyReset
         var gate = new EventEffectIdempotencyGate(registry);
         var reactions = new ReactionRuleDispatcher(
             gate,
-            [new ObserveGameDayStartedReactionRule()]);
+            [
+                new ObserveGameDayStartedReactionRule(),
+                new ObserveTransferWindowClosedReactionRule(),
+            ]);
         var evaluation = new WorldCalendarEventEvaluationService(gate, reactions);
         var scheduleStore = new InMemoryScheduledEvaluationStore();
         return new EventRuleEvaluationModule(registry, gate, reactions, evaluation, scheduleStore);
     }
 
-    public static EventRuleEvaluationModule CreateForWorldCalendar(
-        IWorldTimelineStore timelineStore,
-        CloseTransferWindowHandler closeTransferWindow)
+    public static (
+        EventRuleEvaluationModule Module,
+        CloseTransferWindowHandler CloseTransferWindow,
+        OpenTransferWindowHandler OpenTransferWindow) CreateWiredToWorldCalendar(
+        IWorldTimelineStore timelineStore)
     {
         var module = Create();
+        var closeHandler = new CloseTransferWindowHandler(
+            timelineStore,
+            module.WorldCalendarEvaluation);
+        var openHandler = new OpenTransferWindowHandler(
+            timelineStore,
+            module.WorldCalendarEvaluation);
         var scheduler = new TransferWindowCloseReactionScheduler(
             timelineStore,
             module.ScheduledEvaluationStore);
         var dueProcessor = new DueScheduledEvaluationProcessor(
             module.ScheduledEvaluationStore,
             timelineStore,
-            closeTransferWindow);
-        return new EventRuleEvaluationModule(
+            closeHandler);
+        var wired = new EventRuleEvaluationModule(
             module.Registry,
             module.Gate,
             module.ReactionDispatcher,
@@ -82,5 +93,6 @@ public sealed class EventRuleEvaluationModule : ICommandIdempotencyReset
             module.ScheduledEvaluationStore,
             scheduler,
             dueProcessor);
+        return (wired, closeHandler, openHandler);
     }
 }

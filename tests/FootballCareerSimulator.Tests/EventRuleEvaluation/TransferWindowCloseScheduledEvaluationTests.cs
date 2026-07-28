@@ -4,6 +4,7 @@ using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.EventRuleEvaluation;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Domain.WorldCalendar.Events;
 
 namespace FootballCareerSimulator.Tests.EventRuleEvaluation;
 
@@ -61,5 +62,59 @@ public sealed class TransferWindowCloseScheduledEvaluationTests
         Assert.Equal(0, result.ScheduledEvaluationCount);
         Assert.Equal(0, result.TransferWindowsClosedBySchedule);
         Assert.True(module.TimelineStore.Timeline.TransferWindow.IsOpen);
+    }
+}
+
+public sealed class TransferWindowEventEvaluationTests
+{
+    [Fact]
+    public void CloseTransferWindow_EvaluatesTransferWindowClosed_AndEmitsReaction()
+    {
+        var start = GameDate.FromCalendarDate(2026, 7, 1);
+        var module = WorldCalendarModule.Create(start, rootSeed: 33);
+        Assert.True(module.TimelineStore.Timeline.TransferWindow.IsOpen);
+
+        var result = module.CloseTransferWindow.Handle(new CloseTransferWindowCommand(Guid.NewGuid()));
+
+        Assert.False(result.IsOpen);
+        Assert.Equal(1, result.AppliedEffectCount);
+        Assert.Equal(1, result.ReactionIntentCount);
+        Assert.Contains(nameof(TransferWindowClosed), result.RaisedEventTypes!);
+        Assert.Contains(
+            ObserveTransferWindowClosedReactionRule.Id,
+            string.Join('|', module.EventRuleEvaluation!.Registry.SnapshotKeys()));
+    }
+
+    [Fact]
+    public void OpenTransferWindow_EvaluatesTransferWindowOpened()
+    {
+        var start = GameDate.FromCalendarDate(2026, 7, 1);
+        var module = WorldCalendarModule.Create(start, rootSeed: 34);
+        module.CloseTransferWindow.Handle(new CloseTransferWindowCommand(Guid.NewGuid()));
+
+        var result = module.OpenTransferWindow.Handle(
+            new OpenTransferWindowCommand(Guid.NewGuid(), start.AddDays(10).DayNumber));
+
+        Assert.True(result.IsOpen);
+        Assert.Equal(1, result.AppliedEffectCount);
+        Assert.Contains(nameof(TransferWindowOpened), result.RaisedEventTypes!);
+    }
+
+    [Fact]
+    public void Advance_ScheduledClose_AlsoEvaluatesTransferWindowClosed()
+    {
+        var start = GameDate.FromCalendarDate(2026, 7, 1);
+        var closesOn = GameDate.FromCalendarDate(2026, 7, 2);
+        var module = WorldCalendarModule.Create(start, rootSeed: 35);
+        module.CloseTransferWindow.Handle(new CloseTransferWindowCommand(Guid.NewGuid()));
+        module.OpenTransferWindow.Handle(
+            new OpenTransferWindowCommand(Guid.NewGuid(), closesOn.DayNumber));
+
+        module.AdvanceSimulationTime.Handle(
+            new AdvanceSimulationTimeCommand(Guid.NewGuid(), closesOn.DayNumber));
+
+        Assert.Contains(
+            ObserveTransferWindowClosedReactionRule.Id,
+            string.Join('|', module.EventRuleEvaluation!.Registry.SnapshotKeys()));
     }
 }
