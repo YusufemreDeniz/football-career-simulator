@@ -96,7 +96,7 @@ public sealed class StartingOpportunityPromiseService
         return updated;
     }
 
-    public int EvaluateDeadlines(GameDate day)
+    public int EvaluateDeadlines(GameDate day, Action<Promise>? onResolved = null)
     {
         var resolved = 0;
         foreach (var promise in _store.Promises.Where(p => p.IsActive).ToArray())
@@ -107,6 +107,7 @@ public sealed class StartingOpportunityPromiseService
                 _store.Upsert(next);
                 resolved++;
                 TryRecordMemory(next, day);
+                onResolved?.Invoke(next);
             }
         }
 

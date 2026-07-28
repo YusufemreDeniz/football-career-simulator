@@ -1298,7 +1298,16 @@ public sealed class CareerSessionController
             Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
         }
 
-        var promiseResolved = Host.SocialContinuityModule.StartingOpportunity.EvaluateDeadlines(day);
+        var crisisOpened = 0;
+        var promiseResolved = Host.SocialContinuityModule.StartingOpportunity.EvaluateDeadlines(
+            day,
+            promise =>
+            {
+                if (Host.InteractionModule.PromiseBroken.TryOpenAfterBroken(promise, day) is not null)
+                {
+                    crisisOpened++;
+                }
+            });
         var memoriesDecayed = Host.SocialContinuityModule.MemoryDecay.ApplyDue(day);
         var decisionsExpired = Host.InteractionModule.Decisions.ExpireDue(day);
 
@@ -1317,6 +1326,11 @@ public sealed class CareerSessionController
         if (promiseResolved > 0)
         {
             extras.Add($"söz sonuç: {promiseResolved}");
+        }
+
+        if (crisisOpened > 0)
+        {
+            extras.Add($"söz ihlali kararı: {crisisOpened}");
         }
 
         if (memoriesDecayed > 0)

@@ -23,7 +23,8 @@ public sealed class InteractionModule
         DialogueSessionService dialogueSessions,
         DisciplinaryActionService discipline,
         DecisionRequestTimeAdvanceBlockerSource timeAdvanceBlocker,
-        PostMatchPressDecisionTrigger postMatchPress)
+        PostMatchPressDecisionTrigger postMatchPress,
+        PromiseBrokenDecisionTrigger promiseBroken)
     {
         DecisionRequestStore = decisionRequestStore;
         DialogueSessionStore = dialogueSessionStore;
@@ -35,6 +36,7 @@ public sealed class InteractionModule
         Discipline = discipline;
         TimeAdvanceBlocker = timeAdvanceBlocker;
         PostMatchPress = postMatchPress;
+        PromiseBroken = promiseBroken;
     }
 
     public IDecisionRequestStore DecisionRequestStore { get; }
@@ -56,6 +58,8 @@ public sealed class InteractionModule
     public DecisionRequestTimeAdvanceBlockerSource TimeAdvanceBlocker { get; }
 
     public PostMatchPressDecisionTrigger PostMatchPress { get; }
+
+    public PromiseBrokenDecisionTrigger PromiseBroken { get; }
 
     public static InteractionModule Create(
         IManagerCareerStore managerCareerStore,
@@ -94,6 +98,7 @@ public sealed class InteractionModule
         var queries = new DecisionRequestQueryService(store);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
         var postMatchPress = new PostMatchPressDecisionTrigger(decisions);
+        var promiseBroken = new PromiseBrokenDecisionTrigger(decisions);
         return new InteractionModule(
             store,
             sessions,
@@ -104,6 +109,7 @@ public sealed class InteractionModule
             dialogueSessionService,
             discipline,
             blocker,
-            postMatchPress);
+            postMatchPress,
+            promiseBroken);
     }
 }
