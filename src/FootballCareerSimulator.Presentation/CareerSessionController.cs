@@ -539,6 +539,78 @@ public sealed class CareerSessionController
         }
     }
 
+    public LeagueWorldBriefing BuildLeagueWorldBriefing()
+    {
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        if (season is null || (season.FixtureCount == 0 && season.ParticipantCount == 0))
+        {
+            return LeagueWorldBriefing.NoSeason();
+        }
+
+        var progress = Host.CompetitionModule.Queries.GetSeasonProgress(season.SeasonId);
+        var standings = Host.CompetitionModule.Queries.GetStandings(season.SeasonId);
+        var managedClubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
+        string? managedName = managedClubId is long id ? GetClubDisplayName(id) : null;
+
+        int? managedRank = null;
+        int? managedPoints = null;
+        int? managedPlayed = null;
+        int? managedGd = null;
+        string? leaderName = null;
+        int? leaderPoints = null;
+
+        if (standings.Count > 0)
+        {
+            leaderName = GetClubDisplayName(standings[0].ClubId);
+            leaderPoints = standings[0].Points;
+            if (managedClubId is long clubId)
+            {
+                for (var i = 0; i < standings.Count; i++)
+                {
+                    if (standings[i].ClubId == clubId)
+                    {
+                        managedRank = i + 1;
+                        managedPoints = standings[i].Points;
+                        managedPlayed = standings[i].Played;
+                        managedGd = standings[i].GoalDifference;
+                        break;
+                    }
+                }
+            }
+        }
+
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        string? nextMatch = null;
+        if (pending is not null)
+        {
+            var venue = pending.IsHome ? "Ev" : "Dep";
+            var daysUntil = pending.ScheduledDayNumber - currentDay;
+            var when = daysUntil switch
+            {
+                <= 0 => "bugün",
+                1 => "yarın",
+                _ => $"{daysUntil} gün sonra",
+            };
+            nextMatch = $"{venue} vs {GetClubDisplayName(pending.OpponentClubId)} · {when}";
+        }
+
+        return LeagueWorldBriefing.Compose(
+            season.Status,
+            progress?.AcceptedFixtureCount ?? 0,
+            progress?.TotalFixtureCount ?? season.FixtureCount,
+            season.ParticipantCount,
+            managedRank,
+            managedPoints,
+            managedPlayed,
+            managedGd,
+            managedName,
+            leaderName,
+            leaderPoints,
+            nextMatch);
+    }
+
     public PreparationBriefing BuildPreparationBriefing()
     {
         var training = GetTrainingSummary();

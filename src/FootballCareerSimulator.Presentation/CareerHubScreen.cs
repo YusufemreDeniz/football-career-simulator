@@ -49,6 +49,7 @@ public partial class CareerHubScreen : Control
     private Label _tacticLabel = null!;
     private Label _squadStatusLabel = null!;
     private Label _standingsLabel = null!;
+    private Label _leagueBriefingLabel = null!;
     private Label _statusLabel = null!;
     private SpinBox _roundSelector = null!;
     private ItemList _fixtureList = null!;
@@ -724,9 +725,14 @@ public partial class CareerHubScreen : Control
     {
         var page = PageRoot();
         page.AddChild(SectionTitle("Dünya"));
+        _leagueBriefingLabel = BodyLabel("LeagueBriefingLabel", autowrap: true);
+        page.AddChild(_leagueBriefingLabel);
+
+        page.AddChild(SectionTitle("Puan durumu"));
         _standingsLabel = BodyLabel("StandingsLabel", autowrap: true);
         page.AddChild(_standingsLabel);
 
+        page.AddChild(SectionTitle("Hafta fikstürü"));
         var roundRow = new HBoxContainer();
         roundRow.AddThemeConstantOverride("separation", 8);
         page.AddChild(roundRow);
@@ -919,6 +925,7 @@ public partial class CareerHubScreen : Control
         {
             _seasonLabel.Text = "Lig sezonu: yok — 'Ligi Kur' ile başla.";
             _progressLabel.Text = periodText;
+            _leagueBriefingLabel.Text = Application.Competition.Queries.LeagueWorldBriefing.NoSeason().ToDisplayText();
             _standingsLabel.Text = "Puan durumu: —";
             _fixtureList.Clear();
             _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
@@ -1668,6 +1675,8 @@ public partial class CareerHubScreen : Control
 
     private void RefreshStandings()
     {
+        _leagueBriefingLabel.Text = _controller.BuildLeagueWorldBriefing().ToDisplayText();
+
         var season = _controller.Host.CompetitionModule.Queries.GetCurrentSeason();
         if (season is null || season.FixtureCount == 0)
         {
