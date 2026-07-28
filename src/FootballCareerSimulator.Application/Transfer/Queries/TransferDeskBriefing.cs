@@ -8,6 +8,7 @@ public sealed record TransferDeskBriefing(
     string BrandTitle,
     string Headline,
     string AdviceLine,
+    bool DemandsAttention,
     IReadOnlyList<string> BeatLines)
 {
     public const string Brand = "Transfer Masası";
@@ -18,6 +19,7 @@ public sealed record TransferDeskBriefing(
             Brand,
             "Kulüp yok — transfer masası kapalı.",
             "Önce işe dön; sonra pencere ve satış burada açılır.",
+            DemandsAttention: false,
             Array.Empty<string>());
 
     public static TransferDeskBriefing Compose(
@@ -83,7 +85,21 @@ public sealed record TransferDeskBriefing(
             squadFull,
             saleCandidatePlayerId);
 
-        return new TransferDeskBriefing(true, Brand, headline, advice, beats.Take(6).ToArray());
+        var demands =
+            pendingOfferCount > 0
+            || activeProcessCount > 0
+            || openExitNeedCount > 0
+            || (listedTargetCount > 0 && activeProcessCount == 0)
+            || (squadFull && saleCandidatePlayerId is not null)
+            || (!windowOpen && (squadFull || saleCandidatePlayerId is not null));
+
+        return new TransferDeskBriefing(
+            true,
+            Brand,
+            headline,
+            advice,
+            demands,
+            beats.Take(6).ToArray());
     }
 
     public string ToDisplayText()

@@ -50,6 +50,7 @@ public sealed record CareerResumeDigest(
             TodayPulseDigest.FocusDesk => "Önce Masada — Bugün'den dosyaya bak.",
             TodayPulseDigest.FocusMatch => "Sıradaki Maç / Bugün — XI ve düdük.",
             TodayPulseDigest.FocusSquad => "Kulüp'te Yer Aç veya Taşanı Kadroya Al.",
+            TodayPulseDigest.FocusTransfer => "Transfer Masası — pencere, Satışa Çıkar veya süreç.",
             TodayPulseDigest.FocusPrep => "Hazırlık Masası'na geç.",
             TodayPulseDigest.FocusLeague => "Lig Masası'na bir bak.",
             _ => "Bugün nabzını oku — sonra günü ilerlet.",

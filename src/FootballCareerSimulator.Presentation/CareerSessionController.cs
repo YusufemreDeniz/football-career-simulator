@@ -704,7 +704,8 @@ public sealed class CareerSessionController
             match,
             BuildPreparationBriefing(),
             BuildLeagueWorldBriefing(),
-            BuildSquadCapacityDigest());
+            BuildSquadCapacityDigest(),
+            BuildTransferDeskBriefing());
     }
 
     public SquadCapacityDigest BuildSquadCapacityDigest()

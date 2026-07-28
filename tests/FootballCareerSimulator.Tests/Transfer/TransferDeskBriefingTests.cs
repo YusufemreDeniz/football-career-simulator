@@ -22,6 +22,7 @@ public sealed class TransferDeskBriefingTests
             saleCandidatePlayerId: 1024);
 
         Assert.True(desk.IsEmployed);
+        Assert.True(desk.DemandsAttention);
         Assert.Equal(TransferDeskBriefing.Brand, desk.BrandTitle);
         Assert.Contains("Pencere kapalı", desk.Headline, StringComparison.Ordinal);
         Assert.Contains("Pencere Aç", desk.AdviceLine, StringComparison.Ordinal);
@@ -48,6 +49,7 @@ public sealed class TransferDeskBriefingTests
 
         Assert.Contains("Kadro dolu", desk.Headline, StringComparison.Ordinal);
         Assert.Contains("Satışa Çıkar", desk.AdviceLine, StringComparison.Ordinal);
+        Assert.True(desk.DemandsAttention);
         Assert.Contains(desk.BeatLines, b => b.Contains("kapanış gün 40", StringComparison.Ordinal));
     }
 

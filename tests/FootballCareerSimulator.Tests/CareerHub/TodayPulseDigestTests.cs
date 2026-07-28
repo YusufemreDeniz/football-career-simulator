@@ -3,6 +3,7 @@ using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.Interaction.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
+using FootballCareerSimulator.Application.Transfer.Queries;
 
 namespace FootballCareerSimulator.Tests.CareerHub;
 
@@ -128,6 +129,50 @@ public sealed class TodayPulseDigestTests
 
         Assert.Equal(TodayPulseDigest.FocusMatch, withMatch.PrimaryFocusCode);
         Assert.Contains(withMatch.PulseLines, l => l.StartsWith("Kadro:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TransferAttention_OnCalmDay_BeatsSquadFull_ButNotMatchReady()
+    {
+        var full = SquadCapacityDigest.Compose(25, 25, 25, Array.Empty<long>());
+        var transfer = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            40,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: 1_000_000,
+            budgetSpent: 0,
+            squadFull: true,
+            saleCandidatePlayerId: 2001);
+
+        Assert.True(transfer.DemandsAttention);
+
+        var calm = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            full,
+            transfer);
+
+        Assert.Equal(TodayPulseDigest.FocusTransfer, calm.PrimaryFocusCode);
+        Assert.Contains("Transfer Masası", calm.Headline, StringComparison.Ordinal);
+        Assert.Contains(calm.PulseLines, l => l.StartsWith("Transfer:", StringComparison.Ordinal));
+
+        var withMatch = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            MatchReady(),
+            PrepOk(),
+            LeagueOk(),
+            full,
+            transfer);
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, withMatch.PrimaryFocusCode);
+        Assert.Contains(withMatch.PulseLines, l => l.StartsWith("Transfer:", StringComparison.Ordinal));
     }
 
     private static DecisionDeskDigest Desk(bool hard, bool open, string headline) =>
