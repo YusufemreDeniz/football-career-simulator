@@ -10,6 +10,7 @@ public sealed record MatchSelectionReadModel(
 public sealed record ManagedFixtureSelectionStatusReadModel(
     long FixtureId,
     long SeasonId,
+    long ManagedClubId,
     long OpponentClubId,
     bool IsHome,
     int ScheduledDayNumber,

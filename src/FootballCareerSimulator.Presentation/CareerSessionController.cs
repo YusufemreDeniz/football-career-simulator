@@ -281,7 +281,11 @@ public sealed class CareerSessionController
             Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(clubId, day);
             var squad = Host.TeamPreparationModule.SquadStore.Get(clubId)
                 ?? throw new InvalidOperationException("Kadro yok.");
-            var member = squad.Members.OrderBy(m => m.SlotIndex).FirstOrDefault()
+            var member = squad.Members
+                    .Where(m => m.SlotIndex >= Domain.TeamPreparation.MatchSelection.StartingXiSize)
+                    .OrderBy(m => m.SlotIndex)
+                    .FirstOrDefault()
+                ?? squad.Members.OrderByDescending(m => m.SlotIndex).FirstOrDefault()
                 ?? throw new InvalidOperationException("Kadroda oyuncu yok.");
 
             var promise = Host.SocialContinuityModule.StartingOpportunity.Create(
@@ -292,11 +296,16 @@ public sealed class CareerSessionController
                 deadlineOn: day.AddDays(30),
                 createdOn: day);
 
+            var tensionHint = member.SlotIndex >= Domain.TeamPreparation.MatchSelection.StartingXiSize
+                ? " · dikkat: varsayılan kadroda yedek/dışarıda"
+                : string.Empty;
+
             return UiActionResult.Ok(
                 $"İlk 11 sözü verildi: oyuncu #{member.PlayerId.Value}"
+                + $" · slot {member.SlotIndex}"
                 + $" · hedef {promise.TargetStarts}"
                 + $" · son gün {promise.DeadlineOn.DayNumber}"
-                + $" · söz #{promise.PromiseId.Value}.");
+                + $" · söz #{promise.PromiseId.Value}{tensionHint}.");
         }
         catch (SocialContinuityInvariantViolationException ex)
         {

@@ -2,6 +2,7 @@ using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
+using FootballCareerSimulator.Application.SocialContinuity.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Infrastructure;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
@@ -22,6 +23,7 @@ public sealed class TeamPreparationModule
         ApproveMatchSelectionHandler approveSelection,
         SwapStarterWithBenchHandler swapStarterWithBench,
         MatchSelectionQueryService selectionQueries,
+        PreMatchPromiseTensionQueryService promiseTension,
         SquadQueryService squadQueries,
         TacticPlanQueryService tacticQueries)
     {
@@ -34,6 +36,7 @@ public sealed class TeamPreparationModule
         ApproveSelection = approveSelection;
         SwapStarterWithBench = swapStarterWithBench;
         SelectionQueries = selectionQueries;
+        PromiseTension = promiseTension;
         SquadQueries = squadQueries;
         TacticQueries = tacticQueries;
         IdempotencyResets =
@@ -62,6 +65,8 @@ public sealed class TeamPreparationModule
 
     public MatchSelectionQueryService SelectionQueries { get; }
 
+    public PreMatchPromiseTensionQueryService PromiseTension { get; }
+
     public SquadQueryService SquadQueries { get; }
 
     public TacticPlanQueryService TacticQueries { get; }
@@ -69,6 +74,9 @@ public sealed class TeamPreparationModule
     public IReadOnlyList<ICommandIdempotencyReset> IdempotencyResets { get; }
 
     public ICommandIdempotencyReset IdempotencyReset => ApproveDefaultSelection;
+
+    public void BindPromiseStore(IPromiseStore promiseStore) =>
+        PromiseTension.BindPromiseStore(promiseStore);
 
     public static TeamPreparationModule Create(
         ILeagueCompetitionStore competitionStore,
@@ -79,7 +87,8 @@ public sealed class TeamPreparationModule
         IContractStore? contractStore = null,
         IPlayerCareerStore? playerCareerStore = null,
         IClubSquadStore? squadStore = null,
-        ITacticPlanStore? tacticPlanStore = null)
+        ITacticPlanStore? tacticPlanStore = null,
+        IPromiseStore? promiseStore = null)
     {
         var store = selectionStore ?? new InMemoryMatchSelectionStore();
         var clubSquadStore = squadStore ?? new InMemoryClubSquadStore();
@@ -89,6 +98,13 @@ public sealed class TeamPreparationModule
         {
             clubSquadService = new ClubSquadService(clubSquadStore, contractStore, playerCareerStore);
         }
+
+        var selectionQueries = new MatchSelectionQueryService(store, competitionStore, managerCareerStore);
+        var promiseTension = new PreMatchPromiseTensionQueryService(
+            selectionQueries,
+            store,
+            clubSquadStore,
+            promiseStore);
 
         return new TeamPreparationModule(
             store,
@@ -114,7 +130,8 @@ public sealed class TeamPreparationModule
                 trainingStore,
                 timelineStore,
                 clubSquadStore),
-            new MatchSelectionQueryService(store, competitionStore, managerCareerStore),
+            selectionQueries,
+            promiseTension,
             new SquadQueryService(clubSquadStore, playerCareerStore),
             new TacticPlanQueryService(tactics, managerCareerStore));
     }

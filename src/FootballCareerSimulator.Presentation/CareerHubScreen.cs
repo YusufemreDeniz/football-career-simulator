@@ -1510,9 +1510,27 @@ public partial class CareerHubScreen : Control
 
         var opponent = _controller.GetClubDisplayName(pending.OpponentClubId);
         var venue = pending.IsHome ? "Ev" : "Dep";
-        _selectionLabel.Text = pending.IsApproved
+        var baseText = pending.IsApproved
             ? $"Kadro onayı: hazır · fikstür #{pending.FixtureId} ({venue} vs {opponent})"
             : $"Kadro onayı: gerekli · fikstür #{pending.FixtureId} ({venue} vs {opponent}, {pending.ScheduledIsoDate})";
+
+        var tension = _controller.Host.TeamPreparationModule.PromiseTension
+            .GetForNextDueMatch(currentDay);
+        if (tension is { HasTension: true })
+        {
+            var marker = string.Equals(
+                tension.ToneCode,
+                Application.TeamPreparation.Services.PreMatchPromiseTensionQueryService.ToneAtRisk,
+                StringComparison.Ordinal)
+                ? "[Risk] "
+                : "[Tamam] ";
+            _selectionLabel.Text = $"{baseText}\n{marker}{tension.Headline}";
+        }
+        else
+        {
+            _selectionLabel.Text = baseText;
+        }
+
         _approveSelectionButton.Disabled = pending.IsApproved;
         _swapSelectionButton.Disabled = false;
     }
@@ -1525,11 +1543,21 @@ public partial class CareerHubScreen : Control
         var selectionBlocksPlay = pending is not null && !pending.IsApproved;
 
         _playButton.Disabled = dueMatchCount == 0 || selectionBlocksPlay;
+        var tension = _controller.Host.TeamPreparationModule.PromiseTension
+            .GetForNextDueMatch(currentDay);
+        var atRisk = tension is
+        {
+            HasTension: true,
+            ToneCode: Application.TeamPreparation.Services.PreMatchPromiseTensionQueryService.ToneAtRisk
+        };
+
         _playButton.Text = dueMatchCount == 0
             ? "Bugünün Maçlarını Oyna"
             : selectionBlocksPlay
                 ? "Bugünün Maçlarını Oyna (önce kadro)"
-                : $"Bugünün Maçlarını Oyna ({dueMatchCount})";
+                : atRisk
+                    ? $"Bugünün Maçlarını Oyna ({dueMatchCount}) · söz riski"
+                    : $"Bugünün Maçlarını Oyna ({dueMatchCount})";
 
         _advanceDayButton.Disabled = !canAdvance;
         _advanceWeekButton.Disabled = !canAdvance;

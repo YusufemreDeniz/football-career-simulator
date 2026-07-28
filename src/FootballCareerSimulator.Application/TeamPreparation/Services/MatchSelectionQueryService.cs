@@ -79,6 +79,7 @@ public sealed class MatchSelectionQueryService
         return new ManagedFixtureSelectionStatusReadModel(
             due.Id.Value,
             season.SeasonId.Value,
+            managedClubId.Value,
             opponent.Value,
             isHome,
             due.ScheduledDate.DayNumber,
