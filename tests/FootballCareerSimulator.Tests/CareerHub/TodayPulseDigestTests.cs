@@ -1,0 +1,126 @@
+using FootballCareerSimulator.Application.CareerHub.Queries;
+using FootballCareerSimulator.Application.Competition.Queries;
+using FootballCareerSimulator.Application.Interaction.Queries;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
+
+namespace FootballCareerSimulator.Tests.CareerHub;
+
+public sealed class TodayPulseDigestTests
+{
+    [Fact]
+    public void HardDesk_LeadsPulse()
+    {
+        var pulse = TodayPulseDigest.Compose(
+            Desk(hard: true, open: true, "Basın kapıda."),
+            MatchReady(),
+            PrepOk(),
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusDesk, pulse.PrimaryFocusCode);
+        Assert.Contains("Masada", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains(pulse.PulseLines, l => l.StartsWith("Masada:", StringComparison.Ordinal));
+        Assert.Contains("Günün Nabzı", pulse.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UnapprovedMatch_BeatsCalmPrep()
+    {
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Compose(
+                new ManagedFixtureSelectionStatusReadModel(
+                    1, 1, 1, 2, true, 10, "2026-08-15", IsApproved: false),
+                "Rival",
+                10),
+            PrepOk(),
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, pulse.PrimaryFocusCode);
+        Assert.Contains("kadroyu", pulse.Headline, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void FatiguedPrep_SurfacesWhenElseQuiet()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.Fitness,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.High,
+                (int)Domain.TrainingPhysicalState.RestApproach.Light,
+                null, null, null, 1, 70, 55, true, 0, 0),
+            new TacticPlanReadModel(1, "4-3-3", "Dengeli", 1),
+            "+1",
+            daysUntilNextMatch: 1);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusPrep, pulse.PrimaryFocusCode);
+        Assert.Contains("Hazırlık", pulse.Headline, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CalmDay_WhenEverythingQuiet()
+    {
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusCalm, pulse.PrimaryFocusCode);
+        Assert.Contains("Sakin", pulse.Headline, StringComparison.Ordinal);
+    }
+
+    private static DecisionDeskDigest Desk(bool hard, bool open, string headline) =>
+        open
+            ? new DecisionDeskDigest(
+                true,
+                hard,
+                hard ? "Masada (zorunlu)" : "Masada",
+                headline,
+                "destek",
+                1,
+                "Kritik basın sorusu",
+                1)
+            : DecisionDeskDigest.Clear();
+
+    private static PreMatchBriefing MatchReady() =>
+        PreMatchBriefing.Compose(
+            new ManagedFixtureSelectionStatusReadModel(
+                1, 1, 1, 2, true, 10, "2026-08-15", IsApproved: true),
+            "Rival",
+            10);
+
+    private static PreparationBriefing PrepOk() =>
+        PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.General,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Medium,
+                (int)Domain.TrainingPhysicalState.RestApproach.Normal,
+                null, null, null, 1, 30, 70, true, 0, 0),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 4);
+
+    private static LeagueWorldBriefing LeagueOk() =>
+        LeagueWorldBriefing.Compose(
+            "Active",
+            8,
+            30,
+            8,
+            managedRank: 4,
+            managedPoints: 12,
+            managedPlayed: 8,
+            managedGoalDifference: 1,
+            managedClubName: "Home",
+            leaderClubName: "Leaders",
+            leaderPoints: 18,
+            nextMatchLine: null);
+}

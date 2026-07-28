@@ -14,6 +14,7 @@ public partial class CareerHubScreen : Control
     private Label _seasonLabel = null!;
     private Label _progressLabel = null!;
     private Label _blockerLabel = null!;
+    private Label _pulseLabel = null!;
     private Label _selectionLabel = null!;
     private Label _trainingLabel = null!;
     private Label _prepBriefingLabel = null!;
@@ -293,6 +294,19 @@ public partial class CareerHubScreen : Control
         page.AddChild(SectionTitle("Bugün"));
         _blockerLabel = BodyLabel("BlockerLabel", autowrap: true);
         page.AddChild(_blockerLabel);
+
+        page.AddChild(SectionTitle("Günün Nabzı"));
+        _pulseLabel = BodyLabel("PulseLabel", autowrap: true);
+        page.AddChild(_pulseLabel);
+        var pulseRow = new HBoxContainer();
+        pulseRow.AddThemeConstantOverride("separation", 8);
+        page.AddChild(pulseRow);
+        var openPrep = SecondaryButton("Hazırlık Masası");
+        openPrep.Pressed += () => ShowPage(HubPage.Prep);
+        pulseRow.AddChild(openPrep);
+        var openWorld = SecondaryButton("Lig Masası");
+        openWorld.Pressed += () => ShowPage(HubPage.World);
+        pulseRow.AddChild(openWorld);
 
         page.AddChild(SectionTitle("Ofiste"));
         _officeLabel = BodyLabel("OfficeLabel", autowrap: true);
@@ -929,6 +943,7 @@ public partial class CareerHubScreen : Control
             _standingsLabel.Text = "Puan durumu: —";
             _fixtureList.Clear();
             _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
+            RefreshTodayPulse();
             RefreshSelectionStatus();
             RefreshTrainingStatus();
             RefreshDevelopmentStatus();
@@ -966,6 +981,7 @@ public partial class CareerHubScreen : Control
         _progressLabel.Text = $"{progressText} · {periodText}";
 
         _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
+        RefreshTodayPulse();
         RefreshSelectionStatus();
         RefreshTrainingStatus();
         RefreshDevelopmentStatus();
@@ -1528,6 +1544,8 @@ public partial class CareerHubScreen : Control
         {
             _decisionLabel.Text += $" · diyalog:{awaiting}";
         }
+
+        RefreshTodayPulse();
     }
 
     private void UpdateJobOfferButtons(
@@ -1543,6 +1561,11 @@ public partial class CareerHubScreen : Control
     }
 
     private string GetClubDisplayNameSafe(long clubId) => _controller.GetClubDisplayName(clubId);
+
+    private void RefreshTodayPulse()
+    {
+        _pulseLabel.Text = _controller.BuildTodayPulse().ToDisplayText();
+    }
 
     private void RefreshSelectionStatus()
     {
@@ -1565,6 +1588,7 @@ public partial class CareerHubScreen : Control
             training.InjuredSlotCount,
             tension);
         _briefingLabel.Text = briefing.ToDisplayText();
+        RefreshTodayPulse();
 
         if (pending is null)
         {

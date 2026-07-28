@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.Competition.Queries;
@@ -537,6 +538,34 @@ public sealed class CareerSessionController
         {
             return UiActionResult.Fail($"Karar hatası: {ex.Message}");
         }
+    }
+
+    public TodayPulseDigest BuildTodayPulse()
+    {
+        var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var desk = DecisionDeskDigest.Compose(
+            Host.InteractionModule.Queries.GetPending(take: 5),
+            day);
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(day);
+        var tension = Host.TeamPreparationModule.PromiseTension.GetForNextDueMatch(day);
+        var tactic = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+        var training = GetTrainingSummary();
+        var match = PreMatchBriefing.Compose(
+            pending,
+            pending is null ? "—" : GetClubDisplayName(pending.OpponentClubId),
+            day,
+            tactic.FormationName,
+            tactic.ApproachName,
+            training.HasPlan ? training.AverageFatigue : null,
+            training.HasPlan ? training.AverageFitness : null,
+            training.InjuredSlotCount,
+            tension);
+        return TodayPulseDigest.Compose(
+            desk,
+            match,
+            BuildPreparationBriefing(),
+            BuildLeagueWorldBriefing());
     }
 
     public LeagueWorldBriefing BuildLeagueWorldBriefing()
