@@ -6,7 +6,7 @@ using FootballCareerSimulator.Application.Transfer.Queries;
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
 /// <summary>
-/// Bugün nabzı — ofis, maç, hazırlık, lig, kadro ve transferi tek bakışta bağlar.
+/// Bugün nabzı — ofis, maç, hazırlık, lig, kadro, transfer ve sezon döngüsünü bağlar.
 /// </summary>
 public sealed record TodayPulseDigest(
     string BrandTitle,
@@ -22,6 +22,7 @@ public sealed record TodayPulseDigest(
     public const string FocusLeague = "League";
     public const string FocusSquad = "Squad";
     public const string FocusTransfer = "Transfer";
+    public const string FocusSeason = "Season";
     public const string FocusCalm = "Calm";
 
     public static TodayPulseDigest Compose(
@@ -30,7 +31,9 @@ public sealed record TodayPulseDigest(
         PreparationBriefing prep,
         LeagueWorldBriefing league,
         SquadCapacityDigest? squad = null,
-        TransferDeskBriefing? transfer = null)
+        TransferDeskBriefing? transfer = null,
+        bool seasonTransitionReady = false,
+        bool seasonArchivePhase = false)
     {
         ArgumentNullException.ThrowIfNull(desk);
         ArgumentNullException.ThrowIfNull(match);
@@ -55,6 +58,13 @@ public sealed record TodayPulseDigest(
             lines.Add($"Kadro: {squad.Headline}");
         }
 
+        if (seasonTransitionReady)
+        {
+            lines.Add(seasonArchivePhase
+                ? "Sezon: arşiv + yeni sezon hazır"
+                : "Sezon: kapanışa hazır — tüm maçlar işlendi");
+        }
+
         if (transfer is { IsEmployed: true, DemandsAttention: true })
         {
             lines.Add($"Transfer: {transfer.Headline}");
@@ -75,7 +85,15 @@ public sealed record TodayPulseDigest(
             lines.Add($"Lig: {league.Headline}");
         }
 
-        var (focus, headline) = ResolveFocus(desk, match, prep, league, squad, transfer);
+        var (focus, headline) = ResolveFocus(
+            desk,
+            match,
+            prep,
+            league,
+            squad,
+            transfer,
+            seasonTransitionReady,
+            seasonArchivePhase);
         return new TodayPulseDigest(Brand, headline, focus, lines.Take(4).ToArray());
     }
 
@@ -93,7 +111,9 @@ public sealed record TodayPulseDigest(
         PreparationBriefing prep,
         LeagueWorldBriefing league,
         SquadCapacityDigest squad,
-        TransferDeskBriefing transfer)
+        TransferDeskBriefing transfer,
+        bool seasonTransitionReady,
+        bool seasonArchivePhase)
     {
         if (desk.IsHardBlocker)
         {
@@ -118,6 +138,16 @@ public sealed record TodayPulseDigest(
         if (match is { HasMatch: true, HasPromiseRisk: true })
         {
             return (FocusMatch, "Söz riski var — XI↔Yedek düşün.");
+        }
+
+        // Çok sezon dikey kesiti: sezon geçişi sakin günde kaybolmasın.
+        if (seasonTransitionReady)
+        {
+            return (
+                FocusSeason,
+                seasonArchivePhase
+                    ? "Sezon arşive hazır — yeni sezona geç."
+                    : "Sezon bitti — kapanışı tamamla.");
         }
 
         if (prep.IsEmployed
@@ -145,7 +175,6 @@ public sealed record TodayPulseDigest(
             return (FocusTransfer, "Transfer Masası çağırıyor — pencere ve çıkışa bak.");
         }
 
-        // Dolu kadro her gün primary olmasın; sakin günde Yer Aç ipucu versin.
         if (squad.IsFull)
         {
             return (FocusSquad, "Kadro dolu — Yer Aç ile slot aç, sonra imza.");

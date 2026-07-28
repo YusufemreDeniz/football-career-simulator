@@ -175,6 +175,46 @@ public sealed class TodayPulseDigestTests
         Assert.Contains(withMatch.PulseLines, l => l.StartsWith("Transfer:", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void SeasonReady_BecomesPrimaryFocus_OnCalmDay_ButNotOverLockedMatch()
+    {
+        var seasonReady = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            seasonTransitionReady: true,
+            seasonArchivePhase: false);
+
+        Assert.Equal(TodayPulseDigest.FocusSeason, seasonReady.PrimaryFocusCode);
+        Assert.Contains("Sezon bitti", seasonReady.Headline, StringComparison.Ordinal);
+        Assert.Contains(seasonReady.PulseLines, l => l.StartsWith("Sezon:", StringComparison.Ordinal));
+
+        var archive = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            seasonTransitionReady: true,
+            seasonArchivePhase: true);
+
+        Assert.Equal(TodayPulseDigest.FocusSeason, archive.PrimaryFocusCode);
+        Assert.Contains("yeni sezona", archive.Headline, StringComparison.OrdinalIgnoreCase);
+
+        var lockedMatch = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Compose(
+                new ManagedFixtureSelectionStatusReadModel(
+                    1, 1, 1, 2, false, 10, "2026-08-15", IsApproved: false),
+                "Rival",
+                10),
+            PrepOk(),
+            LeagueOk(),
+            seasonTransitionReady: true);
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, lockedMatch.PrimaryFocusCode);
+    }
+
     private static DecisionDeskDigest Desk(bool hard, bool open, string headline) =>
         open
             ? new DecisionDeskDigest(

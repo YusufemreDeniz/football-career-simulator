@@ -705,7 +705,21 @@ public sealed class CareerSessionController
             BuildPreparationBriefing(),
             BuildLeagueWorldBriefing(),
             BuildSquadCapacityDigest(),
-            BuildTransferDeskBriefing());
+            BuildTransferDeskBriefing(),
+            seasonTransitionReady: CanTransitionToNextSeason(),
+            seasonArchivePhase: IsSeasonArchivePhase());
+    }
+
+    public bool IsSeasonArchivePhase()
+    {
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        if (season is null)
+        {
+            return false;
+        }
+
+        var progress = Host.CompetitionModule.Queries.GetSeasonProgress(season.SeasonId);
+        return progress is { CanArchive: true, CanComplete: false };
     }
 
     public SquadCapacityDigest BuildSquadCapacityDigest()

@@ -102,6 +102,7 @@ public sealed record PostMatchOfficeDigest(
         TodayPulseDigest.FocusMatch => "Sıradaki Maç / Bugün — XI ve düdük.",
         TodayPulseDigest.FocusSquad => "Kulüp'te Yer Aç veya Taşanı Kadroya Al.",
         TodayPulseDigest.FocusTransfer => "Transfer Masası — pencere, Satışa Çıkar veya süreç.",
+        TodayPulseDigest.FocusSeason => "Sezon geçişini tamamla — Bitir / Yeni Sezon.",
         TodayPulseDigest.FocusPrep => "Hazırlık Masası'na geç — yorgunluk/sakatlık.",
         TodayPulseDigest.FocusLeague => "Lig Masası'na bir bak — sıralama konuşuyor.",
         _ => "Bugün nabzına bak — sonra günü ilerlet.",
@@ -151,6 +152,12 @@ public sealed record PostMatchOfficeDigest(
             && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusTransfer, StringComparison.Ordinal))
         {
             return "Gece bitti — Transfer Masası bekliyor.";
+        }
+
+        if (nextPulse is not null
+            && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusSeason, StringComparison.Ordinal))
+        {
+            return "Gece bitti — sezon geçişi masada.";
         }
 
         if (nextPulse is not null

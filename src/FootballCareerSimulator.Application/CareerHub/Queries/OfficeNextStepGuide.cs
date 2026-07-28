@@ -18,6 +18,7 @@ public static class OfficeNextStepGuide
     public const string ActionApproveSelection = "ApproveSelection";
     public const string ActionPlayMatches = "PlayMatches";
     public const string ActionAdvanceDay = "AdvanceDay";
+    public const string ActionTransitionSeason = "TransitionSeason";
 
     public static OfficeNextStep? Resolve(string? focusCode)
     {
@@ -58,20 +59,26 @@ public static class OfficeNextStepGuide
                 TargetWorld,
                 TodayPulseDigest.FocusLeague,
                 ActionNavigate),
+            TodayPulseDigest.FocusSeason => new OfficeNextStep(
+                "Sezonu Bitir → Yeni Sezon",
+                TargetToday,
+                TodayPulseDigest.FocusSeason,
+                ActionTransitionSeason),
             _ => null,
         };
     }
 
     /// <summary>
-    /// Nabız + maç/ilerleme/engel — Bugün ekranının canlı birincil CTA'sı.
-    /// Engel varken çözüm aksiyonu nabız fokusundan önce gelir.
+    /// Nabız + maç/ilerleme/engel/sezon — Bugün ekranının canlı birincil CTA'sı.
     /// </summary>
     public static OfficeNextStep? ResolveFromPulse(
         string focusCode,
         bool hasDueUnapprovedMatch,
         bool hasDuePlayableMatch,
         bool canAdvanceDay,
-        string? primaryBlockerCode = null)
+        string? primaryBlockerCode = null,
+        bool seasonTransitionReady = false,
+        bool seasonArchivePhase = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(focusCode);
 
@@ -85,6 +92,16 @@ public static class OfficeNextStepGuide
             {
                 return unblock;
             }
+        }
+
+        if (seasonTransitionReady
+            || string.Equals(focusCode, TodayPulseDigest.FocusSeason, StringComparison.Ordinal))
+        {
+            return new OfficeNextStep(
+                seasonArchivePhase ? "Yeni Sezona Geç" : "Sezonu Bitir → Yeni Sezon",
+                TargetToday,
+                TodayPulseDigest.FocusSeason,
+                ActionTransitionSeason);
         }
 
         if (string.Equals(focusCode, TodayPulseDigest.FocusMatch, StringComparison.Ordinal))

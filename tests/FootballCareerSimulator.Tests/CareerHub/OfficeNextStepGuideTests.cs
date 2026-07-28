@@ -133,4 +133,29 @@ public sealed class OfficeNextStepGuideTests
         Assert.Contains("Zorunlu", step.ButtonLabel, StringComparison.Ordinal);
         Assert.Equal(OfficeNextStepGuide.ActionNavigate, step.ActionCode);
     }
+
+    [Fact]
+    public void SeasonReady_BecomesPrimaryTransitionCta()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusCalm,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            seasonTransitionReady: true,
+            seasonArchivePhase: false);
+
+        Assert.Equal(OfficeNextStepGuide.ActionTransitionSeason, step!.ActionCode);
+        Assert.Contains("Sezonu Bitir", step.ButtonLabel, StringComparison.Ordinal);
+
+        var archive = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusSeason,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            seasonTransitionReady: true,
+            seasonArchivePhase: true);
+
+        Assert.Equal("Yeni Sezona Geç", archive!.ButtonLabel);
+    }
 }
