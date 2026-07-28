@@ -79,7 +79,13 @@ public sealed record PlayFixtureMatchResult(
     string Status,
     int InvalidatedSelectionCount = 0,
     int? ManagedTacticModifier = null,
-    ManagedMatchConsequenceSummary? Consequences = null);
+    ManagedMatchConsequenceSummary? Consequences = null,
+    IReadOnlyList<MatchKeyMomentReadModel>? KeyMoments = null);
+
+public sealed record MatchKeyMomentReadModel(
+    int Minute,
+    bool IsHomeGoal,
+    int ScorerSlotIndex);
 
 /// <summary>
 /// Managed kulüp maçında uygulanan yan etkilerin okunabilir özeti.

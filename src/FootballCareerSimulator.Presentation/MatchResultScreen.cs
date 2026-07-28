@@ -44,7 +44,7 @@ public partial class MatchResultScreen : Control
 
         var list = new ItemList
         {
-            CustomMinimumSize = new Vector2(0, 180),
+            CustomMinimumSize = new Vector2(0, 140),
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
         foreach (var line in _results.MatchLines)
@@ -59,6 +59,28 @@ public partial class MatchResultScreen : Control
 
         layout.AddChild(list);
 
+        var keyMoments = _results.KeyMomentLines ?? Array.Empty<string>();
+        if (keyMoments.Count > 0)
+        {
+            layout.AddChild(new Label
+            {
+                Text = "Önemli anlar",
+                HorizontalAlignment = HorizontalAlignment.Left,
+            });
+
+            var momentList = new ItemList
+            {
+                CustomMinimumSize = new Vector2(0, 120),
+                SizeFlagsVertical = SizeFlags.ExpandFill,
+            };
+            foreach (var line in keyMoments)
+            {
+                momentList.AddItem(line);
+            }
+
+            layout.AddChild(momentList);
+        }
+
         var consequences = _results.ConsequenceLines ?? Array.Empty<string>();
         if (consequences.Count > 0)
         {
@@ -70,7 +92,7 @@ public partial class MatchResultScreen : Control
 
             var consequenceList = new ItemList
             {
-                CustomMinimumSize = new Vector2(0, 140),
+                CustomMinimumSize = new Vector2(0, 120),
                 SizeFlagsVertical = SizeFlags.ExpandFill,
             };
             foreach (var line in consequences)

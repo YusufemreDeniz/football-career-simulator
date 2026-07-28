@@ -28,6 +28,31 @@ public sealed class MvpFixtureMatchSimulatorTests
         Assert.InRange(score.HomeGoals, 0, 6);
         Assert.InRange(score.AwayGoals, 0, 6);
     }
+
+    [Fact]
+    public void SimulateWithKeyMoments_IsDeterministic_AndMatchesScore()
+    {
+        var first = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
+            42, fixtureId: 11, homeStrength: 75, awayStrength: 50);
+        var second = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
+            42, fixtureId: 11, homeStrength: 75, awayStrength: 50);
+
+        Assert.Equal(first.Score, second.Score);
+        Assert.Equal(first.KeyMoments, second.KeyMoments);
+        Assert.Equal(first.Score.HomeGoals, first.KeyMoments.Count(m => m.IsHomeGoal));
+        Assert.Equal(first.Score.AwayGoals, first.KeyMoments.Count(m => !m.IsHomeGoal));
+        Assert.Equal(first.Score, MvpFixtureMatchSimulator.Simulate(42, 11, 75, 50));
+        Assert.True(first.KeyMoments.Select(m => m.Minute).SequenceEqual(
+            first.KeyMoments.Select(m => m.Minute).OrderBy(m => m)));
+        Assert.All(
+            first.KeyMoments,
+            moment =>
+            {
+                Assert.InRange(moment.Minute, MvpFixtureMatchSimulator.MinGoalMinute, MvpFixtureMatchSimulator.MaxGoalMinute);
+                Assert.InRange(moment.ScorerSlotIndex, 0, MvpFixtureMatchSimulator.StartingXiSize - 1);
+            });
+        Assert.Equal(first.KeyMoments.Count, first.KeyMoments.Select(m => m.Minute).Distinct().Count());
+    }
 }
 
 public sealed class PlayFixtureMatchHandlerTests

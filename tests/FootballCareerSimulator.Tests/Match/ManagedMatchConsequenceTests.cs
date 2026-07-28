@@ -69,6 +69,10 @@ public sealed class ManagedMatchConsequenceTests
         Assert.NotNull(first.Consequences.BoardConfidenceDelta);
         Assert.NotNull(first.Consequences.BoardConfidenceAfter);
         Assert.False(string.IsNullOrWhiteSpace(first.Consequences.BoardRiskBand));
+        Assert.NotNull(first.KeyMoments);
+        Assert.Equal(
+            first.HomeGoals + first.AwayGoals,
+            first.KeyMoments!.Count);
         Assert.Equal(first, second);
     }
 }

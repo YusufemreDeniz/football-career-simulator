@@ -139,13 +139,14 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
             + awayTactic;
 
-        var score = MvpFixtureMatchSimulator.Simulate(
+        var simulation = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
             rootSeed,
             command.FixtureId,
             homeClub.SportiveStrength,
             awayClub.SportiveStrength,
             homeBonus,
             awayBonus);
+        var score = simulation.Score;
 
         _competitionStore.League.AcceptFixtureResult(
             new SeasonId(command.SeasonId),
@@ -201,6 +202,13 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 pressOpened);
         }
 
+        var keyMoments = simulation.KeyMoments
+            .Select(moment => new MatchKeyMomentReadModel(
+                moment.Minute,
+                moment.IsHomeGoal,
+                moment.ScorerSlotIndex))
+            .ToArray();
+
         var result = new PlayFixtureMatchResult(
             true,
             command.SeasonId,
@@ -210,7 +218,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             nameof(FixtureStatus.ResultAccepted),
             invalidated,
             managedTacticModifier,
-            consequences);
+            consequences,
+            keyMoments);
 
         _completedCommands[command.CommandId] = result;
         return result;

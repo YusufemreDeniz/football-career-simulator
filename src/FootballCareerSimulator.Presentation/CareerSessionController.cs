@@ -1349,6 +1349,7 @@ public sealed class CareerSessionController
 
             var lines = new List<string>(dueFixtures.Length);
             var consequenceLines = new List<string>();
+            var keyMomentLines = new List<string>();
             var invalidatedTotal = 0;
             foreach (var fixture in dueFixtures)
             {
@@ -1367,6 +1368,7 @@ public sealed class CareerSessionController
                 lines.Add($"{home} {result.HomeGoals}-{result.AwayGoals} {away}{tacticNote}");
                 invalidatedTotal += result.InvalidatedSelectionCount;
                 consequenceLines.AddRange(FormatMatchConsequences(result, home, away));
+                keyMomentLines.AddRange(FormatMatchKeyMoments(result, home, away));
             }
 
             if (invalidatedTotal > 0)
@@ -1381,7 +1383,8 @@ public sealed class CareerSessionController
                 true,
                 $"{lines.Count} maç oynandı (gün {currentDay}){invalidatedNote}.",
                 lines,
-                consequenceLines);
+                consequenceLines,
+                keyMomentLines);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -1390,6 +1393,29 @@ public sealed class CareerSessionController
         catch (Exception ex)
         {
             return new PlayMatchesUiResult(false, $"Maç oynatma hatası: {ex.Message}", Array.Empty<string>());
+        }
+    }
+
+    private static IEnumerable<string> FormatMatchKeyMoments(
+        PlayFixtureMatchResult result,
+        string home,
+        string away)
+    {
+        if (result.Consequences is not { IsManagedMatch: true })
+        {
+            yield break;
+        }
+
+        if (result.KeyMoments is null || result.KeyMoments.Count == 0)
+        {
+            yield break;
+        }
+
+        var header = $"{home} {result.HomeGoals}-{result.AwayGoals} {away}";
+        foreach (var moment in result.KeyMoments)
+        {
+            var side = moment.IsHomeGoal ? "Ev" : "Dep";
+            yield return $"{header} · {moment.Minute}' {side} gol · slot {moment.ScorerSlotIndex}";
         }
     }
 
@@ -1817,4 +1843,5 @@ public sealed record PlayMatchesUiResult(
     bool Succeeded,
     string Message,
     IReadOnlyList<string> MatchLines,
-    IReadOnlyList<string>? ConsequenceLines = null);
+    IReadOnlyList<string>? ConsequenceLines = null,
+    IReadOnlyList<string>? KeyMomentLines = null);
