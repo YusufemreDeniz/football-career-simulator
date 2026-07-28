@@ -66,6 +66,7 @@ public partial class CareerHubScreen : Control
     private Button _signFreeAgentButton = null!;
     private Button _promoteOverflowButton = null!;
     private Button _releaseCapacityButton = null!;
+    private Button _sellFringeButton = null!;
     private Button _promiseStartButton = null!;
     private Button _promisePlayingTimeButton = null!;
     private Button _refreshTransferNeedsButton = null!;
@@ -458,6 +459,10 @@ public partial class CareerHubScreen : Control
         _releaseCapacityButton = PrimaryButton("Yer Aç");
         _releaseCapacityButton.Pressed += () => Apply(_controller.ReleaseToFreeSquadCapacity());
         jobRow.AddChild(_releaseCapacityButton);
+
+        _sellFringeButton = PrimaryButton("Satışa Çıkar");
+        _sellFringeButton.Pressed += () => Apply(_controller.SellFringePlayerFromManagedClub());
+        jobRow.AddChild(_sellFringeButton);
 
         _promiseStartButton = SecondaryButton("İlk 11 Sözü Ver");
         _promiseStartButton.Pressed += () => Apply(_controller.PromiseStartingOpportunityToOldestSquadPlayer());
@@ -1634,6 +1639,15 @@ public partial class CareerHubScreen : Control
                 ? $"Taşanı Serbest Bırak (#{rid})"
                 : $"Yer Aç (#{rid})")
             : "Yer Aç";
+
+        var saleId = !unemployed
+            ? _controller.SuggestSaleCandidatePlayerId()
+            : null;
+        var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
+        _sellFringeButton.Disabled = saleId is null || !windowOpen;
+        _sellFringeButton.Text = saleId is long sid
+            ? (windowOpen ? $"Satışa Çıkar (#{sid})" : "Satışa Çıkar (pencere kapalı)")
+            : "Satışa Çıkar";
     }
 
     private string GetClubDisplayNameSafe(long clubId) => _controller.GetClubDisplayName(clubId);

@@ -151,6 +151,32 @@ public sealed class ClubSquadService
     }
 
     /// <summary>
+    /// Satış adayı: taşan veya en yüksek slot — ince kadroda (&lt;2) satılmaz.
+    /// </summary>
+    public long? SuggestSaleCandidatePlayerId(ClubId clubId, GameDate day)
+    {
+        const int minSellerActiveContracts = 2;
+        if (CountActiveContracts(clubId, day) < minSellerActiveContracts)
+        {
+            return null;
+        }
+
+        var capacity = GetCapacityDigest(clubId, day);
+        if (capacity.OverflowPlayerIds.Count > 0)
+        {
+            return capacity.OverflowPlayerIds[0];
+        }
+
+        var squad = _squadStore.Get(clubId);
+        if (squad is null || squad.Members.Count == 0)
+        {
+            return null;
+        }
+
+        return squad.Members.OrderByDescending(m => m.SlotIndex).First().PlayerId.Value;
+    }
+
+    /// <summary>
     /// Taşan (sözleşmeli ama kadro dışı) oyuncuyu en yüksek slotlu üyenin yerine alır.
     /// Sözleşmeler değişmez; yalnızca maç günü membership değişir.
     /// </summary>

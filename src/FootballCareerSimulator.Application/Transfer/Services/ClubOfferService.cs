@@ -86,6 +86,10 @@ public sealed class ClubOfferService
         {
             EnsureSimulatedSellerCanAccept(process);
         }
+        else if (IsHumanManagedSellingClub(process))
+        {
+            EnsureHumanSellerAcceptsIncomingOffer(process);
+        }
         else
         {
             EnsureBuyingActor(process.BuyingClubId, actor);
@@ -169,6 +173,33 @@ public sealed class ClubOfferService
             TransferActingParty.SimulatedClub,
             "Only the employed manager of the buying club can manage club offers.");
     }
+
+    private void EnsureHumanSellerAcceptsIncomingOffer(TransferProcess process)
+    {
+        if (process.SellingClubId is not { } sellingClubId)
+        {
+            throw new TransferInvariantViolationException(
+                "Human seller accept requires a selling club.");
+        }
+
+        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var managed }
+            || managed.Value != sellingClubId.Value)
+        {
+            throw new TransferInvariantViolationException(
+                "Only the employed manager of the selling club can accept an incoming club offer.");
+        }
+
+        TransferActorGuard.EnsureBuyingClubActor(
+            _managerCareerStore,
+            process.BuyingClubId,
+            TransferActingParty.SimulatedClub,
+            "Incoming sale accept requires a simulated buying club.");
+    }
+
+    private bool IsHumanManagedSellingClub(TransferProcess process) =>
+        process.SellingClubId is { } selling
+        && _managerCareerStore.Career.ActiveEmployment is { ClubId: var managed }
+        && managed.Value == selling.Value;
 
     private void EnsureBuyingActor(ClubId buyingClubId, TransferActingParty actor) =>
         TransferActorGuard.EnsureBuyingClubActor(

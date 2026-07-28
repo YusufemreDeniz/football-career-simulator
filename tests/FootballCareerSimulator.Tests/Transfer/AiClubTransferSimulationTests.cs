@@ -127,6 +127,55 @@ public sealed class AiClubTransferSimulationTests
             p => p.SellingClubId?.Value == 1);
     }
 
+    [Fact]
+    public void TrySellManagedClubPlayer_CompletesWhenBuyerHasSpace()
+    {
+        var modules = CreateBase(seed: 13);
+        modules.Players.Development.EnsureClub(new ClubId(1), 13, Day);
+        modules.TeamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
+        SeedUnmanagedClubSquadsWithSpace(modules);
+
+        var playerId = new PlayerId(
+            modules.TeamPrep.ClubSquad.SuggestSaleCandidatePlayerId(new ClubId(1), Day)!.Value);
+        modules.Transfer.Needs.DeclarePlayerExitRequest(new ClubId(1), playerId, Day);
+
+        var sale = modules.Transfer.AiSimulation.TrySellManagedClubPlayer(
+            new ClubId(1),
+            playerId,
+            Day,
+            worldSeed: 13);
+
+        Assert.True(sale.Sold, sale.Message);
+        Assert.Equal(playerId.Value, sale.PlayerId);
+        Assert.Equal(1, sale.SellingClubId);
+        Assert.NotEqual(1, sale.BuyingClubId);
+        Assert.Equal(AiClubTransferSimulationService.DefaultClubTransferFee, sale.TransferFee);
+        Assert.Equal(
+            sale.BuyingClubId,
+            modules.Contracts.Store.GetByPlayer(playerId)!.ClubId.Value);
+        Assert.True(modules.TeamPrep.ClubSquad.HasFreeSquadCapacity(new ClubId(1), Day));
+    }
+
+    [Fact]
+    public void TrySellManagedClubPlayer_FailsWhenWindowClosed()
+    {
+        var modules = CreateBase(seed: 5);
+        modules.Players.Development.EnsureClub(new ClubId(1), 5, Day);
+        modules.TeamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
+        modules.World.TimelineStore.Timeline.CloseTransferWindow();
+
+        var playerId = new PlayerId(
+            modules.TeamPrep.ClubSquad.SuggestSaleCandidatePlayerId(new ClubId(1), Day)!.Value);
+        var sale = modules.Transfer.AiSimulation.TrySellManagedClubPlayer(
+            new ClubId(1),
+            playerId,
+            Day,
+            worldSeed: 5);
+
+        Assert.False(sale.Sold);
+        Assert.Contains("pencere", sale.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void SeedFreeAgent(
         (
             WorldCalendarModule World,

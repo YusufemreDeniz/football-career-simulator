@@ -114,6 +114,127 @@ public sealed class AiClubTransferSimulationService
         return new AiClubTransferTickOutcome(completed, attempted);
     }
 
+    /// <summary>
+    /// İnsan menajer satışı: listelenen oyuncuyu uygun AI alıcıya tamamlar.
+    /// Otomatik window tick hâlâ yönetilen kulüpten satmaz.
+    /// </summary>
+    public ManagedClubExitSaleResult TrySellManagedClubPlayer(
+        ClubId sellingClubId,
+        PlayerId playerId,
+        GameDate day,
+        int worldSeed)
+    {
+        if (!_transferWindow.IsOpen)
+        {
+            return ManagedClubExitSaleResult.Failed("Transfer penceresi kapalı — önce pencereyi aç.");
+        }
+
+        var contract = _contractStore.GetActiveForPlayer(playerId, day);
+        if (contract is null || contract.ClubId != sellingClubId)
+        {
+            return ManagedClubExitSaleResult.Failed(
+                $"Oyuncu #{playerId.Value} bu kulüpte aktif sözleşmeli değil.");
+        }
+
+        var sellerActive = _contractStore.GetForClub(sellingClubId).Count(c => c.IsActiveOn(day));
+        if (sellerActive < MinSellerActiveContracts)
+        {
+            return ManagedClubExitSaleResult.Failed(
+                $"Kadro çok ince ({sellerActive}) — satış için en az {MinSellerActiveContracts} sözleşmeli gerekir.");
+        }
+
+        if (HasActiveProcessForPlayer(playerId))
+        {
+            return ManagedClubExitSaleResult.Failed(
+                $"Oyuncu #{playerId.Value} zaten aktif transfer sürecinde.");
+        }
+
+        var managedClubId = _managerCareerStore.Career.ActiveEmployment?.ClubId;
+        var buyers = _clubRegistry.Registry.Clubs
+            .Where(club => club.Id.Value != sellingClubId.Value)
+            .Where(club => managedClubId is null || club.Id.Value != managedClubId.Value.Value)
+            .Where(club => HasSquadSpace(club.Id))
+            .Where(club => CanAffordDefaultWage(club.Id, day))
+            .Where(club =>
+                _transferBudget is null
+                || _transferBudget.Get(club.Id).Available >= DefaultClubTransferFee)
+            .OrderBy(club => club.Id.Value)
+            .ToArray();
+
+        if (buyers.Length == 0)
+        {
+            return ManagedClubExitSaleResult.Failed(
+                "Uygun alıcı yok — rakip kadrolar dolu veya bütçesiz. Yer Aç ile serbest bırakabilirsin.");
+        }
+
+        var buyer = buyers[Math.Abs(worldSeed + (int)playerId.Value) % buyers.Length];
+        try
+        {
+            const TransferActingParty buyerActor = TransferActingParty.SimulatedClub;
+            _needs.Declare(
+                buyer.Id,
+                TransferNeedKind.PositionGap,
+                priority: 2,
+                "ManagedClubExitSale",
+                day);
+
+            var needId = _needStore.GetForClub(buyer.Id)
+                .Where(n => n.IsOpen)
+                .OrderBy(n => n.NeedId.Value)
+                .Select(n => n.NeedId)
+                .First();
+
+            var entry = _shortlistTargets.AddToShortlist(
+                buyer.Id,
+                playerId,
+                needId,
+                priority: 2,
+                day);
+            _shortlistTargets.AddTransferTarget(needId, playerId, entry.EntryId, day);
+
+            var process = _processes.OpenOldestListedTargetForClub(buyer.Id, day);
+            if (process.IsFreeAgent || process.SellingClubId != sellingClubId)
+            {
+                return ManagedClubExitSaleResult.Failed(
+                    "Süreç satıcı kulübüyle eşleşmedi — tekrar dene.");
+            }
+
+            _processes.RequestSportingApproval(process.ProcessId, buyerActor);
+            _processes.GrantSportingApproval(process.ProcessId, buyerActor);
+            _clubOffers.SubmitClubOffer(process.ProcessId, DefaultClubTransferFee, day, buyerActor);
+            // Satıcı = insan kulübü; AI satıcı auto-accept yasak — menajer kabul eder.
+            _clubOffers.AcceptPendingOffer(process.ProcessId, TransferActingParty.HumanManager);
+            _proposals.SubmitContractProposal(
+                process.ProcessId,
+                DefaultWeeklyWage,
+                DefaultContractYears,
+                day,
+                buyerActor);
+            _proposals.AcceptPendingProposal(process.ProcessId, buyerActor);
+            _processes.RequestFinancialApproval(process.ProcessId, buyerActor);
+            _processes.GrantFinancialApproval(process.ProcessId, buyerActor);
+            var completed = _completion.Complete(process.ProcessId, day, buyerActor);
+            if (completed.Status is not (TransferProcessStatus.Archived or TransferProcessStatus.Completed))
+            {
+                return ManagedClubExitSaleResult.Failed(
+                    "Transfer tamamlanamadı — tekrar dene veya Yer Aç.");
+            }
+
+            return ManagedClubExitSaleResult.Succeeded(
+                playerId.Value,
+                sellingClubId.Value,
+                buyer.Id.Value,
+                DefaultClubTransferFee);
+        }
+        catch (Exception ex) when (ex is TransferInvariantViolationException
+            or InvalidOperationException
+            or ArgumentException)
+        {
+            return ManagedClubExitSaleResult.Failed(
+                $"Alıcı süreci tamamlayamadı: {ex.Message}");
+        }
+    }
+
     private bool TrySignFreeAgent(ClubId buyingClubId, GameDate day)
     {
         if (!HasSquadSpace(buyingClubId) || !CanAffordDefaultWage(buyingClubId, day))
@@ -271,3 +392,22 @@ public sealed class AiClubTransferSimulationService
 }
 
 public sealed record AiClubTransferTickOutcome(int CompletedCount, int AttemptedClubCount);
+
+public sealed record ManagedClubExitSaleResult(
+    bool Sold,
+    string Message,
+    long? PlayerId,
+    long? SellingClubId,
+    long? BuyingClubId,
+    int? TransferFee)
+{
+    public static ManagedClubExitSaleResult Failed(string message) =>
+        new(false, message, null, null, null, null);
+
+    public static ManagedClubExitSaleResult Succeeded(
+        long playerId,
+        long sellingClubId,
+        long buyingClubId,
+        int transferFee) =>
+        new(true, "Satış tamam.", playerId, sellingClubId, buyingClubId, transferFee);
+}

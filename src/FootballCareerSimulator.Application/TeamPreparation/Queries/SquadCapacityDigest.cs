@@ -52,12 +52,12 @@ public sealed record SquadCapacityDigest(
             headline =
                 $"{overflowPlayerIds.Count} sözleşmeli oyuncu maç kadrosuna sığmıyor.";
             advice =
-                "Taşanı Serbest Bırak ile yer aç; veya Taşanı Kadroya Al ile XI'yi değiştir.";
+                "Taşanı Serbest Bırak veya Satışa Çıkar; ya da Taşanı Kadroya Al ile XI'yi değiştir.";
         }
         else if (full)
         {
             headline = $"Kadro dolu ({squadMemberCount}/{maxMembers}).";
-            advice = "Yer Aç ile bir sözleşmeyi bitir — sonra serbest imza veya transfer mümkün.";
+            advice = "Yer Aç veya Satışa Çıkar ile slot aç — sonra imza/transfer mümkün.";
         }
         else if (squadMemberCount == 0)
         {

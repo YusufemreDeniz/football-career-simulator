@@ -315,6 +315,62 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult SellFringePlayerFromManagedClub()
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var id = new Domain.Shared.ClubId(clubId);
+            var squad = Host.TeamPreparationModule.ClubSquad
+                ?? throw new InvalidOperationException("Kadro servisi yok.");
+
+            var candidateId = squad.SuggestSaleCandidatePlayerId(id, day)
+                ?? throw new InvalidOperationException(
+                    "Satılacak kenar oyuncu yok — kadro çok ince.");
+
+            var need = Host.TransferModule.Needs.DeclarePlayerExitRequest(
+                id,
+                new PlayerId(candidateId),
+                day);
+
+            var seed = Host.WorldModule.TimelineStore.Timeline.RootSeed;
+            var sale = Host.TransferModule.AiSimulation.TrySellManagedClubPlayer(
+                id,
+                new PlayerId(candidateId),
+                day,
+                seed);
+
+            if (!sale.Sold)
+            {
+                return UiActionResult.Fail(
+                    $"Satışa Çıkış\nOyuncu #{candidateId} listelendi (ihtiyaç #{need.NeedId.Value})."
+                    + $"\n· {sale.Message}");
+            }
+
+            Host.TransferModule.Needs.Close(need.NeedId, day);
+            var after = squad.GetCapacityDigest(id, day);
+            var buyerName = sale.BuyingClubId is long buyer
+                ? GetClubDisplayName(buyer)
+                : "—";
+
+            return UiActionResult.Ok(
+                $"Satış Tamam\n#{sale.PlayerId} → {buyerName}."
+                + $"\n· Bedel {sale.TransferFee:N0}"
+                + $" · sözleşme {after.ActiveContractCount}/{ClubSquad.MaxMembers}"
+                + "\nÖneri: Günün Nabzı ve bütçeye bak — slot açıldı.");
+        }
+        catch (TransferInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Satış yapılamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Satış hatası: {ex.Message}");
+        }
+    }
+
     public UiActionResult SignNextFreeAgentToManagedClub()
     {
         try
@@ -674,6 +730,18 @@ public sealed class CareerSessionController
 
         var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
         return squad.SuggestReleaseCandidatePlayerId(new Domain.Shared.ClubId(clubId), day);
+    }
+
+    public long? SuggestSaleCandidatePlayerId()
+    {
+        if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is not long clubId
+            || Host.TeamPreparationModule.ClubSquad is not { } squad)
+        {
+            return null;
+        }
+
+        var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+        return squad.SuggestSaleCandidatePlayerId(new Domain.Shared.ClubId(clubId), day);
     }
 
     public LeagueWorldBriefing BuildLeagueWorldBriefing()

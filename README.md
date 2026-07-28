@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + **Kariyere Dönüş** (yükleme → Bugün nabzı) kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Sıradaki aday: transfer satış çıkışı veya maç sonrası karar derinliği; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü (MVP: teknik direktör) + **Satışa Çıkar** (kenar oyuncu → AI alıcı) kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Sıradaki aday: Transfer Masası brifingi veya maç sonrası karar derinliği; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 
