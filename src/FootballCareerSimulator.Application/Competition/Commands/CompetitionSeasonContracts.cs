@@ -78,4 +78,19 @@ public sealed record PlayFixtureMatchResult(
     int AwayGoals,
     string Status,
     int InvalidatedSelectionCount = 0,
-    int? ManagedTacticModifier = null);
+    int? ManagedTacticModifier = null,
+    ManagedMatchConsequenceSummary? Consequences = null);
+
+/// <summary>
+/// Managed kulüp maçında uygulanan yan etkilerin okunabilir özeti.
+/// </summary>
+public sealed record ManagedMatchConsequenceSummary(
+    bool IsManagedMatch,
+    int? TacticModifier,
+    int? BoardConfidenceDelta,
+    int? BoardConfidenceAfter,
+    string? BoardRiskBand,
+    string? BoardReasonCode,
+    bool ManagerDismissed,
+    IReadOnlyList<int> NewlyInjuredSlots,
+    bool PressQuestionOpened);

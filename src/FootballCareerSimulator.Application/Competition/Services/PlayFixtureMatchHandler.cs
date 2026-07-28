@@ -125,6 +125,13 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         var homeTactic = ResolveTacticModifier(fixture.HomeClubId);
         var awayTactic = ResolveTacticModifier(fixture.AwayClubId);
+        var managedClubBefore = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
+        var isManagedMatch = managedClubBefore is ClubId managedPre
+            && (fixture.HomeClubId == managedPre || fixture.AwayClubId == managedPre);
+        var managedTacticModifier = isManagedMatch && managedClubBefore is ClubId managedClub
+            ? fixture.HomeClubId == managedClub ? homeTactic : awayTactic
+            : (int?)null;
+
         var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
             + homeTactic;
@@ -146,11 +153,19 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             score,
             occurredAt);
 
+        var injuredBefore = isManagedMatch && managedClubBefore is ClubId clubForInjury
+            ? SnapshotInjuredSlots(clubForInjury)
+            : Array.Empty<int>();
+
         ApplyMatchPhysicalConsequences(fixture, occurredAt, rootSeed);
+        var newlyInjured = isManagedMatch && managedClubBefore is ClubId clubAfterInjury
+            ? DiffNewlyInjuredSlots(clubAfterInjury, injuredBefore)
+            : Array.Empty<int>();
+
         ApplyMatchDevelopment(fixture, occurredAt, rootSeed);
         ApplySocialContinuityAfterMatch(fixture, occurredAt);
         ApplyMatchPerformanceMemory(fixture, score, occurredAt);
-        TryOpenPressQuestionAfterBlowoutLoss(fixture, score, occurredAt);
+        var pressOpened = TryOpenPressQuestionAfterBlowoutLoss(fixture, score, occurredAt);
         ApplyRelationshipSelectionEffects(fixture, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
@@ -168,21 +183,22 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
             _competitionStore,
             command.SeasonId);
-        TryApplyBoardAssessment(fixture, score, updatedSeason, occurredAt);
+        var board = TryApplyBoardAssessment(fixture, score, updatedSeason, occurredAt);
         updatedSeason.ClearUncommittedEvents();
 
-        int? managedTacticModifier = null;
-        var managedClubId = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
-        if (managedClubId is ClubId managed)
+        ManagedMatchConsequenceSummary? consequences = null;
+        if (isManagedMatch)
         {
-            if (fixture.HomeClubId == managed)
-            {
-                managedTacticModifier = homeTactic;
-            }
-            else if (fixture.AwayClubId == managed)
-            {
-                managedTacticModifier = awayTactic;
-            }
+            consequences = new ManagedMatchConsequenceSummary(
+                IsManagedMatch: true,
+                managedTacticModifier,
+                board?.ConfidenceDelta,
+                board?.BoardConfidence,
+                board?.RiskBand,
+                board?.ReasonCode,
+                board?.ManagerDismissed ?? false,
+                newlyInjured,
+                pressOpened);
         }
 
         var result = new PlayFixtureMatchResult(
@@ -193,7 +209,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             score.AwayGoals,
             nameof(FixtureStatus.ResultAccepted),
             invalidated,
-            managedTacticModifier);
+            managedTacticModifier,
+            consequences);
 
         _completedCommands[command.CommandId] = result;
         return result;
@@ -201,7 +218,14 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
     public void ResetIdempotencyCache() => _completedCommands.Clear();
 
-    private void TryApplyBoardAssessment(
+    private sealed record BoardConsequenceSummary(
+        int? ConfidenceDelta,
+        int? BoardConfidence,
+        string? RiskBand,
+        string? ReasonCode,
+        bool ManagerDismissed);
+
+    private BoardConsequenceSummary? TryApplyBoardAssessment(
         Fixture fixture,
         MatchScore score,
         CompetitionSeason season,
@@ -209,19 +233,19 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     {
         if (_managerCareerStore is null)
         {
-            return;
+            return null;
         }
 
         var employment = _managerCareerStore.Career.ActiveEmployment;
         if (employment is null)
         {
-            return;
+            return null;
         }
 
         var managedClubId = employment.ClubId;
         if (fixture.HomeClubId != managedClubId && fixture.AwayClubId != managedClubId)
         {
-            return;
+            return null;
         }
 
         var isHome = fixture.HomeClubId == managedClubId;
@@ -252,12 +276,14 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             Math.Max(leagueSize, 1));
 
         var career = assessment.Career;
+        var managerDismissed = false;
         if (assessment.WasApplied && assessment.RiskBand == EmploymentRiskBand.Critical)
         {
             var clubId = career.ActiveEmployment?.ClubId;
             var managerId = career.ManagerId;
             var dismissal = career.DismissDueToBoardConfidence(fixture.Id, occurredAt);
             career = dismissal.Career;
+            managerDismissed = dismissal.WasApplied;
             if (clubId is ClubId dismissedClub)
             {
                 _promiseInvalidation?.InvalidateForManagerLeavingClub(
@@ -282,6 +308,19 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         }
 
         _managerCareerStore.Replace(career);
+
+        return new BoardConsequenceSummary(
+            assessment.WasApplied || assessment.WasAlreadyApplied
+                ? assessment.ConfidenceDelta
+                : null,
+            assessment.WasApplied || assessment.WasAlreadyApplied
+                ? assessment.BoardConfidence
+                : null,
+            (assessment.WasApplied || assessment.WasAlreadyApplied)
+                ? assessment.RiskBand.ToString()
+                : null,
+            assessment.ReasonCode,
+            managerDismissed);
     }
 
     private int ResolveLineupBonus(FixtureId fixtureId, ClubId clubId, int rootSeed, GameDate day)
@@ -498,23 +537,23 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             day);
     }
 
-    private void TryOpenPressQuestionAfterBlowoutLoss(Fixture fixture, MatchScore score, GameDate day)
+    private bool TryOpenPressQuestionAfterBlowoutLoss(Fixture fixture, MatchScore score, GameDate day)
     {
         if (_postMatchPress is null || _managerCareerStore is null)
         {
-            return;
+            return false;
         }
 
         var employment = _managerCareerStore.Career.ActiveEmployment;
         if (employment is null)
         {
-            return;
+            return false;
         }
 
         var managedClubId = employment.ClubId;
         if (fixture.HomeClubId != managedClubId && fixture.AwayClubId != managedClubId)
         {
-            return;
+            return false;
         }
 
         var isHome = fixture.HomeClubId == managedClubId;
@@ -525,11 +564,33 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             managedClubId,
             ResolveStartingSlots(fixture.Id, managedClubId));
 
-        _postMatchPress.TryOpenAfterManagedBlowoutLoss(
+        return _postMatchPress.TryOpenAfterManagedBlowoutLoss(
             managedGoals,
             opponentGoals,
             startingIds,
-            day);
+            day) is not null;
+    }
+
+    private int[] SnapshotInjuredSlots(ClubId clubId)
+    {
+        if (_trainingStore is null)
+        {
+            return [];
+        }
+
+        return _trainingStore.PhysicalStates
+            .Where(state => state.ClubId == clubId && state.IsInjured)
+            .Select(state => state.SlotIndex)
+            .OrderBy(slot => slot)
+            .ToArray();
+    }
+
+    private int[] DiffNewlyInjuredSlots(ClubId clubId, IReadOnlyList<int> injuredBefore)
+    {
+        var before = injuredBefore.ToHashSet();
+        return SnapshotInjuredSlots(clubId)
+            .Where(slot => !before.Contains(slot))
+            .ToArray();
     }
 
     private void ApplyRelationshipSelectionEffects(Fixture fixture, GameDate day)

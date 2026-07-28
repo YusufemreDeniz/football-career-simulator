@@ -44,7 +44,7 @@ public partial class MatchResultScreen : Control
 
         var list = new ItemList
         {
-            CustomMinimumSize = new Vector2(0, 220),
+            CustomMinimumSize = new Vector2(0, 180),
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
         foreach (var line in _results.MatchLines)
@@ -58,6 +58,28 @@ public partial class MatchResultScreen : Control
         }
 
         layout.AddChild(list);
+
+        var consequences = _results.ConsequenceLines ?? Array.Empty<string>();
+        if (consequences.Count > 0)
+        {
+            layout.AddChild(new Label
+            {
+                Text = "Sonuçlar",
+                HorizontalAlignment = HorizontalAlignment.Left,
+            });
+
+            var consequenceList = new ItemList
+            {
+                CustomMinimumSize = new Vector2(0, 140),
+                SizeFlagsVertical = SizeFlags.ExpandFill,
+            };
+            foreach (var line in consequences)
+            {
+                consequenceList.AddItem(line);
+            }
+
+            layout.AddChild(consequenceList);
+        }
 
         var continueButton = new Button { Text = "Kariyere Dön" };
         continueButton.Pressed += () => ContinueRequested?.Invoke();

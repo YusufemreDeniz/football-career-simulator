@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + **formasyon → maç gücü modifier** kilitlenmiştir. Sıradaki aday: Event & Rule iskeleti veya Match timeline derinliği; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + **maç sonucu consequence özeti (yönetim/sakatlık/basın)** kilitlenmiştir. Sıradaki aday: Event & Rule iskeleti veya sezon geçiş UI; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

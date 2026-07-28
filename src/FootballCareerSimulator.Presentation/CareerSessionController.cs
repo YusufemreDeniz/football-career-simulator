@@ -1348,6 +1348,7 @@ public sealed class CareerSessionController
             }
 
             var lines = new List<string>(dueFixtures.Length);
+            var consequenceLines = new List<string>();
             var invalidatedTotal = 0;
             foreach (var fixture in dueFixtures)
             {
@@ -1365,6 +1366,12 @@ public sealed class CareerSessionController
                     : string.Empty;
                 lines.Add($"{home} {result.HomeGoals}-{result.AwayGoals} {away}{tacticNote}");
                 invalidatedTotal += result.InvalidatedSelectionCount;
+                consequenceLines.AddRange(FormatMatchConsequences(result, home, away));
+            }
+
+            if (invalidatedTotal > 0)
+            {
+                consequenceLines.Add($"Kadro onayı düştü ({invalidatedTotal}).");
             }
 
             var invalidatedNote = invalidatedTotal > 0
@@ -1373,7 +1380,8 @@ public sealed class CareerSessionController
             return new PlayMatchesUiResult(
                 true,
                 $"{lines.Count} maç oynandı (gün {currentDay}){invalidatedNote}.",
-                lines);
+                lines,
+                consequenceLines);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -1382,6 +1390,46 @@ public sealed class CareerSessionController
         catch (Exception ex)
         {
             return new PlayMatchesUiResult(false, $"Maç oynatma hatası: {ex.Message}", Array.Empty<string>());
+        }
+    }
+
+    private static IEnumerable<string> FormatMatchConsequences(
+        PlayFixtureMatchResult result,
+        string home,
+        string away)
+    {
+        if (result.Consequences is not { IsManagedMatch: true } c)
+        {
+            yield break;
+        }
+
+        var header = $"{home} {result.HomeGoals}-{result.AwayGoals} {away}";
+        if (c.BoardConfidenceDelta is int delta && c.BoardConfidenceAfter is int after)
+        {
+            var risk = c.BoardRiskBand switch
+            {
+                nameof(EmploymentRiskBand.Secure) => "Güvenli",
+                nameof(EmploymentRiskBand.Stable) => "Stabil",
+                nameof(EmploymentRiskBand.UnderReview) => "İncelemede",
+                nameof(EmploymentRiskBand.Critical) => "Kritik",
+                _ => c.BoardRiskBand ?? "-",
+            };
+            yield return $"{header} · yönetim güveni {FormatSigned(delta)} → {after} ({risk})";
+        }
+
+        if (c.ManagerDismissed)
+        {
+            yield return $"{header} · yönetim seni işten çıkardı.";
+        }
+
+        if (c.NewlyInjuredSlots.Count > 0)
+        {
+            yield return $"{header} · sakatlık: slot {string.Join(", ", c.NewlyInjuredSlots)}";
+        }
+
+        if (c.PressQuestionOpened)
+        {
+            yield return $"{header} · basın sorusu açıldı.";
         }
     }
 
@@ -1688,4 +1736,5 @@ public sealed record UiActionResult(bool Succeeded, string Message)
 public sealed record PlayMatchesUiResult(
     bool Succeeded,
     string Message,
-    IReadOnlyList<string> MatchLines);
+    IReadOnlyList<string> MatchLines,
+    IReadOnlyList<string>? ConsequenceLines = null);
