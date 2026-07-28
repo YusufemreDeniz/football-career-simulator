@@ -1560,7 +1560,7 @@ public sealed class CareerSessionController
             var competition = Host.CompetitionModule;
             var world = Host.WorldModule;
             var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
-            var nextSeasonId = competition.Queries.GetCurrentSeason()?.SeasonId + 1 ?? DefaultSeasonId;
+            var nextSeasonId = ResolveNextSeasonId();
 
             competition.CreateSeason.Handle(
                 new CreateSeasonCommand(Guid.NewGuid(), nextSeasonId, currentDay));
@@ -1587,6 +1587,78 @@ public sealed class CareerSessionController
         {
             return UiActionResult.Fail($"Yeni sezon başlatılamadı: {ex.Message}");
         }
+    }
+
+    public bool CanTransitionToNextSeason()
+    {
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        if (season is null)
+        {
+            return false;
+        }
+
+        var progress = Host.CompetitionModule.Queries.GetSeasonProgress(season.SeasonId);
+        return progress is { CanComplete: true } or { CanArchive: true };
+    }
+
+    public UiActionResult TransitionToNextSeason()
+    {
+        try
+        {
+            var competition = Host.CompetitionModule;
+            var season = competition.Queries.GetCurrentSeason()
+                ?? throw new InvalidOperationException("Geçiş için mevcut sezon yok.");
+
+            var progress = competition.Queries.GetSeasonProgress(season.SeasonId)
+                ?? throw new InvalidOperationException("Sezon ilerlemesi okunamadı.");
+
+            var previousSeasonId = season.SeasonId;
+
+            if (progress.CanComplete)
+            {
+                var completed = CompleteSeason();
+                if (!completed.Succeeded)
+                {
+                    return completed;
+                }
+            }
+            else if (!progress.CanArchive)
+            {
+                return UiActionResult.Fail(
+                    $"Sezon henüz bitmedi ({progress.AcceptedFixtureCount}/{progress.TotalFixtureCount} maç).");
+            }
+
+            var archived = ArchiveSeason();
+            if (!archived.Succeeded)
+            {
+                return archived;
+            }
+
+            var started = StartNewSeason();
+            if (!started.Succeeded)
+            {
+                return started;
+            }
+
+            var nextSeasonId = Host.CompetitionModule.Queries.GetCurrentSeason()?.SeasonId;
+            return UiActionResult.Ok(
+                $"Sezon geçişi tamam: #{previousSeasonId} arşiv · #{nextSeasonId} aktif.");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Sezon geçişi başarısız: {ex.Message}");
+        }
+    }
+
+    private long ResolveNextSeasonId()
+    {
+        var seasons = Host.CompetitionModule.Store.League.Seasons;
+        if (seasons.Count == 0)
+        {
+            return DefaultSeasonId;
+        }
+
+        return seasons.Max(season => season.SeasonId.Value) + 1;
     }
 
     public UiActionResult SaveGame()

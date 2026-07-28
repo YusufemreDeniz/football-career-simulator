@@ -96,6 +96,7 @@ public partial class CareerHubScreen : Control
     private Button _approachAttackingButton = null!;
     private Button _approachDefensiveButton = null!;
     private Button _playButton = null!;
+    private Button _seasonTransitionButton = null!;
     private Button _advanceDayButton = null!;
     private Button _advanceWeekButton = null!;
     private Control[] _pages = null!;
@@ -296,6 +297,10 @@ public partial class CareerHubScreen : Control
         _playButton = PrimaryButton("Bugünün Maçlarını Oyna");
         _playButton.Pressed += OnPlayMatches;
         primaryRow.AddChild(_playButton);
+
+        _seasonTransitionButton = PrimaryButton("Sezonu Bitir → Yeni Sezon");
+        _seasonTransitionButton.Pressed += () => Apply(_controller.TransitionToNextSeason());
+        primaryRow.AddChild(_seasonTransitionButton);
 
         _advanceDayButton = SecondaryButton("1 Gün İlerlet");
         _advanceDayButton.Pressed += () => Apply(_controller.AdvanceDays(1));
@@ -916,8 +921,8 @@ public partial class CareerHubScreen : Control
         var progressText = progress is null
             ? "İlerleme: —"
             : $"İlerleme: {progress.AcceptedFixtureCount}/{progress.TotalFixtureCount} maç"
-              + (progress.CanComplete ? " · kapatılabilir" : string.Empty)
-              + (progress.CanArchive ? " · arşivlenebilir" : string.Empty);
+              + (progress.CanComplete ? " · sezon geçişine hazır" : string.Empty)
+              + (progress.CanArchive ? " · arşiv + yeni sezon hazır" : string.Empty);
         _progressLabel.Text = $"{progressText} · {periodText}";
 
         _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
@@ -1528,6 +1533,16 @@ public partial class CareerHubScreen : Control
 
         _advanceDayButton.Disabled = !canAdvance;
         _advanceWeekButton.Disabled = !canAdvance;
+
+        var canTransition = _controller.CanTransitionToNextSeason();
+        _seasonTransitionButton.Disabled = !canTransition;
+        var season = _controller.Host.CompetitionModule.Queries.GetCurrentSeason();
+        var progress = season is null
+            ? null
+            : _controller.Host.CompetitionModule.Queries.GetSeasonProgress(season.SeasonId);
+        _seasonTransitionButton.Text = progress is { CanArchive: true, CanComplete: false }
+            ? "Yeni Sezona Geç"
+            : "Sezonu Bitir → Yeni Sezon";
     }
 
     private void RefreshSquadList()
