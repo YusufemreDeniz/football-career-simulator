@@ -15,6 +15,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Composition;
+using FootballCareerSimulator.Application.Transfer.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -154,6 +155,12 @@ public sealed class CareerPresentationHost
             transferMemory: socialContinuity.TransferMemory,
             clubHistoryMemory: socialContinuity.ClubHistoryMemory,
             relationships: socialContinuity.RelationshipEvaluation);
+        var eventRuleForBind = worldModule.EventRuleEvaluation
+            ?? throw new InvalidOperationException("Event & Rule Evaluation iskeleti bağlı değil.");
+        worldModule.CloseTransferWindow.BindWindowClosedConsequences(
+            new TransferWindowClosedConsequenceApplier(
+                transferModule.WindowClose,
+                eventRuleForBind.Gate));
         var interactionModule = InteractionModule.Create(
             managerModule.Store,
             socialContinuity.PlayingTime,

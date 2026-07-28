@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Event & Rule + **TransferWindowOpened/Closed event evaluation + Closed reaction** kilitlenmiştir. Sıradaki aday: Closed reaction → TransferWindowCloseService (process expire) veya başka due owner'lar; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + Event & Rule + **TransferWindowClosed reaction → process expire/carry** kilitlenmiştir. Sıradaki aday: başka due owner'lar (promise/contract) veya Opened reaction; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

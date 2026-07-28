@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
+using FootballCareerSimulator.Application.Transfer.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.EventRuleEvaluation;
@@ -10,6 +11,7 @@ public sealed class CloseTransferWindowHandler : ICommandIdempotencyReset
 {
     private readonly IWorldTimelineStore _timelineStore;
     private readonly WorldCalendarEventEvaluationService? _eventEvaluation;
+    private TransferWindowClosedConsequenceApplier? _windowClosedConsequences;
     private readonly Dictionary<Guid, CloseTransferWindowResult> _completedCommands = new();
 
     public CloseTransferWindowHandler(
@@ -19,6 +21,9 @@ public sealed class CloseTransferWindowHandler : ICommandIdempotencyReset
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _eventEvaluation = eventEvaluation;
     }
+
+    public void BindWindowClosedConsequences(TransferWindowClosedConsequenceApplier applier) =>
+        _windowClosedConsequences = applier ?? throw new ArgumentNullException(nameof(applier));
 
     public CloseTransferWindowResult Handle(CloseTransferWindowCommand command)
     {
@@ -34,6 +39,8 @@ public sealed class CloseTransferWindowHandler : ICommandIdempotencyReset
 
         var applied = 0;
         var reactions = 0;
+        var expired = 0;
+        var carried = 0;
         IReadOnlyList<string> raisedTypes = Array.Empty<string>();
         if (_eventEvaluation is not null && raised.Length > 0)
         {
@@ -43,6 +50,13 @@ public sealed class CloseTransferWindowHandler : ICommandIdempotencyReset
             raisedTypes = evaluated.Effects
                 .Select(e => e.EventType)
                 .ToArray();
+
+            if (_windowClosedConsequences is not null)
+            {
+                var outcome = _windowClosedConsequences.ApplyFromReactions(evaluated.ReactionIntents);
+                expired = outcome.ExpiredCount;
+                carried = outcome.CarriedCount;
+            }
         }
 
         timeline.ClearUncommittedEvents();
@@ -52,7 +66,9 @@ public sealed class CloseTransferWindowHandler : ICommandIdempotencyReset
             window.IsOpen,
             applied,
             reactions,
-            raisedTypes);
+            raisedTypes,
+            expired,
+            carried);
         _completedCommands[command.CommandId] = result;
         return result;
     }

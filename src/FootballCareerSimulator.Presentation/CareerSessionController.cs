@@ -969,12 +969,10 @@ public sealed class CareerSessionController
     {
         try
         {
-            _ = Host.WorldModule.CloseTransferWindow.Handle(
+            var closeResult = Host.WorldModule.CloseTransferWindow.Handle(
                 new Application.WorldCalendar.Commands.CloseTransferWindowCommand(Guid.NewGuid()));
-            var outcome = Host.TransferModule.WindowClose.ApplyWindowClosed(
-                Host.WorldModule.TimelineStore.Timeline.CurrentDate);
             return UiActionResult.Ok(
-                $"Transfer penceresi kapatıldı (expire: {outcome.ExpiredCount}, taşınan: {outcome.CarriedCount}).");
+                $"Transfer penceresi kapatıldı (expire: {closeResult.ExpiredProcessCount}, taşınan: {closeResult.CarriedProcessCount}).");
         }
         catch (Exception ex)
         {

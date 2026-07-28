@@ -20,4 +20,6 @@ public sealed record CloseTransferWindowResult(
     bool IsOpen,
     int AppliedEffectCount = 0,
     int ReactionIntentCount = 0,
-    IReadOnlyList<string>? RaisedEventTypes = null);
+    IReadOnlyList<string>? RaisedEventTypes = null,
+    int ExpiredProcessCount = 0,
+    int CarriedProcessCount = 0);
