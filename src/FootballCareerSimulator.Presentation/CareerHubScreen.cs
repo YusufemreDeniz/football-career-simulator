@@ -49,6 +49,7 @@ public partial class CareerHubScreen : Control
     private Label _transferProcessLabel = null!;
     private Label _tacticLabel = null!;
     private Label _squadStatusLabel = null!;
+    private Label _squadCapacityLabel = null!;
     private Label _standingsLabel = null!;
     private Label _leagueBriefingLabel = null!;
     private Label _statusLabel = null!;
@@ -307,6 +308,9 @@ public partial class CareerHubScreen : Control
         var openWorld = SecondaryButton("Lig Masası");
         openWorld.Pressed += () => ShowPage(HubPage.World);
         pulseRow.AddChild(openWorld);
+        var openClub = SecondaryButton("Kulüp / Kadro");
+        openClub.Pressed += () => ShowPage(HubPage.Club);
+        pulseRow.AddChild(openClub);
 
         page.AddChild(SectionTitle("Ofiste"));
         _officeLabel = BodyLabel("OfficeLabel", autowrap: true);
@@ -391,6 +395,8 @@ public partial class CareerHubScreen : Control
     {
         var page = PageRoot();
         page.AddChild(SectionTitle("Kulüp"));
+        _squadCapacityLabel = BodyLabel("SquadCapacityLabel", autowrap: true);
+        page.AddChild(_squadCapacityLabel);
         _squadStatusLabel = BodyLabel("SquadStatusLabel", autowrap: true);
         page.AddChild(_squadStatusLabel);
         _developmentLabel = BodyLabel("DevelopmentLabel", autowrap: true);
@@ -1646,6 +1652,9 @@ public partial class CareerHubScreen : Control
     private void RefreshSquadList()
     {
         _squadList.Clear();
+        var capacity = _controller.BuildSquadCapacityDigest();
+        _squadCapacityLabel.Text = capacity.ToDisplayText();
+
         var manager = _controller.Host.ManagerModule.Queries.GetCareer();
         if (manager.EmployedClubId is not long clubId)
         {
@@ -1670,6 +1679,14 @@ public partial class CareerHubScreen : Control
         if (squad.Count > 11)
         {
             _squadList.AddItem($"... +{squad.Count - 11} yedek/oyuncu ({clubName})");
+        }
+
+        if (capacity.IsOverCapacity)
+        {
+            foreach (var id in capacity.OverflowPlayerIds)
+            {
+                _squadList.AddItem($"[kadro dışı sözleşme] oyuncu#{id}");
+            }
         }
     }
 

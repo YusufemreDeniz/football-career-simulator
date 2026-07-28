@@ -572,7 +572,22 @@ public sealed class CareerSessionController
             desk,
             match,
             BuildPreparationBriefing(),
-            BuildLeagueWorldBriefing());
+            BuildLeagueWorldBriefing(),
+            BuildSquadCapacityDigest());
+    }
+
+    public SquadCapacityDigest BuildSquadCapacityDigest()
+    {
+        if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is not long clubId
+            || Host.TeamPreparationModule.ClubSquad is null)
+        {
+            return SquadCapacityDigest.Unemployed();
+        }
+
+        var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+        return Host.TeamPreparationModule.ClubSquad.GetCapacityDigest(
+            new Domain.Shared.ClubId(clubId),
+            day);
     }
 
     public LeagueWorldBriefing BuildLeagueWorldBriefing()

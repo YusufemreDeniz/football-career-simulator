@@ -77,6 +77,27 @@ public sealed class TodayPulseDigestTests
         Assert.Contains("Sakin", pulse.Headline, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SquadOverflow_BeatsCalmMatch()
+    {
+        var squad = SquadCapacityDigest.Compose(
+            activeContractCount: 26,
+            squadMemberCount: 25,
+            maxMembers: 25,
+            overflowPlayerIds: [2001]);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            MatchReady(),
+            PrepOk(),
+            LeagueOk(),
+            squad);
+
+        Assert.Equal(TodayPulseDigest.FocusSquad, pulse.PrimaryFocusCode);
+        Assert.Contains("Kadro taştı", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains(pulse.PulseLines, l => l.StartsWith("Kadro:", StringComparison.Ordinal));
+    }
+
     private static DecisionDeskDigest Desk(bool hard, bool open, string headline) =>
         open
             ? new DecisionDeskDigest(

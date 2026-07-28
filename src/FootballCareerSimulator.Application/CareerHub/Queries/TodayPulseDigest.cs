@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.Interaction.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
@@ -5,7 +6,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Queries;
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
 /// <summary>
-/// Bugün nabzı — ofis, maç, hazırlık ve lig masalarını tek bakışta bağlar.
+/// Bugün nabzı — ofis, maç, hazırlık, lig ve kadro kapasitesini tek bakışta bağlar.
 /// </summary>
 public sealed record TodayPulseDigest(
     string BrandTitle,
@@ -19,23 +20,32 @@ public sealed record TodayPulseDigest(
     public const string FocusMatch = "Match";
     public const string FocusPrep = "Prep";
     public const string FocusLeague = "League";
+    public const string FocusSquad = "Squad";
     public const string FocusCalm = "Calm";
 
     public static TodayPulseDigest Compose(
         DecisionDeskDigest desk,
         PreMatchBriefing match,
         PreparationBriefing prep,
-        LeagueWorldBriefing league)
+        LeagueWorldBriefing league,
+        SquadCapacityDigest? squad = null)
     {
         ArgumentNullException.ThrowIfNull(desk);
         ArgumentNullException.ThrowIfNull(match);
         ArgumentNullException.ThrowIfNull(prep);
         ArgumentNullException.ThrowIfNull(league);
 
+        squad ??= SquadCapacityDigest.Unemployed();
+
         var lines = new List<string>();
         if (desk.HasOpenDecision)
         {
             lines.Add($"Masada: {desk.Headline}");
+        }
+
+        if (squad.IsOverCapacity)
+        {
+            lines.Add($"Kadro: {squad.Headline}");
         }
 
         if (match.HasMatch)
@@ -53,7 +63,7 @@ public sealed record TodayPulseDigest(
             lines.Add($"Lig: {league.Headline}");
         }
 
-        var (focus, headline) = ResolveFocus(desk, match, prep, league);
+        var (focus, headline) = ResolveFocus(desk, match, prep, league, squad);
         return new TodayPulseDigest(Brand, headline, focus, lines.Take(4).ToArray());
     }
 
@@ -69,7 +79,8 @@ public sealed record TodayPulseDigest(
         DecisionDeskDigest desk,
         PreMatchBriefing match,
         PreparationBriefing prep,
-        LeagueWorldBriefing league)
+        LeagueWorldBriefing league,
+        SquadCapacityDigest squad)
     {
         if (desk.IsHardBlocker)
         {
@@ -79,6 +90,11 @@ public sealed record TodayPulseDigest(
         if (desk.HasOpenDecision)
         {
             return (FocusDesk, "Masada iş var — ofisi temizle.");
+        }
+
+        if (squad.IsOverCapacity)
+        {
+            return (FocusSquad, "Kadro taştı — Kulüp'te kapasiteye bak.");
         }
 
         if (match.HasMatch && !match.IsReadyToKickOff)

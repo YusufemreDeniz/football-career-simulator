@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -101,4 +102,26 @@ public sealed class ClubSquadService
 
     public bool HasFreeSquadCapacity(ClubId clubId, GameDate day) =>
         CountActiveContracts(clubId, day) < ClubSquad.MaxMembers;
+
+    public SquadCapacityDigest GetCapacityDigest(ClubId clubId, GameDate day)
+    {
+        var activeIds = _contractStore.GetForClub(clubId)
+            .Where(c => c.IsActiveOn(day))
+            .Where(c => _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId))
+            .Select(c => c.PlayerId.Value)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToArray();
+
+        var squadIds = (_squadStore.Get(clubId)?.Members ?? Array.Empty<SquadMember>())
+            .Select(m => m.PlayerId.Value)
+            .ToHashSet();
+
+        var overflow = activeIds.Where(id => !squadIds.Contains(id)).ToArray();
+        return SquadCapacityDigest.Compose(
+            activeIds.Length,
+            squadIds.Count,
+            ClubSquad.MaxMembers,
+            overflow);
+    }
 }
