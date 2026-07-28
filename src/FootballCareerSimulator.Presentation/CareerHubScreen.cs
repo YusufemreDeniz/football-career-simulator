@@ -151,6 +151,15 @@ public partial class CareerHubScreen : Control
         PulseStatus(digest.ToStatusMessage());
     }
 
+    public void ApplyCareerResume(Application.CareerHub.Queries.CareerResumeDigest digest)
+    {
+        ArgumentNullException.ThrowIfNull(digest);
+        ShowPage(HubPage.Today);
+        RefreshUi();
+        _officeLabel.Text = digest.ToDisplayText();
+        PulseStatus(digest.ToStatusMessage());
+    }
+
     private void BuildLayout()
     {
         CareerUiTheme.EnsureLoaded();
@@ -836,7 +845,7 @@ public partial class CareerHubScreen : Control
         saveLoadRow.AddChild(_saveGameButton);
 
         _loadGameButton = SecondaryButton("Yükle");
-        _loadGameButton.Pressed += () => Apply(_controller.LoadGame());
+        _loadGameButton.Pressed += OnLoadGamePressed;
         saveLoadRow.AddChild(_loadGameButton);
 
         var menuButton = SecondaryButton("Ana Menü");
@@ -912,6 +921,18 @@ public partial class CareerHubScreen : Control
     {
         PulseStatus(result.Message);
         RefreshUi();
+    }
+
+    private void OnLoadGamePressed()
+    {
+        var result = _controller.LoadGame();
+        if (result.Succeeded && _controller.LastCareerResume is { } resume)
+        {
+            ApplyCareerResume(resume);
+            return;
+        }
+
+        Apply(result);
     }
 
     private void RefreshUi()

@@ -45,6 +45,9 @@ public sealed class CareerSessionController
 
     public CareerPresentationHost Host { get; }
 
+    /// <summary>Son başarılı LoadGame sonrası nabız doğrulama özeti (menü/Dosya).</summary>
+    public CareerResumeDigest? LastCareerResume { get; private set; }
+
     public bool SaveFileExists() => File.Exists(Host.DefaultSavePath);
 
     public UiActionResult EnsureLeagueReady()
@@ -2190,20 +2193,40 @@ public sealed class CareerSessionController
         {
             if (!File.Exists(Host.DefaultSavePath))
             {
+                LastCareerResume = null;
                 return UiActionResult.Fail(
                     "Kayıt Masası\nDiskte kayıt yok — önce Kaydet.");
             }
 
             var result = Host.GameSession.Load(Host.DefaultSavePath);
-            var migrateNote = result.WasMigrated ? " (şema migrate edildi)" : string.Empty;
-            return UiActionResult.Ok(
-                $"Kayıt Masası\nYükleme tamam{migrateNote}: gün {result.LoadedDayNumber}, {result.LoadedFixtureCount} maç."
-                + "\nÖneri: Bugün nabzına bak — ofis ve maç durumunu doğrula.");
+            LastCareerResume = BuildCareerResumeDigest(
+                result.WasMigrated,
+                result.LoadedFixtureCount);
+            return UiActionResult.Ok(LastCareerResume.ToStatusMessage());
         }
         catch (Exception ex)
         {
+            LastCareerResume = null;
             return UiActionResult.Fail($"Yükleme hatası: {ex.Message}");
         }
+    }
+
+    public CareerResumeDigest BuildCareerResumeDigest(bool wasMigrated, int loadedFixtureCount)
+    {
+        var day = Host.WorldModule.Queries.GetCurrentGameDate();
+        var manager = Host.ManagerModule.Queries.GetCareer();
+        string? clubName = manager.EmployedClubId is long clubId
+            ? GetClubDisplayName(clubId)
+            : null;
+
+        return CareerResumeDigest.Compose(
+            BuildTodayPulse(),
+            day.DayNumber,
+            day.IsoDate,
+            manager.DisplayName,
+            clubName,
+            loadedFixtureCount,
+            wasMigrated);
     }
 
     public UiActionResult OpenPlanningPeriod()

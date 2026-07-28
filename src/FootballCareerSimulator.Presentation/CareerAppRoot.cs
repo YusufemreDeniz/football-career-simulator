@@ -37,7 +37,8 @@ public partial class CareerAppRoot : Control
     public void ShowHub(
         CareerSessionController controller,
         string? statusMessage = null,
-        Application.Competition.Queries.PostMatchOfficeDigest? officeReturn = null)
+        Application.Competition.Queries.PostMatchOfficeDigest? officeReturn = null,
+        Application.CareerHub.Queries.CareerResumeDigest? careerResume = null)
     {
         var hub = new CareerHubScreen(controller);
         hub.BackToMenuRequested += ShowMainMenu;
@@ -46,6 +47,10 @@ public partial class CareerAppRoot : Control
         if (officeReturn is not null)
         {
             hub.ApplyOfficeReturn(officeReturn);
+        }
+        else if (careerResume is not null)
+        {
+            hub.ApplyCareerResume(careerResume);
         }
         else if (!string.IsNullOrWhiteSpace(statusMessage))
         {
@@ -97,7 +102,7 @@ public partial class CareerAppRoot : Control
             return;
         }
 
-        ShowHub(controller, load.Message);
+        ShowHub(controller, careerResume: controller.LastCareerResume);
     }
 
     private void ReplaceScreen(Control screen)
