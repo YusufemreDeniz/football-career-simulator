@@ -18,6 +18,15 @@ public sealed record PostMatchOfficeDigest(
     public static PostMatchOfficeDigest Quiet() =>
         new(Brand, "Ofis sakin — sıradaki güne bak.", "Bugün nabzına bak.", null, Array.Empty<string>());
 
+    /// <summary>
+    /// Günlük Bugün ekranı — Ofiste metni nabızla aynı dili konuşsun.
+    /// </summary>
+    public static PostMatchOfficeDigest FromTodayPulse(TodayPulseDigest pulse)
+    {
+        ArgumentNullException.ThrowIfNull(pulse);
+        return Compose(narrative: null, DecisionDeskDigest.Clear(), hasManagedMatch: false, pulse);
+    }
+
     public static PostMatchOfficeDigest Compose(
         MatchNightNarrative? narrative,
         DecisionDeskDigest desk,
@@ -33,7 +42,7 @@ public sealed record PostMatchOfficeDigest(
             {
                 return new PostMatchOfficeDigest(
                     Brand,
-                    "Ofis sakin ama nabız konuşuyor.",
+                    "Nabız konuşuyor — sıradaki adımı uygula.",
                     AdviceForFocus(nextPulse.PrimaryFocusCode),
                     nextPulse.PrimaryFocusCode,
                     new[] { $"Sıradaki: {nextPulse.Headline}" });
@@ -103,7 +112,7 @@ public sealed record PostMatchOfficeDigest(
         TodayPulseDigest.FocusSquad => "Kulüp'te Yer Aç veya Taşanı Kadroya Al.",
         TodayPulseDigest.FocusTransfer => "Transfer Masası — pencere, Satışa Çıkar veya süreç.",
         TodayPulseDigest.FocusSeason => "Sezon geçişini tamamla — Bitir / Yeni Sezon.",
-        TodayPulseDigest.FocusPrep => "Hazırlık'ta öneriyi uygula — Toparlanma / Kondisyon.",
+        TodayPulseDigest.FocusPrep => "Birincil düğmeyle hazırlık önerisini uygula.",
         TodayPulseDigest.FocusLeague => "Lig baskısı var — birincil CTA ile devam et.",
         _ => "Bugün nabzına bak — sonra günü ilerlet.",
     };
@@ -164,6 +173,18 @@ public sealed record PostMatchOfficeDigest(
             && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusSquad, StringComparison.Ordinal))
         {
             return "Gece bitti — kadro kapasitesi konuşuyor.";
+        }
+
+        if (nextPulse is not null
+            && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusPrep, StringComparison.Ordinal))
+        {
+            return "Gece bitti — Hazırlık önerisi bekliyor.";
+        }
+
+        if (nextPulse is not null
+            && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusLeague, StringComparison.Ordinal))
+        {
+            return "Gece bitti — lig baskısı konuşuyor.";
         }
 
         if (narrative.OutcomeTone.Contains("kazandın", StringComparison.OrdinalIgnoreCase)

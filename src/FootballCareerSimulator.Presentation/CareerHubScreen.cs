@@ -365,21 +365,6 @@ public partial class CareerHubScreen : Control
         page.AddChild(SectionTitle("Günün Nabzı"));
         _pulseLabel = BodyLabel("PulseLabel", autowrap: true);
         page.AddChild(_pulseLabel);
-        var pulseRow = new HBoxContainer();
-        pulseRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(pulseRow);
-        var openPrep = SecondaryButton("Hazırlık Masası");
-        openPrep.Pressed += () => ShowPage(HubPage.Prep);
-        pulseRow.AddChild(openPrep);
-        var openWorld = SecondaryButton("Lig Masası");
-        openWorld.Pressed += () => ShowPage(HubPage.World);
-        pulseRow.AddChild(openWorld);
-        var openClub = SecondaryButton("Kulüp / Kadro");
-        openClub.Pressed += () => ShowPage(HubPage.Club);
-        pulseRow.AddChild(openClub);
-        var openTransfer = SecondaryButton("Transfer Masası");
-        openTransfer.Pressed += () => ShowPage(HubPage.Transfer);
-        pulseRow.AddChild(openTransfer);
 
         _officeNextStepButton = PrimaryButton("Sıradaki Adım");
         _officeNextStepButton.Visible = false;
@@ -1724,6 +1709,9 @@ public partial class CareerHubScreen : Control
     {
         var pulse = _controller.BuildTodayPulse();
         _pulseLabel.Text = pulse.ToDisplayText();
+        _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest
+            .FromTodayPulse(pulse)
+            .ToDisplayText();
 
         var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         var pending = _controller.Host.TeamPreparationModule.SelectionQueries

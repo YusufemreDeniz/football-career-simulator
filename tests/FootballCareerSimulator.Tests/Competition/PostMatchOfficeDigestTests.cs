@@ -24,6 +24,30 @@ public sealed class PostMatchOfficeDigestTests
     }
 
     [Fact]
+    public void FromTodayPulse_MirrorsPrepFocus()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1, null, null, null, null, null, null, null, null, null,
+                HasPlan: false, 0, 0),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 4);
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk());
+
+        var digest = PostMatchOfficeDigest.FromTodayPulse(pulse);
+
+        Assert.Equal(TodayPulseDigest.FocusPrep, digest.NextFocusCode);
+        Assert.Contains("Nabız konuşuyor", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Sıradaki:", StringComparison.Ordinal));
+        Assert.Contains("birincil düğme", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void PressAndHardDesk_LeadsCrisisHeadline()
     {
         var narrative = MatchNightNarrative.Compose(
