@@ -7,6 +7,7 @@ using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.Discipline;
+using FootballCareerSimulator.Domain.EventRuleEvaluation;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.Transfer;
@@ -47,7 +48,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<DecisionRequest>? decisionRequests = null,
         IReadOnlyList<DialogueSession>? dialogueSessions = null,
         IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null,
-        IReadOnlyList<string>? eventEffectProcessingKeys = null)
+        IReadOnlyList<string>? eventEffectProcessingKeys = null,
+        IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -75,6 +77,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         dialogueSessions ??= Array.Empty<DialogueSession>();
         disciplinaryActions ??= Array.Empty<DisciplinaryAction>();
         eventEffectProcessingKeys ??= Array.Empty<string>();
+        scheduledEvaluations ??= Array.Empty<ScheduledEvaluation>();
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -101,7 +104,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             decisionRequests,
             dialogueSessions,
             disciplinaryActions,
-            eventEffectProcessingKeys);
+            eventEffectProcessingKeys,
+            scheduledEvaluations);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -141,6 +145,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertDialogueSessions(connection, transaction, dialogueSessions);
             InsertDisciplinaryActions(connection, transaction, disciplinaryActions);
             InsertEventEffectProcessingKeys(connection, transaction, eventEffectProcessingKeys);
+            InsertScheduledEvaluations(connection, transaction, scheduledEvaluations);
 
             transaction.Commit();
         }
@@ -431,6 +436,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV37ToV38InPlace(filePath);
             wasMigrated = true;
             version = 38;
+        }
+
+        if (version == 38 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 39)
+        {
+            WorldCalendarSqliteMigrator.MigrateV38ToV39InPlace(filePath);
+            wasMigrated = true;
+            version = 39;
         }
 
         if (wasMigrated)
@@ -836,6 +848,16 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
             CREATE TABLE EventEffectIdempotencyState (
                 ProcessingKey TEXT PRIMARY KEY
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE ScheduledEvaluationState (
+                ScheduledEvaluationId INTEGER PRIMARY KEY,
+                EvaluationTypeCode TEXT NOT NULL,
+                DueDayNumber INTEGER NOT NULL,
+                SourceEventId TEXT NULL,
+                Status INTEGER NOT NULL
             );
             """);
     }
@@ -1694,6 +1716,31 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertScheduledEvaluations(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<ScheduledEvaluation> evaluations)
+    {
+        foreach (var evaluation in evaluations.OrderBy(item => item.Id.Value))
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO ScheduledEvaluationState (
+                    ScheduledEvaluationId, EvaluationTypeCode, DueDayNumber, SourceEventId, Status)
+                VALUES ($id, $type, $due, $source, $status);
+                """;
+            command.Parameters.AddWithValue("$id", evaluation.Id.Value);
+            command.Parameters.AddWithValue("$type", evaluation.EvaluationTypeCode);
+            command.Parameters.AddWithValue("$due", evaluation.DueDayNumber);
+            command.Parameters.AddWithValue(
+                "$source",
+                evaluation.SourceEventId is Guid source ? source.ToString("N") : DBNull.Value);
+            command.Parameters.AddWithValue("$status", (int)evaluation.Status);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static void InsertMemories(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1824,6 +1871,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var dialogueSessions = ReadDialogueSessions(connection);
         var disciplinaryActions = ReadDisciplinaryActions(connection);
         var eventEffectProcessingKeys = ReadEventEffectProcessingKeys(connection);
+        var scheduledEvaluations = ReadScheduledEvaluations(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1849,7 +1897,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             decisionRequests,
             dialogueSessions,
             disciplinaryActions,
-            eventEffectProcessingKeys);
+            eventEffectProcessingKeys,
+            scheduledEvaluations);
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1897,6 +1946,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<DialogueSession> dialogueSessions;
             IReadOnlyList<DisciplinaryAction> disciplinaryActions;
             IReadOnlyList<string> eventEffectProcessingKeys;
+            IReadOnlyList<ScheduledEvaluation> scheduledEvaluations;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1933,6 +1983,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 dialogueSessions = ReadDialogueSessions(connection);
                 disciplinaryActions = ReadDisciplinaryActions(connection);
                 eventEffectProcessingKeys = ReadEventEffectProcessingKeys(connection);
+                scheduledEvaluations = ReadScheduledEvaluations(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -1962,7 +2013,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 decisionRequests,
                 dialogueSessions,
                 disciplinaryActions,
-                eventEffectProcessingKeys);
+                eventEffectProcessingKeys,
+                scheduledEvaluations);
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -1996,7 +2048,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 disciplinaryActions,
                 schemaVersion,
                 wasMigrated,
-                eventEffectProcessingKeys);
+                eventEffectProcessingKeys,
+                scheduledEvaluations);
         }
         catch (SaveIntegrityException)
         {
@@ -2933,6 +2986,40 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         return sessions;
+    }
+
+    private static IReadOnlyList<ScheduledEvaluation> ReadScheduledEvaluations(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "ScheduledEvaluationState"))
+        {
+            return Array.Empty<ScheduledEvaluation>();
+        }
+
+        var evaluations = new List<ScheduledEvaluation>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ScheduledEvaluationId, EvaluationTypeCode, DueDayNumber, SourceEventId, Status
+            FROM ScheduledEvaluationState
+            ORDER BY ScheduledEvaluationId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            Guid? sourceEventId = null;
+            if (!reader.IsDBNull(3))
+            {
+                sourceEventId = Guid.Parse(reader.GetString(3));
+            }
+
+            evaluations.Add(ScheduledEvaluation.Rehydrate(
+                new ScheduledEvaluationId(reader.GetInt64(0)),
+                reader.GetString(1),
+                reader.GetInt32(2),
+                sourceEventId,
+                (ScheduledEvaluationStatus)reader.GetInt32(4)));
+        }
+
+        return evaluations;
     }
 
     private static IReadOnlyList<string> ReadEventEffectProcessingKeys(SqliteConnection connection)

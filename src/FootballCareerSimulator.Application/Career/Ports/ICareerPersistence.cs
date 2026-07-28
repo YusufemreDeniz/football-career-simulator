@@ -4,6 +4,7 @@ using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.Discipline;
+using FootballCareerSimulator.Domain.EventRuleEvaluation;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.SocialContinuity;
@@ -41,7 +42,8 @@ public interface ICareerPersistence
         IReadOnlyList<DecisionRequest>? decisionRequests = null,
         IReadOnlyList<DialogueSession>? dialogueSessions = null,
         IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null,
-        IReadOnlyList<string>? eventEffectProcessingKeys = null);
+        IReadOnlyList<string>? eventEffectProcessingKeys = null,
+        IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null);
 
     CareerLoadResult Load(string filePath);
 }
@@ -73,4 +75,5 @@ public sealed record CareerLoadResult(
     IReadOnlyList<DisciplinaryAction> DisciplinaryActions,
     int SchemaVersion,
     bool WasMigrated,
-    IReadOnlyList<string>? EventEffectProcessingKeys = null);
+    IReadOnlyList<string>? EventEffectProcessingKeys = null,
+    IReadOnlyList<ScheduledEvaluation>? ScheduledEvaluations = null);

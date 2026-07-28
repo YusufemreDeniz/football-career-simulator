@@ -1,5 +1,4 @@
-using FootballCareerSimulator.Application.Competition.Commands;
-using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.ClubGovernance;
@@ -13,16 +12,16 @@ using Microsoft.Data.Sqlite;
 
 namespace FootballCareerSimulator.Tests.EventRuleEvaluation;
 
-public sealed class EventEffectIdempotencySaveLoadTests : IDisposable
+public sealed class ScheduledEvaluationSaveLoadTests : IDisposable
 {
-    private static readonly GameDate PreseasonStart = GameDate.FromCalendarDate(2026, 7, 1);
+    private static readonly GameDate Start = GameDate.FromCalendarDate(2026, 7, 1);
 
     private readonly string _tempDirectory;
     private readonly CareerSqlitePersistence _persistence = new();
 
-    public EventEffectIdempotencySaveLoadTests()
+    public ScheduledEvaluationSaveLoadTests()
     {
-        _tempDirectory = Path.Combine(Path.GetTempPath(), "fcs-effect-save-tests", Guid.NewGuid().ToString("N"));
+        _tempDirectory = Path.Combine(Path.GetTempPath(), "fcs-schedule-save-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDirectory);
     }
 
@@ -36,23 +35,24 @@ public sealed class EventEffectIdempotencySaveLoadTests : IDisposable
     }
 
     [Fact]
-    public void SaveAndLoad_PreservesEventEffectProcessingKeys()
+    public void SaveAndLoad_PreservesPendingScheduledEvaluations()
     {
-        var world = WorldCalendarModule.Create(PreseasonStart, rootSeed: 42);
-        var advance = world.AdvanceSimulationTime.Handle(
-            new AdvanceSimulationTimeCommand(
-                Guid.NewGuid(),
-                GameDate.FromCalendarDate(2026, 7, 4).DayNumber));
-        Assert.True(advance.AppliedEffectCount > 0);
+        var world = WorldCalendarModule.Create(Start, rootSeed: 42);
+        var closesOn = GameDate.FromCalendarDate(2026, 7, 5);
+        world.CloseTransferWindow.Handle(new CloseTransferWindowCommand(Guid.NewGuid()));
+        world.OpenTransferWindow.Handle(new OpenTransferWindowCommand(Guid.NewGuid(), closesOn.DayNumber));
 
-        var keys = world.EventRuleEvaluation!.Registry.SnapshotKeys();
-        Assert.NotEmpty(keys);
+        // Schedule without closing: advance to day before closesOn so intent schedules... 
+        // Actually schedule only when day >= closesOn. Seed a pending item directly.
+        var pending = ScheduledEvaluation.CreatePending(
+            new ScheduledEvaluationId(7),
+            TransferWindowCloseReactionScheduler.CloseTransferWindowEvaluationType,
+            closesOn.DayNumber,
+            Guid.Parse("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+        world.EventRuleEvaluation!.ScheduledEvaluationStore.ReplaceAll([pending]);
 
-        var competition = CompetitionModule.CreateNewLeague();
-        competition.CreateSeason.Handle(
-            new CreateSeasonCommand(Guid.NewGuid(), 1, PreseasonStart.DayNumber));
-
-        var path = Path.Combine(_tempDirectory, "effect-keys.db");
+        var competition = CompetitionModuleCreateEmpty();
+        var path = Path.Combine(_tempDirectory, "scheduled.db");
         var manager = ManagerCareer.StartNewCareerForClubStrength(
             new ManagerId(1),
             "Teknik Direktör",
@@ -63,7 +63,7 @@ public sealed class EventEffectIdempotencySaveLoadTests : IDisposable
         _persistence.Save(
             path,
             world.TimelineStore.Timeline,
-            competition.Store.League,
+            competition,
             LeagueClubRegistry.CreateMvpLeague(),
             manager,
             Array.Empty<Domain.TeamPreparation.MatchSelection>(),
@@ -82,17 +82,24 @@ public sealed class EventEffectIdempotencySaveLoadTests : IDisposable
             Array.Empty<Domain.Transfer.PlayerContractProposal>(),
             Array.Empty<Domain.SocialContinuity.Promise>(),
             Array.Empty<Domain.SocialContinuity.MemoryRecord>(),
-            eventEffectProcessingKeys: keys);
+            scheduledEvaluations: [pending]);
 
         var loaded = _persistence.Load(path);
         Assert.Equal(39, loaded.SchemaVersion);
-        Assert.Equal(keys, loaded.EventEffectProcessingKeys);
+        Assert.NotNull(loaded.ScheduledEvaluations);
+        Assert.Single(loaded.ScheduledEvaluations!);
+        var restored = loaded.ScheduledEvaluations![0];
+        Assert.Equal(7, restored.Id.Value);
+        Assert.Equal(TransferWindowCloseReactionScheduler.CloseTransferWindowEvaluationType, restored.EvaluationTypeCode);
+        Assert.Equal(closesOn.DayNumber, restored.DueDayNumber);
+        Assert.Equal(ScheduledEvaluationStatus.Pending, restored.Status);
+        Assert.Equal(pending.SourceEventId, restored.SourceEventId);
 
-        var registry = world.EventRuleEvaluation.Registry;
-        registry.Clear();
-        registry.ReplaceAll(loaded.EventEffectProcessingKeys!);
-        Assert.Equal(
-            EventEffectApplicationStatus.Duplicate,
-            world.EventRuleEvaluation.Gate.TryApply(new EventEffectProcessingKey(keys[0])));
+        world.EventRuleEvaluation.ScheduledEvaluationStore.Clear();
+        world.EventRuleEvaluation.ScheduledEvaluationStore.ReplaceAll(loaded.ScheduledEvaluations);
+        Assert.Single(world.EventRuleEvaluation.ScheduledEvaluationStore.GetPendingDueThrough(closesOn.DayNumber));
     }
+
+    private static LeagueCompetition CompetitionModuleCreateEmpty() =>
+        new(new CompetitionId(1));
 }

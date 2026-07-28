@@ -6,6 +6,7 @@ namespace FootballCareerSimulator.Application.EventRuleEvaluation.Infrastructure
 public sealed class InMemoryScheduledEvaluationStore : IScheduledEvaluationStore
 {
     private readonly Dictionary<long, ScheduledEvaluation> _items = new();
+    private long _nextId = 1;
 
     public IReadOnlyList<ScheduledEvaluation> Items =>
         _items.Values
@@ -13,10 +14,16 @@ public sealed class InMemoryScheduledEvaluationStore : IScheduledEvaluationStore
             .ThenBy(item => item.Id.Value)
             .ToArray();
 
+    public long AllocateNextId() => _nextId++;
+
     public void Add(ScheduledEvaluation evaluation)
     {
         ArgumentNullException.ThrowIfNull(evaluation);
         _items[evaluation.Id.Value] = evaluation;
+        if (evaluation.Id.Value >= _nextId)
+        {
+            _nextId = evaluation.Id.Value + 1;
+        }
     }
 
     public ScheduledEvaluation? FindPending(string evaluationTypeCode, int dueDayNumber) =>
@@ -38,7 +45,26 @@ public sealed class InMemoryScheduledEvaluationStore : IScheduledEvaluationStore
     {
         ArgumentNullException.ThrowIfNull(evaluation);
         _items[evaluation.Id.Value] = evaluation;
+        if (evaluation.Id.Value >= _nextId)
+        {
+            _nextId = evaluation.Id.Value + 1;
+        }
     }
 
-    public void Clear() => _items.Clear();
+    public void ReplaceAll(IEnumerable<ScheduledEvaluation> evaluations)
+    {
+        ArgumentNullException.ThrowIfNull(evaluations);
+        _items.Clear();
+        _nextId = 1;
+        foreach (var evaluation in evaluations)
+        {
+            Add(evaluation);
+        }
+    }
+
+    public void Clear()
+    {
+        _items.Clear();
+        _nextId = 1;
+    }
 }

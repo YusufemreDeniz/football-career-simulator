@@ -130,7 +130,7 @@ public sealed class ManagerReputationTests : IDisposable
             interaction.DisciplinaryActionStore.Actions);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(38, loaded.SchemaVersion);
+        Assert.Equal(39, loaded.SchemaVersion);
         Assert.Equal(52, loaded.ManagerCareer.Reputation.Value);
         Assert.Equal("PressPubliclyDefend", loaded.ManagerCareer.LastReputationReasonCode);
     }

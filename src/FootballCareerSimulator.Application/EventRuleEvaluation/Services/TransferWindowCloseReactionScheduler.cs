@@ -14,7 +14,6 @@ public sealed class TransferWindowCloseReactionScheduler
 
     private readonly IWorldTimelineStore _timelineStore;
     private readonly IScheduledEvaluationStore _scheduleStore;
-    private long _nextId = 1;
 
     public TransferWindowCloseReactionScheduler(
         IWorldTimelineStore timelineStore,
@@ -55,7 +54,7 @@ public sealed class TransferWindowCloseReactionScheduler
             }
 
             var evaluation = ScheduledEvaluation.CreatePending(
-                new ScheduledEvaluationId(_nextId++),
+                new ScheduledEvaluationId(_scheduleStore.AllocateNextId()),
                 CloseTransferWindowEvaluationType,
                 closesOnDay,
                 intent.SourceEventId);

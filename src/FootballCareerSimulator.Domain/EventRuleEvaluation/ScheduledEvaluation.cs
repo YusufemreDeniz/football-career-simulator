@@ -48,6 +48,26 @@ public sealed class ScheduledEvaluation
             ScheduledEvaluationStatus.Pending);
     }
 
+    public static ScheduledEvaluation Rehydrate(
+        ScheduledEvaluationId id,
+        string evaluationTypeCode,
+        int dueDayNumber,
+        Guid? sourceEventId,
+        ScheduledEvaluationStatus status)
+    {
+        if (string.IsNullOrWhiteSpace(evaluationTypeCode))
+        {
+            throw new ArgumentException("Evaluation type code is required.", nameof(evaluationTypeCode));
+        }
+
+        if (!Enum.IsDefined(status))
+        {
+            throw new ArgumentOutOfRangeException(nameof(status), status, "Unknown scheduled evaluation status.");
+        }
+
+        return new ScheduledEvaluation(id, evaluationTypeCode, dueDayNumber, sourceEventId, status);
+    }
+
     public void MarkCompleted()
     {
         if (Status != ScheduledEvaluationStatus.Pending)

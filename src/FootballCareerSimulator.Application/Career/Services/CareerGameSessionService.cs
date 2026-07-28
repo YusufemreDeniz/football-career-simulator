@@ -15,6 +15,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
+using FootballCareerSimulator.Domain.EventRuleEvaluation;
 
 public sealed class CareerGameSessionService
 {
@@ -44,6 +45,7 @@ public sealed class CareerGameSessionService
     private readonly ICareerPersistence _persistence;
     private readonly IReadOnlyList<ICommandIdempotencyReset> _idempotencyResets;
     private readonly IEventEffectIdempotencyRegistry? _eventEffectRegistry;
+    private readonly IScheduledEvaluationStore? _scheduledEvaluationStore;
 
     public CareerGameSessionService(
         IWorldTimelineStore timelineStore,
@@ -71,7 +73,8 @@ public sealed class CareerGameSessionService
         IFreeAgentStore freeAgentStore,
         ICareerPersistence persistence,
         IEnumerable<ICommandIdempotencyReset> idempotencyResets,
-        IEventEffectIdempotencyRegistry? eventEffectRegistry = null)
+        IEventEffectIdempotencyRegistry? eventEffectRegistry = null,
+        IScheduledEvaluationStore? scheduledEvaluationStore = null)
     {
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
@@ -104,6 +107,7 @@ public sealed class CareerGameSessionService
         _idempotencyResets = idempotencyResets?.ToArray()
             ?? throw new ArgumentNullException(nameof(idempotencyResets));
         _eventEffectRegistry = eventEffectRegistry;
+        _scheduledEvaluationStore = scheduledEvaluationStore;
     }
 
     public SaveCareerGameResult Save(string filePath)
@@ -141,7 +145,8 @@ public sealed class CareerGameSessionService
             _decisionRequestStore.Requests,
             _dialogueSessionStore.Sessions,
             _disciplinaryActionStore.Actions,
-            _eventEffectRegistry?.SnapshotKeys());
+            _eventEffectRegistry?.SnapshotKeys(),
+            _scheduledEvaluationStore?.Items);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -187,6 +192,7 @@ public sealed class CareerGameSessionService
         }
 
         _eventEffectRegistry?.ReplaceAll(loaded.EventEffectProcessingKeys ?? Array.Empty<string>());
+        _scheduledEvaluationStore?.ReplaceAll(loaded.ScheduledEvaluations ?? Array.Empty<ScheduledEvaluation>());
 
         var fixtureCount = loaded.League.Seasons.Sum(season => season.Fixtures.Count);
 

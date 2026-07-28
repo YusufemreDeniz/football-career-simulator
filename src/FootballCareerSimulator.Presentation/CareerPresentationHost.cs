@@ -230,7 +230,8 @@ public sealed class CareerPresentationHost
             contractModule.FreeAgentStore,
             persistence,
             idempotencyResets,
-            eventRule.Registry);
+            eventRule.Registry,
+            eventRule.ScheduledEvaluationStore);
 
         var savePath = defaultSavePath ?? Path.Combine(OS.GetUserDataDir(), "career_save.db");
         return new CareerPresentationHost(

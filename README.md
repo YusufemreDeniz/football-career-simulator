@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Event & Rule + **reaction → ScheduledEvaluation → CloseTransferWindow** kilitlenmiştir. Sıradaki aday: scheduled evaluation save/load veya başka due owner'lar; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + Event & Rule + **ScheduledEvaluation save/load (SQLite v39)** kilitlenmiştir. Sıradaki aday: başka due owner'lar (promise/contract) veya TransferWindowClosed event evaluation; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

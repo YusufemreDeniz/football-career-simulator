@@ -170,7 +170,7 @@ public sealed class DisciplineDecisionRequestTests : IDisposable
             interaction.DisciplinaryActionStore.Actions);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(38, loaded.SchemaVersion);
+        Assert.Equal(39, loaded.SchemaVersion);
         var action = Assert.Single(loaded.DisciplinaryActions);
         Assert.Equal(DisciplinaryActionKind.Warning, action.Kind);
         Assert.Equal(64, action.SubjectPlayerId.Value);
