@@ -3,6 +3,7 @@ namespace FootballCareerSimulator.Application.Competition.Services;
 using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Ports;
+using FootballCareerSimulator.Application.Interaction.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
@@ -41,6 +42,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly ClubHistoryMemoryService? _clubHistoryMemory;
     private readonly MatchPerformanceMemoryService? _matchPerformanceMemory;
     private readonly RelationshipEvaluationService? _relationships;
+    private readonly PostMatchPressDecisionTrigger? _postMatchPress;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
     public PlayFixtureMatchHandler(
@@ -61,7 +63,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         CareerMemoryService? careerMemory = null,
         ClubHistoryMemoryService? clubHistoryMemory = null,
         MatchPerformanceMemoryService? matchPerformanceMemory = null,
-        RelationshipEvaluationService? relationships = null)
+        RelationshipEvaluationService? relationships = null,
+        PostMatchPressDecisionTrigger? postMatchPress = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -81,6 +84,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _clubHistoryMemory = clubHistoryMemory;
         _matchPerformanceMemory = matchPerformanceMemory;
         _relationships = relationships;
+        _postMatchPress = postMatchPress;
     }
 
     public PlayFixtureMatchResult Handle(PlayFixtureMatchCommand command)
@@ -140,6 +144,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         ApplyMatchDevelopment(fixture, occurredAt, rootSeed);
         ApplySocialContinuityAfterMatch(fixture, occurredAt);
         ApplyMatchPerformanceMemory(fixture, score, occurredAt);
+        TryOpenPressQuestionAfterBlowoutLoss(fixture, score, occurredAt);
         ApplyRelationshipSelectionEffects(fixture, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
@@ -447,6 +452,40 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             managedGoals,
             opponentGoals,
             _managerCareerStore.Career.ManagerId,
+            startingIds,
+            day);
+    }
+
+    private void TryOpenPressQuestionAfterBlowoutLoss(Fixture fixture, MatchScore score, GameDate day)
+    {
+        if (_postMatchPress is null || _managerCareerStore is null)
+        {
+            return;
+        }
+
+        var employment = _managerCareerStore.Career.ActiveEmployment;
+        if (employment is null)
+        {
+            return;
+        }
+
+        var managedClubId = employment.ClubId;
+        if (fixture.HomeClubId != managedClubId && fixture.AwayClubId != managedClubId)
+        {
+            return;
+        }
+
+        var isHome = fixture.HomeClubId == managedClubId;
+        var managedGoals = isHome ? score.HomeGoals : score.AwayGoals;
+        var opponentGoals = isHome ? score.AwayGoals : score.HomeGoals;
+        var startingIds = ResolvePlayerIdsForSlots(
+            fixture.Id,
+            managedClubId,
+            ResolveStartingSlots(fixture.Id, managedClubId));
+
+        _postMatchPress.TryOpenAfterManagedBlowoutLoss(
+            managedGoals,
+            opponentGoals,
             startingIds,
             day);
     }

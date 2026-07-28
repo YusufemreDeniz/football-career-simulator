@@ -4,6 +4,7 @@ using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.Competition.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.Competition.Services;
+using FootballCareerSimulator.Application.Interaction.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
@@ -117,6 +118,7 @@ public sealed class CompetitionModule
         ClubHistoryMemoryService? clubHistoryMemory = null,
         MatchPerformanceMemoryService? matchPerformanceMemory = null,
         RelationshipEvaluationService? relationships = null,
+        PostMatchPressDecisionTrigger? postMatchPress = null,
         long competitionId = 1)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
@@ -139,7 +141,8 @@ public sealed class CompetitionModule
             careerMemory,
             clubHistoryMemory,
             matchPerformanceMemory,
-            relationships);
+            relationships,
+            postMatchPress);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
@@ -160,7 +163,8 @@ public sealed class CompetitionModule
         CareerMemoryService? careerMemory = null,
         ClubHistoryMemoryService? clubHistoryMemory = null,
         MatchPerformanceMemoryService? matchPerformanceMemory = null,
-        RelationshipEvaluationService? relationships = null)
+        RelationshipEvaluationService? relationships = null,
+        PostMatchPressDecisionTrigger? postMatchPress = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
@@ -186,7 +190,8 @@ public sealed class CompetitionModule
             careerMemory,
             clubHistoryMemory,
             matchPerformanceMemory,
-            relationships);
+            relationships,
+            postMatchPress);
 
         return new CompetitionModule(
             store,

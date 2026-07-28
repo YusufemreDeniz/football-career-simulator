@@ -125,6 +125,21 @@ public sealed class DecisionRequestService
             DecisionRequest.OpenPressQuestionRequest,
             "press-question");
 
+    public bool HasOpenPressQuestionForManagedClub()
+    {
+        var career = _managerCareerStore.Career;
+        if (!career.IsEmployed || career.ActiveEmployment is null)
+        {
+            return false;
+        }
+
+        var clubId = career.ActiveEmployment.ClubId;
+        return _store.Requests.Any(r =>
+            r.IsOpen
+            && r.Kind == DecisionRequestKind.PressQuestionRequest
+            && r.ClubId == clubId);
+    }
+
     public DecisionRequest OpenBoardDemandRequest(
         GameDate day,
         int? deadlineDays = null,

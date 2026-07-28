@@ -182,7 +182,8 @@ public sealed class CareerPresentationHost
             socialContinuity.CareerMemory,
             socialContinuity.ClubHistoryMemory,
             socialContinuity.MatchPerformanceMemory,
-            socialContinuity.RelationshipEvaluation);
+            socialContinuity.RelationshipEvaluation,
+            interactionModule.PostMatchPress);
         var persistence = new CareerSqlitePersistence();
 
         ICommandIdempotencyReset[] idempotencyResets =

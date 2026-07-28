@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Interaction DecisionRequest ailesi + **ManagerReputation SQLite v37** (PressQuestion → Reputation delta; Board Confidence’tan ayrı) kilitlenmiştir. Sıradaki aday: maç sonrası otomatik basın/sosyal tetikleyici veya Team Preparation derinliği; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + Interaction DecisionRequest + ManagerReputation (v37) + **maç sonrası blowout mağlubiyetinde otomatik PressQuestion** kilitlenmiştir. Sıradaki aday: Team Preparation derinliği veya Promise ihlali sonrası otomatik DecisionRequest; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 
