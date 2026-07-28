@@ -42,6 +42,7 @@ public partial class CareerHubScreen : Control
     private Button _pressCriticizeButton = null!;
     private Label _transferWindowLabel = null!;
     private Label _transferBudgetLabel = null!;
+    private Label _transferDeskLabel = null!;
     private Button _openTransferWindowButton = null!;
     private Button _closeTransferWindowButton = null!;
     private Label _transferNeedLabel = null!;
@@ -326,6 +327,9 @@ public partial class CareerHubScreen : Control
         var openClub = SecondaryButton("Kulüp / Kadro");
         openClub.Pressed += () => ShowPage(HubPage.Club);
         pulseRow.AddChild(openClub);
+        var openTransfer = SecondaryButton("Transfer Masası");
+        openTransfer.Pressed += () => ShowPage(HubPage.Transfer);
+        pulseRow.AddChild(openTransfer);
 
         page.AddChild(SectionTitle("Ofiste"));
         _officeLabel = BodyLabel("OfficeLabel", autowrap: true);
@@ -504,6 +508,8 @@ public partial class CareerHubScreen : Control
     {
         var page = PageRoot();
         page.AddChild(SectionTitle("Transfer"));
+        _transferDeskLabel = BodyLabel("TransferDeskLabel", autowrap: true);
+        page.AddChild(_transferDeskLabel);
         _transferWindowLabel = BodyLabel("TransferWindowLabel", autowrap: true);
         page.AddChild(_transferWindowLabel);
         _transferBudgetLabel = BodyLabel("TransferBudgetLabel", autowrap: true);
@@ -1001,6 +1007,7 @@ public partial class CareerHubScreen : Control
             RefreshRelationshipStatus();
             RefreshDecisionStatus();
             RefreshTransferWindowStatus();
+            RefreshTransferDesk();
             RefreshTransferBudgetStatus();
             RefreshTransferNeedStatus();
             RefreshShortlistTargetStatus();
@@ -1040,6 +1047,7 @@ public partial class CareerHubScreen : Control
         RefreshRelationshipStatus();
         RefreshDecisionStatus();
         RefreshTransferWindowStatus();
+        RefreshTransferDesk();
         RefreshTransferBudgetStatus();
         RefreshTransferNeedStatus();
         RefreshShortlistTargetStatus();
@@ -1088,6 +1096,11 @@ public partial class CareerHubScreen : Control
         _transferWindowLabel.Text = $"Transfer penceresi: {window.StatusName}{openText}{closeText}";
         _openTransferWindowButton.Disabled = window.IsOpen;
         _closeTransferWindowButton.Disabled = !window.IsOpen;
+    }
+
+    private void RefreshTransferDesk()
+    {
+        _transferDeskLabel.Text = _controller.BuildTransferDeskBriefing().ToDisplayText();
     }
 
     private void RefreshTransferBudgetStatus()

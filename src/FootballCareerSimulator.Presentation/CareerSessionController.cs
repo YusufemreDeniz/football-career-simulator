@@ -7,6 +7,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Commands;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
+using FootballCareerSimulator.Application.Transfer.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.Interaction.Queries;
@@ -845,6 +846,39 @@ public sealed class CareerSessionController
             GetManagedTacticModifierLabel(),
             fixtureLine,
             daysUntil);
+    }
+
+    public TransferDeskBriefing BuildTransferDeskBriefing()
+    {
+        if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is not long clubId)
+        {
+            return TransferDeskBriefing.Unemployed();
+        }
+
+        var window = Host.WorldModule.Queries.GetTransferWindow();
+        var needs = Host.TransferModule.Queries.GetManagedClubNeeds();
+        var exitNeeds = needs.OpenNeeds.Count(n =>
+            n.ReasonCode.StartsWith("PlayerExit:", StringComparison.Ordinal)
+            || n.KindName.Contains("ayrılma", StringComparison.OrdinalIgnoreCase));
+        var targets = Host.TransferModule.Queries.GetManagedClubShortlistTargets();
+        var processes = Host.TransferModule.Queries.GetManagedClubProcesses();
+        var offers = Host.TransferModule.Queries.GetManagedClubOffers();
+        var budget = Host.ClubModule.TransferBudget.Get(new Domain.Shared.ClubId(clubId));
+        var capacity = BuildSquadCapacityDigest();
+
+        return TransferDeskBriefing.Compose(
+            window.IsOpen,
+            window.StatusName,
+            window.ClosesOnDayNumber,
+            needs.OpenCount,
+            exitNeeds,
+            targets.ListedTargetCount,
+            processes.ActiveCount,
+            offers.PendingCount,
+            budget.Available,
+            budget.Spent,
+            capacity.IsFull || capacity.IsOverCapacity,
+            SuggestSaleCandidatePlayerId());
     }
 
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>
