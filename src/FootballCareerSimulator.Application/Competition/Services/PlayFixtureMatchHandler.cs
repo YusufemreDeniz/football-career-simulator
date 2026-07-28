@@ -204,9 +204,11 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         var keyMoments = simulation.KeyMoments
             .Select(moment => new MatchKeyMomentReadModel(
+                moment.Kind.ToString(),
                 moment.Minute,
-                moment.IsHomeGoal,
-                moment.ScorerSlotIndex))
+                moment.IsHomeSide,
+                moment.PrimarySlotIndex,
+                moment.AssistSlotIndex))
             .ToArray();
 
         var result = new PlayFixtureMatchResult(

@@ -39,8 +39,12 @@ public sealed class MvpFixtureMatchSimulatorTests
 
         Assert.Equal(first.Score, second.Score);
         Assert.Equal(first.KeyMoments, second.KeyMoments);
-        Assert.Equal(first.Score.HomeGoals, first.KeyMoments.Count(m => m.IsHomeGoal));
-        Assert.Equal(first.Score.AwayGoals, first.KeyMoments.Count(m => !m.IsHomeGoal));
+        Assert.Equal(
+            first.Score.HomeGoals,
+            first.KeyMoments.Count(m => m.Kind == MatchKeyMomentKind.Goal && m.IsHomeSide));
+        Assert.Equal(
+            first.Score.AwayGoals,
+            first.KeyMoments.Count(m => m.Kind == MatchKeyMomentKind.Goal && !m.IsHomeSide));
         Assert.Equal(first.Score, MvpFixtureMatchSimulator.Simulate(42, 11, 75, 50));
         Assert.True(first.KeyMoments.Select(m => m.Minute).SequenceEqual(
             first.KeyMoments.Select(m => m.Minute).OrderBy(m => m)));
@@ -48,10 +52,48 @@ public sealed class MvpFixtureMatchSimulatorTests
             first.KeyMoments,
             moment =>
             {
-                Assert.InRange(moment.Minute, MvpFixtureMatchSimulator.MinGoalMinute, MvpFixtureMatchSimulator.MaxGoalMinute);
-                Assert.InRange(moment.ScorerSlotIndex, 0, MvpFixtureMatchSimulator.StartingXiSize - 1);
+                Assert.InRange(moment.Minute, MvpFixtureMatchSimulator.MinMomentMinute, MvpFixtureMatchSimulator.MaxMomentMinute);
+                Assert.InRange(moment.PrimarySlotIndex, 0, MvpFixtureMatchSimulator.StartingXiSize - 1);
+                if (moment.AssistSlotIndex is int assist)
+                {
+                    Assert.Equal(MatchKeyMomentKind.Goal, moment.Kind);
+                    Assert.InRange(assist, 0, MvpFixtureMatchSimulator.StartingXiSize - 1);
+                    Assert.NotEqual(moment.PrimarySlotIndex, assist);
+                }
+                else
+                {
+                    Assert.Null(moment.AssistSlotIndex);
+                }
             });
         Assert.Equal(first.KeyMoments.Count, first.KeyMoments.Select(m => m.Minute).Distinct().Count());
+        Assert.True(first.KeyMoments.Count(m => m.Kind is MatchKeyMomentKind.YellowCard or MatchKeyMomentKind.RedCard)
+            <= MvpFixtureMatchSimulator.MaxCardsPerMatch);
+    }
+
+    [Fact]
+    public void SimulateWithKeyMoments_CanProduceAssistAndCards()
+    {
+        MatchSimulationOutcome? withAssist = null;
+        MatchSimulationOutcome? withCard = null;
+        for (var seed = 1; seed <= 200 && (withAssist is null || withCard is null); seed++)
+        {
+            var outcome = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
+                seed, fixtureId: 3, homeStrength: 80, awayStrength: 70);
+            if (withAssist is null
+                && outcome.KeyMoments.Any(m => m.Kind == MatchKeyMomentKind.Goal && m.AssistSlotIndex is not null))
+            {
+                withAssist = outcome;
+            }
+
+            if (withCard is null
+                && outcome.KeyMoments.Any(m => m.Kind is MatchKeyMomentKind.YellowCard or MatchKeyMomentKind.RedCard))
+            {
+                withCard = outcome;
+            }
+        }
+
+        Assert.NotNull(withAssist);
+        Assert.NotNull(withCard);
     }
 }
 

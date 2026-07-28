@@ -8,6 +8,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Infrastructure;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Tests.Match;
@@ -72,7 +73,10 @@ public sealed class ManagedMatchConsequenceTests
         Assert.NotNull(first.KeyMoments);
         Assert.Equal(
             first.HomeGoals + first.AwayGoals,
-            first.KeyMoments!.Count);
+            first.KeyMoments!.Count(m => m.Kind == nameof(MatchKeyMomentKind.Goal)));
+        Assert.All(
+            first.KeyMoments,
+            moment => Assert.False(string.IsNullOrWhiteSpace(moment.Kind)));
         Assert.Equal(first, second);
     }
 }

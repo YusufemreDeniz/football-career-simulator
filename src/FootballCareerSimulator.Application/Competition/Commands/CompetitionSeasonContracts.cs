@@ -83,9 +83,11 @@ public sealed record PlayFixtureMatchResult(
     IReadOnlyList<MatchKeyMomentReadModel>? KeyMoments = null);
 
 public sealed record MatchKeyMomentReadModel(
+    string Kind,
     int Minute,
-    bool IsHomeGoal,
-    int ScorerSlotIndex);
+    bool IsHomeSide,
+    int PrimarySlotIndex,
+    int? AssistSlotIndex = null);
 
 /// <summary>
 /// Managed kulüp maçında uygulanan yan etkilerin okunabilir özeti.

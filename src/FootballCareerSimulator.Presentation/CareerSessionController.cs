@@ -15,6 +15,7 @@ using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.Transfer;
+using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 
@@ -1414,9 +1415,26 @@ public sealed class CareerSessionController
         var header = $"{home} {result.HomeGoals}-{result.AwayGoals} {away}";
         foreach (var moment in result.KeyMoments)
         {
-            var side = moment.IsHomeGoal ? "Ev" : "Dep";
-            yield return $"{header} · {moment.Minute}' {side} gol · slot {moment.ScorerSlotIndex}";
+            var side = moment.IsHomeSide ? "Ev" : "Dep";
+            yield return $"{header} · {FormatKeyMomentLine(moment, side)}";
         }
+    }
+
+    private static string FormatKeyMomentLine(MatchKeyMomentReadModel moment, string side)
+    {
+        var slot = $"slot {moment.PrimarySlotIndex}";
+        return moment.Kind switch
+        {
+            nameof(MatchKeyMomentKind.Goal) when moment.AssistSlotIndex is int assist =>
+                $"{moment.Minute}' {side} gol · {slot} (asist slot {assist})",
+            nameof(MatchKeyMomentKind.Goal) =>
+                $"{moment.Minute}' {side} gol · {slot}",
+            nameof(MatchKeyMomentKind.YellowCard) =>
+                $"{moment.Minute}' {side} sarı kart · {slot}",
+            nameof(MatchKeyMomentKind.RedCard) =>
+                $"{moment.Minute}' {side} kırmızı kart · {slot}",
+            _ => $"{moment.Minute}' {side} {moment.Kind} · {slot}",
+        };
     }
 
     private static IEnumerable<string> FormatMatchConsequences(
