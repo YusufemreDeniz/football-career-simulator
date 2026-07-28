@@ -216,6 +216,7 @@ public partial class CareerHubScreen : Control
         }
 
         _statusLabel = BodyLabel("StatusLabel", autowrap: true);
+        _statusLabel.CustomMinimumSize = new Vector2(0, 64);
         shell.AddChild(_statusLabel);
 
         ShowPage(HubPage.Today);

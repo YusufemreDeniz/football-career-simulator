@@ -3,10 +3,12 @@ using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.ManagerCareer.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Commands;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Application.WorldCalendar.Queries;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.ManagerCareer;
@@ -1609,12 +1611,13 @@ public sealed class CareerSessionController
 
         if (result.WasBlocked)
         {
-            return UiActionResult.Fail(FormatBlockers(result.Blockers.Select(b =>
-                (b.SourceContext, b.DescriptionCode))));
+            var blocked = FormatBlockers(result.Blockers.Select(b =>
+                (b.SourceContext, b.DescriptionCode)));
+            return UiActionResult.Fail(
+                TimeAdvanceDigest.Blocked(blocked).ToStatusMessage());
         }
 
         var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-        var declined = result.PlayersAgedCount;
         Host.TeamPreparationModule.ClubSquad?.SyncClubs(result.ContractExpiryAffectedClubIds, day);
         if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
         {
@@ -1627,46 +1630,32 @@ public sealed class CareerSessionController
             Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
         }
 
-        var crisisOpened = result.PromiseBrokenCrisisOpenedCount;
-        var promiseResolved = result.PromiseDeadlineResolvedCount;
-        var memoriesDecayed = result.MemoriesDecayedCount;
-        var decisionsExpired = result.DecisionsExpiredCount;
+        var nextHint = BuildNextMatchHint(day.DayNumber);
+        var digest = TimeAdvanceDigest.Compose(result, dayCount, nextHint);
+        return UiActionResult.Ok(digest.ToStatusMessage(), digest);
+    }
 
-        var extras = new List<string>();
-        if (declined > 0)
+    private string? BuildNextMatchHint(int currentDayNumber)
+    {
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDayNumber);
+        if (pending is null)
         {
-            extras.Add($"yaşlanma: {declined}");
+            return null;
         }
 
-        if (result.ExpiredContractCount > 0)
+        var opponent = GetClubDisplayName(pending.OpponentClubId);
+        var venue = pending.IsHome ? "Ev" : "Dep";
+        var tension = Host.TeamPreparationModule.PromiseTension
+            .GetForNextDueMatch(currentDayNumber);
+        if (tension is { HasTension: true, ToneCode: PreMatchPromiseTensionQueryService.ToneAtRisk })
         {
-            extras.Add($"sözleşme bitti: {result.ExpiredContractCount}");
-            extras.Add($"serbest: {result.NewlyFreeAgentPlayerIds.Count}");
+            return $"Sıradaki maç: {venue} vs {opponent} — söz riski var.";
         }
 
-        if (promiseResolved > 0)
-        {
-            extras.Add($"söz sonuç: {promiseResolved}");
-        }
-
-        if (crisisOpened > 0)
-        {
-            extras.Add($"söz ihlali kararı: {crisisOpened}");
-        }
-
-        if (memoriesDecayed > 0)
-        {
-            extras.Add($"hafıza zayıfladı: {memoriesDecayed}");
-        }
-
-        if (decisionsExpired > 0)
-        {
-            extras.Add($"karar süresi doldu: {decisionsExpired}");
-        }
-
-        var suffix = extras.Count == 0 ? string.Empty : " · " + string.Join(" · ", extras);
-        return UiActionResult.Ok(
-            $"Tarih ilerledi: gün {result.PreviousDayNumber} → {result.NewDayNumber}{suffix}.");
+        return pending.IsApproved
+            ? $"Sıradaki maç hazır: {venue} vs {opponent}."
+            : $"Sıradaki maç: {venue} vs {opponent} — kadro onayı bekliyor.";
     }
 
     public UiActionResult CompleteSeason()
@@ -1962,9 +1951,13 @@ public sealed class CareerSessionController
     }
 }
 
-public sealed record UiActionResult(bool Succeeded, string Message)
+public sealed record UiActionResult(
+    bool Succeeded,
+    string Message,
+    TimeAdvanceDigest? Digest = null)
 {
-    public static UiActionResult Ok(string message) => new(true, message);
+    public static UiActionResult Ok(string message, TimeAdvanceDigest? digest = null) =>
+        new(true, message, digest);
 
     public static UiActionResult Fail(string message) => new(false, message);
 }

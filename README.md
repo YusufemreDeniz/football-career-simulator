@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + **maç gecesi anlatısı** + **maç öncesi söz/kadro gerilimi** kilitlenmiştir. Sıradaki aday: hafta özeti (ilerletme sonrası) veya maç öncesi yüzeyi güçlendirme; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + maç gecesi + söz gerilimi + **hafta/gün özeti** (ilerletme anlatısı) kilitlenmiştir. Sıradaki aday: maç öncesi yüzeyi güçlendirme veya karar/basın yüzü; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 
