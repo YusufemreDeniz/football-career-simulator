@@ -124,4 +124,52 @@ public sealed class ClubSquadService
             ClubSquad.MaxMembers,
             overflow);
     }
+
+    /// <summary>
+    /// Taşan (sözleşmeli ama kadro dışı) oyuncuyu en yüksek slotlu üyenin yerine alır.
+    /// Sözleşmeler değişmez; yalnızca maç günü membership değişir.
+    /// </summary>
+    public SquadOverflowPromotionResult PromoteFirstOverflowToSquad(ClubId clubId, GameDate day)
+    {
+        var capacity = GetCapacityDigest(clubId, day);
+        if (!capacity.IsOverCapacity || capacity.OverflowPlayerIds.Count == 0)
+        {
+            throw new TeamPreparationInvariantViolationException(
+                "No overflow player to promote into the matchday squad.");
+        }
+
+        var current = _squadStore.Get(clubId)
+            ?? throw new TeamPreparationInvariantViolationException(
+                $"Club {clubId.Value} has no squad to reshape.");
+
+        if (current.Members.Count == 0)
+        {
+            throw new TeamPreparationInvariantViolationException(
+                $"Club {clubId.Value} squad is empty; sync contracts first.");
+        }
+
+        var promoteId = new Domain.PlayerCareer.PlayerId(capacity.OverflowPlayerIds[0]);
+        var contract = _contractStore.GetForClub(clubId)
+            .FirstOrDefault(c => c.IsActiveOn(day) && c.PlayerId == promoteId)
+            ?? throw new TeamPreparationInvariantViolationException(
+                $"Overflow player {promoteId.Value} has no active contract at club {clubId.Value}.");
+
+        var demote = current.Members.OrderByDescending(m => m.SlotIndex).First();
+        var members = current.Members
+            .Where(m => m.PlayerId != demote.PlayerId)
+            .Append(SquadMember.Create(promoteId, demote.SlotIndex, contract.StartDate))
+            .ToArray();
+
+        var next = ClubSquad.Rehydrate(clubId, members);
+        _squadStore.Upsert(next);
+        return new SquadOverflowPromotionResult(
+            promoteId.Value,
+            demote.PlayerId.Value,
+            demote.SlotIndex);
+    }
 }
+
+public sealed record SquadOverflowPromotionResult(
+    long PromotedPlayerId,
+    long DemotedPlayerId,
+    int SlotIndex);

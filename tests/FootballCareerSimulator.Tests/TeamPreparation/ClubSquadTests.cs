@@ -119,6 +119,48 @@ public sealed class ClubSquadTests : IDisposable
         Assert.Equal(ClubSquad.MaxMembers, synced.Members.Count);
         Assert.True(teamPrep.ClubSquad.CountActiveContracts(new ClubId(1), Day) > ClubSquad.MaxMembers);
         Assert.False(teamPrep.ClubSquad.HasFreeSquadCapacity(new ClubId(1), Day));
+
+        var promotion = teamPrep.ClubSquad.PromoteFirstOverflowToSquad(new ClubId(1), Day);
+        Assert.Equal(incoming.Value, promotion.PromotedPlayerId);
+        Assert.True(synced.ContainsPlayer(new PlayerId(promotion.DemotedPlayerId)));
+        Assert.True(teamPrep.SquadStore.Get(new ClubId(1))!.ContainsPlayer(incoming));
+        Assert.False(teamPrep.SquadStore.Get(new ClubId(1))!.ContainsPlayer(new PlayerId(promotion.DemotedPlayerId)));
+
+        var after = teamPrep.ClubSquad.GetCapacityDigest(new ClubId(1), Day);
+        Assert.Contains(promotion.DemotedPlayerId, after.OverflowPlayerIds);
+        Assert.DoesNotContain(incoming.Value, after.OverflowPlayerIds);
+    }
+
+    [Fact]
+    public void PromoteOverflow_WhenNone_Throws()
+    {
+        var world = WorldCalendarModule.Create(Day, rootSeed: 5);
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var trainingStore = new InMemoryTrainingPhysicalStateStore();
+        var players = PlayerCareerModule.Create(manager.Store, world.TimelineStore, trainingStore);
+        var contracts = ContractRegistrationModule.Create(
+            players.Store,
+            manager.Store,
+            world.TimelineStore);
+        players = PlayerCareerModule.Create(
+            manager.Store,
+            world.TimelineStore,
+            trainingStore,
+            players.Store,
+            contracts.Registration);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
+        var teamPrep = TeamPreparationModule.Create(
+            competition.Store,
+            manager.Store,
+            contractStore: contracts.Store,
+            playerCareerStore: players.Store);
+
+        players.Development.EnsureClub(new ClubId(1), world.TimelineStore.Timeline.RootSeed, Day);
+        teamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
+
+        Assert.Throws<TeamPreparationInvariantViolationException>(() =>
+            teamPrep.ClubSquad.PromoteFirstOverflowToSquad(new ClubId(1), Day));
     }
 
     [Fact]

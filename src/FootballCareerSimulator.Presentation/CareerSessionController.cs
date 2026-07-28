@@ -241,6 +241,33 @@ public sealed class CareerSessionController
         }
     }
 
+    public UiActionResult PromoteOverflowPlayerToSquad()
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var id = new Domain.Shared.ClubId(clubId);
+            var squad = Host.TeamPreparationModule.ClubSquad
+                ?? throw new InvalidOperationException("Kadro servisi yok.");
+
+            var result = squad.PromoteFirstOverflowToSquad(id, day);
+            return UiActionResult.Ok(
+                $"Taşan kadroya alındı: #{result.PromotedPlayerId} → slot {result.SlotIndex}."
+                + $"\nKadro dışı düşen: #{result.DemotedPlayerId} (sözleşmesi duruyor)."
+                + "\nÖneri: Sıradaki Maç'ta XI'yi kontrol et.");
+        }
+        catch (TeamPreparationInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Kadroya alınamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Kadroya alma hatası: {ex.Message}");
+        }
+    }
+
     public UiActionResult SignNextFreeAgentToManagedClub()
     {
         try
