@@ -25,6 +25,8 @@ public partial class CareerHubScreen : Control
     private Label _relationshipLabel = null!;
     private Label _deskLabel = null!;
     private Label _officeLabel = null!;
+    private Button _officeNextStepButton = null!;
+    private HubPage _officeNextStepTarget = HubPage.Today;
     private Label _briefingLabel = null!;
     private Label _decisionLabel = null!;
     private Button _openDecisionButton = null!;
@@ -150,6 +152,7 @@ public partial class CareerHubScreen : Control
         ShowPage(HubPage.Today);
         RefreshUi();
         _officeLabel.Text = digest.ToDisplayText();
+        BindOfficeNextStep(digest.NextFocusCode);
         PulseStatus(digest.ToStatusMessage());
     }
 
@@ -159,7 +162,29 @@ public partial class CareerHubScreen : Control
         ShowPage(HubPage.Today);
         RefreshUi();
         _officeLabel.Text = digest.ToDisplayText();
+        BindOfficeNextStep(digest.PulseFocusCode);
         PulseStatus(digest.ToStatusMessage());
+    }
+
+    private void BindOfficeNextStep(string? focusCode)
+    {
+        var step = Application.CareerHub.Queries.OfficeNextStepGuide.Resolve(focusCode);
+        if (step is null)
+        {
+            _officeNextStepButton.Visible = false;
+            return;
+        }
+
+        _officeNextStepTarget = step.TargetPageCode switch
+        {
+            Application.CareerHub.Queries.OfficeNextStepGuide.TargetClub => HubPage.Club,
+            Application.CareerHub.Queries.OfficeNextStepGuide.TargetTransfer => HubPage.Transfer,
+            Application.CareerHub.Queries.OfficeNextStepGuide.TargetPrep => HubPage.Prep,
+            Application.CareerHub.Queries.OfficeNextStepGuide.TargetWorld => HubPage.World,
+            _ => HubPage.Today,
+        };
+        _officeNextStepButton.Text = step.ButtonLabel;
+        _officeNextStepButton.Visible = true;
     }
 
     private void BuildLayout()
@@ -335,6 +360,10 @@ public partial class CareerHubScreen : Control
         _officeLabel = BodyLabel("OfficeLabel", autowrap: true);
         _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest.Quiet().ToDisplayText();
         page.AddChild(_officeLabel);
+        _officeNextStepButton = PrimaryButton("Sıradaki Adım");
+        _officeNextStepButton.Visible = false;
+        _officeNextStepButton.Pressed += () => ShowPage(_officeNextStepTarget);
+        page.AddChild(_officeNextStepButton);
 
         page.AddChild(SectionTitle("Masada"));
         _deskLabel = BodyLabel("DeskLabel", autowrap: true);
