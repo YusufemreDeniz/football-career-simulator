@@ -152,6 +152,54 @@ public sealed class TrainingPhysicalStateTests : IDisposable
     }
 
     [Fact]
+    public void FitnessFocus_RaisesFitnessMoreThanRecovery()
+    {
+        var (_, _, _, _, _, fitnessTraining) = CreateStack();
+        var (_, _, _, _, _, recoveryTraining) = CreateStack();
+
+        var fitness = fitnessTraining.SetWeeklyPlan.Handle(
+            new SetWeeklyTrainingPlanCommand(
+                Guid.NewGuid(),
+                (int)TrainingFocus.Fitness,
+                (int)TrainingIntensity.Medium,
+                (int)RestApproach.Normal));
+        var recovery = recoveryTraining.SetWeeklyPlan.Handle(
+            new SetWeeklyTrainingPlanCommand(
+                Guid.NewGuid(),
+                (int)TrainingFocus.Recovery,
+                (int)TrainingIntensity.Medium,
+                (int)RestApproach.Normal));
+
+        Assert.True(fitness.AverageFitness > recovery.AverageFitness);
+        Assert.True(recovery.AverageFatigue < fitness.AverageFatigue);
+        Assert.Equal(TrainingFocus.Fitness, fitnessTraining.Store.GetPlan(new ClubId(1))!.Focus);
+        Assert.Equal(TrainingFocus.Recovery, recoveryTraining.Store.GetPlan(new ClubId(1))!.Focus);
+    }
+
+    [Fact]
+    public void HeavyRest_LowersFatigueMoreThanLightRest()
+    {
+        var (_, _, _, _, _, lightRest) = CreateStack();
+        var (_, _, _, _, _, heavyRest) = CreateStack();
+
+        var light = lightRest.SetWeeklyPlan.Handle(
+            new SetWeeklyTrainingPlanCommand(
+                Guid.NewGuid(),
+                (int)TrainingFocus.General,
+                (int)TrainingIntensity.High,
+                (int)RestApproach.Light));
+        var heavy = heavyRest.SetWeeklyPlan.Handle(
+            new SetWeeklyTrainingPlanCommand(
+                Guid.NewGuid(),
+                (int)TrainingFocus.General,
+                (int)TrainingIntensity.High,
+                (int)RestApproach.Heavy));
+
+        Assert.True(heavy.AverageFatigue < light.AverageFatigue);
+        Assert.Equal(RestApproach.Heavy, heavyRest.Store.GetPlan(new ClubId(1))!.RestApproach);
+    }
+
+    [Fact]
     public void SaveLoad_PreservesTrainingPlanAndPhysicalState()
     {
         var (world, clubs, _, manager, _, training) = CreateStack();

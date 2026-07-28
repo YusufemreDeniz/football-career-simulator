@@ -27,6 +27,9 @@ public sealed class CareerSessionController
     public const long DefaultSeasonId = 1;
 
     private long _nextPlanningPeriodId = 1;
+    private TrainingFocus _trainingFocus = TrainingFocus.General;
+    private TrainingIntensity _trainingIntensity = TrainingIntensity.Medium;
+    private RestApproach _trainingRest = RestApproach.Normal;
 
     public CareerSessionController(CareerPresentationHost host)
     {
@@ -1211,14 +1214,32 @@ public sealed class CareerSessionController
 
     public UiActionResult SetWeeklyTraining(TrainingIntensity intensity)
     {
+        _trainingIntensity = intensity;
+        return ApplyWeeklyTrainingPlan();
+    }
+
+    public UiActionResult SetWeeklyTrainingFocus(TrainingFocus focus)
+    {
+        _trainingFocus = focus;
+        return ApplyWeeklyTrainingPlan();
+    }
+
+    public UiActionResult SetWeeklyTrainingRest(RestApproach rest)
+    {
+        _trainingRest = rest;
+        return ApplyWeeklyTrainingPlan();
+    }
+
+    private UiActionResult ApplyWeeklyTrainingPlan()
+    {
         try
         {
             var result = Host.TrainingModule.SetWeeklyPlan.Handle(
                 new SetWeeklyTrainingPlanCommand(
                     Guid.NewGuid(),
-                    (int)TrainingFocus.General,
-                    (int)intensity,
-                    (int)RestApproach.Normal));
+                    (int)_trainingFocus,
+                    (int)_trainingIntensity,
+                    (int)_trainingRest));
 
             var injuryText = result.InjuredSlotCount > 0
                 ? $" · sakat {result.InjuredSlotCount}"
@@ -1227,7 +1248,8 @@ public sealed class CareerSessionController
                 ? $" · kadro onayı düştü ({result.InvalidatedSelectionCount})"
                 : string.Empty;
             return UiActionResult.Ok(
-                $"Antrenman uygulandı ({intensity}): yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}{invalidatedText}.");
+                $"Antrenman uygulandı ({FormatTrainingFocus(_trainingFocus)}/{FormatTrainingIntensity(_trainingIntensity)}/{FormatRestApproach(_trainingRest)}):"
+                + $" yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}{invalidatedText}.");
         }
         catch (TrainingPhysicalStateInvariantViolationException ex)
         {
@@ -1238,6 +1260,33 @@ public sealed class CareerSessionController
             return UiActionResult.Fail($"Antrenman hatası: {ex.Message}");
         }
     }
+
+    private static string FormatTrainingFocus(TrainingFocus focus) =>
+        focus switch
+        {
+            TrainingFocus.General => "Genel",
+            TrainingFocus.Fitness => "Kondisyon",
+            TrainingFocus.Recovery => "Toparlanma",
+            _ => focus.ToString(),
+        };
+
+    private static string FormatTrainingIntensity(TrainingIntensity intensity) =>
+        intensity switch
+        {
+            TrainingIntensity.Low => "Hafif",
+            TrainingIntensity.Medium => "Orta",
+            TrainingIntensity.High => "Yoğun",
+            _ => intensity.ToString(),
+        };
+
+    private static string FormatRestApproach(RestApproach rest) =>
+        rest switch
+        {
+            RestApproach.Light => "Az dinlenme",
+            RestApproach.Normal => "Normal dinlenme",
+            RestApproach.Heavy => "Bol dinlenme",
+            _ => rest.ToString(),
+        };
 
     public PlayMatchesUiResult PlayDueMatches()
     {

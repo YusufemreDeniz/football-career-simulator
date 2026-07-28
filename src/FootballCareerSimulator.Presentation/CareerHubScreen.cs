@@ -83,6 +83,12 @@ public partial class CareerHubScreen : Control
     private Button _trainLowButton = null!;
     private Button _trainMediumButton = null!;
     private Button _trainHighButton = null!;
+    private Button _focusGeneralButton = null!;
+    private Button _focusFitnessButton = null!;
+    private Button _focusRecoveryButton = null!;
+    private Button _restLightButton = null!;
+    private Button _restNormalButton = null!;
+    private Button _restHeavyButton = null!;
     private Button _formation442Button = null!;
     private Button _formation433Button = null!;
     private Button _formation352Button = null!;
@@ -600,6 +606,44 @@ public partial class CareerHubScreen : Control
         _trainHighButton = SecondaryButton("Yoğun");
         _trainHighButton.Pressed += () => Apply(_controller.SetWeeklyTraining(TrainingIntensity.High));
         trainingRow.AddChild(_trainHighButton);
+
+        var focusRow = new HBoxContainer();
+        focusRow.AddThemeConstantOverride("separation", 8);
+        page.AddChild(focusRow);
+
+        _focusGeneralButton = SecondaryButton("Odak: Genel");
+        _focusGeneralButton.Pressed += () =>
+            Apply(_controller.SetWeeklyTrainingFocus(TrainingFocus.General));
+        focusRow.AddChild(_focusGeneralButton);
+
+        _focusFitnessButton = SecondaryButton("Kondisyon");
+        _focusFitnessButton.Pressed += () =>
+            Apply(_controller.SetWeeklyTrainingFocus(TrainingFocus.Fitness));
+        focusRow.AddChild(_focusFitnessButton);
+
+        _focusRecoveryButton = SecondaryButton("Toparlanma");
+        _focusRecoveryButton.Pressed += () =>
+            Apply(_controller.SetWeeklyTrainingFocus(TrainingFocus.Recovery));
+        focusRow.AddChild(_focusRecoveryButton);
+
+        var restRow = new HBoxContainer();
+        restRow.AddThemeConstantOverride("separation", 8);
+        page.AddChild(restRow);
+
+        _restLightButton = SecondaryButton("Az dinlenme");
+        _restLightButton.Pressed += () =>
+            Apply(_controller.SetWeeklyTrainingRest(RestApproach.Light));
+        restRow.AddChild(_restLightButton);
+
+        _restNormalButton = SecondaryButton("Normal dinlenme");
+        _restNormalButton.Pressed += () =>
+            Apply(_controller.SetWeeklyTrainingRest(RestApproach.Normal));
+        restRow.AddChild(_restNormalButton);
+
+        _restHeavyButton = SecondaryButton("Bol dinlenme");
+        _restHeavyButton.Pressed += () =>
+            Apply(_controller.SetWeeklyTrainingRest(RestApproach.Heavy));
+        restRow.AddChild(_restHeavyButton);
 
         _tacticLabel = BodyLabel("TacticLabel", autowrap: true);
         page.AddChild(_tacticLabel);
@@ -1137,7 +1181,7 @@ public partial class CareerHubScreen : Control
                 ? $" · sakat {training.InjuredSlotCount} (uygun değil {training.UnavailableSlotCount})"
                 : string.Empty;
             _trainingLabel.Text =
-                $"Antrenman: plan yok — hafif/orta/yoğun uygula (maç gücünü etkiler){injuryHint}.";
+                $"Antrenman: plan yok — yoğunluk / odak / dinlenme seç (maç gücünü etkiler){injuryHint}.";
             return;
         }
 
@@ -1145,9 +1189,37 @@ public partial class CareerHubScreen : Control
             ? $" · sakat {training.InjuredSlotCount} (uygun değil {training.UnavailableSlotCount})"
             : string.Empty;
         _trainingLabel.Text =
-            $"Antrenman: {training.IntensityName}/{training.FocusName} · Dinlenme {training.RestApproachName}"
+            $"Antrenman: {FormatStoredIntensity(training.Intensity)}/{FormatStoredFocus(training.Focus)}"
+            + $" · {FormatStoredRest(training.RestApproach)}"
             + $" · XI yorgunluk {training.AverageFatigue} · fitness {training.AverageFitness}{injuryText}";
     }
+
+    private static string FormatStoredFocus(int? focus) =>
+        focus switch
+        {
+            (int)TrainingFocus.General => "Genel",
+            (int)TrainingFocus.Fitness => "Kondisyon",
+            (int)TrainingFocus.Recovery => "Toparlanma",
+            _ => focus?.ToString() ?? "-",
+        };
+
+    private static string FormatStoredIntensity(int? intensity) =>
+        intensity switch
+        {
+            (int)TrainingIntensity.Low => "Hafif",
+            (int)TrainingIntensity.Medium => "Orta",
+            (int)TrainingIntensity.High => "Yoğun",
+            _ => intensity?.ToString() ?? "-",
+        };
+
+    private static string FormatStoredRest(int? rest) =>
+        rest switch
+        {
+            (int)RestApproach.Light => "Az dinlenme",
+            (int)RestApproach.Normal => "Normal dinlenme",
+            (int)RestApproach.Heavy => "Bol dinlenme",
+            _ => rest?.ToString() ?? "-",
+        };
 
     private void UpdateTrainingButtons(
         Application.ManagerCareer.Queries.ManagerCareerReadModel manager)
@@ -1156,6 +1228,12 @@ public partial class CareerHubScreen : Control
         _trainLowButton.Disabled = !employed;
         _trainMediumButton.Disabled = !employed;
         _trainHighButton.Disabled = !employed;
+        _focusGeneralButton.Disabled = !employed;
+        _focusFitnessButton.Disabled = !employed;
+        _focusRecoveryButton.Disabled = !employed;
+        _restLightButton.Disabled = !employed;
+        _restNormalButton.Disabled = !employed;
+        _restHeavyButton.Disabled = !employed;
     }
 
     private void RefreshTacticStatus()
