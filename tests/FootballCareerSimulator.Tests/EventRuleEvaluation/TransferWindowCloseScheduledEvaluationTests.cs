@@ -86,7 +86,7 @@ public sealed class TransferWindowEventEvaluationTests
     }
 
     [Fact]
-    public void OpenTransferWindow_EvaluatesTransferWindowOpened()
+    public void OpenTransferWindow_EvaluatesTransferWindowOpened_AndEmitsReaction()
     {
         var start = GameDate.FromCalendarDate(2026, 7, 1);
         var module = WorldCalendarModule.Create(start, rootSeed: 34);
@@ -97,7 +97,11 @@ public sealed class TransferWindowEventEvaluationTests
 
         Assert.True(result.IsOpen);
         Assert.Equal(1, result.AppliedEffectCount);
+        Assert.Equal(1, result.ReactionIntentCount);
         Assert.Contains(nameof(TransferWindowOpened), result.RaisedEventTypes!);
+        Assert.Contains(
+            ObserveTransferWindowOpenedReactionRule.Id,
+            string.Join('|', module.EventRuleEvaluation!.Registry.SnapshotKeys()));
     }
 
     [Fact]

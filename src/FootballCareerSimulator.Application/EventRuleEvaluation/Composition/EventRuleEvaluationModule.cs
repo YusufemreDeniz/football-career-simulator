@@ -58,6 +58,7 @@ public sealed class EventRuleEvaluationModule : ICommandIdempotencyReset
             gate,
             [
                 new ObserveGameDayStartedReactionRule(),
+                new ObserveTransferWindowOpenedReactionRule(),
                 new ObserveTransferWindowClosedReactionRule(),
             ]);
         var evaluation = new WorldCalendarEventEvaluationService(gate, reactions);
