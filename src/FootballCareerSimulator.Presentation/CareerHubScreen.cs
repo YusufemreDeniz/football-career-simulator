@@ -27,6 +27,7 @@ public partial class CareerHubScreen : Control
     private Label _officeLabel = null!;
     private Button _officeNextStepButton = null!;
     private HubPage _officeNextStepTarget = HubPage.Today;
+    private string _officeNextStepAction = Application.CareerHub.Queries.OfficeNextStepGuide.ActionNavigate;
     private Label _briefingLabel = null!;
     private Label _decisionLabel = null!;
     private Button _openDecisionButton = null!;
@@ -152,7 +153,7 @@ public partial class CareerHubScreen : Control
         ShowPage(HubPage.Today);
         RefreshUi();
         _officeLabel.Text = digest.ToDisplayText();
-        BindOfficeNextStep(digest.NextFocusCode);
+        // RefreshUi nabız CTA'sını kurar; ofis metnini üstte tut.
         PulseStatus(digest.ToStatusMessage());
     }
 
@@ -162,19 +163,18 @@ public partial class CareerHubScreen : Control
         ShowPage(HubPage.Today);
         RefreshUi();
         _officeLabel.Text = digest.ToDisplayText();
-        BindOfficeNextStep(digest.PulseFocusCode);
         PulseStatus(digest.ToStatusMessage());
     }
 
-    private void BindOfficeNextStep(string? focusCode)
+    private void BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStep? step)
     {
-        var step = Application.CareerHub.Queries.OfficeNextStepGuide.Resolve(focusCode);
         if (step is null)
         {
             _officeNextStepButton.Visible = false;
             return;
         }
 
+        _officeNextStepAction = step.ActionCode;
         _officeNextStepTarget = step.TargetPageCode switch
         {
             Application.CareerHub.Queries.OfficeNextStepGuide.TargetClub => HubPage.Club,
@@ -185,6 +185,25 @@ public partial class CareerHubScreen : Control
         };
         _officeNextStepButton.Text = step.ButtonLabel;
         _officeNextStepButton.Visible = true;
+    }
+
+    private void OnOfficeNextStepPressed()
+    {
+        switch (_officeNextStepAction)
+        {
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionApproveSelection:
+                Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionPlayMatches:
+                OnPlayMatches();
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceDay:
+                Apply(_controller.AdvanceDays(1));
+                return;
+            default:
+                ShowPage(_officeNextStepTarget);
+                return;
+        }
     }
 
     private void BuildLayout()
@@ -356,14 +375,15 @@ public partial class CareerHubScreen : Control
         openTransfer.Pressed += () => ShowPage(HubPage.Transfer);
         pulseRow.AddChild(openTransfer);
 
+        _officeNextStepButton = PrimaryButton("Sıradaki Adım");
+        _officeNextStepButton.Visible = false;
+        _officeNextStepButton.Pressed += OnOfficeNextStepPressed;
+        page.AddChild(_officeNextStepButton);
+
         page.AddChild(SectionTitle("Ofiste"));
         _officeLabel = BodyLabel("OfficeLabel", autowrap: true);
         _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest.Quiet().ToDisplayText();
         page.AddChild(_officeLabel);
-        _officeNextStepButton = PrimaryButton("Sıradaki Adım");
-        _officeNextStepButton.Visible = false;
-        _officeNextStepButton.Pressed += () => ShowPage(_officeNextStepTarget);
-        page.AddChild(_officeNextStepButton);
 
         page.AddChild(SectionTitle("Masada"));
         _deskLabel = BodyLabel("DeskLabel", autowrap: true);
@@ -1696,7 +1716,21 @@ public partial class CareerHubScreen : Control
 
     private void RefreshTodayPulse()
     {
-        _pulseLabel.Text = _controller.BuildTodayPulse().ToDisplayText();
+        var pulse = _controller.BuildTodayPulse();
+        _pulseLabel.Text = pulse.ToDisplayText();
+
+        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = _controller.Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        var duePlayable = pending is { IsApproved: true };
+        var dueUnapproved = pending is { IsApproved: false };
+        var canAdvance = _controller.Host.WorldModule.Queries.GetTimeAdvanceEligibility().CanAdvance;
+
+        BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
+            pulse.PrimaryFocusCode,
+            hasDueUnapprovedMatch: dueUnapproved,
+            hasDuePlayableMatch: duePlayable,
+            canAdvanceDay: canAdvance));
     }
 
     private void RefreshSelectionStatus()

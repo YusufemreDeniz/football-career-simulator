@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + **ofisten fokus kısayolu** (Masada/Transfer/Kulüp…) kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır — sabit MVP bedeli nihaî ekonomi sayılmaz. Sıradaki aday: dikey kesit kabul kriterlerine doğru ince döngü sıkılaştırma.
+İnce kariyer döngüsü (MVP: teknik direktör) + **Bugün nabız CTA** (Kadro Onayla / Oyna / İlerlet / masalar) kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: dikey kesit kabul kriterlerine göre blocker/ileri akış sıkılaştırma.
 
 ## Klasör Yapısı
 

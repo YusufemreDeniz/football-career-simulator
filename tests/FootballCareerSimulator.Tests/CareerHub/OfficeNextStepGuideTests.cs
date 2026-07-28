@@ -11,6 +11,7 @@ public sealed class OfficeNextStepGuideTests
         Assert.NotNull(step);
         Assert.Equal("Transfer Masası", step!.ButtonLabel);
         Assert.Equal(OfficeNextStepGuide.TargetTransfer, step.TargetPageCode);
+        Assert.Equal(OfficeNextStepGuide.ActionNavigate, step.ActionCode);
     }
 
     [Fact]
@@ -43,5 +44,54 @@ public sealed class OfficeNextStepGuideTests
         Assert.Equal(
             OfficeNextStepGuide.TargetWorld,
             OfficeNextStepGuide.Resolve(TodayPulseDigest.FocusLeague)!.TargetPageCode);
+    }
+
+    [Fact]
+    public void MatchPulse_Unapproved_ApprovesSelection()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusMatch,
+            hasDueUnapprovedMatch: true,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true);
+
+        Assert.Equal(OfficeNextStepGuide.ActionApproveSelection, step!.ActionCode);
+        Assert.Contains("Kadro", step.ButtonLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MatchPulse_Playable_PlaysMatches()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusMatch,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: true,
+            canAdvanceDay: false);
+
+        Assert.Equal(OfficeNextStepGuide.ActionPlayMatches, step!.ActionCode);
+        Assert.Contains("Oyna", step.ButtonLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CalmPulse_CanAdvance_AdvancesDay()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusCalm,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true);
+
+        Assert.Equal(OfficeNextStepGuide.ActionAdvanceDay, step!.ActionCode);
+        Assert.Contains("İlerlet", step.ButtonLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CalmPulse_BlockedAdvance_NoShortcut()
+    {
+        Assert.Null(OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusCalm,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: false));
     }
 }
