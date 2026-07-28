@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + **maç gol anları (MatchResultScreen önemli anlar)** kilitlenmiştir. Sıradaki aday: Event & Rule iskeleti veya daha derin Match timeline; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + maç gol anları + **UI font import/fallback (Syne/Outfit)** kilitlenmiştir. Sıradaki aday: Event & Rule iskeleti veya daha derin Match timeline; tam diyalog ağacı/gazeteci ağı ve ledger (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

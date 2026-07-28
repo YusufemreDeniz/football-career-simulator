@@ -26,9 +26,33 @@ internal static class CareerUiTheme
             return;
         }
 
-        _display = GD.Load<FontFile>("res://fonts/Syne-Variable.ttf");
-        _body = GD.Load<FontFile>("res://fonts/Outfit-Variable.ttf");
+        _display = TryLoadFont("res://fonts/Syne-Variable.ttf");
+        _body = TryLoadFont("res://fonts/Outfit-Variable.ttf");
         _loaded = true;
+    }
+
+    /// <summary>
+    /// Önce import edilmiş FontFile; yoksa veya bozuksa doğrudan TTF (variable font dahil).
+    /// </summary>
+    private static FontFile? TryLoadFont(string path)
+    {
+        if (ResourceLoader.Exists(path))
+        {
+            var imported = GD.Load<FontFile>(path);
+            if (imported is not null)
+            {
+                return imported;
+            }
+        }
+
+        var dynamic = new FontFile();
+        if (dynamic.LoadDynamicFont(path) == Error.Ok && dynamic.Data.Length > 0)
+        {
+            return dynamic;
+        }
+
+        GD.PushWarning($"CareerUiTheme: font yüklenemedi ({path}); tema varsayılanına düşülüyor.");
+        return null;
     }
 
     public static void StyleBrand(Label label)
