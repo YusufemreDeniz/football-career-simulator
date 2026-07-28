@@ -1724,13 +1724,14 @@ public partial class CareerHubScreen : Control
             .GetNextDueManagedFixture(currentDay);
         var duePlayable = pending is { IsApproved: true };
         var dueUnapproved = pending is { IsApproved: false };
-        var canAdvance = _controller.Host.WorldModule.Queries.GetTimeAdvanceEligibility().CanAdvance;
+        var blocker = _controller.BuildTimeAdvanceBlockerDigest();
 
         BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
             pulse.PrimaryFocusCode,
             hasDueUnapprovedMatch: dueUnapproved,
             hasDuePlayableMatch: duePlayable,
-            canAdvanceDay: canAdvance));
+            canAdvanceDay: blocker.CanAdvance,
+            primaryBlockerCode: blocker.PrimaryBlockerCode));
     }
 
     private void RefreshSelectionStatus()
@@ -1797,6 +1798,8 @@ public partial class CareerHubScreen : Control
 
         _advanceDayButton.Disabled = !canAdvance;
         _advanceWeekButton.Disabled = !canAdvance;
+        _advanceDayButton.Text = canAdvance ? "1 Gün İlerlet" : "1 Gün İlerlet (engelli)";
+        _advanceWeekButton.Text = canAdvance ? "7 Gün İlerlet" : "7 Gün İlerlet (engelli)";
 
         var canTransition = _controller.CanTransitionToNextSeason();
         _seasonTransitionButton.Disabled = !canTransition;

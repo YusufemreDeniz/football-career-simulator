@@ -2376,32 +2376,26 @@ public sealed class CareerSessionController
     public string GetClubDisplayName(long clubId) =>
         Host.ClubModule.Queries.GetClub(clubId)?.DisplayName ?? $"Kulüp {clubId}";
 
-    public string FormatActiveBlockerSummary()
+    public string FormatActiveBlockerSummary() =>
+        BuildTimeAdvanceBlockerDigest().ToDisplayText();
+
+    public TimeAdvanceBlockerDigest BuildTimeAdvanceBlockerDigest()
     {
         var eligibility = Host.WorldModule.Queries.GetTimeAdvanceEligibility();
-        if (eligibility.CanAdvance)
-        {
-            return "İlerleme engeli yok.";
-        }
-
-        return FormatBlockers(eligibility.Blockers.Select(b => (b.SourceContext, b.DescriptionCode)));
+        var blockers = eligibility.Blockers
+            .Select(b => (b.SourceContext, b.DescriptionCode, b.IsHardBlocker))
+            .ToArray();
+        return TimeAdvanceBlockerDigest.Compose(eligibility.CanAdvance, blockers);
     }
 
     public static string FormatBlockers(IEnumerable<(string SourceContext, string DescriptionCode)> blockers)
     {
-        var parts = blockers.Select(b => DescribeBlocker(b.SourceContext, b.DescriptionCode));
+        var parts = blockers.Select(b => TimeAdvanceBlockerDigest.Describe(b.DescriptionCode));
         return "İlerleme engellendi: " + string.Join(" · ", parts);
     }
 
     public static string DescribeBlocker(string sourceContext, string descriptionCode) =>
-        descriptionCode switch
-        {
-            "UnplayedFixturesDue" =>
-                "Oynanmamış maçlar var — önce 'Bugünün maçlarını oyna'.",
-            "PendingDecisionRequest" =>
-                "Bekleyen zorunlu karar var — önce görüşme kararını yanıtlayın.",
-            _ => $"{sourceContext}/{descriptionCode}",
-        };
+        TimeAdvanceBlockerDigest.Describe(descriptionCode);
 
     public static int ComputeFirstMatchdayDayNumber(int currentDayNumber) =>
         GameDate.FromDayNumber(currentDayNumber).AddDays(30).DayNumber;

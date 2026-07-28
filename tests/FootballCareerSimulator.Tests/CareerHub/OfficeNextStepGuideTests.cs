@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.CareerHub.Queries;
+using FootballCareerSimulator.Application.WorldCalendar.Queries;
 
 namespace FootballCareerSimulator.Tests.CareerHub;
 
@@ -93,5 +94,43 @@ public sealed class OfficeNextStepGuideTests
             hasDueUnapprovedMatch: false,
             hasDuePlayableMatch: false,
             canAdvanceDay: false));
+    }
+
+    [Fact]
+    public void BlockedByFixtures_ForcesPlayOrApprove()
+    {
+        var play = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusCalm,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: true,
+            canAdvanceDay: false,
+            primaryBlockerCode: TimeAdvanceBlockerDigest.CodeUnplayedFixtures);
+
+        Assert.Equal(OfficeNextStepGuide.ActionPlayMatches, play!.ActionCode);
+        Assert.Contains("engel", play.ButtonLabel, StringComparison.Ordinal);
+
+        var approve = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusTransfer,
+            hasDueUnapprovedMatch: true,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: false,
+            primaryBlockerCode: TimeAdvanceBlockerDigest.CodeUnplayedFixtures);
+
+        Assert.Equal(OfficeNextStepGuide.ActionApproveSelection, approve!.ActionCode);
+    }
+
+    [Fact]
+    public void BlockedByDecision_ForcesDeskAnswer()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusCalm,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: false,
+            primaryBlockerCode: TimeAdvanceBlockerDigest.CodePendingDecision);
+
+        Assert.Equal(TodayPulseDigest.FocusDesk, step!.FocusCode);
+        Assert.Contains("Zorunlu", step.ButtonLabel, StringComparison.Ordinal);
+        Assert.Equal(OfficeNextStepGuide.ActionNavigate, step.ActionCode);
     }
 }

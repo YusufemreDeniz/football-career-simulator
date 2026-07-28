@@ -1,5 +1,7 @@
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
+using FootballCareerSimulator.Application.WorldCalendar.Queries;
+
 /// <summary>
 /// Bugün / Ofis birincil CTA — nabız fokusundan hedef sayfa veya aksiyon.
 /// Diyalog/gazeteci açmaz; dikey kesit haftalık döngüyü sıkılaştırır.
@@ -61,15 +63,29 @@ public static class OfficeNextStepGuide
     }
 
     /// <summary>
-    /// Nabız + maç/ilerleme durumu — Bugün ekranının canlı birincil CTA'sı.
+    /// Nabız + maç/ilerleme/engel — Bugün ekranının canlı birincil CTA'sı.
+    /// Engel varken çözüm aksiyonu nabız fokusundan önce gelir.
     /// </summary>
     public static OfficeNextStep? ResolveFromPulse(
         string focusCode,
         bool hasDueUnapprovedMatch,
         bool hasDuePlayableMatch,
-        bool canAdvanceDay)
+        bool canAdvanceDay,
+        string? primaryBlockerCode = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(focusCode);
+
+        if (!canAdvanceDay)
+        {
+            var unblock = ResolveBlocker(
+                primaryBlockerCode,
+                hasDueUnapprovedMatch,
+                hasDuePlayableMatch);
+            if (unblock is not null)
+            {
+                return unblock;
+            }
+        }
 
         if (string.Equals(focusCode, TodayPulseDigest.FocusMatch, StringComparison.Ordinal))
         {
@@ -92,6 +108,15 @@ public static class OfficeNextStepGuide
             }
         }
 
+        if (string.Equals(focusCode, TodayPulseDigest.FocusDesk, StringComparison.Ordinal))
+        {
+            return new OfficeNextStep(
+                "Zorunlu kararı yanıtla",
+                TargetToday,
+                TodayPulseDigest.FocusDesk,
+                ActionNavigate);
+        }
+
         if (string.Equals(focusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal)
             && canAdvanceDay)
         {
@@ -103,6 +128,56 @@ public static class OfficeNextStepGuide
         }
 
         return Resolve(focusCode);
+    }
+
+    private static OfficeNextStep? ResolveBlocker(
+        string? primaryBlockerCode,
+        bool hasDueUnapprovedMatch,
+        bool hasDuePlayableMatch)
+    {
+        if (string.IsNullOrWhiteSpace(primaryBlockerCode))
+        {
+            return null;
+        }
+
+        if (string.Equals(
+                primaryBlockerCode,
+                TimeAdvanceBlockerDigest.CodeUnplayedFixtures,
+                StringComparison.Ordinal))
+        {
+            if (hasDueUnapprovedMatch)
+            {
+                return new OfficeNextStep(
+                    "Kadro Onayla (engel)",
+                    TargetToday,
+                    TodayPulseDigest.FocusMatch,
+                    ActionApproveSelection);
+            }
+
+            return new OfficeNextStep(
+                "Bugünün Maçlarını Oyna (engel)",
+                TargetToday,
+                TodayPulseDigest.FocusMatch,
+                ActionPlayMatches);
+        }
+
+        if (string.Equals(
+                primaryBlockerCode,
+                TimeAdvanceBlockerDigest.CodePendingDecision,
+                StringComparison.Ordinal))
+        {
+            return new OfficeNextStep(
+                "Zorunlu kararı yanıtla (engel)",
+                TargetToday,
+                TodayPulseDigest.FocusDesk,
+                ActionNavigate);
+        }
+
+        return new OfficeNextStep(
+            "İlerleme engelini çöz",
+            TargetToday,
+            TodayPulseDigest.FocusDesk,
+            ActionNavigate);
     }
 }
 
