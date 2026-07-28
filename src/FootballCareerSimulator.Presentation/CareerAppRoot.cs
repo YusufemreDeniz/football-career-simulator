@@ -34,13 +34,20 @@ public partial class CareerAppRoot : Control
         ReplaceScreen(menu);
     }
 
-    public void ShowHub(CareerSessionController controller, string? statusMessage = null)
+    public void ShowHub(
+        CareerSessionController controller,
+        string? statusMessage = null,
+        Application.Competition.Queries.PostMatchOfficeDigest? officeReturn = null)
     {
         var hub = new CareerHubScreen(controller);
         hub.BackToMenuRequested += ShowMainMenu;
         hub.MatchResultsReady += results => ShowMatchResults(controller, results);
         ReplaceScreen(hub);
-        if (!string.IsNullOrWhiteSpace(statusMessage))
+        if (officeReturn is not null)
+        {
+            hub.ApplyOfficeReturn(officeReturn);
+        }
+        else if (!string.IsNullOrWhiteSpace(statusMessage))
         {
             hub.SetStatus(statusMessage!);
         }
@@ -49,7 +56,8 @@ public partial class CareerAppRoot : Control
     public void ShowMatchResults(CareerSessionController controller, PlayMatchesUiResult results)
     {
         var panel = new MatchResultScreen(results);
-        panel.ContinueRequested += () => ShowHub(controller, results.Message);
+        panel.ContinueRequested += () =>
+            ShowHub(controller, officeReturn: controller.BuildPostMatchOfficeReturn(results));
         ReplaceScreen(panel);
     }
 

@@ -1704,6 +1704,18 @@ public sealed class CareerSessionController
         return $"{briefing.FixtureLine} — {briefing.Headline}";
     }
 
+    public PostMatchOfficeDigest BuildPostMatchOfficeReturn(PlayMatchesUiResult results)
+    {
+        ArgumentNullException.ThrowIfNull(results);
+        var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var desk = DecisionDeskDigest.Compose(
+            Host.InteractionModule.Queries.GetPending(take: 5),
+            day);
+        var hasManaged = results.Narrative is not null
+            && string.Equals(results.Narrative.BrandTitle, "Maç Gecesi", StringComparison.Ordinal);
+        return PostMatchOfficeDigest.Compose(results.Narrative, desk, hasManaged);
+    }
+
     public UiActionResult CompleteSeason()
     {
         try

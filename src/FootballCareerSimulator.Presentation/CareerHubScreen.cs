@@ -22,6 +22,7 @@ public partial class CareerHubScreen : Control
     private Label _promiseLabel = null!;
     private Label _relationshipLabel = null!;
     private Label _deskLabel = null!;
+    private Label _officeLabel = null!;
     private Label _briefingLabel = null!;
     private Label _decisionLabel = null!;
     private Button _openDecisionButton = null!;
@@ -132,6 +133,15 @@ public partial class CareerHubScreen : Control
 
     public void SetStatus(string message) => PulseStatus(message);
 
+    public void ApplyOfficeReturn(Application.Competition.Queries.PostMatchOfficeDigest digest)
+    {
+        ArgumentNullException.ThrowIfNull(digest);
+        ShowPage(HubPage.Today);
+        RefreshUi();
+        _officeLabel.Text = digest.ToDisplayText();
+        PulseStatus(digest.ToStatusMessage());
+    }
+
     private void BuildLayout()
     {
         CareerUiTheme.EnsureLoaded();
@@ -173,7 +183,7 @@ public partial class CareerHubScreen : Control
         };
         shell.AddChild(brandLine);
 
-        var hubTitle = new Label { Text = "Kariyer Merkezi" };
+        var hubTitle = new Label { Text = "Teknik Direktör Ofisi" };
         CareerUiTheme.StyleHeadline(hubTitle);
         shell.AddChild(hubTitle);
 
@@ -281,6 +291,11 @@ public partial class CareerHubScreen : Control
         page.AddChild(SectionTitle("Bugün"));
         _blockerLabel = BodyLabel("BlockerLabel", autowrap: true);
         page.AddChild(_blockerLabel);
+
+        page.AddChild(SectionTitle("Ofiste"));
+        _officeLabel = BodyLabel("OfficeLabel", autowrap: true);
+        _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest.Quiet().ToDisplayText();
+        page.AddChild(_officeLabel);
 
         page.AddChild(SectionTitle("Masada"));
         _deskLabel = BodyLabel("DeskLabel", autowrap: true);

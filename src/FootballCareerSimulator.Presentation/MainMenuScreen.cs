@@ -53,13 +53,13 @@ public partial class MainMenuScreen : Control
 
         var tagline = new Label
         {
-            Text = "İnce kariyer döngüsü — menajer, lig, maç, kayıt",
+            Text = "Teknik direktör kariyeri — kararların yıllarca hatırlanır",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleBody(tagline, muted: true);
         layout.AddChild(tagline);
 
-        var newButton = new Button { Text = "Yeni Kariyer" };
+        var newButton = new Button { Text = "Yeni Menajer Kariyeri" };
         CareerUiTheme.StylePrimaryButton(newButton);
         newButton.CustomMinimumSize = new Vector2(240, 40);
         newButton.SizeFlagsHorizontal = SizeFlags.ShrinkCenter;
@@ -79,7 +79,7 @@ public partial class MainMenuScreen : Control
         {
             Name = "StatusLabel",
             Text = continueButton.Disabled
-                ? "Kayıt yok — Yeni Kariyer ile başla."
+                ? "Kayıt yok — Yeni Menajer Kariyeri ile başla."
                 : $"Kayıt bulundu:\n{savePath}",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             HorizontalAlignment = HorizontalAlignment.Center,
