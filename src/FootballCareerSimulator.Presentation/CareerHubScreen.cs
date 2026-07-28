@@ -16,6 +16,7 @@ public partial class CareerHubScreen : Control
     private Label _blockerLabel = null!;
     private Label _selectionLabel = null!;
     private Label _trainingLabel = null!;
+    private Label _prepBriefingLabel = null!;
     private Label _developmentLabel = null!;
     private Label _contractLabel = null!;
     private Label _memoryLabel = null!;
@@ -620,6 +621,10 @@ public partial class CareerHubScreen : Control
     {
         var page = PageRoot();
         page.AddChild(SectionTitle("Hazırlık"));
+        _prepBriefingLabel = BodyLabel("PrepBriefingLabel", autowrap: true);
+        page.AddChild(_prepBriefingLabel);
+
+        page.AddChild(SectionTitle("Antrenman"));
         _trainingLabel = BodyLabel("TrainingLabel", autowrap: true);
         page.AddChild(_trainingLabel);
 
@@ -677,6 +682,7 @@ public partial class CareerHubScreen : Control
             Apply(_controller.SetWeeklyTrainingRest(RestApproach.Heavy));
         restRow.AddChild(_restHeavyButton);
 
+        page.AddChild(SectionTitle("Taktik"));
         _tacticLabel = BodyLabel("TacticLabel", autowrap: true);
         page.AddChild(_tacticLabel);
 
@@ -1204,6 +1210,7 @@ public partial class CareerHubScreen : Control
         if (training.ClubId is null)
         {
             _trainingLabel.Text = "Antrenman: işsiz — plan uygulanamaz.";
+            RefreshPreparationBriefing();
             return;
         }
 
@@ -1214,6 +1221,7 @@ public partial class CareerHubScreen : Control
                 : string.Empty;
             _trainingLabel.Text =
                 $"Antrenman: plan yok — yoğunluk / odak / dinlenme seç (maç gücünü etkiler){injuryHint}.";
+            RefreshPreparationBriefing();
             return;
         }
 
@@ -1224,6 +1232,12 @@ public partial class CareerHubScreen : Control
             $"Antrenman: {FormatStoredIntensity(training.Intensity)}/{FormatStoredFocus(training.Focus)}"
             + $" · {FormatStoredRest(training.RestApproach)}"
             + $" · XI yorgunluk {training.AverageFatigue} · fitness {training.AverageFitness}{injuryText}";
+        RefreshPreparationBriefing();
+    }
+
+    private void RefreshPreparationBriefing()
+    {
+        _prepBriefingLabel.Text = _controller.BuildPreparationBriefing().ToDisplayText();
     }
 
     private static string FormatStoredFocus(int? focus) =>
@@ -1274,18 +1288,21 @@ public partial class CareerHubScreen : Control
         if (tactic.ClubId is null)
         {
             _tacticLabel.Text = "Taktik: işsiz — plan yok.";
+            RefreshPreparationBriefing();
             return;
         }
 
         if (string.Equals(tactic.FormationName, "yok", StringComparison.Ordinal))
         {
             _tacticLabel.Text = "Taktik: henüz yok — lig kur / formasyon seç.";
+            RefreshPreparationBriefing();
             return;
         }
 
         _tacticLabel.Text =
             $"Taktik: {tactic.FormationName} · {tactic.ApproachName}"
             + $" · maç {_controller.GetManagedTacticModifierLabel()}";
+        RefreshPreparationBriefing();
     }
 
     private void UpdateTacticButtons(

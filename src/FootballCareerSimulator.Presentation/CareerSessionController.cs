@@ -539,6 +539,37 @@ public sealed class CareerSessionController
         }
     }
 
+    public PreparationBriefing BuildPreparationBriefing()
+    {
+        var training = GetTrainingSummary();
+        var tactic = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        string? fixtureLine = null;
+        int? daysUntil = null;
+        if (pending is not null)
+        {
+            var venue = pending.IsHome ? "Ev" : "Dep";
+            var opponent = GetClubDisplayName(pending.OpponentClubId);
+            daysUntil = pending.ScheduledDayNumber - currentDay;
+            var when = daysUntil switch
+            {
+                <= 0 => "bugün",
+                1 => "yarın",
+                _ => $"{daysUntil} gün sonra",
+            };
+            fixtureLine = $"{venue} vs {opponent} · {when}";
+        }
+
+        return PreparationBriefing.Compose(
+            training,
+            tactic,
+            GetManagedTacticModifierLabel(),
+            fixtureLine,
+            daysUntil);
+    }
+
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>
         Host.TrainingModule.Queries.GetManagedClubSummary();
 
@@ -556,8 +587,10 @@ public sealed class CareerSessionController
             var view = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
             var plan = Host.TeamPreparationModule.TacticPlanStore.Get(new Domain.Shared.ClubId(clubId));
             var tacticMod = MvpTacticMatchModifier.ComputeTacticModifier(plan);
+            var advice = BuildPreparationBriefing().AdviceLine;
             return UiActionResult.Ok(
-                $"Taktik yaklaşım: {view.ApproachName} · formasyon {view.FormationName} · maç {FormatSigned(tacticMod)}.");
+                $"Taktik yaklaşım: {view.ApproachName} · formasyon {view.FormationName} · maç {FormatSigned(tacticMod)}."
+                + $"\nÖneri: {advice}");
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -583,8 +616,10 @@ public sealed class CareerSessionController
             var view = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
             var plan = Host.TeamPreparationModule.TacticPlanStore.Get(new Domain.Shared.ClubId(clubId));
             var tacticMod = MvpTacticMatchModifier.ComputeTacticModifier(plan);
+            var advice = BuildPreparationBriefing().AdviceLine;
             return UiActionResult.Ok(
-                $"Formasyon: {view.FormationName} · yaklaşım {view.ApproachName} · maç {FormatSigned(tacticMod)}.");
+                $"Formasyon: {view.FormationName} · yaklaşım {view.ApproachName} · maç {FormatSigned(tacticMod)}."
+                + $"\nÖneri: {advice}");
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -1286,9 +1321,11 @@ public sealed class CareerSessionController
             var invalidatedText = result.InvalidatedSelectionCount > 0
                 ? $" · kadro onayı düştü ({result.InvalidatedSelectionCount})"
                 : string.Empty;
+            var advice = BuildPreparationBriefing().AdviceLine;
             return UiActionResult.Ok(
                 $"Antrenman uygulandı ({FormatTrainingFocus(_trainingFocus)}/{FormatTrainingIntensity(_trainingIntensity)}/{FormatRestApproach(_trainingRest)}):"
-                + $" yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}{invalidatedText}.");
+                + $" yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}{invalidatedText}."
+                + $"\nÖneri: {advice}");
         }
         catch (TrainingPhysicalStateInvariantViolationException ex)
         {
