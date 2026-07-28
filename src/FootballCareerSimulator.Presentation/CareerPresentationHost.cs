@@ -10,6 +10,7 @@ using FootballCareerSimulator.Application.Interaction.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.SocialContinuity.Composition;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
@@ -189,6 +190,10 @@ public sealed class CareerPresentationHost
         worldModule.AdvanceSimulationTime.BindDecisionExpireConsequences(
             new DecisionExpireDayBoundaryApplier(
                 interactionModule.Decisions,
+                eventRuleForBind.Gate));
+        worldModule.AdvanceSimulationTime.BindPlayerAgingConsequences(
+            new PlayerAgingDayBoundaryApplier(
+                playerCareer.Development,
                 eventRuleForBind.Gate));
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(

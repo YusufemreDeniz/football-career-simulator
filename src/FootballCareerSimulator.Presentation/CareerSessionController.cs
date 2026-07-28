@@ -1492,7 +1492,7 @@ public sealed class CareerSessionController
         }
 
         var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-        var declined = Host.PlayerCareerModule.Development.ApplyDueAging(day);
+        var declined = result.PlayersAgedCount;
         Host.TeamPreparationModule.ClubSquad?.SyncClubs(result.ContractExpiryAffectedClubIds, day);
         if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
         {

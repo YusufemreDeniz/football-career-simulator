@@ -3,6 +3,7 @@ namespace FootballCareerSimulator.Application.WorldCalendar.Services;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
 using FootballCareerSimulator.Application.Interaction.Services;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
@@ -21,6 +22,7 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
     private PromiseDeadlineDayBoundaryApplier? _promiseDeadlines;
     private MemoryDecayDayBoundaryApplier? _memoryDecay;
     private DecisionExpireDayBoundaryApplier? _decisionExpire;
+    private PlayerAgingDayBoundaryApplier? _playerAging;
     private readonly Dictionary<Guid, AdvanceSimulationTimeResult> _completedCommands = new();
 
     public AdvanceSimulationTimeHandler(
@@ -48,6 +50,9 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
 
     public void BindDecisionExpireConsequences(DecisionExpireDayBoundaryApplier applier) =>
         _decisionExpire = applier ?? throw new ArgumentNullException(nameof(applier));
+
+    public void BindPlayerAgingConsequences(PlayerAgingDayBoundaryApplier applier) =>
+        _playerAging = applier ?? throw new ArgumentNullException(nameof(applier));
 
     public AdvanceSimulationTimeResult Handle(AdvanceSimulationTimeCommand command)
     {
@@ -112,6 +117,7 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
         var promiseCrises = 0;
         var memoriesDecayed = 0;
         var decisionsExpired = 0;
+        var playersAged = 0;
         if (_eventEvaluation is not null)
         {
             var evaluated = _eventEvaluation.Evaluate(
@@ -152,6 +158,11 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
                 decisionsExpired = _decisionExpire.ApplyFromReactions(evaluated.ReactionIntents);
             }
 
+            if (_playerAging is not null)
+            {
+                playersAged = _playerAging.ApplyFromReactions(evaluated.ReactionIntents);
+            }
+
             if (_reactionScheduler is not null)
             {
                 scheduledCount = _reactionScheduler.ScheduleFromReactions(evaluated.ReactionIntents);
@@ -187,7 +198,8 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
             promisesResolved,
             promiseCrises,
             memoriesDecayed,
-            decisionsExpired);
+            decisionsExpired,
+            playersAged);
 
         _completedCommands[command.CommandId] = result;
         return result;

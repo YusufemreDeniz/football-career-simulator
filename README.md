@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Event & Rule + **DayBoundary → MemoryDecay / DecisionExpire** kilitlenmiştir. Sıradaki aday: Opened reaction veya PlayerAging due owner; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + Event & Rule + **DayBoundary → PlayerAging** kilitlenmiştir. Sıradaki aday: TransferWindowOpened reaction; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

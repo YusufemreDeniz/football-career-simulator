@@ -57,6 +57,9 @@ public sealed record AdvanceSimulationTimeResult
     /// <summary>DayBoundaryObserved → süresi dolan karar talebi sayısı.</summary>
     public int DecisionsExpiredCount { get; init; }
 
+    /// <summary>DayBoundaryObserved → yeteneği düşen yaşlanan oyuncu sayısı.</summary>
+    public int PlayersAgedCount { get; init; }
+
     public static AdvanceSimulationTimeResult Blocked(
         int currentDayNumber,
         IReadOnlyList<TimeAdvanceBlockedItem> blockers) =>
@@ -82,6 +85,7 @@ public sealed record AdvanceSimulationTimeResult
             PromiseBrokenCrisisOpenedCount = 0,
             MemoriesDecayedCount = 0,
             DecisionsExpiredCount = 0,
+            PlayersAgedCount = 0,
         };
 
     public static AdvanceSimulationTimeResult Advanced(
@@ -101,7 +105,8 @@ public sealed record AdvanceSimulationTimeResult
         int promiseDeadlineResolvedCount = 0,
         int promiseBrokenCrisisOpenedCount = 0,
         int memoriesDecayedCount = 0,
-        int decisionsExpiredCount = 0) =>
+        int decisionsExpiredCount = 0,
+        int playersAgedCount = 0) =>
         new()
         {
             Succeeded = true,
@@ -124,6 +129,7 @@ public sealed record AdvanceSimulationTimeResult
             PromiseBrokenCrisisOpenedCount = promiseBrokenCrisisOpenedCount,
             MemoriesDecayedCount = memoriesDecayedCount,
             DecisionsExpiredCount = decisionsExpiredCount,
+            PlayersAgedCount = playersAgedCount,
         };
 }
 
