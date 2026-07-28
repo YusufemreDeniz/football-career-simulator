@@ -26,6 +26,9 @@ public sealed class InMemoryMatchSelectionStore : IMatchSelectionStore
         _selections[(selection.FixtureId.Value, selection.ClubId.Value)] = selection;
     }
 
+    public void Remove(FixtureId fixtureId, ClubId clubId) =>
+        _selections.Remove((fixtureId.Value, clubId.Value));
+
     public void RemoveForFixture(FixtureId fixtureId)
     {
         var keys = _selections.Keys

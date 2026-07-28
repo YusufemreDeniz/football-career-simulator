@@ -129,7 +129,8 @@ public sealed class CareerPresentationHost
             worldModule.TimelineStore,
             trainingStore,
             playerCareer.Development,
-            teamPreparation.ClubSquad);
+            teamPreparation.ClubSquad,
+            teamPreparation.SelectionStore);
         var socialContinuity = SocialContinuityModule.Create();
         clubModule.BindWageBudget(contractModule.Store);
         contractModule.Registration.BindPromiseInvalidation(socialContinuity.Invalidation);

@@ -14,4 +14,5 @@ public sealed record SetWeeklyTrainingPlanResult(
     int RestApproach,
     int AverageFatigue,
     int AverageFitness,
-    int InjuredSlotCount);
+    int InjuredSlotCount,
+    int InvalidatedSelectionCount = 0);

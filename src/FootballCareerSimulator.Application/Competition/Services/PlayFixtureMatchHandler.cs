@@ -119,10 +119,10 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         RecoverInjuriesToDate(occurredAt);
 
-        var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed)
+        var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
             + ResolveTacticModifier(fixture.HomeClubId);
-        var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed)
+        var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
             + ResolveTacticModifier(fixture.AwayClubId);
 
@@ -251,9 +251,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _managerCareerStore.Replace(career);
     }
 
-    private int ResolveLineupBonus(FixtureId fixtureId, ClubId clubId, int rootSeed)
+    private int ResolveLineupBonus(FixtureId fixtureId, ClubId clubId, int rootSeed, GameDate day)
     {
-        _playerDevelopment?.EnsureClub(clubId, rootSeed, _timelineStore.Timeline.CurrentDate);
+        _playerDevelopment?.EnsureClub(clubId, rootSeed, day);
         var abilities = BuildAbilityMap(clubId);
 
         var managedClubId = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
@@ -270,6 +270,15 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             var selection = _matchSelectionStore.Get(fixtureId, clubId)
                 ?? throw new TeamPreparationInvariantViolationException(
                     $"Match selection is not approved for managed club {clubId.Value} on fixture {fixtureId.Value}.");
+
+            if (_trainingStore is not null)
+            {
+                MvpAvailabilityAwareSelection.EnsureStartingXiAvailable(
+                    clubId,
+                    selection.StartingSlotIndices,
+                    day,
+                    _trainingStore.PhysicalBySlot);
+            }
 
             return MvpSquadStrengthCalculator.ComputeLineupBonus(
                 clubId,

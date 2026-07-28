@@ -12,6 +12,8 @@ public interface IMatchSelectionStore
 
     void Upsert(MatchSelection selection);
 
+    void Remove(FixtureId fixtureId, ClubId clubId);
+
     void RemoveForFixture(FixtureId fixtureId);
 
     void ReplaceAll(IEnumerable<MatchSelection> selections);

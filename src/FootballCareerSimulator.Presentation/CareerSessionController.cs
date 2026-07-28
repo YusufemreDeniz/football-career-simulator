@@ -1223,8 +1223,11 @@ public sealed class CareerSessionController
             var injuryText = result.InjuredSlotCount > 0
                 ? $" · sakat {result.InjuredSlotCount}"
                 : string.Empty;
+            var invalidatedText = result.InvalidatedSelectionCount > 0
+                ? $" · kadro onayı düştü ({result.InvalidatedSelectionCount})"
+                : string.Empty;
             return UiActionResult.Ok(
-                $"Antrenman uygulandı ({intensity}): yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}.");
+                $"Antrenman uygulandı ({intensity}): yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}{invalidatedText}.");
         }
         catch (TrainingPhysicalStateInvariantViolationException ex)
         {

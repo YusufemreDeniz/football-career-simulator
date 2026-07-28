@@ -32,6 +32,27 @@ public static class MvpAvailabilityAwareSelection
         }
     }
 
+    public static bool HasUnavailableStarter(
+        ClubId clubId,
+        IReadOnlyList<int> startingSlotIndices,
+        GameDate day,
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot)
+    {
+        ArgumentNullException.ThrowIfNull(startingSlotIndices);
+        ArgumentNullException.ThrowIfNull(physicalBySlot);
+
+        foreach (var slot in startingSlotIndices)
+        {
+            if (physicalBySlot.TryGetValue((clubId.Value, slot), out var state)
+                && !state.IsAvailableOn(day))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static MatchSelection ApproveDefaultPreferringAvailable(
         FixtureId fixtureId,
         ClubId clubId,

@@ -18,6 +18,7 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
     private readonly IWorldTimelineStore _timelineStore;
     private readonly PlayerCareerDevelopmentService? _playerDevelopment;
     private readonly ClubSquadService? _clubSquadService;
+    private readonly MatchSelectionAvailabilityRevalidationService? _selectionRevalidation;
     private readonly Dictionary<Guid, SetWeeklyTrainingPlanResult> _completed = new();
 
     public SetWeeklyTrainingPlanHandler(
@@ -25,7 +26,8 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
         IManagerCareerStore managerCareerStore,
         IWorldTimelineStore timelineStore,
         PlayerCareerDevelopmentService? playerDevelopment = null,
-        ClubSquadService? clubSquadService = null)
+        ClubSquadService? clubSquadService = null,
+        MatchSelectionAvailabilityRevalidationService? selectionRevalidation = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
@@ -33,6 +35,7 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _playerDevelopment = playerDevelopment;
         _clubSquadService = clubSquadService;
+        _selectionRevalidation = selectionRevalidation;
     }
 
     public SetWeeklyTrainingPlanResult Handle(SetWeeklyTrainingPlanCommand command)
@@ -70,6 +73,8 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
         _playerDevelopment?.EnsureAndApplyWeeklyTraining(clubId, plan, rootSeed, day);
         _clubSquadService?.SyncFromActiveContracts(clubId, day);
 
+        var invalidated = _selectionRevalidation?.InvalidateUnavailableForClub(clubId, day) ?? 0;
+
         var xi = physical.Take(MatchSelection.StartingXiSize).ToArray();
         var result = new SetWeeklyTrainingPlanResult(
             true,
@@ -79,7 +84,8 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
             (int)rest,
             (int)Math.Round(xi.Average(s => s.Fatigue), MidpointRounding.AwayFromZero),
             (int)Math.Round(xi.Average(s => s.Fitness), MidpointRounding.AwayFromZero),
-            physical.Count(s => s.IsInjured));
+            physical.Count(s => s.IsInjured),
+            invalidated);
 
         _completed[command.CommandId] = result;
         return result;
