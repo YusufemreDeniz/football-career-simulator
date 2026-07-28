@@ -62,7 +62,58 @@ public sealed class TodayPulseDigestTests
             LeagueOk());
 
         Assert.Equal(TodayPulseDigest.FocusPrep, pulse.PrimaryFocusCode);
-        Assert.Contains("Hazırlık", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains("Toparlanma", pulse.Headline, StringComparison.Ordinal);
+        Assert.True(prep.DemandsAttention);
+        Assert.Equal(PrepPlanSuggestion.ApplyRecovery, prep.Suggestion!.ActionCode);
+    }
+
+    [Fact]
+    public void LowFitnessNearMatch_SurfacesPrepSuggestion()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.General,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Medium,
+                (int)Domain.TrainingPhysicalState.RestApproach.Normal,
+                null, null, null, 1, 30, 40, true, 0, 0),
+            new TacticPlanReadModel(1, "4-3-3", "Dengeli", 1),
+            "+1",
+            daysUntilNextMatch: 2);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusPrep, pulse.PrimaryFocusCode);
+        Assert.Equal(PrepPlanSuggestion.ApplyFitness, prep.Suggestion!.ActionCode);
+        Assert.Contains("Kondisyon", pulse.Headline, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AlreadyRecovering_DoesNotDemandPrepAttention()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.Recovery,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Low,
+                (int)Domain.TrainingPhysicalState.RestApproach.Heavy,
+                null, null, null, 1, 70, 55, true, 0, 0),
+            new TacticPlanReadModel(1, "4-3-3", "Dengeli", 1),
+            "+1",
+            daysUntilNextMatch: 1);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk());
+
+        Assert.False(prep.DemandsAttention);
+        Assert.Equal(TodayPulseDigest.FocusCalm, pulse.PrimaryFocusCode);
     }
 
     [Fact]

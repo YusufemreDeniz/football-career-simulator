@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.CareerHub.Queries;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
 
 namespace FootballCareerSimulator.Tests.CareerHub;
@@ -157,5 +158,20 @@ public sealed class OfficeNextStepGuideTests
             seasonArchivePhase: true);
 
         Assert.Equal("Yeni Sezona Geç", archive!.ButtonLabel);
+    }
+
+    [Fact]
+    public void PrepSuggestion_BecomesPrimaryApplyCta()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusPrep,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            prepSuggestion: PrepPlanSuggestion.RecoveryPlan());
+
+        Assert.Equal(OfficeNextStepGuide.ActionApplyPrepSuggestion, step!.ActionCode);
+        Assert.Equal("Toparlanma Uygula", step.ButtonLabel);
+        Assert.Equal(OfficeNextStepGuide.TargetPrep, step.TargetPageCode);
     }
 }

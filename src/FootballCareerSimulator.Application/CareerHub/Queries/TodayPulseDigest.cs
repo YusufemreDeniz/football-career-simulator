@@ -150,12 +150,17 @@ public sealed record TodayPulseDigest(
                     : "Sezon bitti — kapanışı tamamla.");
         }
 
-        if (prep.IsEmployed
-            && (prep.Headline.Contains("yorgun", StringComparison.OrdinalIgnoreCase)
-                || prep.Headline.Contains("sakat", StringComparison.OrdinalIgnoreCase)
-                || prep.Headline.Contains("boş", StringComparison.OrdinalIgnoreCase)))
+        if (prep is { IsEmployed: true, DemandsAttention: true })
         {
-            return (FocusPrep, "Hazırlık Masası çağırıyor.");
+            var prepHeadline = prep.Suggestion?.ActionCode switch
+            {
+                PrepPlanSuggestion.SeedWeek => "Haftalık plan boş — birincil düğmeyle kur.",
+                PrepPlanSuggestion.ApplyRecovery => "Kadro yorgun — Toparlanma Uygula.",
+                PrepPlanSuggestion.ApplyFitness => "Fitness düşük — Kondisyon Uygula.",
+                PrepPlanSuggestion.SoftenLoad => "Yük ağır — Yükü Hafiflet.",
+                _ => "Hazırlık Masası çağırıyor.",
+            };
+            return (FocusPrep, prepHeadline);
         }
 
         if (league.HasSeason

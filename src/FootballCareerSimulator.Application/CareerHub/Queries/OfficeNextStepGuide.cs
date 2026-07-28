@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
 
 /// <summary>
@@ -19,6 +20,7 @@ public static class OfficeNextStepGuide
     public const string ActionPlayMatches = "PlayMatches";
     public const string ActionAdvanceDay = "AdvanceDay";
     public const string ActionTransitionSeason = "TransitionSeason";
+    public const string ActionApplyPrepSuggestion = "ApplyPrepSuggestion";
 
     public static OfficeNextStep? Resolve(string? focusCode)
     {
@@ -69,7 +71,7 @@ public static class OfficeNextStepGuide
     }
 
     /// <summary>
-    /// Nabız + maç/ilerleme/engel/sezon — Bugün ekranının canlı birincil CTA'sı.
+    /// Nabız + maç/ilerleme/engel/sezon/hazırlık — Bugün ekranının canlı birincil CTA'sı.
     /// </summary>
     public static OfficeNextStep? ResolveFromPulse(
         string focusCode,
@@ -78,7 +80,8 @@ public static class OfficeNextStepGuide
         bool canAdvanceDay,
         string? primaryBlockerCode = null,
         bool seasonTransitionReady = false,
-        bool seasonArchivePhase = false)
+        bool seasonArchivePhase = false,
+        PrepPlanSuggestion? prepSuggestion = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(focusCode);
 
@@ -102,6 +105,16 @@ public static class OfficeNextStepGuide
                 TargetToday,
                 TodayPulseDigest.FocusSeason,
                 ActionTransitionSeason);
+        }
+
+        if (string.Equals(focusCode, TodayPulseDigest.FocusPrep, StringComparison.Ordinal)
+            && prepSuggestion is not null)
+        {
+            return new OfficeNextStep(
+                prepSuggestion.ButtonLabel,
+                TargetPrep,
+                TodayPulseDigest.FocusPrep,
+                ActionApplyPrepSuggestion);
         }
 
         if (string.Equals(focusCode, TodayPulseDigest.FocusMatch, StringComparison.Ordinal))

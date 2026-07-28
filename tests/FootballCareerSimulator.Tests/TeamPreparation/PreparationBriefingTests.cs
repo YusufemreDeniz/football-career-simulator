@@ -32,6 +32,8 @@ public sealed class PreparationBriefingTests
 
         Assert.Equal("Antrenman planı boş — bu haftayı şekillendir.", briefing.Headline);
         Assert.Contains("Orta yoğunluk", briefing.AdviceLine, StringComparison.Ordinal);
+        Assert.True(briefing.DemandsAttention);
+        Assert.Equal(PrepPlanSuggestion.SeedWeek, briefing.Suggestion!.ActionCode);
         Assert.Contains(briefing.BeatLines, b => b.Contains("Sıradaki:", StringComparison.Ordinal));
         Assert.Contains("Öneri:", briefing.ToDisplayText(), StringComparison.Ordinal);
     }
@@ -54,6 +56,10 @@ public sealed class PreparationBriefingTests
 
         Assert.Contains("yorgun", briefing.Headline, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Toparlanma", briefing.AdviceLine, StringComparison.Ordinal);
+        Assert.True(briefing.DemandsAttention);
+        Assert.Equal(PrepPlanSuggestion.ApplyRecovery, briefing.Suggestion!.ActionCode);
+        Assert.Equal(TrainingIntensity.Low, briefing.Suggestion.Intensity);
+        Assert.Equal(TrainingFocus.Recovery, briefing.Suggestion.Focus);
         Assert.Contains(briefing.BeatLines, b => b.Contains("yorgunluk 68", StringComparison.Ordinal));
         Assert.Contains(briefing.BeatLines, b => b.Contains("4-4-2", StringComparison.Ordinal));
     }
@@ -75,6 +81,28 @@ public sealed class PreparationBriefingTests
 
         Assert.Equal("Haftalık hazırlık masası açık.", briefing.Headline);
         Assert.Contains("Sıradaki Maç brifingine", briefing.AdviceLine, StringComparison.Ordinal);
+        Assert.False(briefing.DemandsAttention);
+        Assert.Null(briefing.Suggestion);
+    }
+
+    [Fact]
+    public void AlreadyOnRecovery_DoesNotSuggestAgain()
+    {
+        var briefing = PreparationBriefing.Compose(
+            Employed(
+                hasPlan: true,
+                intensity: (int)TrainingIntensity.Low,
+                focus: (int)TrainingFocus.Recovery,
+                rest: (int)RestApproach.Heavy,
+                fatigue: 62,
+                fitness: 50),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 2);
+
+        Assert.False(briefing.DemandsAttention);
+        Assert.Null(briefing.Suggestion);
+        Assert.Contains("doğru yönde", briefing.AdviceLine, StringComparison.Ordinal);
     }
 
     private static ClubTrainingSummaryReadModel Employed(

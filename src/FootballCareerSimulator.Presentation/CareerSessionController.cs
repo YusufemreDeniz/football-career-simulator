@@ -1630,6 +1630,20 @@ public sealed class CareerSessionController
         return ApplyWeeklyTrainingPlan();
     }
 
+    public UiActionResult ApplySuggestedPreparationPlan()
+    {
+        var suggestion = BuildPreparationBriefing().Suggestion;
+        if (suggestion is null)
+        {
+            return UiActionResult.Fail("Uygulanacak hazırlık önerisi yok — Hazırlık Masası'na bak.");
+        }
+
+        _trainingIntensity = suggestion.Intensity;
+        _trainingFocus = suggestion.Focus;
+        _trainingRest = suggestion.Rest;
+        return ApplyWeeklyTrainingPlan();
+    }
+
     private UiActionResult ApplyWeeklyTrainingPlan()
     {
         try

@@ -103,7 +103,7 @@ public sealed record PostMatchOfficeDigest(
         TodayPulseDigest.FocusSquad => "Kulüp'te Yer Aç veya Taşanı Kadroya Al.",
         TodayPulseDigest.FocusTransfer => "Transfer Masası — pencere, Satışa Çıkar veya süreç.",
         TodayPulseDigest.FocusSeason => "Sezon geçişini tamamla — Bitir / Yeni Sezon.",
-        TodayPulseDigest.FocusPrep => "Hazırlık Masası'na geç — yorgunluk/sakatlık.",
+        TodayPulseDigest.FocusPrep => "Hazırlık'ta öneriyi uygula — Toparlanma / Kondisyon.",
         TodayPulseDigest.FocusLeague => "Lig Masası'na bir bak — sıralama konuşuyor.",
         _ => "Bugün nabzına bak — sonra günü ilerlet.",
     };

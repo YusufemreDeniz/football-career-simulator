@@ -203,6 +203,9 @@ public partial class CareerHubScreen : Control
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionTransitionSeason:
                 Apply(_controller.TransitionToNextSeason());
                 return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionApplyPrepSuggestion:
+                Apply(_controller.ApplySuggestedPreparationPlan());
+                return;
             default:
                 ShowPage(_officeNextStepTarget);
                 return;
@@ -1729,6 +1732,7 @@ public partial class CareerHubScreen : Control
         var dueUnapproved = pending is { IsApproved: false };
         var blocker = _controller.BuildTimeAdvanceBlockerDigest();
         var archivePhase = _controller.IsSeasonArchivePhase();
+        var prepSuggestion = _controller.BuildPreparationBriefing().Suggestion;
 
         BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
             pulse.PrimaryFocusCode,
@@ -1737,7 +1741,8 @@ public partial class CareerHubScreen : Control
             canAdvanceDay: blocker.CanAdvance,
             primaryBlockerCode: blocker.PrimaryBlockerCode,
             seasonTransitionReady: _controller.CanTransitionToNextSeason(),
-            seasonArchivePhase: archivePhase));
+            seasonArchivePhase: archivePhase,
+            prepSuggestion: prepSuggestion));
     }
 
     private void RefreshSelectionStatus()

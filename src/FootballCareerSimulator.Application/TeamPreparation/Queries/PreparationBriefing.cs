@@ -11,7 +11,9 @@ public sealed record PreparationBriefing(
     string BrandTitle,
     string Headline,
     string AdviceLine,
-    IReadOnlyList<string> BeatLines)
+    IReadOnlyList<string> BeatLines,
+    bool DemandsAttention = false,
+    PrepPlanSuggestion? Suggestion = null)
 {
     public const string Brand = "Hazırlık Masası";
 
@@ -21,7 +23,9 @@ public sealed record PreparationBriefing(
             Brand,
             "Kulüp yok — hazırlık masası kapalı.",
             "Önce işe dön; sonra antrenman ve taktik seçersin.",
-            Array.Empty<string>());
+            Array.Empty<string>(),
+            DemandsAttention: false,
+            Suggestion: null);
 
     public static PreparationBriefing Compose(
         ClubTrainingSummaryReadModel training,
@@ -83,8 +87,24 @@ public sealed record PreparationBriefing(
             focus,
             daysUntilNextMatch);
         var headline = ResolveHeadline(training.HasPlan, fatigue, injured, daysUntilNextMatch, advice);
+        var suggestion = ResolveSuggestion(
+            training.HasPlan,
+            fatigue,
+            fitness,
+            injured,
+            intensity,
+            focus,
+            rest,
+            daysUntilNextMatch);
 
-        return new PreparationBriefing(true, Brand, headline, advice, beats);
+        return new PreparationBriefing(
+            true,
+            Brand,
+            headline,
+            advice,
+            beats,
+            DemandsAttention: suggestion is not null,
+            Suggestion: suggestion);
     }
 
     public string ToDisplayText()
@@ -175,6 +195,56 @@ public sealed record PreparationBriefing(
         return "Plan tutarlı — Sıradaki Maç brifingine de göz at.";
     }
 
+    private static PrepPlanSuggestion? ResolveSuggestion(
+        bool hasPlan,
+        int fatigue,
+        int fitness,
+        int injured,
+        int? intensity,
+        int? focus,
+        int? rest,
+        int? daysUntilNextMatch)
+    {
+        if (!hasPlan)
+        {
+            return PrepPlanSuggestion.SeedWeekPlan();
+        }
+
+        if (injured > 0 && intensity == (int)TrainingIntensity.High)
+        {
+            return PrepPlanSuggestion.SoftenLoadPlan(focus);
+        }
+
+        if (fatigue >= 55)
+        {
+            if (focus != (int)TrainingFocus.Recovery || intensity == (int)TrainingIntensity.High)
+            {
+                return PrepPlanSuggestion.RecoveryPlan();
+            }
+
+            return null;
+        }
+
+        if (fitness < 50 && daysUntilNextMatch is <= 3)
+        {
+            if (focus == (int)TrainingFocus.Fitness
+                && intensity != (int)TrainingIntensity.High
+                && rest != (int)RestApproach.Light)
+            {
+                return null;
+            }
+
+            return PrepPlanSuggestion.FitnessPlan();
+        }
+
+        if (daysUntilNextMatch is <= 1 && intensity == (int)TrainingIntensity.High)
+        {
+            return PrepPlanSuggestion.SoftenLoadPlan(focus);
+        }
+
+        return null;
+    }
+
     private static string NameIntensity(int? value) => value switch
     {
         (int)TrainingIntensity.Low => "Hafif",
@@ -198,4 +268,42 @@ public sealed record PreparationBriefing(
         (int)RestApproach.Heavy => "Bol dinlenme",
         _ => "-",
     };
+}
+
+/// <summary>
+/// Bugün birincil CTA için tek tık hazırlık önerisi (yoğunluk + odak + dinlenme).
+/// </summary>
+public sealed record PrepPlanSuggestion(
+    string ActionCode,
+    string ButtonLabel,
+    TrainingIntensity Intensity,
+    TrainingFocus Focus,
+    RestApproach Rest)
+{
+    public const string SeedWeek = "SeedWeek";
+    public const string ApplyRecovery = "ApplyRecovery";
+    public const string ApplyFitness = "ApplyFitness";
+    public const string SoftenLoad = "SoftenLoad";
+
+    public static PrepPlanSuggestion SeedWeekPlan() =>
+        new(SeedWeek, "Haftalık Planı Kur", TrainingIntensity.Medium, TrainingFocus.General, RestApproach.Normal);
+
+    public static PrepPlanSuggestion RecoveryPlan() =>
+        new(ApplyRecovery, "Toparlanma Uygula", TrainingIntensity.Low, TrainingFocus.Recovery, RestApproach.Heavy);
+
+    public static PrepPlanSuggestion FitnessPlan() =>
+        new(ApplyFitness, "Kondisyon Uygula", TrainingIntensity.Medium, TrainingFocus.Fitness, RestApproach.Normal);
+
+    public static PrepPlanSuggestion SoftenLoadPlan(int? currentFocus) =>
+        new(
+            SoftenLoad,
+            "Yükü Hafiflet",
+            TrainingIntensity.Low,
+            currentFocus switch
+            {
+                (int)TrainingFocus.Fitness => TrainingFocus.Fitness,
+                (int)TrainingFocus.Recovery => TrainingFocus.Recovery,
+                _ => TrainingFocus.General,
+            },
+            RestApproach.Heavy);
 }
