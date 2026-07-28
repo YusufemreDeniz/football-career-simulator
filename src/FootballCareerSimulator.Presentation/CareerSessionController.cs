@@ -1422,20 +1422,23 @@ public sealed class CareerSessionController
 
     private static string FormatKeyMomentLine(MatchKeyMomentReadModel moment, string side)
     {
-        var slot = $"slot {moment.PrimarySlotIndex}";
+        var primary = FormatPlayerRef(moment.PrimaryPlayerName, moment.PrimarySlotIndex);
         return moment.Kind switch
         {
             nameof(MatchKeyMomentKind.Goal) when moment.AssistSlotIndex is int assist =>
-                $"{moment.Minute}' {side} gol · {slot} (asist slot {assist})",
+                $"{moment.Minute}' {side} gol · {primary} (asist {FormatPlayerRef(moment.AssistPlayerName, assist)})",
             nameof(MatchKeyMomentKind.Goal) =>
-                $"{moment.Minute}' {side} gol · {slot}",
+                $"{moment.Minute}' {side} gol · {primary}",
             nameof(MatchKeyMomentKind.YellowCard) =>
-                $"{moment.Minute}' {side} sarı kart · {slot}",
+                $"{moment.Minute}' {side} sarı kart · {primary}",
             nameof(MatchKeyMomentKind.RedCard) =>
-                $"{moment.Minute}' {side} kırmızı kart · {slot}",
-            _ => $"{moment.Minute}' {side} {moment.Kind} · {slot}",
+                $"{moment.Minute}' {side} kırmızı kart · {primary}",
+            _ => $"{moment.Minute}' {side} {moment.Kind} · {primary}",
         };
     }
+
+    private static string FormatPlayerRef(string? playerName, int slotIndex) =>
+        string.IsNullOrWhiteSpace(playerName) ? $"slot {slotIndex}" : playerName;
 
     private static IEnumerable<string> FormatMatchConsequences(
         PlayFixtureMatchResult result,

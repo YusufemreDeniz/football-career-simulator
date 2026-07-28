@@ -4,8 +4,10 @@ using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Match;
+using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.Match;
+using FootballCareerSimulator.Simulation.TeamPreparation;
 
 namespace FootballCareerSimulator.Tests.Match;
 
@@ -153,6 +155,19 @@ public sealed class PlayFixtureMatchHandlerTests
         Assert.Equal(nameof(FixtureStatus.ResultAccepted), result.Status);
 
         var fixture = module.Queries.GetSeasonFixtures(seasonId)[0];
+        Assert.NotNull(result.KeyMoments);
+        var homeNames = MvpSquadRosterGenerator.GeneratePlayerNames(new ClubId(fixture.HomeClubId), rootSeed: 99);
+        var awayNames = MvpSquadRosterGenerator.GeneratePlayerNames(new ClubId(fixture.AwayClubId), rootSeed: 99);
+        Assert.All(
+            result.KeyMoments!,
+            moment =>
+            {
+                var expected = moment.IsHomeSide
+                    ? homeNames[moment.PrimarySlotIndex]
+                    : awayNames[moment.PrimarySlotIndex];
+                Assert.Equal(expected, moment.PrimaryPlayerName);
+            });
+
         Assert.Equal(result.HomeGoals, fixture.HomeGoals);
         Assert.Equal(result.AwayGoals, fixture.AwayGoals);
 

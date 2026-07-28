@@ -202,13 +202,27 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 pressOpened);
         }
 
+        var homeStarting = ResolveStartingSlots(fixture.Id, fixture.HomeClubId);
+        var awayStarting = ResolveStartingSlots(fixture.Id, fixture.AwayClubId);
+        var homeNames = MvpSquadRosterGenerator.GeneratePlayerNames(fixture.HomeClubId, rootSeed);
+        var awayNames = MvpSquadRosterGenerator.GeneratePlayerNames(fixture.AwayClubId, rootSeed);
+
         var keyMoments = simulation.KeyMoments
-            .Select(moment => new MatchKeyMomentReadModel(
-                moment.Kind.ToString(),
-                moment.Minute,
-                moment.IsHomeSide,
-                moment.PrimarySlotIndex,
-                moment.AssistSlotIndex))
+            .Select(moment =>
+            {
+                var starting = moment.IsHomeSide ? homeStarting : awayStarting;
+                var names = moment.IsHomeSide ? homeNames : awayNames;
+                return new MatchKeyMomentReadModel(
+                    moment.Kind.ToString(),
+                    moment.Minute,
+                    moment.IsHomeSide,
+                    moment.PrimarySlotIndex,
+                    moment.AssistSlotIndex,
+                    ResolveXiPlayerName(starting, names, moment.PrimarySlotIndex),
+                    moment.AssistSlotIndex is int assistXi
+                        ? ResolveXiPlayerName(starting, names, assistXi)
+                        : null);
+            })
             .ToArray();
 
         var result = new PlayFixtureMatchResult(
@@ -677,6 +691,25 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var selection = _matchSelectionStore?.Get(fixtureId, clubId);
         return selection?.StartingSlotIndices
             ?? Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
+    }
+
+    private static string ResolveXiPlayerName(
+        IReadOnlyList<int> startingSlots,
+        IReadOnlyList<string> names,
+        int xiIndex)
+    {
+        if (xiIndex < 0 || xiIndex >= startingSlots.Count)
+        {
+            return $"slot {xiIndex}";
+        }
+
+        var clubSlot = startingSlots[xiIndex];
+        if (clubSlot >= 0 && clubSlot < names.Count)
+        {
+            return names[clubSlot];
+        }
+
+        return $"slot {clubSlot}";
     }
 
     private IReadOnlyList<int> ResolveMatchdaySlots(FixtureId fixtureId, ClubId clubId)

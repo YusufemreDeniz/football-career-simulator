@@ -87,7 +87,9 @@ public sealed record MatchKeyMomentReadModel(
     int Minute,
     bool IsHomeSide,
     int PrimarySlotIndex,
-    int? AssistSlotIndex = null);
+    int? AssistSlotIndex = null,
+    string? PrimaryPlayerName = null,
+    string? AssistPlayerName = null);
 
 /// <summary>
 /// Managed kulüp maçında uygulanan yan etkilerin okunabilir özeti.

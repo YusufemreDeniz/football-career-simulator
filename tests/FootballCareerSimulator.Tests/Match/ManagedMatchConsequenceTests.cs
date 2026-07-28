@@ -76,7 +76,16 @@ public sealed class ManagedMatchConsequenceTests
             first.KeyMoments!.Count(m => m.Kind == nameof(MatchKeyMomentKind.Goal)));
         Assert.All(
             first.KeyMoments,
-            moment => Assert.False(string.IsNullOrWhiteSpace(moment.Kind)));
+            moment =>
+            {
+                Assert.False(string.IsNullOrWhiteSpace(moment.Kind));
+                Assert.False(string.IsNullOrWhiteSpace(moment.PrimaryPlayerName));
+                Assert.DoesNotContain("slot ", moment.PrimaryPlayerName!, StringComparison.Ordinal);
+                if (moment.AssistSlotIndex is not null)
+                {
+                    Assert.False(string.IsNullOrWhiteSpace(moment.AssistPlayerName));
+                }
+            });
         Assert.Equal(first, second);
     }
 }
