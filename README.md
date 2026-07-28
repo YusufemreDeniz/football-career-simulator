@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Event & Rule iskeleti + **effect idempotency save/load (SQLite v38)** kilitlenmiştir. Sıradaki aday: ilk reaction rule kancası; tam processing ledger / diyalog ağacı / gazeteci ağı (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + Event & Rule + **ilk reaction kancası (GameDayStarted → DayBoundaryObserved)** kilitlenmiştir. Sıradaki aday: reaction intent'ten owner command / scheduled evaluation; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

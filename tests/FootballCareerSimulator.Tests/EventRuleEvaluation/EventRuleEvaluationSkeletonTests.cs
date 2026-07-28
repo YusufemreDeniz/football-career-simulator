@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.EventRuleEvaluation.Composition;
+using FootballCareerSimulator.Application.EventRuleEvaluation.Reactions;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.EventRuleEvaluation;
@@ -41,31 +42,59 @@ public sealed class WorldCalendarEventEvaluationServiceTests
         var secondModule = EventRuleEvaluationModule.Create();
         var second = secondModule.WorldCalendarEvaluation.Evaluate(events, rootSeed: 7, correlation);
 
-        Assert.Equal(2, first.Count);
-        Assert.All(first, e => Assert.Equal(EventEffectApplicationStatus.Applied, e.Status));
-        Assert.Equal(first[0].Envelope.EventId, second[0].Envelope.EventId);
-        Assert.Equal(first[1].Envelope.EventId, second[1].Envelope.EventId);
-        Assert.Equal(correlation, first[0].Envelope.CorrelationId);
-        Assert.Null(first[0].Envelope.CausationId);
-        Assert.Equal(first[0].Envelope.EventId, first[1].Envelope.CausationId);
+        Assert.Equal(2, first.Effects.Count);
+        Assert.All(first.Effects, e => Assert.Equal(EventEffectApplicationStatus.Applied, e.Status));
+        Assert.Equal(first.Effects[0].Envelope.EventId, second.Effects[0].Envelope.EventId);
+        Assert.Equal(first.Effects[1].Envelope.EventId, second.Effects[1].Envelope.EventId);
+        Assert.Equal(correlation, first.Effects[0].Envelope.CorrelationId);
+        Assert.Null(first.Effects[0].Envelope.CausationId);
+        Assert.Equal(first.Effects[0].Envelope.EventId, first.Effects[1].Envelope.CausationId);
+        Assert.Contains(
+            first.ReactionIntents,
+            intent => intent.IntentTypeCode == ObserveGameDayStartedReactionRule.IntentTypeCode);
     }
 
     [Fact]
-    public void Evaluate_SameEventsTwice_MarksDuplicates()
+    public void Evaluate_SameEventsTwice_MarksDuplicates_AndSkipsReactions()
     {
         var module = EventRuleEvaluationModule.Create();
         var events = new WorldCalendarDomainEvent[]
         {
-            new GameDayCompleted(new SimulationStepId(3), Day),
+            new GameDayStarted(new SimulationStepId(3), Day),
         };
         var correlation = Guid.NewGuid();
 
         var first = module.WorldCalendarEvaluation.Evaluate(events, rootSeed: 3, correlation);
         var second = module.WorldCalendarEvaluation.Evaluate(events, rootSeed: 3, correlation);
 
-        Assert.Equal(EventEffectApplicationStatus.Applied, first[0].Status);
-        Assert.Equal(EventEffectApplicationStatus.Duplicate, second[0].Status);
-        Assert.Equal(first[0].Envelope.EventId, second[0].Envelope.EventId);
+        Assert.Equal(EventEffectApplicationStatus.Applied, first.Effects[0].Status);
+        Assert.Equal(EventEffectApplicationStatus.Duplicate, second.Effects[0].Status);
+        Assert.Equal(first.Effects[0].Envelope.EventId, second.Effects[0].Envelope.EventId);
+        Assert.Single(first.ReactionIntents);
+        Assert.Empty(second.ReactionIntents);
+    }
+}
+
+public sealed class ObserveGameDayStartedReactionRuleTests
+{
+    [Fact]
+    public void Advance_EmitsDayBoundaryObservedIntents()
+    {
+        var start = GameDate.FromCalendarDate(2026, 7, 1);
+        var module = WorldCalendarModule.Create(start, rootSeed: 11);
+        var target = GameDate.FromCalendarDate(2026, 7, 3);
+
+        var result = module.AdvanceSimulationTime.Handle(
+            new AdvanceSimulationTimeCommand(Guid.NewGuid(), target.DayNumber));
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.ReactionIntentCount > 0);
+        Assert.Contains(
+            ObserveGameDayStartedReactionRule.IntentTypeCode,
+            result.ReactionIntentTypeCodes);
+        Assert.Equal(
+            result.RaisedEventTypes.Count(t => t == nameof(GameDayStarted)),
+            result.ReactionIntentCount);
     }
 }
 

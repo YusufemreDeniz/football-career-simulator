@@ -24,6 +24,11 @@ public sealed record AdvanceSimulationTimeResult
     /// <summary>Event & Rule Evaluation: duplicate sayılan effect sayısı.</summary>
     public int DuplicateEffectCount { get; init; }
 
+    /// <summary>Reaction rule intent sayısı (foreign state mutation değil).</summary>
+    public int ReactionIntentCount { get; init; }
+
+    public IReadOnlyList<string> ReactionIntentTypeCodes { get; init; } = Array.Empty<string>();
+
     public static AdvanceSimulationTimeResult Blocked(
         int currentDayNumber,
         IReadOnlyList<TimeAdvanceBlockedItem> blockers) =>
@@ -37,6 +42,8 @@ public sealed record AdvanceSimulationTimeResult
             Blockers = blockers,
             AppliedEffectCount = 0,
             DuplicateEffectCount = 0,
+            ReactionIntentCount = 0,
+            ReactionIntentTypeCodes = Array.Empty<string>(),
         };
 
     public static AdvanceSimulationTimeResult Advanced(
@@ -44,7 +51,9 @@ public sealed record AdvanceSimulationTimeResult
         int newDayNumber,
         IReadOnlyList<string> raisedEventTypes,
         int appliedEffectCount = 0,
-        int duplicateEffectCount = 0) =>
+        int duplicateEffectCount = 0,
+        int reactionIntentCount = 0,
+        IReadOnlyList<string>? reactionIntentTypeCodes = null) =>
         new()
         {
             Succeeded = true,
@@ -55,6 +64,8 @@ public sealed record AdvanceSimulationTimeResult
             Blockers = Array.Empty<TimeAdvanceBlockedItem>(),
             AppliedEffectCount = appliedEffectCount,
             DuplicateEffectCount = duplicateEffectCount,
+            ReactionIntentCount = reactionIntentCount,
+            ReactionIntentTypeCodes = reactionIntentTypeCodes ?? Array.Empty<string>(),
         };
 }
 

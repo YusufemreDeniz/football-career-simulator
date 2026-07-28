@@ -75,14 +75,22 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
 
         var applied = 0;
         var duplicates = 0;
+        var reactionCount = 0;
+        IReadOnlyList<string> reactionTypes = Array.Empty<string>();
         if (_eventEvaluation is not null)
         {
             var evaluated = _eventEvaluation.Evaluate(
                 advancement.RaisedEvents,
                 timeline.RootSeed,
                 command.CommandId);
-            applied = evaluated.Count(e => e.Status == EventEffectApplicationStatus.Applied);
-            duplicates = evaluated.Count(e => e.Status == EventEffectApplicationStatus.Duplicate);
+            applied = evaluated.Effects.Count(e => e.Status == EventEffectApplicationStatus.Applied);
+            duplicates = evaluated.Effects.Count(e => e.Status == EventEffectApplicationStatus.Duplicate);
+            reactionCount = evaluated.ReactionIntents.Count;
+            reactionTypes = evaluated.ReactionIntents
+                .Select(intent => intent.IntentTypeCode)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(code => code, StringComparer.Ordinal)
+                .ToArray();
         }
 
         timeline.ClearUncommittedEvents();
@@ -92,7 +100,9 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
             advancement.NewDate.DayNumber,
             advancement.RaisedEvents.Select(MapEventType).ToArray(),
             applied,
-            duplicates);
+            duplicates,
+            reactionCount,
+            reactionTypes);
 
         _completedCommands[command.CommandId] = result;
         return result;
