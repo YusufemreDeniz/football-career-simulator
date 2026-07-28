@@ -951,13 +951,9 @@ public sealed class CareerSessionController
                 new Application.WorldCalendar.Commands.OpenTransferWindowCommand(
                     Guid.NewGuid(),
                     ClosesOnDayNumber: null));
-            var timeline = Host.WorldModule.TimelineStore.Timeline;
-            var ai = Host.TransferModule.AiSimulation.RunWindowTick(
-                timeline.CurrentDate,
-                timeline.RootSeed);
             return UiActionResult.Ok(
                 $"Transfer penceresi açıldı (gün {result.OpenedOnDayNumber})"
-                + $" · AI transfer: {ai.CompletedCount}.");
+                + $" · AI transfer: {result.AiTransferCompletedCount}.");
         }
         catch (Exception ex)
         {
@@ -1558,10 +1554,8 @@ public sealed class CareerSessionController
             var current = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
             competition.CompleteSeason.Handle(
                 new CompleteSeasonCommand(Guid.NewGuid(), season.SeasonId, current.DayNumber));
-            var declined = Host.PlayerCareerModule.Development.ApplyDueAging(current);
 
-            var agingText = declined > 0 ? $" · yaşlanma: {declined} oyuncu düştü" : string.Empty;
-            return UiActionResult.Ok($"Sezon #{season.SeasonId} kapatıldı{agingText}.");
+            return UiActionResult.Ok($"Sezon #{season.SeasonId} kapatıldı.");
         }
         catch (Exception ex)
         {

@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + Event & Rule + **TransferWindowOpened/Closed reaction** kilitlenmiştir. Sıradaki aday: Opened reaction consequence (owner effect) veya başka WorldCalendar event reaction; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + **Event & Rule (WorldCalendar) ince hatı tamam**: causation/idempotency, DayBoundary due owner'lar, TransferWindow Opened/Closed reaction + consequence'lar, scheduled close. Sıradaki üretim teması ayrı seçilmeli; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

@@ -11,7 +11,9 @@ public sealed record OpenTransferWindowResult(
     int? ClosesOnDayNumber,
     int AppliedEffectCount = 0,
     int ReactionIntentCount = 0,
-    IReadOnlyList<string>? RaisedEventTypes = null);
+    IReadOnlyList<string>? RaisedEventTypes = null,
+    int AiTransferCompletedCount = 0,
+    int AiTransferAttemptedClubCount = 0);
 
 public sealed record CloseTransferWindowCommand(Guid CommandId);
 

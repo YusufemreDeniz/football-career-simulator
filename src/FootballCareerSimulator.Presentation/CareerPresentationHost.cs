@@ -164,6 +164,10 @@ public sealed class CareerPresentationHost
             new TransferWindowClosedConsequenceApplier(
                 transferModule.WindowClose,
                 eventRuleForBind.Gate));
+        worldModule.OpenTransferWindow.BindWindowOpenedConsequences(
+            new TransferWindowOpenedConsequenceApplier(
+                transferModule.AiSimulation,
+                eventRuleForBind.Gate));
         worldModule.AdvanceSimulationTime.BindContractExpiryConsequences(
             new ContractExpiryDayBoundaryApplier(
                 contractModule.Registration,

@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
+using FootballCareerSimulator.Application.Transfer.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.EventRuleEvaluation;
@@ -10,6 +11,7 @@ public sealed class OpenTransferWindowHandler : ICommandIdempotencyReset
 {
     private readonly IWorldTimelineStore _timelineStore;
     private readonly WorldCalendarEventEvaluationService? _eventEvaluation;
+    private TransferWindowOpenedConsequenceApplier? _windowOpenedConsequences;
     private readonly Dictionary<Guid, OpenTransferWindowResult> _completedCommands = new();
 
     public OpenTransferWindowHandler(
@@ -19,6 +21,9 @@ public sealed class OpenTransferWindowHandler : ICommandIdempotencyReset
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _eventEvaluation = eventEvaluation;
     }
+
+    public void BindWindowOpenedConsequences(TransferWindowOpenedConsequenceApplier applier) =>
+        _windowOpenedConsequences = applier ?? throw new ArgumentNullException(nameof(applier));
 
     public OpenTransferWindowResult Handle(OpenTransferWindowCommand command)
     {
@@ -37,6 +42,8 @@ public sealed class OpenTransferWindowHandler : ICommandIdempotencyReset
 
         var applied = 0;
         var reactions = 0;
+        var aiCompleted = 0;
+        var aiAttempted = 0;
         IReadOnlyList<string> raisedTypes = Array.Empty<string>();
         if (_eventEvaluation is not null && raised.Length > 0)
         {
@@ -46,6 +53,15 @@ public sealed class OpenTransferWindowHandler : ICommandIdempotencyReset
             raisedTypes = evaluated.Effects
                 .Select(e => e.EventType)
                 .ToArray();
+
+            if (_windowOpenedConsequences is not null)
+            {
+                var outcome = _windowOpenedConsequences.ApplyFromReactions(
+                    evaluated.ReactionIntents,
+                    timeline.RootSeed);
+                aiCompleted = outcome.CompletedCount;
+                aiAttempted = outcome.AttemptedClubCount;
+            }
         }
 
         timeline.ClearUncommittedEvents();
@@ -57,7 +73,9 @@ public sealed class OpenTransferWindowHandler : ICommandIdempotencyReset
             window.ClosesOn?.DayNumber,
             applied,
             reactions,
-            raisedTypes);
+            raisedTypes,
+            aiCompleted,
+            aiAttempted);
         _completedCommands[command.CommandId] = result;
         return result;
     }
