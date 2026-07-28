@@ -8,6 +8,7 @@ using FootballCareerSimulator.Application.TrainingPhysicalState.Commands;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Application.Interaction.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
@@ -427,13 +428,11 @@ public sealed class CareerSessionController
                     generated.IneligibilityReason ?? "Seçenek şu an uygun değil.");
             }
 
-            var answered = Host.InteractionModule.Decisions.Answer(
+            Host.InteractionModule.Decisions.Answer(
                 new DecisionRequestId(pending.DecisionRequestId),
                 generated.OptionCode,
                 day);
-            return UiActionResult.Ok(
-                $"Karar yanıtlandı: #{answered.DecisionRequestId.Value} → {generated.DisplayText}"
-                + $" ({answered.SelectedOptionCode}).");
+            return UiActionResult.Ok(ComposeDecisionAnswerStatus(pending, generated));
         }
         catch (InteractionInvariantViolationException ex)
         {
@@ -471,13 +470,11 @@ public sealed class CareerSessionController
                     generated.IneligibilityReason ?? "Seçenek şu an uygun değil.");
             }
 
-            var answered = Host.InteractionModule.Decisions.Answer(
+            Host.InteractionModule.Decisions.Answer(
                 new DecisionRequestId(pending.DecisionRequestId),
                 generated.OptionCode,
                 day);
-            return UiActionResult.Ok(
-                $"Karar yanıtlandı: #{answered.DecisionRequestId.Value} → {generated.DisplayText}"
-                + $" ({answered.SelectedOptionCode}).");
+            return UiActionResult.Ok(ComposeDecisionAnswerStatus(pending, generated));
         }
         catch (InteractionInvariantViolationException ex)
         {
@@ -495,6 +492,20 @@ public sealed class CareerSessionController
         {
             return UiActionResult.Fail($"Karar hatası: {ex.Message}");
         }
+    }
+
+    private string ComposeDecisionAnswerStatus(
+        DecisionRequestLineReadModel pending,
+        DialogueOptionReadModel option)
+    {
+        var remaining = Host.InteractionModule.Queries.GetPending(take: 1).OpenCount;
+        return DecisionAnswerNarrative.Compose(
+            pending.KindName,
+            option.OptionCode,
+            option.DisplayText,
+            pending.SubjectPlayerId,
+            pending.IsHardBlocker,
+            remaining).ToStatusMessage();
     }
 
     private UiActionResult OpenDecisionForOldestSquadPlayer(

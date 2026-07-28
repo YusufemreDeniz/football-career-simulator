@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + maç gecesi + söz gerilimi + hafta/gün özeti + **Bugün → Masada** (karar/basın aciliyeti) kilitlenmiştir. Sıradaki aday: maç öncesi yüzeyi güçlendirme veya Masada seçeneklerinin anlatısal geri bildirimi; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + maç gecesi + söz gerilimi + hafta/gün özeti + Bugün → Masada + **Masada cevap anlatısı** kilitlenmiştir. Sıradaki aday: maç öncesi yüzeyi güçlendirme; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 
