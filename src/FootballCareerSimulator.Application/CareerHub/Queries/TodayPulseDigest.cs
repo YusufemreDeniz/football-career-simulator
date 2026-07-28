@@ -47,6 +47,10 @@ public sealed record TodayPulseDigest(
         {
             lines.Add($"Kadro: {squad.Headline}");
         }
+        else if (squad.IsFull)
+        {
+            lines.Add($"Kadro: {squad.Headline}");
+        }
 
         if (match.HasMatch)
         {
@@ -94,7 +98,7 @@ public sealed record TodayPulseDigest(
 
         if (squad.IsOverCapacity)
         {
-            return (FocusSquad, "Kadro taştı — Kulüp'te kapasiteye bak.");
+            return (FocusSquad, "Kadro taştı — Kulüp'te Yer Aç veya Taşanı Kadroya Al.");
         }
 
         if (match.HasMatch && !match.IsReadyToKickOff)
@@ -125,6 +129,12 @@ public sealed record TodayPulseDigest(
         if (match.HasMatch && match.IsReadyToKickOff)
         {
             return (FocusMatch, "Hazırsın — düdük için Bugün'de kal.");
+        }
+
+        // Dolu kadro her gün primary olmasın; sakin günde Yer Aç ipucu versin.
+        if (squad.IsFull)
+        {
+            return (FocusSquad, "Kadro dolu — Yer Aç ile slot aç, sonra imza.");
         }
 
         return (FocusCalm, "Sakin bir gün — nabız dengede.");

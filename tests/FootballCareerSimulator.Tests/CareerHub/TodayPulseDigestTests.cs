@@ -95,7 +95,39 @@ public sealed class TodayPulseDigestTests
 
         Assert.Equal(TodayPulseDigest.FocusSquad, pulse.PrimaryFocusCode);
         Assert.Contains("Kadro taştı", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains("Yer Aç", pulse.Headline, StringComparison.Ordinal);
         Assert.Contains(pulse.PulseLines, l => l.StartsWith("Kadro:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FullSquad_OnCalmDay_HintsYerAc_WithoutBeatingMatch()
+    {
+        var full = SquadCapacityDigest.Compose(
+            activeContractCount: 25,
+            squadMemberCount: 25,
+            maxMembers: 25,
+            overflowPlayerIds: Array.Empty<long>());
+
+        var calm = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            full);
+
+        Assert.Equal(TodayPulseDigest.FocusSquad, calm.PrimaryFocusCode);
+        Assert.Contains("Yer Aç", calm.Headline, StringComparison.Ordinal);
+        Assert.Contains(calm.PulseLines, l => l.StartsWith("Kadro:", StringComparison.Ordinal));
+
+        var withMatch = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            MatchReady(),
+            PrepOk(),
+            LeagueOk(),
+            full);
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, withMatch.PrimaryFocusCode);
+        Assert.Contains(withMatch.PulseLines, l => l.StartsWith("Kadro:", StringComparison.Ordinal));
     }
 
     private static DecisionDeskDigest Desk(bool hard, bool open, string headline) =>

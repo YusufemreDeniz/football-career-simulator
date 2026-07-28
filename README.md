@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + **Yer Aç / Taşanı Serbest Bırak** kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Sıradaki aday: kayıt sonrası nabız doğrulama veya transfer satış çıkışı; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü (MVP: teknik direktör) + **Yer Aç / Taşanı Serbest Bırak** (+ nabızda dolu kadro ipucu) kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Sıradaki aday: kayıt sonrası nabız doğrulama veya transfer satış çıkışı; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 
