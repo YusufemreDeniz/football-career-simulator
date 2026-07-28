@@ -206,6 +206,12 @@ public partial class CareerHubScreen : Control
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionApplyPrepSuggestion:
                 Apply(_controller.ApplySuggestedPreparationPlan());
                 return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionSellFringe:
+                Apply(_controller.SellFringePlayerFromManagedClub());
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionOpenTransferWindow:
+                Apply(_controller.OpenTransferWindow());
+                return;
             default:
                 ShowPage(_officeNextStepTarget);
                 return;
@@ -1722,6 +1728,7 @@ public partial class CareerHubScreen : Control
         var archivePhase = _controller.IsSeasonArchivePhase();
         var prepSuggestion = _controller.BuildPreparationBriefing().Suggestion;
         var leagueNextStep = _controller.BuildLeagueWorldBriefing().NextStep;
+        var transferNextStep = _controller.BuildTransferDeskBriefing().NextStep;
 
         BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
             pulse.PrimaryFocusCode,
@@ -1732,7 +1739,8 @@ public partial class CareerHubScreen : Control
             seasonTransitionReady: _controller.CanTransitionToNextSeason(),
             seasonArchivePhase: archivePhase,
             prepSuggestion: prepSuggestion,
-            leagueNextStep: leagueNextStep));
+            leagueNextStep: leagueNextStep,
+            transferNextStep: transferNextStep));
     }
 
     private void RefreshSelectionStatus()

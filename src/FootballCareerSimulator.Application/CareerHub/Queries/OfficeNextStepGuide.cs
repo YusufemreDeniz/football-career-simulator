@@ -2,6 +2,7 @@ namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Application.Transfer.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
 
 /// <summary>
@@ -22,6 +23,8 @@ public static class OfficeNextStepGuide
     public const string ActionAdvanceDay = "AdvanceDay";
     public const string ActionTransitionSeason = "TransitionSeason";
     public const string ActionApplyPrepSuggestion = "ApplyPrepSuggestion";
+    public const string ActionSellFringe = "SellFringe";
+    public const string ActionOpenTransferWindow = "OpenTransferWindow";
 
     public static OfficeNextStep? Resolve(string? focusCode)
     {
@@ -72,7 +75,7 @@ public static class OfficeNextStepGuide
     }
 
     /// <summary>
-    /// Nabız + maç/ilerleme/engel/sezon/hazırlık/lig — Bugün ekranının canlı birincil CTA'sı.
+    /// Nabız + maç/ilerleme/engel/sezon/hazırlık/lig/transfer — Bugün ekranının canlı birincil CTA'sı.
     /// </summary>
     public static OfficeNextStep? ResolveFromPulse(
         string focusCode,
@@ -83,7 +86,8 @@ public static class OfficeNextStepGuide
         bool seasonTransitionReady = false,
         bool seasonArchivePhase = false,
         PrepPlanSuggestion? prepSuggestion = null,
-        LeagueNextStep? leagueNextStep = null)
+        LeagueNextStep? leagueNextStep = null,
+        TransferNextStep? transferNextStep = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(focusCode);
 
@@ -127,6 +131,16 @@ public static class OfficeNextStepGuide
                 leagueNextStep.TargetPageCode,
                 TodayPulseDigest.FocusLeague,
                 MapLeagueAction(leagueNextStep.ActionCode));
+        }
+
+        if (string.Equals(focusCode, TodayPulseDigest.FocusTransfer, StringComparison.Ordinal)
+            && transferNextStep is not null)
+        {
+            return new OfficeNextStep(
+                transferNextStep.ButtonLabel,
+                transferNextStep.TargetPageCode,
+                TodayPulseDigest.FocusTransfer,
+                MapTransferAction(transferNextStep.ActionCode));
         }
 
         if (string.Equals(focusCode, TodayPulseDigest.FocusMatch, StringComparison.Ordinal))
@@ -226,6 +240,24 @@ public static class OfficeNextStepGuide
         string.Equals(leagueActionCode, LeagueNextStep.ActionAdvanceDay, StringComparison.Ordinal)
             ? ActionAdvanceDay
             : ActionNavigate;
+
+    private static string MapTransferAction(string transferActionCode)
+    {
+        if (string.Equals(transferActionCode, TransferNextStep.ActionSellFringe, StringComparison.Ordinal))
+        {
+            return ActionSellFringe;
+        }
+
+        if (string.Equals(
+                transferActionCode,
+                TransferNextStep.ActionOpenTransferWindow,
+                StringComparison.Ordinal))
+        {
+            return ActionOpenTransferWindow;
+        }
+
+        return ActionNavigate;
+    }
 }
 
 public sealed record OfficeNextStep(

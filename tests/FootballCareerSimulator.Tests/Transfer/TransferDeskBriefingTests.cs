@@ -26,6 +26,8 @@ public sealed class TransferDeskBriefingTests
         Assert.Equal(TransferDeskBriefing.Brand, desk.BrandTitle);
         Assert.Contains("Pencere kapalı", desk.Headline, StringComparison.Ordinal);
         Assert.Contains("Pencere Aç", desk.AdviceLine, StringComparison.Ordinal);
+        Assert.Equal(TransferNextStep.ReasonOpenWindow, desk.NextStep!.ReasonCode);
+        Assert.Equal(TransferNextStep.ActionOpenTransferWindow, desk.NextStep.ActionCode);
         Assert.Contains(desk.BeatLines, b => b.Contains("#1024", StringComparison.Ordinal));
         Assert.Contains("Öneri:", desk.ToDisplayText(), StringComparison.Ordinal);
     }
@@ -45,12 +47,40 @@ public sealed class TransferDeskBriefingTests
             budgetAvailable: 1_000_000,
             budgetSpent: 0,
             squadFull: true,
-            saleCandidatePlayerId: 2001);
+            saleCandidatePlayerId: 2001,
+            currentDayNumber: 30);
 
         Assert.Contains("Kadro dolu", desk.Headline, StringComparison.Ordinal);
         Assert.Contains("Satışa Çıkar", desk.AdviceLine, StringComparison.Ordinal);
         Assert.True(desk.DemandsAttention);
+        Assert.Equal(TransferNextStep.ReasonSellFringe, desk.NextStep!.ReasonCode);
+        Assert.Equal(TransferNextStep.ActionSellFringe, desk.NextStep.ActionCode);
         Assert.Contains(desk.BeatLines, b => b.Contains("kapanış gün 40", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ClosingCritical_RaisesWindowPressureHeadline()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: 42,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: 1_000_000,
+            budgetSpent: 0,
+            squadFull: true,
+            saleCandidatePlayerId: 88,
+            currentDayNumber: 40);
+
+        Assert.True(desk.DemandsAttention);
+        Assert.Contains("kapanıyor", desk.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(desk.BeatLines, b => b.Contains("kritik", StringComparison.Ordinal));
+        Assert.Equal(TransferNextStep.ActionSellFringe, desk.NextStep!.ActionCode);
+        Assert.Contains("daralıyor", desk.NextStep.PulseHeadline, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -72,6 +102,7 @@ public sealed class TransferDeskBriefingTests
 
         Assert.Contains("Aktif süreç", desk.Headline, StringComparison.Ordinal);
         Assert.Contains("onay", desk.AdviceLine, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(TransferNextStep.ReasonAdvanceProcess, desk.NextStep!.ReasonCode);
     }
 
     [Fact]
@@ -80,5 +111,6 @@ public sealed class TransferDeskBriefingTests
         var desk = TransferDeskBriefing.Unemployed();
         Assert.False(desk.IsEmployed);
         Assert.Contains("kapalı", desk.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(desk.NextStep);
     }
 }

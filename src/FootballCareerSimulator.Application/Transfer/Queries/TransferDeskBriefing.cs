@@ -9,9 +9,16 @@ public sealed record TransferDeskBriefing(
     string Headline,
     string AdviceLine,
     bool DemandsAttention,
-    IReadOnlyList<string> BeatLines)
+    IReadOnlyList<string> BeatLines,
+    TransferNextStep? NextStep = null)
 {
     public const string Brand = "Transfer Masası";
+
+    /// <summary>Kapanış yaklaşınca nabız/CTA baskısı (gün).</summary>
+    public const int ClosingPressureDays = 7;
+
+    /// <summary>Son gün uyarısı eşiği.</summary>
+    public const int ClosingCriticalDays = 3;
 
     public static TransferDeskBriefing Unemployed() =>
         new(
@@ -20,7 +27,8 @@ public sealed record TransferDeskBriefing(
             "Kulüp yok — transfer masası kapalı.",
             "Önce işe dön; sonra pencere ve satış burada açılır.",
             DemandsAttention: false,
-            Array.Empty<string>());
+            Array.Empty<string>(),
+            NextStep: null);
 
     public static TransferDeskBriefing Compose(
         bool windowOpen,
@@ -34,17 +42,22 @@ public sealed record TransferDeskBriefing(
         int? budgetAvailable,
         int? budgetSpent,
         bool squadFull,
-        long? saleCandidatePlayerId)
+        long? saleCandidatePlayerId,
+        int? currentDayNumber = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(windowStatusName);
 
+        int? daysUntilClose = null;
+        if (windowOpen
+            && windowClosesOnDayNumber is int closesOn
+            && currentDayNumber is int today)
+        {
+            daysUntilClose = closesOn - today;
+        }
+
         var beats = new List<string>
         {
-            windowOpen
-                ? windowClosesOnDayNumber is int close
-                    ? $"Pencere açık · kapanış gün {close}"
-                    : "Pencere açık"
-                : $"Pencere kapalı ({windowStatusName})",
+            ResolveWindowBeat(windowOpen, windowStatusName, windowClosesOnDayNumber, daysUntilClose),
         };
 
         if (budgetAvailable is int available)
@@ -75,6 +88,17 @@ public sealed record TransferDeskBriefing(
             beats.Add("Kadro dolu — yer için Satışa Çıkar veya Yer Aç.");
         }
 
+        var nextStep = ResolveNextStep(
+            windowOpen,
+            openNeedCount,
+            openExitNeedCount,
+            listedTargetCount,
+            activeProcessCount,
+            pendingOfferCount,
+            squadFull,
+            saleCandidatePlayerId,
+            daysUntilClose);
+
         var (headline, advice) = ResolveFocus(
             windowOpen,
             openNeedCount,
@@ -83,9 +107,11 @@ public sealed record TransferDeskBriefing(
             activeProcessCount,
             pendingOfferCount,
             squadFull,
-            saleCandidatePlayerId);
+            saleCandidatePlayerId,
+            daysUntilClose,
+            nextStep);
 
-        var demands =
+        var unfinished =
             pendingOfferCount > 0
             || activeProcessCount > 0
             || openExitNeedCount > 0
@@ -93,13 +119,21 @@ public sealed record TransferDeskBriefing(
             || (squadFull && saleCandidatePlayerId is not null)
             || (!windowOpen && (squadFull || saleCandidatePlayerId is not null));
 
+        var closingPressure = daysUntilClose is int left
+            && left >= 0
+            && left <= ClosingPressureDays
+            && unfinished;
+
+        var demands = unfinished || closingPressure || nextStep is not null;
+
         return new TransferDeskBriefing(
             true,
             Brand,
             headline,
             advice,
             demands,
-            beats.Take(6).ToArray());
+            beats.Take(6).ToArray(),
+            nextStep);
     }
 
     public string ToDisplayText()
@@ -113,6 +147,56 @@ public sealed record TransferDeskBriefing(
         return $"{BrandTitle}\n{Headline}{beats}{advice}";
     }
 
+    private static string ResolveWindowBeat(
+        bool windowOpen,
+        string windowStatusName,
+        int? windowClosesOnDayNumber,
+        int? daysUntilClose)
+    {
+        if (!windowOpen)
+        {
+            return $"Pencere kapalı ({windowStatusName})";
+        }
+
+        if (daysUntilClose is int left)
+        {
+            if (left < 0)
+            {
+                return windowClosesOnDayNumber is int close
+                    ? $"Pencere açık · kapanış gün {close} (geçmiş)"
+                    : "Pencere açık";
+            }
+
+            if (left == 0)
+            {
+                return "Pencere açık · kapanış bugün";
+            }
+
+            if (left == 1)
+            {
+                return "Pencere açık · kapanış yarın";
+            }
+
+            if (left <= ClosingCriticalDays)
+            {
+                return $"Pencere açık · kapanış {left} gün (kritik)";
+            }
+
+            if (left <= ClosingPressureDays)
+            {
+                return $"Pencere açık · kapanış {left} gün";
+            }
+
+            return windowClosesOnDayNumber is int closeDay
+                ? $"Pencere açık · kapanış gün {closeDay}"
+                : $"Pencere açık · kapanış {left} gün";
+        }
+
+        return windowClosesOnDayNumber is int closeOnly
+            ? $"Pencere açık · kapanış gün {closeOnly}"
+            : "Pencere açık";
+    }
+
     private static (string Headline, string Advice) ResolveFocus(
         bool windowOpen,
         int openNeedCount,
@@ -121,8 +205,23 @@ public sealed record TransferDeskBriefing(
         int activeProcessCount,
         int pendingOfferCount,
         bool squadFull,
-        long? saleCandidatePlayerId)
+        long? saleCandidatePlayerId,
+        int? daysUntilClose,
+        TransferNextStep? nextStep)
     {
+        if (nextStep is not null
+            && daysUntilClose is int left
+            && left >= 0
+            && left <= ClosingCriticalDays
+            && windowOpen)
+        {
+            return (
+                left == 0
+                    ? "Pencere bugün kapanıyor — işi bitir."
+                    : $"Pencere {left} gün içinde kapanıyor.",
+                nextStep.ButtonLabel + " — sonra başka işe geç.");
+        }
+
         if (!windowOpen)
         {
             return (
@@ -185,4 +284,138 @@ public sealed record TransferDeskBriefing(
             "Transfer masası hareketli.",
             "Süreç Aç veya teklif adımlarına bak.");
     }
+
+    private static TransferNextStep? ResolveNextStep(
+        bool windowOpen,
+        int openNeedCount,
+        int openExitNeedCount,
+        int listedTargetCount,
+        int activeProcessCount,
+        int pendingOfferCount,
+        bool squadFull,
+        long? saleCandidatePlayerId,
+        int? daysUntilClose)
+    {
+        var closingSoon = daysUntilClose is int d
+            && d >= 0
+            && d <= ClosingPressureDays;
+        var closingCritical = daysUntilClose is int c
+            && c >= 0
+            && c <= ClosingCriticalDays;
+
+        if (!windowOpen && (squadFull || saleCandidatePlayerId is not null))
+        {
+            return TransferNextStep.OpenWindow();
+        }
+
+        if (pendingOfferCount > 0)
+        {
+            return TransferNextStep.AnswerOffers(closingCritical);
+        }
+
+        if (activeProcessCount > 0)
+        {
+            return TransferNextStep.AdvanceProcess(closingCritical);
+        }
+
+        if (windowOpen
+            && saleCandidatePlayerId is long saleId
+            && (openExitNeedCount > 0 || squadFull))
+        {
+            return TransferNextStep.SellFringe(saleId, closingCritical || closingSoon);
+        }
+
+        if (listedTargetCount > 0 && activeProcessCount == 0)
+        {
+            return TransferNextStep.OpenProcess(closingCritical);
+        }
+
+        if (closingCritical && windowOpen && openNeedCount > 0)
+        {
+            return TransferNextStep.ClosingCheck();
+        }
+
+        return null;
+    }
+}
+
+/// <summary>
+/// Transfer baskısı için Bugün birincil CTA — masaya gömülmez, aksiyona götürür.
+/// </summary>
+public sealed record TransferNextStep(
+    string ReasonCode,
+    string ButtonLabel,
+    string TargetPageCode,
+    string ActionCode,
+    string PulseHeadline)
+{
+    public const string ReasonOpenWindow = "OpenWindow";
+    public const string ReasonSellFringe = "SellFringe";
+    public const string ReasonAnswerOffers = "AnswerOffers";
+    public const string ReasonAdvanceProcess = "AdvanceProcess";
+    public const string ReasonStartProcess = "StartProcess";
+    public const string ReasonClosingCheck = "ClosingCheck";
+
+    public const string TargetTransfer = "Transfer";
+    public const string TargetClub = "Club";
+
+    public const string ActionNavigate = "Navigate";
+    public const string ActionSellFringe = "SellFringe";
+    public const string ActionOpenTransferWindow = "OpenTransferWindow";
+
+    public static TransferNextStep OpenWindow() =>
+        new(
+            ReasonOpenWindow,
+            "Pencere Aç",
+            TargetTransfer,
+            ActionOpenTransferWindow,
+            "Pencere kapalı — satış için önce aç.");
+
+    public static TransferNextStep SellFringe(long playerId, bool closingPressure) =>
+        new(
+            ReasonSellFringe,
+            $"Satışa Çıkar (#{playerId})",
+            TargetTransfer,
+            ActionSellFringe,
+            closingPressure
+                ? $"Pencere daralıyor — #{playerId} için Satışa Çıkar."
+                : $"Kadro dolu — #{playerId} için Satışa Çıkar.");
+
+    public static TransferNextStep AnswerOffers(bool closingPressure) =>
+        new(
+            ReasonAnswerOffers,
+            "Teklifleri Yanıtla",
+            TargetTransfer,
+            ActionNavigate,
+            closingPressure
+                ? "Pencere bitiyor — bekleyen teklifleri yanıtla."
+                : "Bekleyen teklif var — Transfer Masası.");
+
+    public static TransferNextStep AdvanceProcess(bool closingPressure) =>
+        new(
+            ReasonAdvanceProcess,
+            "Süreci İlerlet",
+            TargetTransfer,
+            ActionNavigate,
+            closingPressure
+                ? "Pencere bitiyor — aktif süreci tamamla."
+                : "Aktif süreç var — Transfer Masası.");
+
+    public static TransferNextStep OpenProcess(bool closingPressure) =>
+        new(
+            ReasonStartProcess,
+            "Süreç Aç",
+            TargetTransfer,
+            ActionNavigate,
+            closingPressure
+                ? "Pencere bitiyor — listedeki hedefe süreç aç."
+                : "Hedef listede — Süreç Aç.");
+
+    public static TransferNextStep ClosingCheck() =>
+        new(
+            ReasonClosingCheck,
+            "Transfer Masası",
+            TargetTransfer,
+            ActionNavigate,
+            "Pencere kapanmak üzere — ihtiyaçları bitir.");
 }

@@ -265,7 +265,7 @@ public sealed class TodayPulseDigestTests
             transfer);
 
         Assert.Equal(TodayPulseDigest.FocusTransfer, calm.PrimaryFocusCode);
-        Assert.Contains("Transfer Masası", calm.Headline, StringComparison.Ordinal);
+        Assert.Contains("Satışa Çıkar", calm.Headline, StringComparison.Ordinal);
         Assert.Contains(calm.PulseLines, l => l.StartsWith("Transfer:", StringComparison.Ordinal));
 
         var withMatch = TodayPulseDigest.Compose(

@@ -168,7 +168,7 @@ public sealed class PostMatchOfficeDigestTests
         Assert.Equal(TodayPulseDigest.FocusTransfer, digest.NextFocusCode);
         Assert.Contains("Transfer Masası", digest.Headline, StringComparison.Ordinal);
         Assert.Contains(digest.BeatLines, b => b.StartsWith("Sıradaki:", StringComparison.Ordinal));
-        Assert.Contains("Transfer Masası", digest.AdviceLine, StringComparison.Ordinal);
+        Assert.Contains("birincil düğme", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Öneri:", digest.ToDisplayText(), StringComparison.Ordinal);
     }
 

@@ -177,7 +177,10 @@ public sealed record TodayPulseDigest(
 
         if (transfer.DemandsAttention)
         {
-            return (FocusTransfer, "Transfer Masası çağırıyor — pencere ve çıkışa bak.");
+            return (
+                FocusTransfer,
+                transfer.NextStep?.PulseHeadline
+                    ?? "Transfer Masası çağırıyor — pencere ve çıkışa bak.");
         }
 
         if (squad.IsFull)

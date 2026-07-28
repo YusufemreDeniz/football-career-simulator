@@ -880,6 +880,7 @@ public sealed class CareerSessionController
         var offers = Host.TransferModule.Queries.GetManagedClubOffers();
         var budget = Host.ClubModule.TransferBudget.Get(new Domain.Shared.ClubId(clubId));
         var capacity = BuildSquadCapacityDigest();
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
 
         return TransferDeskBriefing.Compose(
             window.IsOpen,
@@ -893,7 +894,8 @@ public sealed class CareerSessionController
             budget.Available,
             budget.Spent,
             capacity.IsFull || capacity.IsOverCapacity,
-            SuggestSaleCandidatePlayerId());
+            SuggestSaleCandidatePlayerId(),
+            currentDay);
     }
 
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>

@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + nabız→birincil CTA zinciri + **Ofiste↔Günün Nabzı senkronu** (statik masa kısayol gürültüsü kaldırıldı) kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: dikey kesit kabul kriterlerine göre transfer penceresi kapanış baskısı → birincil CTA.
+İnce kariyer döngüsü (MVP: teknik direktör) + nabız→birincil CTA zinciri + **transfer penceresi kapanış / satış CTA** (`TransferNextStep`: Satışa Çıkar, Pencere Aç, teklif/süreç) kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: dikey kesit kabul kriterlerine göre maç günü akışı (XI onay → oyna → ofis dönüş) sıkılaştırma.
 
 ## Klasör Yapısı
 

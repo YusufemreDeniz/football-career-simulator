@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Application.Transfer.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
 
 namespace FootballCareerSimulator.Tests.CareerHub;
@@ -203,5 +204,34 @@ public sealed class OfficeNextStepGuideTests
 
         Assert.Equal(OfficeNextStepGuide.ActionAdvanceDay, step!.ActionCode);
         Assert.Contains("İlerlet", step.ButtonLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TransferSellSuggestion_BecomesPrimarySellCta()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusTransfer,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            transferNextStep: TransferNextStep.SellFringe(1025, closingPressure: true));
+
+        Assert.Equal(OfficeNextStepGuide.ActionSellFringe, step!.ActionCode);
+        Assert.Contains("Satışa Çıkar", step.ButtonLabel, StringComparison.Ordinal);
+        Assert.Equal(OfficeNextStepGuide.TargetTransfer, step.TargetPageCode);
+    }
+
+    [Fact]
+    public void TransferClosedWindow_OpensWindow()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusTransfer,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            transferNextStep: TransferNextStep.OpenWindow());
+
+        Assert.Equal(OfficeNextStepGuide.ActionOpenTransferWindow, step!.ActionCode);
+        Assert.Equal("Pencere Aç", step.ButtonLabel);
     }
 }
