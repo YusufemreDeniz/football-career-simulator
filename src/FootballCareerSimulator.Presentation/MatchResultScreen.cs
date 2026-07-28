@@ -32,13 +32,28 @@ public partial class MatchResultScreen : Control
         margin.AddThemeConstantOverride("margin_bottom", 36);
         AddChild(margin);
 
-        var layout = new VBoxContainer
+        var shell = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
+        shell.AddThemeConstantOverride("separation", 14);
+        margin.AddChild(shell);
+
+        var scroll = new ScrollContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        shell.AddChild(scroll);
+
+        var layout = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
         layout.AddThemeConstantOverride("separation", 10);
-        margin.AddChild(layout);
+        scroll.AddChild(layout);
 
         var brand = new Label
         {
@@ -138,8 +153,8 @@ public partial class MatchResultScreen : Control
             layout.AddChild(SectionLabel("Diğer sonuçlar"));
             var list = new ItemList
             {
-                CustomMinimumSize = new Vector2(0, 88),
-                SizeFlagsVertical = SizeFlags.ExpandFill,
+                CustomMinimumSize = new Vector2(0, Math.Min(88, 28 + narrative.OtherScorelines.Count * 22)),
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
             };
             CareerUiTheme.StyleList(list);
             foreach (var other in narrative.OtherScorelines)
@@ -150,17 +165,26 @@ public partial class MatchResultScreen : Control
             layout.AddChild(list);
         }
 
-        layout.AddChild(new Control { SizeFlagsVertical = SizeFlags.ExpandFill });
-
-        var continueButton = new Button { Text = "Kariyere Dön" };
+        var continueButton = new Button
+        {
+            Text = "Kariyere Dön",
+            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+            CustomMinimumSize = new Vector2(220, 40),
+        };
         CareerUiTheme.StylePrimaryButton(continueButton);
-        continueButton.Pressed += () => ContinueRequested?.Invoke();
-        layout.AddChild(continueButton);
+        continueButton.Pressed += OnContinuePressed;
+        shell.AddChild(continueButton);
 
         var tween = CreateTween();
         tween.SetParallel(true);
         tween.TweenProperty(score, "modulate:a", 1f, 0.4f).SetTrans(Tween.TransitionType.Cubic);
         tween.TweenProperty(tone, "modulate:a", 1f, 0.55f).SetDelay(0.12f);
+    }
+
+    private void OnContinuePressed()
+    {
+        // Ekranı sinyal ortasında QueueFree etmemek için bir kare ertele.
+        Callable.From(() => ContinueRequested?.Invoke()).CallDeferred();
     }
 
     private static Label SectionLabel(string text)

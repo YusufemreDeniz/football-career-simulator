@@ -56,9 +56,22 @@ public partial class CareerAppRoot : Control
     public void ShowMatchResults(CareerSessionController controller, PlayMatchesUiResult results)
     {
         var panel = new MatchResultScreen(results);
-        panel.ContinueRequested += () =>
-            ShowHub(controller, officeReturn: controller.BuildPostMatchOfficeReturn(results));
+        panel.ContinueRequested += () => ReturnFromMatchNight(controller, results);
         ReplaceScreen(panel);
+    }
+
+    private void ReturnFromMatchNight(CareerSessionController controller, PlayMatchesUiResult results)
+    {
+        try
+        {
+            var office = controller.BuildPostMatchOfficeReturn(results);
+            ShowHub(controller, officeReturn: office);
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"[CareerAppRoot] Maç sonrası ofis dönüşü başarısız: {ex}");
+            ShowHub(controller, statusMessage: $"Maçlar tamam. (Ofis özeti atlandı: {ex.Message})");
+        }
     }
 
     private void OnNewCareer()
