@@ -1,5 +1,10 @@
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.Interaction.Queries;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
+using FootballCareerSimulator.Application.Transfer.Queries;
+using FootballCareerSimulator.Domain.TeamPreparation;
 
 namespace FootballCareerSimulator.Tests.Competition;
 
@@ -15,6 +20,7 @@ public sealed class PostMatchOfficeDigestTests
 
         Assert.Equal(PostMatchOfficeDigest.Brand, digest.BrandTitle);
         Assert.Contains("Ofis sakin", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains("Öneri:", digest.ToDisplayText(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -61,6 +67,7 @@ public sealed class PostMatchOfficeDigestTests
         var text = digest.ToStatusMessage();
         Assert.Contains("Ofiste", text, StringComparison.Ordinal);
         Assert.Contains("· ", text, StringComparison.Ordinal);
+        Assert.Contains("Öneri:", text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -86,4 +93,85 @@ public sealed class PostMatchOfficeDigestTests
         Assert.Equal("Ofis rahatladı — gece senindi.", digest.Headline);
         Assert.Contains(digest.BeatLines, b => b.Contains("Masada yeni zorunlu dosya yok", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void WinWithTransferPulse_PointsNextStep()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-0 B",
+            2,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 8,
+            beatLines: Array.Empty<string>(),
+            afterWhistleLines: ["Yönetim güveni +2 → 65 (Güvenli)"],
+            otherScorelines: Array.Empty<string>());
+
+        var squad = SquadCapacityDigest.Compose(
+            ClubSquad.MaxMembers,
+            ClubSquad.MaxMembers,
+            ClubSquad.MaxMembers,
+            Array.Empty<long>());
+        var transfer = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            40,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: 1_000_000,
+            budgetSpent: 0,
+            squadFull: true,
+            saleCandidatePlayerId: 2001);
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            squad,
+            transfer);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true,
+            pulse);
+
+        Assert.Equal(TodayPulseDigest.FocusTransfer, digest.NextFocusCode);
+        Assert.Contains("Transfer Masası", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Sıradaki:", StringComparison.Ordinal));
+        Assert.Contains("Transfer Masası", digest.AdviceLine, StringComparison.Ordinal);
+        Assert.Contains("Öneri:", digest.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    private static PreparationBriefing PrepOk() =>
+        PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.General,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Medium,
+                (int)Domain.TrainingPhysicalState.RestApproach.Normal,
+                null, null, null, 1, 30, 70, true, 0, 0),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 4);
+
+    private static LeagueWorldBriefing LeagueOk() =>
+        LeagueWorldBriefing.Compose(
+            "Active",
+            8,
+            30,
+            8,
+            managedRank: 4,
+            managedPoints: 12,
+            managedPlayed: 8,
+            managedGoalDifference: 1,
+            managedClubName: "Home",
+            leaderClubName: "Leaders",
+            leaderPoints: 18,
+            nextMatchLine: null);
 }

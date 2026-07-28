@@ -1,29 +1,44 @@
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Interaction.Queries;
 
 namespace FootballCareerSimulator.Application.Competition.Queries;
 
 /// <summary>
-/// Maç gecesinden ofise dönüş — "şimdi masanda ne var?" özeti.
+/// Maç gecesinden ofise dönüş — gece özeti + "şimdi ne yapayım?" nabız adımı.
 /// </summary>
 public sealed record PostMatchOfficeDigest(
     string BrandTitle,
     string Headline,
+    string AdviceLine,
+    string? NextFocusCode,
     IReadOnlyList<string> BeatLines)
 {
     public const string Brand = "Ofiste";
 
     public static PostMatchOfficeDigest Quiet() =>
-        new(Brand, "Ofis sakin — sıradaki güne bak.", Array.Empty<string>());
+        new(Brand, "Ofis sakin — sıradaki güne bak.", "Bugün nabzına bak.", null, Array.Empty<string>());
 
     public static PostMatchOfficeDigest Compose(
         MatchNightNarrative? narrative,
         DecisionDeskDigest desk,
-        bool hasManagedMatch)
+        bool hasManagedMatch,
+        TodayPulseDigest? nextPulse = null)
     {
         ArgumentNullException.ThrowIfNull(desk);
 
         if (narrative is null || !hasManagedMatch)
         {
+            if (nextPulse is not null
+                && !string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
+            {
+                return new PostMatchOfficeDigest(
+                    Brand,
+                    "Ofis sakin ama nabız konuşuyor.",
+                    AdviceForFocus(nextPulse.PrimaryFocusCode),
+                    nextPulse.PrimaryFocusCode,
+                    new[] { $"Sıradaki: {nextPulse.Headline}" });
+            }
+
             return Quiet();
         }
 
@@ -52,8 +67,20 @@ public sealed record PostMatchOfficeDigest(
             beats.Add("Maça söz gerilimiyle girmiştin — sonuçlar ofise yansıdı.");
         }
 
-        var headline = ResolveHeadline(narrative, desk);
-        return new PostMatchOfficeDigest(Brand, headline, beats.Take(5).ToArray());
+        string? focusCode = null;
+        var advice = "Bugün nabzına bak — sonra günü ilerlet.";
+        if (nextPulse is not null)
+        {
+            focusCode = nextPulse.PrimaryFocusCode;
+            advice = AdviceForFocus(nextPulse.PrimaryFocusCode);
+            if (!string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
+            {
+                beats.Add($"Sıradaki: {nextPulse.Headline}");
+            }
+        }
+
+        var headline = ResolveHeadline(narrative, desk, nextPulse);
+        return new PostMatchOfficeDigest(Brand, headline, advice, focusCode, beats.Take(6).ToArray());
     }
 
     public string ToStatusMessage()
@@ -61,12 +88,29 @@ public sealed record PostMatchOfficeDigest(
         var beats = BeatLines.Count == 0
             ? string.Empty
             : "\n" + string.Join("\n", BeatLines.Select(b => "· " + b));
-        return $"{BrandTitle}\n{Headline}{beats}";
+        var advice = string.IsNullOrWhiteSpace(AdviceLine)
+            ? string.Empty
+            : $"\nÖneri: {AdviceLine}";
+        return $"{BrandTitle}\n{Headline}{beats}{advice}";
     }
 
     public string ToDisplayText() => ToStatusMessage();
 
-    private static string ResolveHeadline(MatchNightNarrative narrative, DecisionDeskDigest desk)
+    private static string AdviceForFocus(string focusCode) => focusCode switch
+    {
+        TodayPulseDigest.FocusDesk => "Önce Masada cevap ver — zaman kilitli olabilir.",
+        TodayPulseDigest.FocusMatch => "Sıradaki Maç / Bugün — XI ve düdük.",
+        TodayPulseDigest.FocusSquad => "Kulüp'te Yer Aç veya Taşanı Kadroya Al.",
+        TodayPulseDigest.FocusTransfer => "Transfer Masası — pencere, Satışa Çıkar veya süreç.",
+        TodayPulseDigest.FocusPrep => "Hazırlık Masası'na geç — yorgunluk/sakatlık.",
+        TodayPulseDigest.FocusLeague => "Lig Masası'na bir bak — sıralama konuşuyor.",
+        _ => "Bugün nabzına bak — sonra günü ilerlet.",
+    };
+
+    private static string ResolveHeadline(
+        MatchNightNarrative narrative,
+        DecisionDeskDigest desk,
+        TodayPulseDigest? nextPulse)
     {
         if (narrative.AfterWhistleLines.Any(l =>
                 l.Contains("işten çıkardı", StringComparison.OrdinalIgnoreCase)))
@@ -101,6 +145,18 @@ public sealed record PostMatchOfficeDigest(
         if (desk.HasOpenDecision)
         {
             return "Ofiste iş birikti — Masada bak.";
+        }
+
+        if (nextPulse is not null
+            && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusTransfer, StringComparison.Ordinal))
+        {
+            return "Gece bitti — Transfer Masası bekliyor.";
+        }
+
+        if (nextPulse is not null
+            && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusSquad, StringComparison.Ordinal))
+        {
+            return "Gece bitti — kadro kapasitesi konuşuyor.";
         }
 
         if (narrative.OutcomeTone.Contains("kazandın", StringComparison.OrdinalIgnoreCase)

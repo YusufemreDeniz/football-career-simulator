@@ -2073,7 +2073,11 @@ public sealed class CareerSessionController
             day);
         var hasManaged = results.Narrative is not null
             && string.Equals(results.Narrative.BrandTitle, "Maç Gecesi", StringComparison.Ordinal);
-        return PostMatchOfficeDigest.Compose(results.Narrative, desk, hasManaged);
+        return PostMatchOfficeDigest.Compose(
+            results.Narrative,
+            desk,
+            hasManaged,
+            BuildTodayPulse());
     }
 
     public UiActionResult CompleteSeason()
