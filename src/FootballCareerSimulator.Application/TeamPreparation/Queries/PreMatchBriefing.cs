@@ -129,6 +129,44 @@ public sealed record PreMatchBriefing(
         return $"{BrandTitle}\n{Headline}\n{FixtureLine}{beats}";
     }
 
+    /// <summary>
+    /// Maç gecesi "Maça böyle girdin" köprüsü — brifingden 1–4 satır.
+    /// </summary>
+    public IReadOnlyList<string> ToKickoffBridgeLines()
+    {
+        if (!HasMatch)
+        {
+            return Array.Empty<string>();
+        }
+
+        var lines = new List<string> { FixtureLine };
+        if (HasPromiseRisk)
+        {
+            lines.Add("Maça söz riskiyle girdin.");
+        }
+        else if (IsReadyToKickOff)
+        {
+            lines.Add("Kadro hazırdı — düdük çaldı.");
+        }
+
+        foreach (var beat in BeatLines)
+        {
+            if (beat.StartsWith("Taktik:", StringComparison.Ordinal)
+                || beat.StartsWith("Söz riski:", StringComparison.Ordinal)
+                || beat.StartsWith("XI yorgunluk", StringComparison.Ordinal))
+            {
+                lines.Add(beat);
+            }
+
+            if (lines.Count >= 4)
+            {
+                break;
+            }
+        }
+
+        return lines.Take(4).ToArray();
+    }
+
     private static string ResolveHeadline(bool approved, bool atRisk, bool onTrack)
     {
         if (!approved)

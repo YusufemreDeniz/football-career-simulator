@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü + maç gecesi + söz gerilimi + hafta/gün özeti + Masada + **Sıradaki Maç brifingi** kilitlenmiştir. Sıradaki aday: brifingden maç gecesine anlatı köprüsü veya hazırlık (antrenman/taktik) derinliği; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
+İnce kariyer döngüsü + maç gecesi + söz gerilimi + hafta/gün özeti + Masada + Sıradaki Maç brifingi + **brifing→maç gecesi köprüsü** kilitlenmiştir. Sıradaki aday: hazırlık (antrenman/taktik) derinliği veya düdük sonrası ofis gerilimi; tam processing ledger / diyalog / gazeteci (D-150) henüz açılmamalıdır.
 
 ## Klasör Yapısı
 

@@ -10,7 +10,8 @@ public sealed record MatchNightNarrative(
     string SupportingLine,
     IReadOnlyList<string> BeatLines,
     IReadOnlyList<string> AfterWhistleLines,
-    IReadOnlyList<string> OtherScorelines)
+    IReadOnlyList<string> OtherScorelines,
+    IReadOnlyList<string> KickoffLines)
 {
     public static MatchNightNarrative Failure(string message) =>
         new(
@@ -18,6 +19,7 @@ public sealed record MatchNightNarrative(
             "—",
             message,
             string.Empty,
+            Array.Empty<string>(),
             Array.Empty<string>(),
             Array.Empty<string>(),
             Array.Empty<string>());
@@ -32,10 +34,17 @@ public sealed record MatchNightNarrative(
         int dayNumber,
         IReadOnlyList<string> beatLines,
         IReadOnlyList<string> afterWhistleLines,
-        IReadOnlyList<string> otherScorelines)
+        IReadOnlyList<string> otherScorelines,
+        IReadOnlyList<string>? kickoffLines = null,
+        bool enteredWithPromiseRisk = false)
     {
         var tone = hasManagedMatch
-            ? ToneForManaged(homeGoals, awayGoals, managedIsHome, afterWhistleLines)
+            ? ToneForManaged(
+                homeGoals,
+                awayGoals,
+                managedIsHome,
+                afterWhistleLines,
+                enteredWithPromiseRisk)
             : "Lig günü tamamlandı.";
         var support = string.IsNullOrWhiteSpace(tacticNote)
             ? $"Gün {dayNumber}"
@@ -48,14 +57,18 @@ public sealed record MatchNightNarrative(
             support,
             beatLines,
             afterWhistleLines.Take(3).ToArray(),
-            otherScorelines);
+            otherScorelines,
+            kickoffLines is null || kickoffLines.Count == 0
+                ? Array.Empty<string>()
+                : kickoffLines.Take(4).ToArray());
     }
 
     public static string ToneForManaged(
         int homeGoals,
         int awayGoals,
         bool managedIsHome,
-        IReadOnlyList<string> afterWhistle)
+        IReadOnlyList<string> afterWhistle,
+        bool enteredWithPromiseRisk = false)
     {
         if (afterWhistle.Any(line => line.Contains("işten çıkardı", StringComparison.OrdinalIgnoreCase)))
         {
@@ -65,6 +78,18 @@ public sealed record MatchNightNarrative(
         var managedGoals = managedIsHome ? homeGoals : awayGoals;
         var opponentGoals = managedIsHome ? awayGoals : homeGoals;
         var margin = managedGoals - opponentGoals;
+
+        if (enteredWithPromiseRisk && margin > 0)
+        {
+            return "Söz gerilimine rağmen kazandın.";
+        }
+
+        if (enteredWithPromiseRisk && margin < 0)
+        {
+            return margin <= -3
+                ? "Söz gerilimiyle girdin; saha dağıldı."
+                : "Söz gerilimiyle girdin; gece ağır bitti.";
+        }
 
         if (margin > 0)
         {
@@ -77,7 +102,9 @@ public sealed record MatchNightNarrative(
 
         if (margin == 0)
         {
-            return "Puanlar paylaşıldı.";
+            return enteredWithPromiseRisk
+                ? "Söz gerilimiyle girdin; puanlar paylaşıldı."
+                : "Puanlar paylaşıldı.";
         }
 
         if (afterWhistle.Any(line => line.Contains("basın sorusu", StringComparison.OrdinalIgnoreCase)))

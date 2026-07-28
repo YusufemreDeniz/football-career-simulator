@@ -1352,6 +1352,10 @@ public sealed class CareerSessionController
                         "Önce kendi maçın için kadroyu onayla."));
             }
 
+            var kickoffBriefing = CaptureKickoffBriefing(currentDay, pendingSelection);
+            var kickoffLines = kickoffBriefing.ToKickoffBridgeLines();
+            var enteredWithPromiseRisk = kickoffBriefing.HasPromiseRisk;
+
             var dueFixtures = competition.Queries
                 .GetSeasonFixtures(season.SeasonId)
                 .Where(fixture =>
@@ -1449,7 +1453,9 @@ public sealed class CareerSessionController
                 currentDay,
                 beatLines,
                 afterWhistle,
-                otherScores);
+                otherScores,
+                hasManaged ? kickoffLines : Array.Empty<string>(),
+                hasManaged && enteredWithPromiseRisk);
 
             var invalidatedNote = invalidatedTotal > 0
                 ? $" · kadro onayı düştü ({invalidatedTotal})"
@@ -1644,6 +1650,31 @@ public sealed class CareerSessionController
         var nextHint = BuildNextMatchHint(day.DayNumber);
         var digest = TimeAdvanceDigest.Compose(result, dayCount, nextHint);
         return UiActionResult.Ok(digest.ToStatusMessage(), digest);
+    }
+
+    private PreMatchBriefing CaptureKickoffBriefing(
+        int currentDayNumber,
+        ManagedFixtureSelectionStatusReadModel? pending)
+    {
+        if (pending is null)
+        {
+            return PreMatchBriefing.Clear();
+        }
+
+        var tension = Host.TeamPreparationModule.PromiseTension
+            .GetForNextDueMatch(currentDayNumber);
+        var tactic = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+        var training = GetTrainingSummary();
+        return PreMatchBriefing.Compose(
+            pending,
+            GetClubDisplayName(pending.OpponentClubId),
+            currentDayNumber,
+            tactic.FormationName,
+            tactic.ApproachName,
+            training.HasPlan ? training.AverageFatigue : null,
+            training.HasPlan ? training.AverageFitness : null,
+            training.InjuredSlotCount,
+            tension);
     }
 
     private string? BuildNextMatchHint(int currentDayNumber)

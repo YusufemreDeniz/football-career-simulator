@@ -88,6 +88,21 @@ public partial class MatchResultScreen : Control
             layout.AddChild(support);
         }
 
+        if (narrative.KickoffLines.Count > 0)
+        {
+            layout.AddChild(SectionLabel("Maça böyle girdin"));
+            foreach (var kickoff in narrative.KickoffLines)
+            {
+                var line = new Label
+                {
+                    Text = "· " + kickoff,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                };
+                CareerUiTheme.StyleBody(line, muted: true);
+                layout.AddChild(line);
+            }
+        }
+
         if (narrative.BeatLines.Count > 0)
         {
             layout.AddChild(SectionLabel("Anlar"));
