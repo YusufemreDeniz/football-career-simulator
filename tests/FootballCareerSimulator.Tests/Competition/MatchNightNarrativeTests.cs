@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
+using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Tests.Competition;
 
@@ -62,7 +63,7 @@ public sealed class MatchNightNarrativeTests
             managedIsHome: true,
             hasManagedMatch: true,
             tacticNote: "taktik +1",
-            dayNumber: 12,
+            dayNumber: GameDate.FromCalendarDate(2026, 8, 15).DayNumber,
             beatLines: ["12' Ev gol · X"],
             afterWhistleLines: ["Yönetim güveni +2 → 60 (Stabil)"],
             otherScorelines: ["C 0-0 D"],
@@ -71,7 +72,7 @@ public sealed class MatchNightNarrativeTests
 
         Assert.Equal("Maç Gecesi", narrative.BrandTitle);
         Assert.Equal("Söz gerilimine rağmen kazandın.", narrative.OutcomeTone);
-        Assert.Equal("Gün 12 · taktik +1", narrative.SupportingLine);
+        Assert.Equal("Tarih 2026-08-15 · taktik +1", narrative.SupportingLine);
         Assert.Single(narrative.BeatLines);
         Assert.Single(narrative.AfterWhistleLines);
         Assert.Single(narrative.OtherScorelines);

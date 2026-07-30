@@ -993,7 +993,7 @@ public partial class CareerHubScreen : Control
         var manager = host.ManagerModule.Queries.GetCareer();
         var period = world.Queries.GetCurrentPlanningPeriod();
 
-        _dateLabel.Text = $"Tarih: {current.IsoDate} (gün {current.DayNumber})";
+        _dateLabel.Text = $"Tarih: {current.IsoDate}";
 
         if (string.Equals(manager.EmploymentStatus, "Unemployed", StringComparison.Ordinal))
         {

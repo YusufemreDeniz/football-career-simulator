@@ -36,6 +36,7 @@ public sealed class UnplayedFixturesTimeAdvanceBlockerTests
         Assert.Single(blockers);
         Assert.True(blockers[0].IsHardBlocker);
         Assert.Equal(UnplayedFixturesTimeAdvanceBlockerSource.BlockerTypeCode, blockers[0].BlockerTypeCode);
+        Assert.Equal(UnplayedFixturesTimeAdvanceBlockerSource.BlockerTypeCode, blockers[0].DescriptionCode);
     }
 
     [Fact]

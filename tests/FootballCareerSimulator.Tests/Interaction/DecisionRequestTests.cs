@@ -45,7 +45,9 @@ public sealed class DecisionRequestTests : IDisposable
 
         var request = interaction.Decisions.OpenPlayingTimeRequest(new PlayerId(10), Day);
         Assert.True(request.IsHardBlocker);
-        Assert.Single(interaction.TimeAdvanceBlocker.GetActiveBlockers());
+        var blocker = Assert.Single(interaction.TimeAdvanceBlocker.GetActiveBlockers());
+        Assert.Equal(DecisionRequestTimeAdvanceBlockerSource.BlockerTypeCode, blocker.BlockerTypeCode);
+        Assert.Equal(DecisionRequestTimeAdvanceBlockerSource.BlockerTypeCode, blocker.DescriptionCode);
 
         var answered = interaction.Decisions.Answer(
             request.DecisionRequestId,

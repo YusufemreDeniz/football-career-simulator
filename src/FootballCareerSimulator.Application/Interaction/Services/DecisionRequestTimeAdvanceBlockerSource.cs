@@ -30,7 +30,7 @@ public sealed class DecisionRequestTimeAdvanceBlockerSource : ITimeAdvanceBlocke
         [
             new TimeAdvanceBlockerDescriptor(
                 BlockerTypeCode,
-                $"Bekleyen {pending} zorunlu karar var; önce kararları yanıtlayın.",
+                BlockerTypeCode,
                 IsHardBlocker: true),
         ];
     }

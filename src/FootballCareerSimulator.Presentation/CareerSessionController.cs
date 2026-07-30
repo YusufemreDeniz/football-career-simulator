@@ -1835,7 +1835,7 @@ public sealed class CareerSessionController
                 : string.Empty;
             return new PlayMatchesUiResult(
                 true,
-                $"{lines.Count} maç oynandı (gün {currentDay}){invalidatedNote}.",
+                $"{lines.Count} maç oynandı ({GameDate.FromDayNumber(currentDay).ToIsoDateString()}){invalidatedNote}.",
                 lines,
                 consequenceLines,
                 keyMomentLines,

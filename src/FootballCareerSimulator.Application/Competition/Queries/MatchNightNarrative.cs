@@ -1,5 +1,7 @@
 namespace FootballCareerSimulator.Application.Competition.Queries;
 
+using FootballCareerSimulator.Domain.WorldCalendar;
+
 /// <summary>
 /// Maç gecesi anlatısı — skor, ton, anlar, düdük sonrası (UI bu modeli gösterir).
 /// </summary>
@@ -46,9 +48,10 @@ public sealed record MatchNightNarrative(
                 afterWhistleLines,
                 enteredWithPromiseRisk)
             : "Lig günü tamamlandı.";
+        var matchDate = GameDate.FromDayNumber(dayNumber).ToIsoDateString();
         var support = string.IsNullOrWhiteSpace(tacticNote)
-            ? $"Gün {dayNumber}"
-            : $"Gün {dayNumber} · {tacticNote}";
+            ? $"Tarih {matchDate}"
+            : $"Tarih {matchDate} · {tacticNote}";
 
         return new MatchNightNarrative(
             hasManagedMatch ? "Maç Gecesi" : "Lig Günü",

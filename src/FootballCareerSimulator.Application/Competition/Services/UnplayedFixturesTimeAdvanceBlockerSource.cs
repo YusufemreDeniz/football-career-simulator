@@ -46,7 +46,7 @@ public sealed class UnplayedFixturesTimeAdvanceBlockerSource : ITimeAdvanceBlock
         [
             new TimeAdvanceBlockerDescriptor(
                 BlockerTypeCode,
-                $"Oynanmamış {dueUnplayedCount} maç var; önce bugünün maçlarını oynatın.",
+                BlockerTypeCode,
                 IsHardBlocker: true),
         ];
     }
