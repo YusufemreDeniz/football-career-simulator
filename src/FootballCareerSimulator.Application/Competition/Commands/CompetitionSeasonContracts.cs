@@ -80,7 +80,18 @@ public sealed record PlayFixtureMatchResult(
     int InvalidatedSelectionCount = 0,
     int? ManagedTacticModifier = null,
     ManagedMatchConsequenceSummary? Consequences = null,
-    IReadOnlyList<MatchKeyMomentReadModel>? KeyMoments = null);
+    IReadOnlyList<MatchKeyMomentReadModel>? KeyMoments = null,
+    MatchStatisticsReadModel? Statistics = null);
+
+public sealed record MatchStatisticsReadModel(
+    int HomePossessionPercent,
+    int AwayPossessionPercent,
+    int HomeShots,
+    int AwayShots,
+    int HomeShotsOnTarget,
+    int AwayShotsOnTarget,
+    int HomeCorners,
+    int AwayCorners);
 
 public sealed record MatchKeyMomentReadModel(
     string Kind,

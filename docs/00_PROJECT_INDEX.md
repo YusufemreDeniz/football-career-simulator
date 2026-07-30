@@ -1,6 +1,6 @@
 # Proje Dokümantasyon Endeksi
 
-**Durum:** Teknik spike tamamlandı; üretim implementasyonu aktif (World/Calendar, Competition, Match, Club Governance, Manager Career, Career save, Godot menü→hub→maç günü→maç sonucu). Plan referansı: `19_PRODUCTION_IMPLEMENTATION_PLAN.md`
+**Durum:** Teknik spike tamamlandı; üretim implementasyonu aktif (World/Calendar, Competition, Match, Club Governance, Manager Career, Career save, Godot menü→hub→maç günü→istatistikli maç sonucu). Plan referansı: `19_PRODUCTION_IMPLEMENTATION_PLAN.md`
 
 ## Amaç
 
@@ -56,7 +56,7 @@ Ayrıntılı tasarımı henüz hazırlanmamış belge bulunmamaktadır.
 11. Teknoloji ve mimari seçimi — Tamamlandı
 12. Küçük prototiplerin (teknik doğrulama spike'larının) geliştirilmesi — **Tamamlandı**. `18_SPIKE_EXECUTION_PLAN.md`'deki Kart 0–8'in tamamı ve altı teknik spike'ın (headless 10 sezon, determinizm, SQLite save/load/migration, 500 futbolculuk Godot UI listesi, Windows x64 export, CI'da saf .NET + Godot headless doğrulaması) tamamı somut kanıtla kapatılmıştır (bkz. `15_DECISION_LOG.md` D-331–D-340)
 13. Üretim implementasyon planlamasının hazırlanması — **Tamamlandı (planlama düzeyinde)**. `19_PRODUCTION_IMPLEMENTATION_PLAN.md`, ilk üretim dikey kesitini (`World & Calendar`), açık kararları, bounded context implementasyon sırasını, placeholder geçiş stratejisini ve küçük çalışma kartlarını tanımlar.
-14. Üretim dikey kesitinin kodlanması — **Devam ediyor**. World & Calendar, Competition (sezon/fikstür), Match, Club Governance, Manager Career, Team Preparation özeti, birleşik Career SQLite persistence ve Godot ince kariyer UI akışı (menü → hub → maç günü → maç sonucu) depoda mevcuttur. Maç günü kadro/formasyon/yaklaşım için ayrı bir son kontrol noktasıdır; simülasyon oyuncunun düdük komutuyla başlar. 14 bounded context'in tamamı henüz açılmamıştır.
+14. Üretim dikey kesitinin kodlanması — **Devam ediyor**. World & Calendar, Competition (sezon/fikstür), Match, Club Governance, Manager Career, Team Preparation özeti, birleşik Career SQLite persistence ve Godot ince kariyer UI akışı (menü → hub → maç günü → maç sonucu) depoda mevcuttur. Maç günü kadro/formasyon/yaklaşım için ayrı bir son kontrol noktasıdır; simülasyon oyuncunun düdük komutuyla başlar. Sonuç ekranı deterministik temel istatistikleri ve gol katkılarından türetilen öne çıkan oyuncuyu gösterir. 14 bounded context'in tamamı henüz açılmamıştır.
 
 Bu sıra, `01_GAME_DESIGN_DOCUMENT.md` Bölüm 36 (Geliştirme Yaklaşımı) ile tutarlıdır: önce tasarım, sonra veri modeli, sonra kod.
 

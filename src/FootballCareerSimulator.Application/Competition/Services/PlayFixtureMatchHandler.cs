@@ -224,6 +224,15 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                         : null);
             })
             .ToArray();
+        var statistics = new MatchStatisticsReadModel(
+            simulation.Statistics.HomePossessionPercent,
+            simulation.Statistics.AwayPossessionPercent,
+            simulation.Statistics.HomeShots,
+            simulation.Statistics.AwayShots,
+            simulation.Statistics.HomeShotsOnTarget,
+            simulation.Statistics.AwayShotsOnTarget,
+            simulation.Statistics.HomeCorners,
+            simulation.Statistics.AwayCorners);
 
         var result = new PlayFixtureMatchResult(
             true,
@@ -235,7 +244,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             invalidated,
             managedTacticModifier,
             consequences,
-            keyMoments);
+            keyMoments,
+            statistics);
 
         _completedCommands[command.CommandId] = result;
         return result;

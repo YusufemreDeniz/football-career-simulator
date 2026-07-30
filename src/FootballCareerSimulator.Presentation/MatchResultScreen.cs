@@ -118,6 +118,43 @@ public partial class MatchResultScreen : Control
             }
         }
 
+        if (_results.Report is { } report)
+        {
+            layout.AddChild(SectionLabel("Maç Raporu"));
+
+            var stats = new GridContainer
+            {
+                Columns = 3,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            };
+            stats.AddThemeConstantOverride("h_separation", 18);
+            stats.AddThemeConstantOverride("v_separation", 8);
+            stats.AddChild(ReportCell(report.HomeClubName, HorizontalAlignment.Left, emphasized: true));
+            stats.AddChild(ReportCell("", HorizontalAlignment.Center));
+            stats.AddChild(ReportCell(report.AwayClubName, HorizontalAlignment.Right, emphasized: true));
+            foreach (var stat in report.StatLines)
+            {
+                stats.AddChild(ReportCell(stat.HomeValue, HorizontalAlignment.Left, emphasized: true));
+                stats.AddChild(ReportCell(stat.Label, HorizontalAlignment.Center, muted: true));
+                stats.AddChild(ReportCell(stat.AwayValue, HorizontalAlignment.Right, emphasized: true));
+            }
+
+            layout.AddChild(stats);
+
+            if (!string.IsNullOrWhiteSpace(report.StandoutLine))
+            {
+                var standout = new Label
+                {
+                    Text = report.StandoutLine,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                };
+                CareerUiTheme.StyleBody(standout);
+                standout.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+                layout.AddChild(standout);
+            }
+        }
+
         if (narrative.BeatLines.Count > 0)
         {
             layout.AddChild(SectionLabel("Anlar"));
@@ -191,6 +228,29 @@ public partial class MatchResultScreen : Control
     {
         var label = new Label { Text = text };
         CareerUiTheme.StyleSection(label);
+        return label;
+    }
+
+    private static Label ReportCell(
+        string text,
+        HorizontalAlignment alignment,
+        bool muted = false,
+        bool emphasized = false)
+    {
+        var label = new Label
+        {
+            Text = text,
+            HorizontalAlignment = alignment,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleBody(label, muted);
+        if (emphasized)
+        {
+            label.AddThemeFontSizeOverride("font_size", 16);
+            label.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
+        }
+
         return label;
     }
 

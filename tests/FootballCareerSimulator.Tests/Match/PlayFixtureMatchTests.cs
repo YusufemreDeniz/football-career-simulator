@@ -41,6 +41,7 @@ public sealed class MvpFixtureMatchSimulatorTests
 
         Assert.Equal(first.Score, second.Score);
         Assert.Equal(first.KeyMoments, second.KeyMoments);
+        Assert.Equal(first.Statistics, second.Statistics);
         Assert.Equal(
             first.Score.HomeGoals,
             first.KeyMoments.Count(m => m.Kind == MatchKeyMomentKind.Goal && m.IsHomeSide));
@@ -70,6 +71,18 @@ public sealed class MvpFixtureMatchSimulatorTests
         Assert.Equal(first.KeyMoments.Count, first.KeyMoments.Select(m => m.Minute).Distinct().Count());
         Assert.True(first.KeyMoments.Count(m => m.Kind is MatchKeyMomentKind.YellowCard or MatchKeyMomentKind.RedCard)
             <= MvpFixtureMatchSimulator.MaxCardsPerMatch);
+        Assert.Equal(100, first.Statistics.HomePossessionPercent + first.Statistics.AwayPossessionPercent);
+        Assert.InRange(first.Statistics.HomePossessionPercent, 30, 70);
+        Assert.InRange(first.Statistics.HomeShots, first.Score.HomeGoals, 24);
+        Assert.InRange(first.Statistics.AwayShots, first.Score.AwayGoals, 24);
+        Assert.InRange(
+            first.Statistics.HomeShotsOnTarget,
+            first.Score.HomeGoals,
+            first.Statistics.HomeShots);
+        Assert.InRange(
+            first.Statistics.AwayShotsOnTarget,
+            first.Score.AwayGoals,
+            first.Statistics.AwayShots);
     }
 
     [Fact]
@@ -156,6 +169,10 @@ public sealed class PlayFixtureMatchHandlerTests
 
         var fixture = module.Queries.GetSeasonFixtures(seasonId)[0];
         Assert.NotNull(result.KeyMoments);
+        Assert.NotNull(result.Statistics);
+        Assert.Equal(
+            100,
+            result.Statistics!.HomePossessionPercent + result.Statistics.AwayPossessionPercent);
         var homeNames = MvpSquadRosterGenerator.GeneratePlayerNames(new ClubId(fixture.HomeClubId), rootSeed: 99);
         var awayNames = MvpSquadRosterGenerator.GeneratePlayerNames(new ClubId(fixture.AwayClubId), rootSeed: 99);
         Assert.All(

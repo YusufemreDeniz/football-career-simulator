@@ -47,7 +47,48 @@ public static class MvpFixtureMatchSimulator
         var awayGoals = Math.Clamp(awayBase + rng.NextInt(-1, 3), 0, 6);
         var score = new MatchScore(homeGoals, awayGoals);
         var moments = BuildKeyMoments(rng, homeGoals, awayGoals);
-        return new MatchSimulationOutcome(score, moments);
+        var statistics = BuildStatistics(rng, effectiveHome, effectiveAway, score);
+        return new MatchSimulationOutcome(score, moments, statistics);
+    }
+
+    private static MatchStatistics BuildStatistics(
+        SimulationRandomContext rng,
+        int effectiveHome,
+        int effectiveAway,
+        MatchScore score)
+    {
+        var homePossession = Math.Clamp(
+            50 + ((effectiveHome - effectiveAway) / 3) + rng.NextInt(-5, 6),
+            30,
+            70);
+        var awayPossession = 100 - homePossession;
+
+        var homeShots = Math.Clamp(
+            Math.Max(score.HomeGoals, 4 + (effectiveHome / 15) + rng.NextInt(-1, 4)),
+            1,
+            24);
+        var awayShots = Math.Clamp(
+            Math.Max(score.AwayGoals, 4 + (effectiveAway / 15) + rng.NextInt(-1, 4)),
+            1,
+            24);
+        var homeShotsOnTarget = Math.Clamp(
+            score.HomeGoals + rng.NextInt(0, 4),
+            score.HomeGoals,
+            homeShots);
+        var awayShotsOnTarget = Math.Clamp(
+            score.AwayGoals + rng.NextInt(0, 4),
+            score.AwayGoals,
+            awayShots);
+
+        return new MatchStatistics(
+            homePossession,
+            awayPossession,
+            homeShots,
+            awayShots,
+            homeShotsOnTarget,
+            awayShotsOnTarget,
+            Math.Clamp((homeShots / 3) + rng.NextInt(0, 4), 0, 12),
+            Math.Clamp((awayShots / 3) + rng.NextInt(0, 4), 0, 12));
     }
 
     private static IReadOnlyList<MatchKeyMoment> BuildKeyMoments(
@@ -149,4 +190,15 @@ public static class MvpFixtureMatchSimulator
 
 public sealed record MatchSimulationOutcome(
     MatchScore Score,
-    IReadOnlyList<MatchKeyMoment> KeyMoments);
+    IReadOnlyList<MatchKeyMoment> KeyMoments,
+    MatchStatistics Statistics);
+
+public sealed record MatchStatistics(
+    int HomePossessionPercent,
+    int AwayPossessionPercent,
+    int HomeShots,
+    int AwayShots,
+    int HomeShotsOnTarget,
+    int AwayShotsOnTarget,
+    int HomeCorners,
+    int AwayCorners);

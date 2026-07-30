@@ -1760,6 +1760,7 @@ public sealed class CareerSessionController
             var beatLines = new List<string>();
             var afterWhistle = new List<string>();
             var otherScores = new List<string>();
+            MatchReportDigest? heroReport = null;
 
             var managedClubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
 
@@ -1797,6 +1798,7 @@ public sealed class CareerSessionController
                     heroTacticNote = tacticNote;
                     beatLines.AddRange(FormatMatchKeyMomentBeats(result));
                     afterWhistle.AddRange(FormatMatchAfterWhistle(result));
+                    heroReport = MatchReportDigest.Compose(result, home, away);
                 }
                 else
                 {
@@ -1839,7 +1841,8 @@ public sealed class CareerSessionController
                 lines,
                 consequenceLines,
                 keyMomentLines,
-                narrative);
+                narrative,
+                heroReport);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -2465,4 +2468,5 @@ public sealed record PlayMatchesUiResult(
     IReadOnlyList<string> MatchLines,
     IReadOnlyList<string>? ConsequenceLines = null,
     IReadOnlyList<string>? KeyMomentLines = null,
-    MatchNightNarrative? Narrative = null);
+    MatchNightNarrative? Narrative = null,
+    MatchReportDigest? Report = null);
