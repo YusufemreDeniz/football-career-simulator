@@ -6,7 +6,7 @@ Uzun soluklu, oyuncunun kararlarını, ilişkilerini ve geçmişini yıllarca ha
 
 Dokümantasyon ve teknik spike aşaması tamamlanmıştır. Üretim implementasyonu **aktif ilerliyor**: World & Calendar, Competition, Match, Club Governance, Manager Career, Team Preparation (kadro özeti) ve birleşik Career SQLite kaydı kodlanmıştır.
 
-Godot Presentation katmanında ince bir kariyer döngüsü vardır: **ana menü → kariyer merkezi → maç sonuçları** (yeni kariyer / devam et, lig kurma, **maç öncesi kadro onayı**, fikstür, maç oynatma, zaman ilerletme, kaydet/yükle). Bu bir görsel ürün UI'sı değil; oynanabilir dikey kesit kontrol yüzeyidir. `Spike1Placeholder` / `Spike4Placeholder` yalnızca eski spike kanıtı için durur; asıl oyun akışı üretim context'leri üzerinden yürür.
+Godot Presentation katmanında ince bir kariyer döngüsü vardır: **ana menü → kariyer merkezi → maç günü → maç sonuçları** (yeni kariyer / devam et, lig kurma, maç öncesi kadro onayı, ayrı maç günü kontrol noktası, son kadro/formasyon/yaklaşım dokunuşları, maç oynatma, zaman ilerletme, kaydet/yükle). Bu bir görsel ürün UI'sı değil; oynanabilir dikey kesit kontrol yüzeyidir. `Spike1Placeholder` / `Spike4Placeholder` yalnızca eski spike kanıtı için durur; asıl oyun akışı üretim context'leri üzerinden yürür.
 
 Hedef yığın: Windows 10/11 x64, Godot 4.7-stable (mono/.NET), C#, Godot'tan bağımsız saf .NET domain/simülasyon çekirdeği. Ayrıntı: `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md`.
 
@@ -38,7 +38,7 @@ Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentat
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + nabız→birincil CTA zinciri + **transfer penceresi kapanış / satış CTA** (`TransferNextStep`: Satışa Çıkar, Pencere Aç, teklif/süreç) kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: dikey kesit kabul kriterlerine göre maç günü akışı (XI onay → oyna → ofis dönüş) sıkılaştırma.
+İnce kariyer döngüsü (MVP: teknik direktör) + nabız→birincil CTA zinciri + **transfer penceresi kapanış / satış CTA** (`TransferNextStep`: Satışa Çıkar, Pencere Aç, teklif/süreç) kilitlenmiştir. Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Maç günü artık ayrı bir akıştır (XI/taktik son kontrol → düdük → sonuç → ofis dönüş); sıradaki aday, maç sunumunu temel istatistikler ve sınırlı maç içi kararlarla derinleştirmektir.
 
 ## Klasör Yapısı
 
@@ -54,7 +54,7 @@ Football_Career_Simulator/
 │   ├── FootballCareerSimulator.Simulation/     # Simulation katmanı
 │   ├── FootballCareerSimulator.Application/    # Application / use case katmanı
 │   ├── FootballCareerSimulator.Infrastructure/ # SQLite career save/load / migration
-│   └── FootballCareerSimulator.Presentation/   # Godot 4 .NET (menü / hub / maç sonucu)
+│   └── FootballCareerSimulator.Presentation/   # Godot 4 .NET (menü / hub / maç günü / sonuç)
 ├── tests/
 │   └── FootballCareerSimulator.Tests/          # xUnit test projesi
 ├── tools/

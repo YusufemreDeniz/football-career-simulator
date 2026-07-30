@@ -14,7 +14,7 @@ public sealed class TimeAdvanceBlockerDigestTests
     }
 
     [Fact]
-    public void UnplayedFixtures_AdvisePlay()
+    public void UnplayedFixtures_AdviseOpenMatchDay()
     {
         var digest = TimeAdvanceBlockerDigest.Compose(
             canAdvance: false,
@@ -25,7 +25,7 @@ public sealed class TimeAdvanceBlockerDigestTests
         Assert.False(digest.CanAdvance);
         Assert.Equal(TimeAdvanceBlockerDigest.CodeUnplayedFixtures, digest.PrimaryBlockerCode);
         Assert.Contains("kilitli", digest.Headline, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Oyna", digest.AdviceLine, StringComparison.Ordinal);
+        Assert.Contains("Maç Gününe Git", digest.AdviceLine, StringComparison.Ordinal);
         Assert.Contains("Öneri:", digest.ToDisplayText(), StringComparison.Ordinal);
     }
 

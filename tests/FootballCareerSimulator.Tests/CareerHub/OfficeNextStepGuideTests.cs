@@ -64,7 +64,7 @@ public sealed class OfficeNextStepGuideTests
     }
 
     [Fact]
-    public void MatchPulse_Playable_PlaysMatches()
+    public void MatchPulse_Playable_OpensMatchDay()
     {
         var step = OfficeNextStepGuide.ResolveFromPulse(
             TodayPulseDigest.FocusMatch,
@@ -72,8 +72,8 @@ public sealed class OfficeNextStepGuideTests
             hasDuePlayableMatch: true,
             canAdvanceDay: false);
 
-        Assert.Equal(OfficeNextStepGuide.ActionPlayMatches, step!.ActionCode);
-        Assert.Contains("Oyna", step.ButtonLabel, StringComparison.Ordinal);
+        Assert.Equal(OfficeNextStepGuide.ActionOpenMatchDay, step!.ActionCode);
+        Assert.Contains("Maç Gününe", step.ButtonLabel, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public sealed class OfficeNextStepGuideTests
     }
 
     [Fact]
-    public void BlockedByFixtures_ForcesPlayOrApprove()
+    public void BlockedByFixtures_ForcesMatchDayOrApprove()
     {
         var play = OfficeNextStepGuide.ResolveFromPulse(
             TodayPulseDigest.FocusCalm,
@@ -109,7 +109,7 @@ public sealed class OfficeNextStepGuideTests
             canAdvanceDay: false,
             primaryBlockerCode: TimeAdvanceBlockerDigest.CodeUnplayedFixtures);
 
-        Assert.Equal(OfficeNextStepGuide.ActionPlayMatches, play!.ActionCode);
+        Assert.Equal(OfficeNextStepGuide.ActionOpenMatchDay, play!.ActionCode);
         Assert.Contains("engel", play.ButtonLabel, StringComparison.Ordinal);
 
         var approve = OfficeNextStepGuide.ResolveFromPulse(

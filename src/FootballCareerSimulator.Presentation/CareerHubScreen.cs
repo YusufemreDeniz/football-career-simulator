@@ -132,7 +132,7 @@ public partial class CareerHubScreen : Control
 
     public event Action? BackToMenuRequested;
 
-    public event Action<PlayMatchesUiResult>? MatchResultsReady;
+    public event Action? MatchDayRequested;
 
     public CareerHubScreen(CareerSessionController controller)
     {
@@ -194,7 +194,7 @@ public partial class CareerHubScreen : Control
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionApproveSelection:
                 Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
                 return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionPlayMatches:
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionOpenMatchDay:
                 OnPlayMatches();
                 return;
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceDay:
@@ -438,7 +438,7 @@ public partial class CareerHubScreen : Control
             Apply(_controller.SwapLastStarterWithFirstBenchForNextDueMatch());
         primaryRow.AddChild(_swapSelectionButton);
 
-        _playButton = PrimaryButton("Bugünün Maçlarını Oyna");
+        _playButton = PrimaryButton("Maç Gününe Git");
         _playButton.Pressed += OnPlayMatches;
         primaryRow.AddChild(_playButton);
 
@@ -962,16 +962,7 @@ public partial class CareerHubScreen : Control
 
     private void OnPlayMatches()
     {
-        var results = _controller.PlayDueMatches();
-        RefreshUi();
-
-        if (results.Succeeded && results.MatchLines.Count > 0)
-        {
-            MatchResultsReady?.Invoke(results);
-            return;
-        }
-
-        PulseStatus(results.Message);
+        Callable.From(() => MatchDayRequested?.Invoke()).CallDeferred();
     }
 
     private void Apply(UiActionResult result)
@@ -1798,12 +1789,12 @@ public partial class CareerHubScreen : Control
         };
 
         _playButton.Text = dueMatchCount == 0
-            ? "Bugünün Maçlarını Oyna"
+            ? "Maç Gününe Git"
             : selectionBlocksPlay
-                ? "Bugünün Maçlarını Oyna (önce kadro)"
+                ? "Maç Gününe Git (önce kadro)"
                 : atRisk
-                    ? $"Bugünün Maçlarını Oyna ({dueMatchCount}) · söz riski"
-                    : $"Bugünün Maçlarını Oyna ({dueMatchCount})";
+                    ? $"Maç Gününe Git ({dueMatchCount}) · söz riski"
+                    : $"Maç Gününe Git ({dueMatchCount})";
 
         _advanceDayButton.Disabled = !canAdvance;
         _advanceWeekButton.Disabled = !canAdvance;

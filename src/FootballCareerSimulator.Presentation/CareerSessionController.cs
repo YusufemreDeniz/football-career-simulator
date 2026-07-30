@@ -684,21 +684,7 @@ public sealed class CareerSessionController
         var desk = DecisionDeskDigest.Compose(
             Host.InteractionModule.Queries.GetPending(take: 5),
             day);
-        var pending = Host.TeamPreparationModule.SelectionQueries
-            .GetNextDueManagedFixture(day);
-        var tension = Host.TeamPreparationModule.PromiseTension.GetForNextDueMatch(day);
-        var tactic = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
-        var training = GetTrainingSummary();
-        var match = PreMatchBriefing.Compose(
-            pending,
-            pending is null ? "—" : GetClubDisplayName(pending.OpponentClubId),
-            day,
-            tactic.FormationName,
-            tactic.ApproachName,
-            training.HasPlan ? training.AverageFatigue : null,
-            training.HasPlan ? training.AverageFitness : null,
-            training.InjuredSlotCount,
-            tension);
+        var match = BuildNextMatchBriefing();
         return TodayPulseDigest.Compose(
             desk,
             match,
@@ -708,6 +694,14 @@ public sealed class CareerSessionController
             BuildTransferDeskBriefing(),
             seasonTransitionReady: CanTransitionToNextSeason(),
             seasonArchivePhase: IsSeasonArchivePhase());
+    }
+
+    public PreMatchBriefing BuildNextMatchBriefing()
+    {
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        return ComposePreMatchBriefing(currentDay, pending);
     }
 
     public bool IsSeasonArchivePhase()
@@ -2044,6 +2038,11 @@ public sealed class CareerSessionController
 
     private PreMatchBriefing CaptureKickoffBriefing(
         int currentDayNumber,
+        ManagedFixtureSelectionStatusReadModel? pending) =>
+        ComposePreMatchBriefing(currentDayNumber, pending);
+
+    private PreMatchBriefing ComposePreMatchBriefing(
+        int currentDayNumber,
         ManagedFixtureSelectionStatusReadModel? pending)
     {
         if (pending is null)
@@ -2076,21 +2075,7 @@ public sealed class CareerSessionController
             return null;
         }
 
-        var opponent = GetClubDisplayName(pending.OpponentClubId);
-        var tension = Host.TeamPreparationModule.PromiseTension
-            .GetForNextDueMatch(currentDayNumber);
-        var tactic = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
-        var training = GetTrainingSummary();
-        var briefing = PreMatchBriefing.Compose(
-            pending,
-            opponent,
-            currentDayNumber,
-            tactic.FormationName,
-            tactic.ApproachName,
-            training.HasPlan ? training.AverageFatigue : null,
-            training.HasPlan ? training.AverageFitness : null,
-            training.InjuredSlotCount,
-            tension);
+        var briefing = ComposePreMatchBriefing(currentDayNumber, pending);
         return $"{briefing.FixtureLine} — {briefing.Headline}";
     }
 

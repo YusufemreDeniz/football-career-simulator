@@ -3,7 +3,7 @@ using Godot;
 namespace FootballCareerSimulator.Presentation;
 
 /// <summary>
-/// Ana sahne: menü → kariyer hub → maç sonucu. CI/export smoke ayrı host'ta çalışır.
+/// Ana sahne: menü → kariyer hub → maç günü → maç sonucu. CI/export smoke ayrı host'ta çalışır.
 /// </summary>
 public partial class CareerAppRoot : Control
 {
@@ -42,7 +42,7 @@ public partial class CareerAppRoot : Control
     {
         var hub = new CareerHubScreen(controller);
         hub.BackToMenuRequested += ShowMainMenu;
-        hub.MatchResultsReady += results => ShowMatchResults(controller, results);
+        hub.MatchDayRequested += () => ShowMatchDay(controller);
         ReplaceScreen(hub);
         if (officeReturn is not null)
         {
@@ -56,6 +56,24 @@ public partial class CareerAppRoot : Control
         {
             hub.SetStatus(statusMessage!);
         }
+    }
+
+    public void ShowMatchDay(CareerSessionController controller)
+    {
+        var panel = new MatchDayScreen(controller);
+        panel.BackRequested += () => ShowHub(controller);
+        panel.KickoffRequested += () =>
+        {
+            var results = controller.PlayDueMatches();
+            if (results.Succeeded && results.MatchLines.Count > 0)
+            {
+                ShowMatchResults(controller, results);
+                return;
+            }
+
+            panel.SetStatus(results.Message);
+        };
+        ReplaceScreen(panel);
     }
 
     public void ShowMatchResults(CareerSessionController controller, PlayMatchesUiResult results)

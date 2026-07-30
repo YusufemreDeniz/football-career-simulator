@@ -43,7 +43,7 @@ public sealed record TimeAdvanceBlockerDigest(
 
         var advice = primary.DescriptionCode switch
         {
-            CodeUnplayedFixtures => "Önce kadroyu kilitle veya Bugünün Maçlarını Oyna.",
+            CodeUnplayedFixtures => "Önce kadroyu kilitle veya Maç Gününe Git.",
             CodePendingDecision => "Masada zorunlu kararı yanıtla — sonra gün ilerler.",
             _ => "Listedeki engeli çöz; sonra 1 Gün İlerlet.",
         };
@@ -72,7 +72,7 @@ public sealed record TimeAdvanceBlockerDigest(
 
     public static string Describe(string descriptionCode) => descriptionCode switch
     {
-        CodeUnplayedFixtures => "Oynanmamış maçlar var — önce Bugünün Maçlarını Oyna.",
+        CodeUnplayedFixtures => "Oynanmamış maçlar var — önce Maç Gününe Git.",
         CodePendingDecision => "Bekleyen zorunlu karar var — önce Masada yanıtla.",
         _ => descriptionCode,
     };

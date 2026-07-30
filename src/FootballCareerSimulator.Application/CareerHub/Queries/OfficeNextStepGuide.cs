@@ -19,7 +19,7 @@ public static class OfficeNextStepGuide
 
     public const string ActionNavigate = "Navigate";
     public const string ActionApproveSelection = "ApproveSelection";
-    public const string ActionPlayMatches = "PlayMatches";
+    public const string ActionOpenMatchDay = "OpenMatchDay";
     public const string ActionAdvanceDay = "AdvanceDay";
     public const string ActionTransitionSeason = "TransitionSeason";
     public const string ActionApplyPrepSuggestion = "ApplyPrepSuggestion";
@@ -157,10 +157,10 @@ public static class OfficeNextStepGuide
             if (hasDuePlayableMatch)
             {
                 return new OfficeNextStep(
-                    "Bugünün Maçlarını Oyna",
+                    "Maç Gününe Git",
                     TargetToday,
                     TodayPulseDigest.FocusMatch,
-                    ActionPlayMatches);
+                    ActionOpenMatchDay);
             }
         }
 
@@ -211,10 +211,10 @@ public static class OfficeNextStepGuide
             }
 
             return new OfficeNextStep(
-                "Bugünün Maçlarını Oyna (engel)",
+                "Maç Gününe Git (engel)",
                 TargetToday,
                 TodayPulseDigest.FocusMatch,
-                ActionPlayMatches);
+                ActionOpenMatchDay);
         }
 
         if (string.Equals(
