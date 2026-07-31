@@ -36,7 +36,8 @@ public sealed record TodayPulseDigest(
         bool seasonArchivePhase = false,
         InjuryRecoveryPathDigest? recoveryPath = null,
         WeekStoryDigest? weekStory = null,
-        WeekMoodDigest? weekMood = null)
+        WeekMoodDigest? weekMood = null,
+        int dayNumber = 0)
     {
         ArgumentNullException.ThrowIfNull(desk);
         ArgumentNullException.ThrowIfNull(match);
@@ -57,6 +58,11 @@ public sealed record TodayPulseDigest(
         else if (weekMood.IsActive)
         {
             lines.Add(weekMood.ToPulseLine());
+            var calmNote = OfficeCalmNote.ToBeatLine(weekMood.MoodCode, dayNumber);
+            if (!string.IsNullOrWhiteSpace(calmNote))
+            {
+                lines.Add(calmNote);
+            }
         }
         else if (recoveryPath.IsActive)
         {

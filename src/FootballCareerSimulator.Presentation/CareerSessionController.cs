@@ -713,7 +713,8 @@ public sealed class CareerSessionController
             seasonArchivePhase: IsSeasonArchivePhase(),
             recoveryPath: recoveryPath,
             weekStory: weekStory,
-            weekMood: weekMood);
+            weekMood: weekMood,
+            dayNumber: day);
     }
 
     public InjuryRecoveryPathDigest BuildInjuryRecoveryPath()

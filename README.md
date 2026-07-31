@@ -38,7 +38,7 @@ Komut, Presentation projesini zorunlu olarak yeniden derler ve güncel assembly 
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık / iyileşme yolu** + **auto-swap** + **görsel XI şeridi** kilitlenmiştir (Bugün ↔ Ofis: **Hikâye** / **Hava** + “Sıradaki”; sakin haftada gün bazlı **Ofis Notu**). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: Ofis notunu Bugün nabız satırına da yansıtmak veya sakin haftada küçük staff fısıltısı (tek satır).
+İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık / iyileşme yolu** + **auto-swap** + **görsel XI şeridi** kilitlenmiştir (Bugün ↔ Ofis: **Hikâye** / **Hava** / **Not** + “Sıradaki”). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: sakin haftada tek satırlık staff fısıltısı (Bugün etiketi) veya gün ilerlemede Not’un değiştiğini kısa onayla göstermek.
 
 ## Klasör Yapısı
 

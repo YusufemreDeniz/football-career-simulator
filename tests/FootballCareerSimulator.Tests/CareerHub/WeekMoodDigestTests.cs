@@ -71,9 +71,14 @@ public sealed class WeekMoodDigestTests
             PreMatchBriefing.Clear(),
             PrepOk(),
             LeagueOk(),
-            weekMood: mood);
+            weekMood: mood,
+            dayNumber: 12);
 
         Assert.Contains(pulse.PulseLines, l => l.StartsWith("Hava:", StringComparison.Ordinal));
+        Assert.Contains(pulse.PulseLines, l => l.StartsWith("Not:", StringComparison.Ordinal));
+        Assert.Equal(
+            OfficeCalmNote.ToBeatLine(mood.MoodCode, 12),
+            pulse.PulseLines.First(l => l.StartsWith("Not:", StringComparison.Ordinal)));
         Assert.DoesNotContain(pulse.PulseLines, l => l.StartsWith("Hikâye:", StringComparison.Ordinal));
     }
 
