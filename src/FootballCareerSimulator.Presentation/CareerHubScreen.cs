@@ -153,6 +153,21 @@ public partial class CareerHubScreen : Control
         ShowPage(HubPage.Today);
         RefreshUi();
         _officeLabel.Text = digest.ToDisplayText();
+        // Sakatlık gecesi: nabız sakin kalsa bile Toparlanma birincil CTA kalsın.
+        if (string.Equals(
+                digest.NextFocusCode,
+                Application.CareerHub.Queries.TodayPulseDigest.FocusPrep,
+                StringComparison.Ordinal))
+        {
+            var suggestion = _controller.BuildPreparationBriefing().Suggestion
+                ?? Application.TeamPreparation.Queries.PrepPlanSuggestion.RecoveryPlan();
+            BindOfficeNextStep(new Application.CareerHub.Queries.OfficeNextStep(
+                suggestion.ButtonLabel,
+                Application.CareerHub.Queries.OfficeNextStepGuide.TargetPrep,
+                Application.CareerHub.Queries.TodayPulseDigest.FocusPrep,
+                Application.CareerHub.Queries.OfficeNextStepGuide.ActionApplyPrepSuggestion));
+        }
+
         // RefreshUi nabız CTA'sını kurar; ofis metnini üstte tut.
         PulseStatus(digest.ToStatusMessage());
     }

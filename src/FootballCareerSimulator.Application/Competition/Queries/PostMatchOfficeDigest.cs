@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Interaction.Queries;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 
 namespace FootballCareerSimulator.Application.Competition.Queries;
 
@@ -99,12 +100,12 @@ public sealed record PostMatchOfficeDigest(
         var hasInjury = HasInjuryNight(narrative);
         string? focusCode = null;
         var advice = "Bugün nabzına bak — sonra günü ilerlet.";
+        var recoveryCta = PrepPlanSuggestion.RecoveryPlan().ButtonLabel;
         if (hasInjury)
         {
             focusCode = TodayPulseDigest.FocusPrep;
-            advice = string.IsNullOrWhiteSpace(halfTimeNote)
-                ? "Hazırlık Masası — sakat kadroyu toparla."
-                : "Gece kararı sakatlık getirdi — Hazırlık'ta toparlan.";
+            beats.Add($"Sıradaki: {recoveryCta}");
+            advice = ComposeInjuryRecoveryAdvice(halfTimeNote, recoveryCta);
         }
         else if (nextPulse is not null)
         {
@@ -115,12 +116,11 @@ public sealed record PostMatchOfficeDigest(
             {
                 advice = "Gece kararını hatırla — nabız sakinse günü ilerlet.";
             }
-        }
 
-        if (nextPulse is not null
-            && !string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
-        {
-            beats.Add($"Sıradaki: {nextPulse.Headline}");
+            if (!string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
+            {
+                beats.Add($"Sıradaki: {nextPulse.Headline}");
+            }
         }
 
         var headline = ResolveHeadline(narrative, desk, nextPulse);
@@ -130,8 +130,26 @@ public sealed record PostMatchOfficeDigest(
         {
             headline = "Hücum riski pahalıya patladı — sakatlık var.";
         }
+        else if (hasInjury)
+        {
+            headline = "Sakatlık var — Toparlanma sırada.";
+        }
 
         return new PostMatchOfficeDigest(Brand, headline, advice, focusCode, beats.Take(6).ToArray());
+    }
+
+    private static string ComposeInjuryRecoveryAdvice(string? halfTimeNote, string recoveryCta)
+    {
+        if (string.IsNullOrWhiteSpace(halfTimeNote))
+        {
+            return $"Hazırlık Masası — birincil düğmeyle {recoveryCta}.";
+        }
+
+        const string prefix = "Devre arası: ";
+        var noteCore = halfTimeNote.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? halfTimeNote[prefix.Length..].Trim()
+            : halfTimeNote.Trim();
+        return $"{noteCore} — şimdi {recoveryCta}.";
     }
 
     private static bool HasInjuryNight(MatchNightNarrative narrative) =>
