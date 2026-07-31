@@ -59,6 +59,49 @@ public sealed class MatchReportDigestTests
         Assert.Contains("2 gol", report.StandoutLine, StringComparison.Ordinal);
         Assert.Contains("Boğaziçi Spor", report.StandoutLine, StringComparison.Ordinal);
         Assert.Null(report.InjuryLine);
+        Assert.Null(report.HalfTimeNoteLine);
+    }
+
+    [Fact]
+    public void ComposeHalfTimeNote_CombinesDecisionAndSubstitution()
+    {
+        Assert.Equal(
+            "Devre arası: Hücuma geçtin · Ali Yılmaz↔Can Demir",
+            MatchReportDigest.ComposeHalfTimeNote(
+                "Devre arasında hücuma geçtin.",
+                "Devre arasında Ali Yılmaz↔Can Demir."));
+
+        Assert.Equal(
+            "Devre arası: Aynı plan",
+            MatchReportDigest.ComposeHalfTimeNote(
+                "Devre arasında aynı planla devam ettin.",
+                substitutionBridgeLabel: null));
+
+        Assert.Null(MatchReportDigest.ComposeHalfTimeNote(null, null));
+    }
+
+    [Fact]
+    public void Compose_SurfacesHalfTimeNoteOnReport()
+    {
+        var result = new PlayFixtureMatchResult(
+            Succeeded: true,
+            SeasonId: 1,
+            FixtureId: 12,
+            HomeGoals: 1,
+            AwayGoals: 0,
+            Status: "ResultAccepted",
+            Statistics: new MatchStatisticsReadModel(55, 45, 10, 6, 4, 2, 3, 1));
+
+        var report = MatchReportDigest.Compose(
+            result,
+            "Home",
+            "Away",
+            halfTimeDecisionLabel: "Devre arasında savunmaya çektin.",
+            halfTimeSubstitutionLabel: "Devre arasında Efe Kaya↔Mert Koç.");
+
+        Assert.Equal(
+            "Devre arası: Savunmaya çektin · Efe Kaya↔Mert Koç",
+            report!.HalfTimeNoteLine);
     }
 
     [Fact]

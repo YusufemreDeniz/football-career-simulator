@@ -11,12 +11,15 @@ public sealed record MatchReportDigest(
     string AwayClubName,
     IReadOnlyList<MatchReportStatLine> StatLines,
     string? StandoutLine,
-    string? InjuryLine = null)
+    string? InjuryLine = null,
+    string? HalfTimeNoteLine = null)
 {
     public static MatchReportDigest? Compose(
         PlayFixtureMatchResult result,
         string homeClubName,
-        string awayClubName)
+        string awayClubName,
+        string? halfTimeDecisionLabel = null,
+        string? halfTimeSubstitutionLabel = null)
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentException.ThrowIfNullOrWhiteSpace(homeClubName);
@@ -43,7 +46,42 @@ public sealed record MatchReportDigest(
                 new MatchReportStatLine("Korner", stats.HomeCorners.ToString(), stats.AwayCorners.ToString()),
             ],
             ComposeStandout(result.KeyMoments, homeClubName, awayClubName),
-            ComposeInjuryLine(result.KeyMoments));
+            ComposeInjuryLine(result.KeyMoments),
+            ComposeHalfTimeNote(halfTimeDecisionLabel, halfTimeSubstitutionLabel));
+    }
+
+    /// <summary>
+    /// Maç raporu — kısa HT notu (karar ± değişiklik).
+    /// </summary>
+    public static string? ComposeHalfTimeNote(
+        string? decisionLabel,
+        string? substitutionBridgeLabel)
+    {
+        var bits = new List<string>(2);
+
+        var decisionMoment = MatchHalfTimeDigest.FormatDecisionKeyMoment(decisionLabel);
+        if (!string.IsNullOrWhiteSpace(decisionMoment))
+        {
+            var sep = decisionMoment.IndexOf('·');
+            bits.Add(sep >= 0 ? decisionMoment[(sep + 1)..].Trim() : decisionMoment);
+        }
+
+        if (!string.IsNullOrWhiteSpace(substitutionBridgeLabel)
+            && substitutionBridgeLabel.Contains('↔', StringComparison.Ordinal))
+        {
+            const string prefix = "Devre arasında ";
+            var core = substitutionBridgeLabel.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                ? substitutionBridgeLabel[prefix.Length..].Trim().TrimEnd('.')
+                : substitutionBridgeLabel.Trim().TrimEnd('.');
+            if (!string.IsNullOrWhiteSpace(core))
+            {
+                bits.Add(core);
+            }
+        }
+
+        return bits.Count == 0
+            ? null
+            : "Devre arası: " + string.Join(" · ", bits);
     }
 
     private static string? ComposeInjuryLine(IReadOnlyList<MatchKeyMomentReadModel>? moments)

@@ -147,6 +147,18 @@ public partial class MatchResultScreen : Control
 
             layout.AddChild(stats);
 
+            if (!string.IsNullOrWhiteSpace(report.HalfTimeNoteLine))
+            {
+                var halfTimeNote = new Label
+                {
+                    Text = report.HalfTimeNoteLine,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                };
+                CareerUiTheme.StyleBody(halfTimeNote, muted: true);
+                layout.AddChild(halfTimeNote);
+            }
+
             if (!string.IsNullOrWhiteSpace(report.StandoutLine))
             {
                 var standout = new Label

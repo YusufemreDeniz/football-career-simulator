@@ -1957,7 +1957,12 @@ public sealed class CareerSessionController
                         afterWhistle.Insert(0, halfTimeDecisionLabel);
                     }
 
-                    heroReport = MatchReportDigest.Compose(result, home, away);
+                    heroReport = MatchReportDigest.Compose(
+                        result,
+                        home,
+                        away,
+                        halfTimeDecisionLabel,
+                        halfTimeSubstitutionLabel);
                 }
                 else
                 {
