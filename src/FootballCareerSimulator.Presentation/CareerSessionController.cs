@@ -151,6 +151,7 @@ public sealed class CareerSessionController
             var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
                 ?? throw new InvalidOperationException("Menajer kulübü yok.");
 
+            var moodBefore = BuildWeekMood();
             var approval = Host.TeamPreparationModule.ApproveDefaultSelection.Handle(
                 new ApproveDefaultMatchSelectionCommand(
                     Guid.NewGuid(),
@@ -162,8 +163,22 @@ public sealed class CareerSessionController
             var swapNote = string.IsNullOrWhiteSpace(approval.AutoSwapSummary)
                 ? string.Empty
                 : $" · {approval.AutoSwapSummary}";
-            return UiActionResult.Ok(
-                $"Kadro onaylandı: fikstür #{pending.FixtureId} · {venue} vs {opponent}{swapNote}.");
+            var message =
+                $"Kadro onaylandı: fikstür #{pending.FixtureId} · {venue} vs {opponent}{swapNote}.";
+
+            var tempoOffice = PostMatchOfficeDigest.AfterMoodTempoShift(
+                moodBefore.MoodCode,
+                BuildWeekMood(),
+                nextCtaLabel: "Maç Gününe Git");
+            if (tempoOffice is not null)
+            {
+                return UiActionResult.Ok(
+                    message + "\n" + tempoOffice.Headline,
+                    narrativeBridgeLine: tempoOffice.ToDisplayText(),
+                    nextFocusCode: tempoOffice.NextFocusCode);
+            }
+
+            return UiActionResult.Ok(message);
         }
         catch (Exception ex)
         {

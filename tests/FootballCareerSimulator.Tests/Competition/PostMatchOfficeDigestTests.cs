@@ -139,6 +139,27 @@ public sealed class PostMatchOfficeDigestTests
     }
 
     [Fact]
+    public void AfterMoodTempoShift_DraftToReady_PointsKickoff()
+    {
+        var next = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Düdük yakın — kadro hazır, haftanın ritmi senin.",
+            WeekMoodDigest.MoodMatchReady);
+
+        var digest = PostMatchOfficeDigest.AfterMoodTempoShift(
+            WeekMoodDigest.MoodMatchDraft,
+            next,
+            nextCtaLabel: "Maç Gününe Git");
+
+        Assert.NotNull(digest);
+        Assert.Contains("oturdu", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Maç Gününe Git");
+        Assert.Equal(TodayPulseDigest.FocusMatch, digest.NextFocusCode);
+        Assert.Contains("Maç Gününe Git", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AfterCalmNoteAdvance_FlashesRenewedNote()
     {
         var before = OfficeCalmNote.Resolve(WeekMoodDigest.MoodCalm, 12);
