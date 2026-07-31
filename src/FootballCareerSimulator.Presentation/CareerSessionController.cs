@@ -2345,6 +2345,16 @@ public sealed class CareerSessionController
                 message += "\n" + noteConfirm;
             }
 
+            if (!string.IsNullOrWhiteSpace(noteAfter) && !string.IsNullOrWhiteSpace(noteConfirm))
+            {
+                var office = PostMatchOfficeDigest.AfterCalmNoteAdvance(noteAfter, noteBefore);
+                return UiActionResult.Ok(
+                    message,
+                    digest,
+                    narrativeBridgeLine: office.ToDisplayText(),
+                    nextFocusCode: office.NextFocusCode);
+            }
+
             return UiActionResult.Ok(message, digest);
         }
         catch (TeamPreparationInvariantViolationException ex)

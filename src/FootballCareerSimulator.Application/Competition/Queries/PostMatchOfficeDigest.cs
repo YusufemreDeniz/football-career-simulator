@@ -116,6 +116,44 @@ public sealed record PostMatchOfficeDigest(
     }
 
     /// <summary>
+    /// Gün ilerletince sakin Ofis Notu yenilenince — status onayıyla aynı dilde kısa flash.
+    /// </summary>
+    public static PostMatchOfficeDigest AfterCalmNoteAdvance(
+        string nextNote,
+        string? previousNote = null,
+        string? nextCtaLabel = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nextNote);
+
+        var beats = new List<string> { $"Not: {nextNote}" };
+        if (!string.IsNullOrWhiteSpace(nextCtaLabel))
+        {
+            beats.Add($"Sıradaki: {nextCtaLabel}");
+        }
+        else
+        {
+            beats.Add("Sıradaki: nabız sakin — 1 gün ilerlet");
+        }
+
+        var headline = string.IsNullOrWhiteSpace(previousNote)
+            ? "Sakin hafta — ofis notu geldi."
+            : string.Equals(previousNote, nextNote, StringComparison.Ordinal)
+                ? "Yeni gün — sakin tempo sürüyor."
+                : "Yeni gün — ofis notu yenilendi.";
+
+        var advice = !string.IsNullOrWhiteSpace(nextCtaLabel)
+            ? $"Hava tutuyor — birincil düğme: {nextCtaLabel}."
+            : "Nabız sakin — günü ilerlet veya Bugün'e bak.";
+
+        return new(
+            Brand,
+            headline,
+            advice,
+            TodayPulseDigest.FocusCalm,
+            beats);
+    }
+
+    /// <summary>
     /// Günlük Bugün ekranı — Ofiste metni nabız / Haftanın Hikâyesi / Havası ile aynı dili konuşsun.
     /// </summary>
     public static PostMatchOfficeDigest FromTodayPulse(

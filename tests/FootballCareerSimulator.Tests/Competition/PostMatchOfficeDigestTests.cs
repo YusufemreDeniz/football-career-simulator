@@ -103,6 +103,38 @@ public sealed class PostMatchOfficeDigestTests
     }
 
     [Fact]
+    public void AfterCalmNoteAdvance_FlashesRenewedNote()
+    {
+        var before = OfficeCalmNote.Resolve(WeekMoodDigest.MoodCalm, 12);
+        var after = OfficeCalmNote.Resolve(WeekMoodDigest.MoodCalm, 13);
+        Assert.NotEqual(before, after);
+
+        var digest = PostMatchOfficeDigest.AfterCalmNoteAdvance(
+            after!,
+            before,
+            nextCtaLabel: "1 Gün İlerlet");
+
+        Assert.Equal(PostMatchOfficeDigest.Brand, digest.BrandTitle);
+        Assert.Contains("yenilendi", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b == $"Not: {after}");
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: 1 Gün İlerlet");
+        Assert.Equal(TodayPulseDigest.FocusCalm, digest.NextFocusCode);
+        Assert.Contains("1 Gün İlerlet", digest.AdviceLine, StringComparison.Ordinal);
+        Assert.Contains("Ofiste", digest.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AfterCalmNoteAdvance_SameNote_KeepsCalmHeadline()
+    {
+        var note = OfficeCalmNote.Resolve(WeekMoodDigest.MoodCalm, 12)!;
+
+        var digest = PostMatchOfficeDigest.AfterCalmNoteAdvance(note, note);
+
+        Assert.Contains("sakin tempo", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b == $"Not: {note}");
+    }
+
+    [Fact]
     public void FromTodayPulse_CalmWithWeekMood_SurfacesHavaAndSiradaki()
     {
         var prep = PreparationBriefing.Compose(
