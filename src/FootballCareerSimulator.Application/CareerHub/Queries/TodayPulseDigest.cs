@@ -48,7 +48,13 @@ public sealed record TodayPulseDigest(
         var lines = new List<string>();
         if (recoveryPath.IsActive)
         {
-            lines.Add($"İyileşme: {recoveryPath.Headline}");
+            lines.Add(
+                string.Equals(
+                    recoveryPath.CurrentStepCode,
+                    InjuryRecoveryPathDigest.StepCleared,
+                    StringComparison.Ordinal)
+                    ? recoveryPath.Headline
+                    : $"İyileşme: {recoveryPath.Headline}");
         }
 
         if (desk.HasOpenDecision)

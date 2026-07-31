@@ -12,6 +12,31 @@ namespace FootballCareerSimulator.Tests.Competition;
 public sealed class PostMatchOfficeDigestTests
 {
     [Fact]
+    public void AfterInjuriesCleared_CelebratesPathClosure()
+    {
+        var digest = PostMatchOfficeDigest.AfterInjuriesCleared(["Tolga Kurt"]);
+
+        Assert.Equal(PostMatchOfficeDigest.Brand, digest.BrandTitle);
+        Assert.Contains("İyileşti", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains("Tolga Kurt", digest.Headline, StringComparison.Ordinal);
+        Assert.Equal(TodayPulseDigest.FocusCalm, digest.NextFocusCode);
+        Assert.Contains(digest.BeatLines, b => b == "İyileşme Yolu kapandı");
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("İyileşti:", StringComparison.Ordinal));
+        Assert.Contains("günü ilerlet", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AfterInjuriesCleared_WithDueMatch_HandsOffToKickoff()
+    {
+        var digest = PostMatchOfficeDigest.AfterInjuriesCleared(
+            ["Ali Yılmaz"],
+            hasDuePlayableMatch: true);
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, digest.NextFocusCode);
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Maç Gününe Git");
+    }
+
+    [Fact]
     public void AfterRecoveryApplied_ConfirmsPlanAndListsInjured()
     {
         var digest = PostMatchOfficeDigest.AfterRecoveryApplied(["Tolga Kurt", "Ali Yılmaz"]);

@@ -17,6 +17,7 @@ using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Interaction;
+using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
@@ -24,6 +25,7 @@ using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.TeamPreparation;
+using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 namespace FootballCareerSimulator.Presentation;
 
@@ -38,6 +40,7 @@ public sealed class CareerSessionController
     private TrainingFocus _trainingFocus = TrainingFocus.General;
     private TrainingIntensity _trainingIntensity = TrainingIntensity.Medium;
     private RestApproach _trainingRest = RestApproach.Normal;
+    private IReadOnlyList<string>? _pendingInjuryClearedNames;
 
     public CareerSessionController(CareerPresentationHost host)
     {
@@ -712,7 +715,8 @@ public sealed class CareerSessionController
             injuredPlayerNames: prep.InjuredNames,
             isOnRecoveryPlan: training.Focus == (int)TrainingFocus.Recovery,
             hasDueMatch: match.HasMatch,
-            isMatchApproved: match.IsReadyToKickOff);
+            isMatchApproved: match.IsReadyToKickOff,
+            freshlyRecoveredNames: _pendingInjuryClearedNames);
     }
 
     public PreMatchBriefing BuildNextMatchBriefing()
@@ -1714,12 +1718,14 @@ public sealed class CareerSessionController
     {
         try
         {
+            var injuredBefore = SnapshotInjuredPlayerNames();
             var result = Host.TrainingModule.SetWeeklyPlan.Handle(
                 new SetWeeklyTrainingPlanCommand(
                     Guid.NewGuid(),
                     (int)_trainingFocus,
                     (int)_trainingIntensity,
                     (int)_trainingRest));
+            UpdateInjuryClearedCelebration(injuredBefore, SnapshotInjuredPlayerNames());
 
             var injuryText = result.InjuredSlotCount > 0
                 ? $" · sakat {result.InjuredSlotCount}"
@@ -1732,6 +1738,15 @@ public sealed class CareerSessionController
                 $"Antrenman uygulandı ({FormatTrainingFocus(_trainingFocus)}/{FormatTrainingIntensity(_trainingIntensity)}/{FormatRestApproach(_trainingRest)}):"
                 + $" yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}{invalidatedText}."
                 + $"\nÖneri: {advice}";
+
+            if (_pendingInjuryClearedNames is { Count: > 0 })
+            {
+                var cleared = BuildInjuryClearedOffice();
+                return UiActionResult.Ok(
+                    cleared.Headline + "\n" + cleared.AdviceLine + "\n" + appliedLine,
+                    narrativeBridgeLine: cleared.ToDisplayText(),
+                    nextFocusCode: cleared.NextFocusCode);
+            }
 
             if (_trainingFocus == TrainingFocus.Recovery)
             {
@@ -1860,6 +1875,7 @@ public sealed class CareerSessionController
                         "Önce kendi maçın için kadroyu onayla."));
             }
 
+            var injuredBefore = SnapshotInjuredPlayerNames();
             var kickoffBriefing = CaptureKickoffBriefing(currentDay, pendingSelection);
             var kickoffLines = kickoffBriefing.ToKickoffBridgeLines().ToList();
             if (halfTime is { HasManagedMatch: true })
@@ -2033,6 +2049,7 @@ public sealed class CareerSessionController
             var invalidatedNote = invalidatedTotal > 0
                 ? $" · kadro onayı düştü ({invalidatedTotal})"
                 : string.Empty;
+            UpdateInjuryClearedCelebration(injuredBefore, SnapshotInjuredPlayerNames());
             return new PlayMatchesUiResult(
                 true,
                 $"{lines.Count} maç oynandı ({GameDate.FromDayNumber(currentDay).ToIsoDateString()}){invalidatedNote}.",
@@ -2215,6 +2232,7 @@ public sealed class CareerSessionController
     {
         try
         {
+            var injuredBefore = SnapshotInjuredPlayerNames();
             var world = Host.WorldModule;
             var current = world.Queries.GetCurrentGameDate();
             var result = world.AdvanceSimulationTime.Handle(
@@ -2232,7 +2250,7 @@ public sealed class CareerSessionController
             Host.TeamPreparationModule.ClubSquad?.SyncClubs(result.ContractExpiryAffectedClubIds, day);
             if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is long clubId)
             {
-                var id = new Domain.Shared.ClubId(clubId);
+                var id = new ClubId(clubId);
                 Host.PlayerCareerModule.Development.EnsureClub(
                     id,
                     Host.WorldModule.TimelineStore.Timeline.RootSeed,
@@ -2241,8 +2259,21 @@ public sealed class CareerSessionController
                 Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
             }
 
+            RecoverManagedInjuriesToCurrentDate();
+            UpdateInjuryClearedCelebration(injuredBefore, SnapshotInjuredPlayerNames());
+
             var nextHint = BuildNextMatchHint(day.DayNumber);
             var digest = TimeAdvanceDigest.Compose(result, dayCount, nextHint);
+            if (_pendingInjuryClearedNames is { Count: > 0 })
+            {
+                var office = BuildInjuryClearedOffice();
+                return UiActionResult.Ok(
+                    digest.ToStatusMessage() + "\n" + office.Headline,
+                    digest,
+                    narrativeBridgeLine: office.ToDisplayText(),
+                    nextFocusCode: office.NextFocusCode);
+            }
+
             return UiActionResult.Ok(digest.ToStatusMessage(), digest);
         }
         catch (TeamPreparationInvariantViolationException ex)
@@ -2336,7 +2367,63 @@ public sealed class CareerSessionController
             desk,
             hasManaged,
             BuildTodayPulse(),
-            halfTimeNoteLine: results.Report?.HalfTimeNoteLine);
+            halfTimeNoteLine: results.Report?.HalfTimeNoteLine,
+            freshlyRecoveredNames: _pendingInjuryClearedNames);
+    }
+
+    private IReadOnlyList<string> SnapshotInjuredPlayerNames() =>
+        GetTrainingSummary().InjuredNames.ToArray();
+
+    private void UpdateInjuryClearedCelebration(
+        IReadOnlyList<string> before,
+        IReadOnlyList<string> after)
+    {
+        ArgumentNullException.ThrowIfNull(before);
+        ArgumentNullException.ThrowIfNull(after);
+
+        if (after.Count > 0)
+        {
+            _pendingInjuryClearedNames = null;
+            return;
+        }
+
+        var recovered = before
+            .Where(name => !after.Contains(name, StringComparer.Ordinal))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        _pendingInjuryClearedNames = recovered.Length > 0 ? recovered : null;
+    }
+
+    private void RecoverManagedInjuriesToCurrentDate()
+    {
+        if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is not long clubIdValue)
+        {
+            return;
+        }
+
+        var clubId = new ClubId(clubIdValue);
+        var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+        var recovered = MvpTrainingLoadApplier.RecoverClubToDate(
+            clubId,
+            day,
+            Host.TrainingModule.Store.PhysicalBySlot);
+        if (recovered.Count == 0)
+        {
+            return;
+        }
+
+        Host.TrainingModule.Store.ReplacePhysicalStatesForClub(clubId, recovered);
+    }
+
+    private PostMatchOfficeDigest BuildInjuryClearedOffice()
+    {
+        var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(day);
+        return PostMatchOfficeDigest.AfterInjuriesCleared(
+            _pendingInjuryClearedNames,
+            hasDueUnapprovedMatch: pending is { IsApproved: false },
+            hasDuePlayableMatch: pending is { IsApproved: true });
     }
 
     public UiActionResult CompleteSeason()

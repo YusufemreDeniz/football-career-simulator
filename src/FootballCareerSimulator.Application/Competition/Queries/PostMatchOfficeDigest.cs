@@ -20,6 +20,53 @@ public sealed record PostMatchOfficeDigest(
         new(Brand, "Ofis sakin — sıradaki güne bak.", "Bugün nabzına bak.", null, Array.Empty<string>());
 
     /// <summary>
+    /// Sakatlık tamamen bitince — İyileşme Yolu'nun tek kapanış anı.
+    /// </summary>
+    public static PostMatchOfficeDigest AfterInjuriesCleared(
+        IReadOnlyList<string>? recoveredPlayerNames = null,
+        bool hasDueUnapprovedMatch = false,
+        bool hasDuePlayableMatch = false)
+    {
+        var names = recoveredPlayerNames ?? Array.Empty<string>();
+        var who = names.Count > 0
+            ? string.Join(", ", names.Take(2))
+            : "Sakatlar";
+        var beats = new List<string>
+        {
+            $"İyileşti: {who}",
+            "İyileşme Yolu kapandı",
+        };
+
+        string nextFocus;
+        string advice;
+        if (hasDueUnapprovedMatch)
+        {
+            nextFocus = TodayPulseDigest.FocusMatch;
+            beats.Add("Sıradaki: Kadro Onayla");
+            advice = "Kadro temiz — şimdi Kadro Onayla.";
+        }
+        else if (hasDuePlayableMatch)
+        {
+            nextFocus = TodayPulseDigest.FocusMatch;
+            beats.Add("Sıradaki: Maç Gününe Git");
+            advice = "Kadro temiz — şimdi Maç Gününe Git.";
+        }
+        else
+        {
+            nextFocus = TodayPulseDigest.FocusCalm;
+            beats.Add("Sıradaki: nabız sakin — 1 gün ilerlet");
+            advice = "İyileşme kapandı — nabız sakin, günü ilerlet.";
+        }
+
+        return new(
+            Brand,
+            $"İyileşti — {who} sahaya döndü.",
+            advice,
+            nextFocus,
+            beats);
+    }
+
+    /// <summary>
     /// Toparlanma CTA sonrası kısa onay — prep bitti, sıradaki maç/sakin nabız.
     /// </summary>
     public static PostMatchOfficeDigest AfterRecoveryApplied(
@@ -82,12 +129,18 @@ public sealed record PostMatchOfficeDigest(
         DecisionDeskDigest desk,
         bool hasManagedMatch,
         TodayPulseDigest? nextPulse = null,
-        string? halfTimeNoteLine = null)
+        string? halfTimeNoteLine = null,
+        IReadOnlyList<string>? freshlyRecoveredNames = null)
     {
         ArgumentNullException.ThrowIfNull(desk);
 
         if (narrative is null || !hasManagedMatch)
         {
+            if (freshlyRecoveredNames is { Count: > 0 })
+            {
+                return AfterInjuriesCleared(freshlyRecoveredNames);
+            }
+
             if (nextPulse is not null
                 && !string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
             {
@@ -109,6 +162,14 @@ public sealed record PostMatchOfficeDigest(
         if (!string.IsNullOrWhiteSpace(halfTimeNote))
         {
             beats.Add(halfTimeNote);
+        }
+
+        if (freshlyRecoveredNames is { Count: > 0 })
+        {
+            beats.Add(
+                "İyileşti: "
+                + string.Join(", ", freshlyRecoveredNames.Take(2))
+                + " — İyileşme Yolu kapandı");
         }
 
         foreach (var line in narrative.AfterWhistleLines.Take(4))
@@ -182,6 +243,11 @@ public sealed record PostMatchOfficeDigest(
         else if (hasInjury)
         {
             headline = "Sakatlık var — Toparlanma sırada.";
+        }
+        else if (freshlyRecoveredNames is { Count: > 0 })
+        {
+            var who = string.Join(", ", freshlyRecoveredNames.Take(2));
+            headline = $"İyileşti — {who} sahaya döndü.";
         }
 
         return new PostMatchOfficeDigest(Brand, headline, advice, focusCode, beats.Take(6).ToArray());

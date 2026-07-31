@@ -16,20 +16,47 @@ public sealed record InjuryRecoveryPathDigest(
     public const string StepXi = "Xi";
     public const string StepKickoff = "Kickoff";
     public const string StepHold = "Hold";
+    public const string StepCleared = "Cleared";
 
     public static InjuryRecoveryPathDigest Clear() =>
         new(false, Brand, string.Empty, string.Empty, Array.Empty<string>());
+
+    /// <summary>
+    /// Sakatlık tamamen bitince tek kapanış anı — yol kaybolmaz, kutlanır.
+    /// </summary>
+    public static InjuryRecoveryPathDigest ComposeCleared(IReadOnlyList<string>? recoveredPlayerNames)
+    {
+        var names = recoveredPlayerNames ?? Array.Empty<string>();
+        var who = names.Count > 0
+            ? string.Join(", ", names.Take(2))
+            : "Sakatlar";
+
+        return new InjuryRecoveryPathDigest(
+            true,
+            Brand,
+            $"İyileşti — {who} sahaya döndü",
+            StepCleared,
+            new[]
+            {
+                "✓ Toparlanma uygula",
+                "✓ Sakatsız XI onayla",
+                "✓ Maç gününe git",
+            });
+    }
 
     public static InjuryRecoveryPathDigest Compose(
         bool hasInjuryPressure,
         IReadOnlyList<string>? injuredPlayerNames,
         bool isOnRecoveryPlan,
         bool hasDueMatch,
-        bool isMatchApproved)
+        bool isMatchApproved,
+        IReadOnlyList<string>? freshlyRecoveredNames = null)
     {
         if (!hasInjuryPressure)
         {
-            return Clear();
+            return freshlyRecoveredNames is { Count: > 0 }
+                ? ComposeCleared(freshlyRecoveredNames)
+                : Clear();
         }
 
         var names = injuredPlayerNames ?? Array.Empty<string>();

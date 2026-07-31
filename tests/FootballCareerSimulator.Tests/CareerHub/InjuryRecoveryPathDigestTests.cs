@@ -23,6 +23,24 @@ public sealed class InjuryRecoveryPathDigestTests
     }
 
     [Fact]
+    public void Cleared_CelebratesPathClosure()
+    {
+        var path = InjuryRecoveryPathDigest.Compose(
+            hasInjuryPressure: false,
+            injuredPlayerNames: null,
+            isOnRecoveryPlan: true,
+            hasDueMatch: false,
+            isMatchApproved: false,
+            freshlyRecoveredNames: ["Tolga Kurt"]);
+
+        Assert.True(path.IsActive);
+        Assert.Equal(InjuryRecoveryPathDigest.StepCleared, path.CurrentStepCode);
+        Assert.Contains("İyileşti", path.Headline, StringComparison.Ordinal);
+        Assert.Contains("Tolga Kurt", path.Headline, StringComparison.Ordinal);
+        Assert.All(path.StepLines, s => Assert.StartsWith("✓ ", s, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void NeedsRecovery_IsStepOne()
     {
         var path = InjuryRecoveryPathDigest.Compose(
@@ -120,5 +138,41 @@ public sealed class InjuryRecoveryPathDigestTests
 
         Assert.Contains(pulse.PulseLines, l => l.StartsWith("İyileşme:", StringComparison.Ordinal));
         Assert.Contains("İyileşme 1/3", pulse.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TodayPulse_SurfacesClearedCelebrationWithoutPrefix()
+    {
+        var path = InjuryRecoveryPathDigest.ComposeCleared(["Ali Yılmaz"]);
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PreparationBriefing.Compose(
+                new ClubTrainingSummaryReadModel(
+                    1,
+                    (int)Domain.TrainingPhysicalState.TrainingFocus.Recovery,
+                    (int)Domain.TrainingPhysicalState.TrainingIntensity.Low,
+                    (int)Domain.TrainingPhysicalState.RestApproach.Heavy,
+                    null, null, null, 1, 20, 75, true, 0, 0),
+                new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+                "±0",
+                daysUntilNextMatch: 4),
+            LeagueWorldBriefing.Compose(
+                "Active",
+                8,
+                30,
+                8,
+                managedRank: 4,
+                managedPoints: 12,
+                managedPlayed: 8,
+                managedGoalDifference: 1,
+                managedClubName: "Home",
+                leaderClubName: "Leaders",
+                leaderPoints: 18,
+                nextMatchLine: null),
+            recoveryPath: path);
+
+        Assert.Contains(pulse.PulseLines, l => l.StartsWith("İyileşti", StringComparison.Ordinal));
+        Assert.DoesNotContain(pulse.PulseLines, l => l.StartsWith("İyileşme:", StringComparison.Ordinal));
     }
 }
