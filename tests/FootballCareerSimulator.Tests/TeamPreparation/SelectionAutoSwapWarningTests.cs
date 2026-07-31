@@ -40,6 +40,32 @@ public sealed class SelectionAutoSwapWarningTests
     }
 
     [Fact]
+    public void FormatHalfTimeKeyMoment_InsertsBetweenHalves()
+    {
+        Assert.Equal(
+            "46' Değişiklik · Ali Yılmaz↔Can Demir",
+            SelectionAutoSwapWarning.FormatHalfTimeKeyMoment("Ali Yılmaz", "Can Demir"));
+
+        Assert.Equal(
+            "46' Değişiklik · Ali Yılmaz↔Can Demir",
+            SelectionAutoSwapWarning.FormatHalfTimeKeyMomentFromBridge(
+                "Devre arasında Ali Yılmaz↔Can Demir."));
+
+        var beats = new List<string>
+        {
+            "12' Ev gol · X",
+            "33' Dep sarı kart · Y",
+            "67' Ev gol · Z",
+        };
+        SelectionAutoSwapWarning.InsertHalfTimeKeyMoment(
+            beats,
+            "46' Değişiklik · Ali Yılmaz↔Can Demir");
+
+        Assert.Equal("46' Değişiklik · Ali Yılmaz↔Can Demir", beats[2]);
+        Assert.Equal("67' Ev gol · Z", beats[3]);
+    }
+
+    [Fact]
     public void FormatToastSuffix_CompressesPairs()
     {
         var suffix = SelectionAutoSwapWarning.FormatToastSuffix(

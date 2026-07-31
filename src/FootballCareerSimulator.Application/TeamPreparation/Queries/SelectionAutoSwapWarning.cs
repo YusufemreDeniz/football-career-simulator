@@ -80,6 +80,62 @@ public static class SelectionAutoSwapWarning
         IReadOnlyList<string> playerNames) =>
         FormatHalfTimeBridge(NameOf(playerNames, outSlotIndex), NameOf(playerNames, inSlotIndex));
 
+    /// <summary>
+    /// Maç gecesi Anlar — HT değişimi anahtar anı.
+    /// </summary>
+    public static string FormatHalfTimeKeyMoment(string outPlayerName, string inPlayerName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outPlayerName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(inPlayerName);
+        return $"46' Değişiklik · {outPlayerName}↔{inPlayerName}";
+    }
+
+    public static string? FormatHalfTimeKeyMomentFromBridge(string? bridgeLine)
+    {
+        if (string.IsNullOrWhiteSpace(bridgeLine))
+        {
+            return null;
+        }
+
+        const string prefix = "Devre arasında ";
+        if (!bridgeLine.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            || !bridgeLine.Contains('↔', StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        var core = bridgeLine[prefix.Length..].Trim().TrimEnd('.');
+        return string.IsNullOrWhiteSpace(core)
+            ? null
+            : $"46' Değişiklik · {core}";
+    }
+
+    /// <summary>
+    /// İlk yarı anlarından sonra, ikinci yarıdan önce yerleştir.
+    /// </summary>
+    public static void InsertHalfTimeKeyMoment(IList<string> beatLines, string momentLine)
+    {
+        ArgumentNullException.ThrowIfNull(beatLines);
+        ArgumentException.ThrowIfNullOrWhiteSpace(momentLine);
+
+        var insertAt = 0;
+        for (var i = 0; i < beatLines.Count; i++)
+        {
+            var tick = beatLines[i].IndexOf('\'', StringComparison.Ordinal);
+            if (tick <= 0)
+            {
+                continue;
+            }
+
+            if (int.TryParse(beatLines[i].AsSpan(0, tick), out var minute) && minute < 46)
+            {
+                insertAt = i + 1;
+            }
+        }
+
+        beatLines.Insert(insertAt, momentLine);
+    }
+
     private static string NameOf(IReadOnlyList<string> playerNames, int slotIndex) =>
         slotIndex >= 0 && slotIndex < playerNames.Count
             ? playerNames[slotIndex]

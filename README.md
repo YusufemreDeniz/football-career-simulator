@@ -38,7 +38,7 @@ Komut, Presentation projesini zorunlu olarak yeniden derler ve güncel assembly 
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık** + **auto-swap** + **görsel XI şeridi** + **isimli XI↔Yedek** kilitlenmiştir (toast + sonuç/ofis köprüsü: `Devre arasında Ali↔Can`). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: maç gecesi “Anlar”da HT değişimini kısa anahtar an satırı olarak göstermek.
+İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık** + **auto-swap** + **görsel XI şeridi** + **isimli XI↔Yedek** kilitlenmiştir (toast + köprü + Anlar: `46' Değişiklik · Ali↔Can`). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: HT yaklaşım kararını da Anlar’a kısa satır olarak eklemek (`46' Hücuma geçtin`).
 
 ## Klasör Yapısı
 
