@@ -202,6 +202,47 @@ internal static class CareerUiTheme
         };
     }
 
+    public static StyleBoxFlat LineupChipPanel(bool isIn, bool isOut)
+    {
+        var bg = isOut
+            ? new Color(DangerSoft.R, DangerSoft.G, DangerSoft.B, 0.22f)
+            : isIn
+                ? new Color(Action.R, Action.G, Action.B, 0.28f)
+                : SurfaceSoft;
+        var ink = isOut ? DangerSoft : isIn ? Action : Ink;
+        return new StyleBoxFlat
+        {
+            BgColor = bg,
+            CornerRadiusTopLeft = 2,
+            CornerRadiusTopRight = 2,
+            CornerRadiusBottomRight = 2,
+            CornerRadiusBottomLeft = 2,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 5,
+            ContentMarginBottom = 5,
+            BorderWidthLeft = isIn || isOut ? 1 : 0,
+            BorderWidthTop = isIn || isOut ? 1 : 0,
+            BorderWidthRight = isIn || isOut ? 1 : 0,
+            BorderWidthBottom = isIn || isOut ? 1 : 0,
+            BorderColor = ink,
+        };
+    }
+
+    public static void StyleLineupChip(Label label, bool isIn, bool isOut)
+    {
+        EnsureLoaded();
+        if (_body is not null)
+        {
+            label.AddThemeFontOverride("font", _body);
+        }
+
+        label.AddThemeFontSizeOverride("font_size", 12);
+        label.AddThemeColorOverride(
+            "font_color",
+            isOut ? DangerSoft : isIn ? Action : Ink);
+    }
+
     private static StyleBoxFlat SolidButton(Color color) =>
         new()
         {

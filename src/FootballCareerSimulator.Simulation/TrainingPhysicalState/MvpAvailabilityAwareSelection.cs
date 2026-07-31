@@ -22,7 +22,22 @@ public static class MvpAvailabilityAwareSelection
         ClubId clubId,
         GameDate day,
         IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot,
-        ClubSquad? clubSquad = null)
+        ClubSquad? clubSquad = null) =>
+        TryPreviewPreferredStartingXi(clubId, day, physicalBySlot, clubSquad, out _, out var swaps)
+            ? swaps
+            : Array.Empty<AvailabilityAutoSwap>();
+
+    /// <summary>
+    /// Onayda seçilecek sakatsız XI + naive XI'ye göre auto-swap çiftleri.
+    /// Yeterli müsait yoksa false.
+    /// </summary>
+    public static bool TryPreviewPreferredStartingXi(
+        ClubId clubId,
+        GameDate day,
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot,
+        ClubSquad? clubSquad,
+        out IReadOnlyList<int> startingSlotIndices,
+        out IReadOnlyList<AvailabilityAutoSwap> swaps)
     {
         ArgumentNullException.ThrowIfNull(physicalBySlot);
 
@@ -31,32 +46,43 @@ public static class MvpAvailabilityAwareSelection
         var unavailable = new List<int>();
         PartitionByAvailability(clubId, day, candidateSlots, physicalBySlot, available, unavailable);
 
-        if (unavailable.Count == 0 || available.Count < MatchSelection.StartingXiSize)
+        if (available.Count < MatchSelection.StartingXiSize)
         {
-            return Array.Empty<AvailabilityAutoSwap>();
+            startingSlotIndices = Array.Empty<int>();
+            swaps = Array.Empty<AvailabilityAutoSwap>();
+            return false;
         }
 
-        var naiveStarting = candidateSlots.Take(MatchSelection.StartingXiSize).ToArray();
         var preferredStarting = available
             .Concat(unavailable)
             .Take(MatchSelection.StartingXiSize)
             .ToArray();
+        startingSlotIndices = preferredStarting;
 
+        if (unavailable.Count == 0)
+        {
+            swaps = Array.Empty<AvailabilityAutoSwap>();
+            return true;
+        }
+
+        var naiveStarting = candidateSlots.Take(MatchSelection.StartingXiSize).ToArray();
         var swappedOut = naiveStarting.Where(slot => !preferredStarting.Contains(slot)).ToArray();
         var swappedIn = preferredStarting.Where(slot => !naiveStarting.Contains(slot)).ToArray();
         var count = Math.Min(swappedOut.Length, swappedIn.Length);
         if (count == 0)
         {
-            return Array.Empty<AvailabilityAutoSwap>();
+            swaps = Array.Empty<AvailabilityAutoSwap>();
+            return true;
         }
 
-        var swaps = new AvailabilityAutoSwap[count];
+        var pairList = new AvailabilityAutoSwap[count];
         for (var i = 0; i < count; i++)
         {
-            swaps[i] = new AvailabilityAutoSwap(swappedOut[i], swappedIn[i]);
+            pairList[i] = new AvailabilityAutoSwap(swappedOut[i], swappedIn[i]);
         }
 
-        return swaps;
+        swaps = pairList;
+        return true;
     }
 
     public static void EnsureStartingXiAvailable(

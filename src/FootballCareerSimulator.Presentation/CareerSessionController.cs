@@ -707,6 +707,57 @@ public sealed class CareerSessionController
         return ComposePreMatchBriefing(currentDay, pending);
     }
 
+    public MatchDayLineupStrip BuildMatchDayLineupStrip()
+    {
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        if (pending is null)
+        {
+            return MatchDayLineupStrip.Clear();
+        }
+
+        var timeline = Host.WorldModule.TimelineStore.Timeline;
+        var clubId = new Domain.Shared.ClubId(pending.ManagedClubId);
+        var squad = Host.TeamPreparationModule.SquadStore.Get(clubId);
+        var names = MvpSquadRosterGenerator.GeneratePlayerNames(clubId, timeline.RootSeed);
+
+        if (!Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection
+                .TryPreviewPreferredStartingXi(
+                    clubId,
+                    timeline.CurrentDate,
+                    Host.TrainingModule.Store.PhysicalBySlot,
+                    squad,
+                    out var preferredStarting,
+                    out var swaps))
+        {
+            return new MatchDayLineupStrip(
+                true,
+                pending.IsApproved,
+                "XI şeridi — yeterli sağlıklı oyuncu yok.",
+                Array.Empty<MatchDayLineupChip>(),
+                Array.Empty<MatchDayLineupChip>());
+        }
+
+        IReadOnlyList<int> displayStarting = preferredStarting;
+        if (pending.IsApproved)
+        {
+            var approved = Host.TeamPreparationModule.SelectionQueries
+                .Get(pending.FixtureId, pending.ManagedClubId);
+            if (approved?.StartingSlotIndices is { Count: > 0 } starting)
+            {
+                displayStarting = starting;
+            }
+        }
+
+        return MatchDayLineupStrip.Compose(
+            hasMatch: true,
+            isApproved: pending.IsApproved,
+            displayStartingSlots: displayStarting,
+            swaps: swaps,
+            playerNames: names);
+    }
+
     public bool IsSeasonArchivePhase()
     {
         var season = Host.CompetitionModule.Queries.GetCurrentSeason();
@@ -2151,13 +2202,15 @@ public sealed class CareerSessionController
         var timeline = Host.WorldModule.TimelineStore.Timeline;
         var clubId = new Domain.Shared.ClubId(managedClubId);
         var squad = Host.TeamPreparationModule.SquadStore.Get(clubId);
-        var swaps = Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection
-            .PreviewDefaultAvailabilitySwaps(
-                clubId,
-                timeline.CurrentDate,
-                Host.TrainingModule.Store.PhysicalBySlot,
-                squad);
-        if (swaps.Count == 0)
+        if (!Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection
+                .TryPreviewPreferredStartingXi(
+                    clubId,
+                    timeline.CurrentDate,
+                    Host.TrainingModule.Store.PhysicalBySlot,
+                    squad,
+                    out _,
+                    out var swaps)
+            || swaps.Count == 0)
         {
             return Array.Empty<string>();
         }
