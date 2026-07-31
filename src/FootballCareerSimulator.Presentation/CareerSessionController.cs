@@ -41,6 +41,7 @@ public sealed class CareerSessionController
     private TrainingIntensity _trainingIntensity = TrainingIntensity.Medium;
     private RestApproach _trainingRest = RestApproach.Normal;
     private IReadOnlyList<string>? _pendingInjuryClearedNames;
+    private IReadOnlyList<string>? _pendingCleanXiBridgeNames;
 
     public CareerSessionController(CareerPresentationHost host)
     {
@@ -775,7 +776,8 @@ public sealed class CareerSessionController
             isApproved: pending.IsApproved,
             displayStartingSlots: displayStarting,
             swaps: swaps,
-            playerNames: names);
+            playerNames: names,
+            cleanReturnNames: ResolveCleanXiBridgeNames());
     }
 
     public bool IsSeasonArchivePhase()
@@ -2050,6 +2052,11 @@ public sealed class CareerSessionController
                 ? $" · kadro onayı düştü ({invalidatedTotal})"
                 : string.Empty;
             UpdateInjuryClearedCelebration(injuredBefore, SnapshotInjuredPlayerNames());
+            if (hasManaged && !kickoffBriefing.HasInjuryPressure)
+            {
+                _pendingCleanXiBridgeNames = null;
+            }
+
             return new PlayMatchesUiResult(
                 true,
                 $"{lines.Count} maç oynandı ({GameDate.FromDayNumber(currentDay).ToIsoDateString()}){invalidatedNote}.",
@@ -2315,7 +2322,8 @@ public sealed class CareerSessionController
             training.InjuredSlotCount,
             tension,
             training.InjuredNames,
-            BuildAutoSwapWarningLines(pending.ManagedClubId));
+            BuildAutoSwapWarningLines(pending.ManagedClubId),
+            cleanReturnNames: ResolveCleanXiBridgeNames(training.InjuredSlotCount));
     }
 
     private IReadOnlyList<string> BuildAutoSwapWarningLines(long managedClubId)
@@ -2384,6 +2392,7 @@ public sealed class CareerSessionController
         if (after.Count > 0)
         {
             _pendingInjuryClearedNames = null;
+            _pendingCleanXiBridgeNames = null;
             return;
         }
 
@@ -2391,7 +2400,26 @@ public sealed class CareerSessionController
             .Where(name => !after.Contains(name, StringComparer.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
-        _pendingInjuryClearedNames = recovered.Length > 0 ? recovered : null;
+        if (recovered.Length > 0)
+        {
+            _pendingInjuryClearedNames = recovered;
+            _pendingCleanXiBridgeNames = recovered;
+            return;
+        }
+
+        // Kutlama bir sonraki günde düşer; Temiz XI köprüsü ilk sakatsız maça kadar kalır.
+        _pendingInjuryClearedNames = null;
+    }
+
+    private IReadOnlyList<string>? ResolveCleanXiBridgeNames(int? injuredSlotCount = null)
+    {
+        if (_pendingCleanXiBridgeNames is not { Count: > 0 })
+        {
+            return null;
+        }
+
+        var injured = injuredSlotCount ?? GetTrainingSummary().InjuredSlotCount;
+        return injured > 0 ? null : _pendingCleanXiBridgeNames;
     }
 
     private void RecoverManagedInjuriesToCurrentDate()

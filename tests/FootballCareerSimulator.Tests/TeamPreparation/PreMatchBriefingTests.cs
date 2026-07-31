@@ -132,6 +132,25 @@ public sealed class PreMatchBriefingTests
         Assert.Contains(briefing.BeatLines, b => b.StartsWith("Söz:", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void CleanReturn_SurfacesTemizXiOnBriefingAndKickoff()
+    {
+        var briefing = PreMatchBriefing.Compose(
+            Fixture(approved: true, scheduledDay: 10),
+            "Rival FC",
+            currentDayNumber: 10,
+            cleanReturnNames: ["Tolga Kurt"]);
+
+        Assert.True(briefing.HasCleanReturn);
+        Assert.Contains("Temiz XI", briefing.Headline, StringComparison.Ordinal);
+        Assert.Contains(briefing.BeatLines, b => b.StartsWith("Temiz XI", StringComparison.Ordinal)
+            && b.Contains("Tolga Kurt", StringComparison.Ordinal));
+
+        var bridge = briefing.ToKickoffBridgeLines();
+        Assert.Contains(bridge, l => l.StartsWith("Temiz XI", StringComparison.Ordinal)
+            && l.Contains("sakatsız", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static ManagedFixtureSelectionStatusReadModel Fixture(bool approved, int scheduledDay) =>
         new(
             FixtureId: 100,

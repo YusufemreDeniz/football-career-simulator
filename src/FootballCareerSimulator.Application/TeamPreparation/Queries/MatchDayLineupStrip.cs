@@ -10,11 +10,16 @@ public sealed record MatchDayLineupStrip(
     bool IsApproved,
     string Caption,
     IReadOnlyList<MatchDayLineupChip> StartingXi,
-    IReadOnlyList<MatchDayLineupChip> OutPlayers)
+    IReadOnlyList<MatchDayLineupChip> OutPlayers,
+    IReadOnlyList<string>? CleanReturnNames = null)
 {
     public const string MarkerIn = "In";
     public const string MarkerOut = "Out";
     public const string MarkerNormal = "";
+
+    public IReadOnlyList<string> ReturnedNames => CleanReturnNames ?? Array.Empty<string>();
+
+    public bool HasCleanReturn => ReturnedNames.Count > 0 && OutPlayers.Count == 0;
 
     public static MatchDayLineupStrip Clear() =>
         new(
@@ -29,7 +34,8 @@ public sealed record MatchDayLineupStrip(
         bool isApproved,
         IReadOnlyList<int> displayStartingSlots,
         IReadOnlyList<MvpAvailabilityAwareSelection.AvailabilityAutoSwap> swaps,
-        IReadOnlyList<string> playerNames)
+        IReadOnlyList<string> playerNames,
+        IReadOnlyList<string>? cleanReturnNames = null)
     {
         if (!hasMatch)
         {
@@ -58,15 +64,30 @@ public sealed record MatchDayLineupStrip(
                 slot))
             .ToArray();
 
+        var returns = outs.Length == 0
+            ? cleanReturnNames ?? Array.Empty<string>()
+            : Array.Empty<string>();
+        var who = FormatReturnWho(returns);
+
         var caption = outs.Length == 0
-            ? isApproved
-                ? "Onaylı XI"
-                : "Taslak XI (onayla kilitle)"
+            ? returns.Count > 0
+                ? isApproved
+                    ? $"Temiz XI — {who} döndü"
+                    : $"Temiz XI (onayla) — {who} döndü"
+                : isApproved
+                    ? "Onaylı XI"
+                    : "Taslak XI (onayla kilitle)"
             : isApproved
                 ? $"Onaylı XI · {outs.Length} sakat dışarı"
                 : $"Taslak XI · onayda {outs.Length} sakat dışarı";
 
-        return new MatchDayLineupStrip(true, isApproved, caption, xi, outs);
+        return new MatchDayLineupStrip(
+            true,
+            isApproved,
+            caption,
+            xi,
+            outs,
+            returns.Count > 0 ? returns : null);
     }
 
     /// <summary>
@@ -75,9 +96,11 @@ public sealed record MatchDayLineupStrip(
     public string ResultBridgeCaption =>
         !HasMatch || StartingXi.Count == 0
             ? Caption
-            : OutPlayers.Count == 0
-                ? "Sahaya bu XI ile çıktın"
-                : $"Sahaya bu XI ile çıktın · {OutPlayers.Count} sakat dışarıda";
+            : HasCleanReturn
+                ? $"Sahaya temiz XI ile çıktın · {FormatReturnWho(ReturnedNames)} döndü"
+                : OutPlayers.Count == 0
+                    ? "Sahaya bu XI ile çıktın"
+                    : $"Sahaya bu XI ile çıktın · {OutPlayers.Count} sakat dışarıda";
 
     /// <summary>
     /// Devre arası — kim sahada, sakat hatırlatması.
@@ -85,13 +108,25 @@ public sealed record MatchDayLineupStrip(
     public string HalfTimeBridgeCaption =>
         !HasMatch || StartingXi.Count == 0
             ? Caption
-            : OutPlayers.Count == 0
-                ? "Sahadaki XI — bir değişiklik XI↔Yedek ile"
-                : $"Sahadaki XI · {OutPlayers.Count} sakat dışarıda — değişiklik düşün";
+            : HasCleanReturn
+                ? $"Temiz XI — {FormatReturnWho(ReturnedNames)} döndü; değişiklik yine XI↔Yedek"
+                : OutPlayers.Count == 0
+                    ? "Sahadaki XI — bir değişiklik XI↔Yedek ile"
+                    : $"Sahadaki XI · {OutPlayers.Count} sakat dışarıda — değişiklik düşün";
 
     public string? ResultBridgeBeatLine()
     {
-        if (!HasMatch || OutPlayers.Count == 0)
+        if (!HasMatch)
+        {
+            return null;
+        }
+
+        if (HasCleanReturn)
+        {
+            return $"Temiz XI: {FormatReturnWho(ReturnedNames)} döndü";
+        }
+
+        if (OutPlayers.Count == 0)
         {
             return null;
         }
@@ -101,6 +136,11 @@ public sealed record MatchDayLineupStrip(
         var inPart = ins.Any() ? " · " + string.Join(", ", ins) : string.Empty;
         return $"Böyle çıktın: {outs}{inPart}";
     }
+
+    private static string FormatReturnWho(IReadOnlyList<string> names) =>
+        names.Count == 0
+            ? "Sakatlar"
+            : string.Join(", ", names.Take(2).Select(ShortLast));
 
     private static string NameOf(IReadOnlyList<string> playerNames, int slotIndex) =>
         slotIndex >= 0 && slotIndex < playerNames.Count

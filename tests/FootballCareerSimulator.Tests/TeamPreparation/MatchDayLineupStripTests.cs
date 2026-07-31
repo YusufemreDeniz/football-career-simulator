@@ -70,4 +70,24 @@ public sealed class MatchDayLineupStripTests
         Assert.Contains("Sahadaki XI", strip.HalfTimeBridgeCaption, StringComparison.Ordinal);
         Assert.Contains("değişiklik düşün", strip.HalfTimeBridgeCaption, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void CleanReturn_MarksTemizXiBridge()
+    {
+        var names = Enumerable.Range(0, 25).Select(i => $"Oyuncu{i} Soyad{i}").ToArray();
+        var strip = MatchDayLineupStrip.Compose(
+            hasMatch: true,
+            isApproved: true,
+            displayStartingSlots: Enumerable.Range(0, 11).ToArray(),
+            swaps: Array.Empty<MvpAvailabilityAwareSelection.AvailabilityAutoSwap>(),
+            playerNames: names,
+            cleanReturnNames: ["Tolga Kurt"]);
+
+        Assert.True(strip.HasCleanReturn);
+        Assert.Contains("Temiz XI", strip.Caption, StringComparison.Ordinal);
+        Assert.Contains("Kurt", strip.Caption, StringComparison.Ordinal);
+        Assert.Contains("temiz XI", strip.ResultBridgeCaption, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Temiz XI:", strip.ResultBridgeBeatLine(), StringComparison.Ordinal);
+        Assert.Contains("Temiz XI", strip.HalfTimeBridgeCaption, StringComparison.Ordinal);
+    }
 }

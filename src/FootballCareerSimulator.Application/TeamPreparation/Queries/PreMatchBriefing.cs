@@ -13,9 +13,14 @@ public sealed record PreMatchBriefing(
     string Headline,
     string FixtureLine,
     IReadOnlyList<string> BeatLines,
-    bool HasInjuryPressure = false)
+    bool HasInjuryPressure = false,
+    IReadOnlyList<string>? CleanReturnNames = null)
 {
     public const string Brand = "Sıradaki Maç";
+
+    public IReadOnlyList<string> ReturnedNames => CleanReturnNames ?? Array.Empty<string>();
+
+    public bool HasCleanReturn => !HasInjuryPressure && ReturnedNames.Count > 0;
 
     public static PreMatchBriefing Clear() =>
         new(
@@ -39,7 +44,8 @@ public sealed record PreMatchBriefing(
         int injuredSlotCount = 0,
         PreMatchPromiseTensionReadModel? tension = null,
         IReadOnlyList<string>? injuredPlayerNames = null,
-        IReadOnlyList<string>? autoSwapWarningLines = null)
+        IReadOnlyList<string>? autoSwapWarningLines = null,
+        IReadOnlyList<string>? cleanReturnNames = null)
     {
         if (pending is null)
         {
@@ -66,9 +72,23 @@ public sealed record PreMatchBriefing(
         var ready = pending.IsApproved;
         var injuryPressure = injuredSlotCount > 0;
         var hasAutoSwap = autoSwapWarningLines is { Count: > 0 };
-        var headline = ResolveHeadline(ready, atRisk, onTrack, injuryPressure, hasAutoSwap);
+        var returns = !injuryPressure
+            ? cleanReturnNames ?? Array.Empty<string>()
+            : Array.Empty<string>();
+        var headline = ResolveHeadline(
+            ready,
+            atRisk,
+            onTrack,
+            injuryPressure,
+            hasAutoSwap,
+            hasCleanReturn: returns.Count > 0);
 
         var beats = new List<string>();
+        if (returns.Count > 0)
+        {
+            beats.Add("Temiz XI — " + FormatReturnWho(returns) + " döndü.");
+        }
+
         if (!ready)
         {
             beats.Add(injuryPressure
@@ -134,7 +154,8 @@ public sealed record PreMatchBriefing(
             headline,
             fixtureLine,
             beats,
-            HasInjuryPressure: injuryPressure);
+            HasInjuryPressure: injuryPressure,
+            CleanReturnNames: returns.Count > 0 ? returns : null);
     }
 
     public string ToDisplayText()
@@ -165,6 +186,10 @@ public sealed record PreMatchBriefing(
         {
             lines.Add("Maça sakatlık baskısıyla girdin.");
         }
+        else if (HasCleanReturn)
+        {
+            lines.Add($"Temiz XI — {FormatReturnWho(ReturnedNames)} döndü, sakatsız çıktın.");
+        }
         else if (HasPromiseRisk)
         {
             lines.Add("Maça söz riskiyle girdin.");
@@ -176,12 +201,19 @@ public sealed record PreMatchBriefing(
 
         foreach (var beat in BeatLines)
         {
-            if (beat.StartsWith("Sakat XI'de:", StringComparison.Ordinal)
+            if (beat.StartsWith("Temiz XI", StringComparison.Ordinal)
+                || beat.StartsWith("Sakat XI'de:", StringComparison.Ordinal)
                 || beat.StartsWith("Sakat:", StringComparison.Ordinal)
                 || beat.StartsWith("Taktik:", StringComparison.Ordinal)
                 || beat.StartsWith("Söz riski:", StringComparison.Ordinal)
                 || beat.StartsWith("XI yorgunluk", StringComparison.Ordinal))
             {
+                if (beat.StartsWith("Temiz XI", StringComparison.Ordinal)
+                    && lines.Any(l => l.StartsWith("Temiz XI", StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+
                 lines.Add(beat);
             }
 
@@ -194,12 +226,18 @@ public sealed record PreMatchBriefing(
         return lines.Take(4).ToArray();
     }
 
+    private static string FormatReturnWho(IReadOnlyList<string> names) =>
+        names.Count == 0
+            ? "Sakatlar"
+            : string.Join(", ", names.Take(2));
+
     private static string ResolveHeadline(
         bool approved,
         bool atRisk,
         bool onTrack,
         bool injuryPressure,
-        bool hasAutoSwap = false)
+        bool hasAutoSwap = false,
+        bool hasCleanReturn = false)
     {
         if (!approved)
         {
@@ -210,6 +248,11 @@ public sealed record PreMatchBriefing(
                     : "Sakatlık kadroyu düşürdü — sakatsız XI onayla.";
             }
 
+            if (hasCleanReturn)
+            {
+                return "Temiz XI hazır — dönenlerle kadroyu onayla.";
+            }
+
             return atRisk
                 ? "Kadro eksik ve söz riski var — önce XI'yi düzelt."
                 : "Henüz hazır değilsin — önce kadroyu onayla.";
@@ -218,6 +261,11 @@ public sealed record PreMatchBriefing(
         if (injuryPressure)
         {
             return "Sakatlar listede — XI'yi kontrol et.";
+        }
+
+        if (hasCleanReturn)
+        {
+            return "Temiz XI — iyileşenler döndü, sakatsız düdük.";
         }
 
         if (atRisk)
