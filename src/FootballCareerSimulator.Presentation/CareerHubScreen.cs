@@ -1773,9 +1773,6 @@ public partial class CareerHubScreen : Control
         var recoveryPath = _controller.BuildInjuryRecoveryPath();
         _recoveryPathLabel.Visible = recoveryPath.IsActive;
         _recoveryPathLabel.Text = recoveryPath.IsActive ? recoveryPath.ToDisplayText() : string.Empty;
-        _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest
-            .FromTodayPulse(pulse)
-            .ToDisplayText();
 
         var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         var pending = _controller.Host.TeamPreparationModule.SelectionQueries
@@ -1788,7 +1785,7 @@ public partial class CareerHubScreen : Control
         var prepSuggestion = prepBriefing.Suggestion;
         var leagueNextStep = _controller.BuildLeagueWorldBriefing().NextStep;
         var transferNextStep = _controller.BuildTransferDeskBriefing().NextStep;
-        BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
+        var nextStep = Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
             pulse.PrimaryFocusCode,
             hasDueUnapprovedMatch: dueUnapproved,
             hasDuePlayableMatch: duePlayable,
@@ -1801,7 +1798,11 @@ public partial class CareerHubScreen : Control
             transferNextStep: transferNextStep,
             hasInjuryPressure: prepBriefing.HasInjuryPressure,
             recoveryPath: recoveryPath,
-            weekStory: weekStory));
+            weekStory: weekStory);
+        _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest
+            .FromTodayPulse(pulse, weekMood, weekStory, nextStep?.ButtonLabel)
+            .ToDisplayText();
+        BindOfficeNextStep(nextStep);
     }
 
     private void RefreshSelectionStatus()

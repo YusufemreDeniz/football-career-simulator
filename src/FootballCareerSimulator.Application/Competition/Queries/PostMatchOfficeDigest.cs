@@ -116,13 +116,118 @@ public sealed record PostMatchOfficeDigest(
     }
 
     /// <summary>
-    /// Günlük Bugün ekranı — Ofiste metni nabızla aynı dili konuşsun.
+    /// Günlük Bugün ekranı — Ofiste metni nabız / Haftanın Hikâyesi / Havası ile aynı dili konuşsun.
     /// </summary>
-    public static PostMatchOfficeDigest FromTodayPulse(TodayPulseDigest pulse)
+    public static PostMatchOfficeDigest FromTodayPulse(
+        TodayPulseDigest pulse,
+        WeekMoodDigest? weekMood = null,
+        WeekStoryDigest? weekStory = null,
+        string? nextCtaLabel = null)
     {
         ArgumentNullException.ThrowIfNull(pulse);
+        weekMood ??= WeekMoodDigest.Clear();
+        weekStory ??= WeekStoryDigest.Clear();
+
+        if (weekStory.IsActive)
+        {
+            return FromWeekStoryPulse(weekStory, pulse, nextCtaLabel);
+        }
+
+        if (weekMood.IsActive)
+        {
+            return FromWeekMoodPulse(weekMood, pulse, nextCtaLabel);
+        }
+
         return Compose(narrative: null, DecisionDeskDigest.Clear(), hasManagedMatch: false, pulse);
     }
+
+    private static PostMatchOfficeDigest FromWeekStoryPulse(
+        WeekStoryDigest story,
+        TodayPulseDigest pulse,
+        string? nextCtaLabel)
+    {
+        var beats = new List<string> { $"Hikâye: {story.StoryLine}" };
+        if (!string.IsNullOrWhiteSpace(nextCtaLabel))
+        {
+            beats.Add($"Sıradaki: {nextCtaLabel}");
+        }
+        else if (string.Equals(pulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
+        {
+            beats.Add("Sıradaki: nabız sakin — 1 gün ilerlet");
+        }
+        else
+        {
+            beats.Add($"Sıradaki: {pulse.Headline}");
+        }
+
+        var advice = !string.IsNullOrWhiteSpace(nextCtaLabel)
+            ? $"Haftanın Hikâyesi sürüyor — birincil düğme: {nextCtaLabel}."
+            : "Haftanın Hikâyesi Bugün'de — sıradaki adımı uygula.";
+
+        return new(
+            Brand,
+            StoryOfficeHeadline(story),
+            advice,
+            pulse.PrimaryFocusCode,
+            beats);
+    }
+
+    private static PostMatchOfficeDigest FromWeekMoodPulse(
+        WeekMoodDigest mood,
+        TodayPulseDigest pulse,
+        string? nextCtaLabel)
+    {
+        var beats = new List<string> { mood.ToPulseLine() };
+        if (!string.IsNullOrWhiteSpace(nextCtaLabel))
+        {
+            beats.Add($"Sıradaki: {nextCtaLabel}");
+        }
+        else if (string.Equals(pulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
+        {
+            beats.Add("Sıradaki: nabız sakin — 1 gün ilerlet");
+        }
+        else
+        {
+            beats.Add($"Sıradaki: {pulse.Headline}");
+        }
+
+        var advice = !string.IsNullOrWhiteSpace(nextCtaLabel)
+            ? $"Hava tutuyor — birincil düğme: {nextCtaLabel}."
+            : AdviceForFocus(pulse.PrimaryFocusCode);
+
+        return new(
+            Brand,
+            MoodOfficeHeadline(mood),
+            advice,
+            pulse.PrimaryFocusCode,
+            beats);
+    }
+
+    private static string StoryOfficeHeadline(WeekStoryDigest story) => story.PhaseCode switch
+    {
+        WeekStoryDigest.PhaseInjury => "Haftanın hikâyesi — sakatlık baskısı.",
+        WeekStoryDigest.PhaseRecovery => "Haftanın hikâyesi — toparlanma yolu.",
+        WeekStoryDigest.PhaseXi => "Haftanın hikâyesi — sakatsız kadro.",
+        WeekStoryDigest.PhaseKickoff => "Haftanın hikâyesi — düdük sırada.",
+        WeekStoryDigest.PhaseCleared => "Haftanın hikâyesi — iyileşti.",
+        WeekStoryDigest.PhaseCleanXi => "Haftanın hikâyesi — temiz XI.",
+        WeekStoryDigest.PhaseVerdict => "Haftanın hikâyesi — ofis hükmü.",
+        _ => "Haftanın hikâyesi — Bugün'e bak.",
+    };
+
+    private static string MoodOfficeHeadline(WeekMoodDigest mood) => mood.MoodCode switch
+    {
+        WeekMoodDigest.MoodDesk => "Haftanın havası — masa konuşuyor.",
+        WeekMoodDigest.MoodPromise => "Haftanın havası — söz gerilimi.",
+        WeekMoodDigest.MoodMatchDraft => "Haftanın havası — kadro kilitlenmedi.",
+        WeekMoodDigest.MoodMatchReady => "Haftanın havası — düdük yakın.",
+        WeekMoodDigest.MoodPrep => "Haftanın havası — hazırlık çağırıyor.",
+        WeekMoodDigest.MoodLeague => "Haftanın havası — lig baskısı.",
+        WeekMoodDigest.MoodTransfer => "Haftanın havası — transfer sıcak.",
+        WeekMoodDigest.MoodCalmMatch => "Haftanın havası — sakin tempo.",
+        WeekMoodDigest.MoodCalm => "Haftanın havası — sakin hafta.",
+        _ => "Haftanın havası — ofise bak.",
+    };
 
     public static PostMatchOfficeDigest Compose(
         MatchNightNarrative? narrative,
