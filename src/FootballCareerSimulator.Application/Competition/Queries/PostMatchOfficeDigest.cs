@@ -116,6 +116,54 @@ public sealed record PostMatchOfficeDigest(
     }
 
     /// <summary>
+    /// Sakin havadan maç temposuna geçiş — Ofiste kısa flash köprüsü.
+    /// </summary>
+    public static PostMatchOfficeDigest? AfterMoodTempoShift(
+        string? previousMoodCode,
+        WeekMoodDigest nextMood,
+        string? nextCtaLabel = null)
+    {
+        ArgumentNullException.ThrowIfNull(nextMood);
+        if (!nextMood.IsActive)
+        {
+            return null;
+        }
+
+        var shift = WeekMoodTempoBridge.Resolve(previousMoodCode, nextMood.MoodCode);
+        if (shift is null)
+        {
+            return null;
+        }
+
+        var beats = new List<string> { nextMood.ToPulseLine() };
+        if (!string.IsNullOrWhiteSpace(nextCtaLabel))
+        {
+            beats.Add($"Sıradaki: {nextCtaLabel}");
+        }
+        else
+        {
+            beats.Add(nextMood.MoodCode switch
+            {
+                WeekMoodDigest.MoodMatchReady => "Sıradaki: Maç Gününe Git",
+                WeekMoodDigest.MoodMatchDraft => "Sıradaki: Kadro Onayla",
+                WeekMoodDigest.MoodPromise => "Sıradaki: XI↔Yedek kontrol",
+                _ => "Sıradaki: Bugün nabzına bak",
+            });
+        }
+
+        var advice = !string.IsNullOrWhiteSpace(nextCtaLabel)
+            ? $"{shift.AdviceLine.TrimEnd('.')} — birincil düğme: {nextCtaLabel}."
+            : shift.AdviceLine;
+
+        return new(
+            Brand,
+            shift.Headline,
+            advice,
+            shift.NextFocusCode,
+            beats);
+    }
+
+    /// <summary>
     /// Gün ilerletince sakin Ofis Notu yenilenince — status onayıyla aynı dilde kısa flash.
     /// </summary>
     public static PostMatchOfficeDigest AfterCalmNoteAdvance(

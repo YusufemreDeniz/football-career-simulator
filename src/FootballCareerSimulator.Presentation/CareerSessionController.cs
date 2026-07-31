@@ -2297,7 +2297,8 @@ public sealed class CareerSessionController
             var injuredBefore = SnapshotInjuredPlayerNames();
             var world = Host.WorldModule;
             var current = world.Queries.GetCurrentGameDate();
-            var noteBefore = OfficeCalmNote.Resolve(BuildWeekMood().MoodCode, current.DayNumber);
+            var moodBefore = BuildWeekMood();
+            var noteBefore = OfficeCalmNote.Resolve(moodBefore.MoodCode, current.DayNumber);
             var result = world.AdvanceSimulationTime.Handle(
                 new AdvanceSimulationTimeCommand(Guid.NewGuid(), current.DayNumber + dayCount));
 
@@ -2337,7 +2338,20 @@ public sealed class CareerSessionController
                     nextFocusCode: office.NextFocusCode);
             }
 
-            var noteAfter = OfficeCalmNote.Resolve(BuildWeekMood().MoodCode, day.DayNumber);
+            var moodAfter = BuildWeekMood();
+            var tempoOffice = PostMatchOfficeDigest.AfterMoodTempoShift(
+                moodBefore.MoodCode,
+                moodAfter);
+            if (tempoOffice is not null)
+            {
+                return UiActionResult.Ok(
+                    digest.ToStatusMessage() + "\n" + tempoOffice.Headline,
+                    digest,
+                    narrativeBridgeLine: tempoOffice.ToDisplayText(),
+                    nextFocusCode: tempoOffice.NextFocusCode);
+            }
+
+            var noteAfter = OfficeCalmNote.Resolve(moodAfter.MoodCode, day.DayNumber);
             var noteConfirm = OfficeCalmNote.ToAdvanceConfirmation(noteBefore, noteAfter);
             var message = digest.ToStatusMessage();
             if (!string.IsNullOrWhiteSpace(noteConfirm))

@@ -103,6 +103,42 @@ public sealed class PostMatchOfficeDigestTests
     }
 
     [Fact]
+    public void AfterMoodTempoShift_CalmToDraft_FlashesHavaAndSiradaki()
+    {
+        var next = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Maç kapıda — kadro henüz kilitlenmedi, tempo eksik.",
+            WeekMoodDigest.MoodMatchDraft);
+
+        var digest = PostMatchOfficeDigest.AfterMoodTempoShift(
+            WeekMoodDigest.MoodCalm,
+            next,
+            nextCtaLabel: "Kadro Onayla");
+
+        Assert.NotNull(digest);
+        Assert.Contains("Tempo yükseldi", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Hava:", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Kadro Onayla");
+        Assert.Equal(TodayPulseDigest.FocusMatch, digest.NextFocusCode);
+        Assert.Contains("Kadro Onayla", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AfterMoodTempoShift_NonTransition_ReturnsNull()
+    {
+        var next = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Sakin hafta — plan tutuyor, günü ilerlet.",
+            WeekMoodDigest.MoodCalm);
+
+        Assert.Null(PostMatchOfficeDigest.AfterMoodTempoShift(
+            WeekMoodDigest.MoodCalm,
+            next));
+    }
+
+    [Fact]
     public void AfterCalmNoteAdvance_FlashesRenewedNote()
     {
         var before = OfficeCalmNote.Resolve(WeekMoodDigest.MoodCalm, 12);

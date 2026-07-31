@@ -38,7 +38,7 @@ Komut, Presentation projesini zorunlu olarak yeniden derler ve güncel assembly 
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık / iyileşme yolu** + **auto-swap** + **görsel XI şeridi** kilitlenmiştir (Bugün ↔ Ofis: **Hikâye** / **Hava** / **Not** + “Sıradaki”; gün ilerlemede **Not yenilendi** + Ofis flash). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: sakin haftada tek satırlık staff fısıltısı (Bugün etiketi) veya Haftanın Havası değişince (Calm→Match) kısa tempo geçiş köprüsü.
+İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık / iyileşme yolu** + **auto-swap** + **görsel XI şeridi** kilitlenmiştir (Bugün ↔ Ofis: **Hikâye** / **Hava** / **Not** + “Sıradaki”; gün ilerlemede Not flash + **Calm→Match tempo köprüsü**). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: Kadro Onayla sonrası MatchDraft→MatchReady tempo köprüsünü onay anına bağlamak veya sakin haftada staff fısıltısı.
 
 ## Klasör Yapısı
 
