@@ -1,11 +1,13 @@
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Simulation.TeamPreparation;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 namespace FootballCareerSimulator.Application.TeamPreparation.Services;
@@ -61,13 +63,29 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
         var clubSquad = _squadStore?.Get(clubId);
 
         MatchSelection selection;
+        string? autoSwapSummary = null;
         if (_trainingStore is not null && _timelineStore is not null)
         {
+            var day = _timelineStore.Timeline.CurrentDate;
+            var physical = _trainingStore.PhysicalBySlot;
+            var swaps = MvpAvailabilityAwareSelection.PreviewDefaultAvailabilitySwaps(
+                clubId,
+                day,
+                physical,
+                clubSquad);
+            if (swaps.Count > 0)
+            {
+                var names = MvpSquadRosterGenerator.GeneratePlayerNames(
+                    clubId,
+                    _timelineStore.Timeline.RootSeed);
+                autoSwapSummary = SelectionAutoSwapWarning.FormatToastSuffix(swaps, names);
+            }
+
             selection = MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
                 fixtureId,
                 clubId,
-                _timelineStore.Timeline.CurrentDate,
-                _trainingStore.PhysicalBySlot,
+                day,
+                physical,
                 clubSquad);
         }
         else
@@ -81,7 +99,8 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
             true,
             command.FixtureId,
             command.ClubId,
-            nameof(MatchSelectionStatus.Approved));
+            nameof(MatchSelectionStatus.Approved),
+            autoSwapSummary);
 
         _completedCommands[command.CommandId] = result;
         return result;

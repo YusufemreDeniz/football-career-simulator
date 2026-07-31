@@ -87,6 +87,30 @@ public sealed class InjuryAvailabilityTests : IDisposable
     }
 
     [Fact]
+    public void PreviewDefaultAvailabilitySwaps_MapsInjuredStartersToReplacements()
+    {
+        var clubId = new ClubId(1);
+        var physical = new Dictionary<(long, int), PlayerPhysicalState>
+        {
+            [(1, 0)] = PlayerPhysicalState.CreateRested(clubId, 0)
+                .WithInjury(InjurySeverity.Serious, Day.AddDays(14)),
+            [(1, 1)] = PlayerPhysicalState.CreateRested(clubId, 1)
+                .WithInjury(InjurySeverity.Moderate, Day.AddDays(7)),
+        };
+
+        var swaps = MvpAvailabilityAwareSelection.PreviewDefaultAvailabilitySwaps(
+            clubId,
+            Day,
+            physical);
+
+        Assert.Equal(2, swaps.Count);
+        Assert.Equal(0, swaps[0].OutSlotIndex);
+        Assert.Equal(11, swaps[0].InSlotIndex);
+        Assert.Equal(1, swaps[1].OutSlotIndex);
+        Assert.Equal(12, swaps[1].InSlotIndex);
+    }
+
+    [Fact]
     public void UnavailableInXi_AppliesNegativeModifier()
     {
         var clubId = new ClubId(1);

@@ -145,7 +145,7 @@ public sealed class CareerSessionController
             var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
                 ?? throw new InvalidOperationException("Menajer kulübü yok.");
 
-            Host.TeamPreparationModule.ApproveDefaultSelection.Handle(
+            var approval = Host.TeamPreparationModule.ApproveDefaultSelection.Handle(
                 new ApproveDefaultMatchSelectionCommand(
                     Guid.NewGuid(),
                     pending.FixtureId,
@@ -153,8 +153,11 @@ public sealed class CareerSessionController
 
             var opponent = GetClubDisplayName(pending.OpponentClubId);
             var venue = pending.IsHome ? "ev sahibi" : "deplasman";
+            var swapNote = string.IsNullOrWhiteSpace(approval.AutoSwapSummary)
+                ? string.Empty
+                : $" · {approval.AutoSwapSummary}";
             return UiActionResult.Ok(
-                $"Kadro onaylandı: fikstür #{pending.FixtureId} · {venue} vs {opponent}.");
+                $"Kadro onaylandı: fikstür #{pending.FixtureId} · {venue} vs {opponent}{swapNote}.");
         }
         catch (Exception ex)
         {
@@ -2139,7 +2142,28 @@ public sealed class CareerSessionController
             training.HasPlan ? training.AverageFitness : null,
             training.InjuredSlotCount,
             tension,
-            training.InjuredNames);
+            training.InjuredNames,
+            BuildAutoSwapWarningLines(pending.ManagedClubId));
+    }
+
+    private IReadOnlyList<string> BuildAutoSwapWarningLines(long managedClubId)
+    {
+        var timeline = Host.WorldModule.TimelineStore.Timeline;
+        var clubId = new Domain.Shared.ClubId(managedClubId);
+        var squad = Host.TeamPreparationModule.SquadStore.Get(clubId);
+        var swaps = Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection
+            .PreviewDefaultAvailabilitySwaps(
+                clubId,
+                timeline.CurrentDate,
+                Host.TrainingModule.Store.PhysicalBySlot,
+                squad);
+        if (swaps.Count == 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        var names = MvpSquadRosterGenerator.GeneratePlayerNames(clubId, timeline.RootSeed);
+        return SelectionAutoSwapWarning.FormatBeatLines(swaps, names);
     }
 
     private string? BuildNextMatchHint(int currentDayNumber)

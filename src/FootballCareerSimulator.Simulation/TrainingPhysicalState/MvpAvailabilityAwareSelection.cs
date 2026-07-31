@@ -12,6 +12,53 @@ namespace FootballCareerSimulator.Simulation.TrainingPhysicalState;
 /// </summary>
 public static class MvpAvailabilityAwareSelection
 {
+    /// <summary>
+    /// Naive varsayılan XI ile uygunluk-öncelikli XI arasındaki otomatik değişimler
+    /// (dışarı itilen sakat → yerine giren müsait).
+    /// </summary>
+    public readonly record struct AvailabilityAutoSwap(int OutSlotIndex, int InSlotIndex);
+
+    public static IReadOnlyList<AvailabilityAutoSwap> PreviewDefaultAvailabilitySwaps(
+        ClubId clubId,
+        GameDate day,
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot,
+        ClubSquad? clubSquad = null)
+    {
+        ArgumentNullException.ThrowIfNull(physicalBySlot);
+
+        var candidateSlots = ResolveCandidateSlots(clubSquad);
+        var available = new List<int>();
+        var unavailable = new List<int>();
+        PartitionByAvailability(clubId, day, candidateSlots, physicalBySlot, available, unavailable);
+
+        if (unavailable.Count == 0 || available.Count < MatchSelection.StartingXiSize)
+        {
+            return Array.Empty<AvailabilityAutoSwap>();
+        }
+
+        var naiveStarting = candidateSlots.Take(MatchSelection.StartingXiSize).ToArray();
+        var preferredStarting = available
+            .Concat(unavailable)
+            .Take(MatchSelection.StartingXiSize)
+            .ToArray();
+
+        var swappedOut = naiveStarting.Where(slot => !preferredStarting.Contains(slot)).ToArray();
+        var swappedIn = preferredStarting.Where(slot => !naiveStarting.Contains(slot)).ToArray();
+        var count = Math.Min(swappedOut.Length, swappedIn.Length);
+        if (count == 0)
+        {
+            return Array.Empty<AvailabilityAutoSwap>();
+        }
+
+        var swaps = new AvailabilityAutoSwap[count];
+        for (var i = 0; i < count; i++)
+        {
+            swaps[i] = new AvailabilityAutoSwap(swappedOut[i], swappedIn[i]);
+        }
+
+        return swaps;
+    }
+
     public static void EnsureStartingXiAvailable(
         ClubId clubId,
         IReadOnlyList<int> startingSlotIndices,
@@ -62,26 +109,10 @@ public static class MvpAvailabilityAwareSelection
     {
         ArgumentNullException.ThrowIfNull(physicalBySlot);
 
-        var candidateSlots = clubSquad is not null && clubSquad.Members.Count > 0
-            ? clubSquad.Members.Select(m => m.SlotIndex).OrderBy(s => s).ToArray()
-            : Enumerable.Range(MatchSelection.MinSquadSlot, MatchSelection.MaxSquadSlot - MatchSelection.MinSquadSlot + 1)
-                .ToArray();
-
+        var candidateSlots = ResolveCandidateSlots(clubSquad);
         var available = new List<int>();
         var unavailable = new List<int>();
-
-        foreach (var slot in candidateSlots)
-        {
-            if (physicalBySlot.TryGetValue((clubId.Value, slot), out var state)
-                && !state.IsAvailableOn(day))
-            {
-                unavailable.Add(slot);
-            }
-            else
-            {
-                available.Add(slot);
-            }
-        }
+        PartitionByAvailability(clubId, day, candidateSlots, physicalBySlot, available, unavailable);
 
         if (available.Count < MatchSelection.StartingXiSize)
         {
@@ -98,6 +129,36 @@ public static class MvpAvailabilityAwareSelection
 
         EnsureStartingXiAvailable(clubId, starting, day, physicalBySlot);
         return MatchSelection.Approve(fixtureId, clubId, starting, bench, clubSquad);
+    }
+
+    private static int[] ResolveCandidateSlots(ClubSquad? clubSquad) =>
+        clubSquad is not null && clubSquad.Members.Count > 0
+            ? clubSquad.Members.Select(m => m.SlotIndex).OrderBy(s => s).ToArray()
+            : Enumerable.Range(
+                    MatchSelection.MinSquadSlot,
+                    MatchSelection.MaxSquadSlot - MatchSelection.MinSquadSlot + 1)
+                .ToArray();
+
+    private static void PartitionByAvailability(
+        ClubId clubId,
+        GameDate day,
+        IReadOnlyList<int> candidateSlots,
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot,
+        List<int> available,
+        List<int> unavailable)
+    {
+        foreach (var slot in candidateSlots)
+        {
+            if (physicalBySlot.TryGetValue((clubId.Value, slot), out var state)
+                && !state.IsAvailableOn(day))
+            {
+                unavailable.Add(slot);
+            }
+            else
+            {
+                available.Add(slot);
+            }
+        }
     }
 
     public static MatchSelection SwapStarterWithBench(

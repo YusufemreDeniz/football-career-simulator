@@ -137,11 +137,15 @@ public sealed record TodayPulseDigest(
 
         if (match.HasMatch && !match.IsReadyToKickOff)
         {
+            var autoSwapHint = match.BeatLines
+                .FirstOrDefault(b => b.StartsWith("Sakat XI'de:", StringComparison.Ordinal));
             return (
                 FocusMatch,
-                match.HasInjuryPressure
-                    ? "Sakatlık kadroyu düşürdü — sakatsız XI onayla."
-                    : "Maç kapıda — kadroyu kilitle.");
+                autoSwapHint is not null
+                    ? autoSwapHint
+                    : match.HasInjuryPressure
+                        ? "Sakatlık kadroyu düşürdü — sakatsız XI onayla."
+                        : "Maç kapıda — kadroyu kilitle.");
         }
 
         if (match is { HasMatch: true, HasInjuryPressure: true })

@@ -38,7 +38,7 @@ Komut, Presentation projesini zorunlu olarak yeniden derler ve güncel assembly 
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT karar → sonuç** + **sakatlık anı** + **isimli sakat nabız/XI/Hazırlık CTA** kilitlenmiştir (sakat isimleri nabızda; onay/maç günü/Toparlanma düğmeleri sakatlık diline geçer). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: sakat oyuncunun XI seçiminde kilitlenmesi / otomatik yedekle değiştirme uyarısı (onay öncesi).
+İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT karar → sonuç** + **sakatlık anı** + **isimli sakat nabız** + **onay öncesi sakat→yedek auto-swap uyarısı** kilitlenmiştir (brifing/CTA “Sakat XI'de: A — yerine B”; onay toast'ı değişimleri özetler; XI'de sakat engeli korunur). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: maç gününde sakat/yedek değişimini görsel XI şeridinde göstermek (kim çıktı / kim girdi).
 
 ## Klasör Yapısı
 

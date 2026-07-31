@@ -9,7 +9,8 @@ public sealed record ApproveDefaultMatchSelectionResult(
     bool Succeeded,
     long FixtureId,
     long ClubId,
-    string Status);
+    string Status,
+    string? AutoSwapSummary = null);
 
 public sealed record ApproveMatchSelectionCommand(
     Guid CommandId,

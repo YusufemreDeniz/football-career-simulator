@@ -1740,22 +1740,8 @@ public partial class CareerHubScreen : Control
         var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         var pending = _controller.Host.TeamPreparationModule.SelectionQueries
             .GetNextDueManagedFixture(currentDay);
-        var tension = _controller.Host.TeamPreparationModule.PromiseTension
-            .GetForNextDueMatch(currentDay);
-        var tactic = _controller.Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
-        var training = _controller.GetTrainingSummary();
 
-        var briefing = Application.TeamPreparation.Queries.PreMatchBriefing.Compose(
-            pending,
-            pending is null ? "—" : _controller.GetClubDisplayName(pending.OpponentClubId),
-            currentDay,
-            tactic.FormationName,
-            tactic.ApproachName,
-            training.HasPlan ? training.AverageFatigue : null,
-            training.HasPlan ? training.AverageFitness : null,
-            training.InjuredSlotCount,
-            tension,
-            training.InjuredNames);
+        var briefing = _controller.BuildNextMatchBriefing();
         _briefingLabel.Text = briefing.ToDisplayText();
         RefreshTodayPulse();
 
@@ -1767,9 +1753,13 @@ public partial class CareerHubScreen : Control
             return;
         }
 
+        var autoSwapHint = briefing.BeatLines
+            .FirstOrDefault(b => b.StartsWith("Sakat XI'de:", StringComparison.Ordinal));
         _selectionLabel.Text = pending.IsApproved
             ? "Kadro: onaylı — gerekirse XI↔Yedek ile dokun."
-            : "Kadro: onay gerekli — aşağıdaki butonlarla XI'yi kilitle.";
+            : autoSwapHint is not null
+                ? "Kadro: onayda sakatlar dışarı — " + autoSwapHint
+                : "Kadro: onay gerekli — aşağıdaki butonlarla XI'yi kilitle.";
         _approveSelectionButton.Disabled = pending.IsApproved;
         _swapSelectionButton.Disabled = false;
     }

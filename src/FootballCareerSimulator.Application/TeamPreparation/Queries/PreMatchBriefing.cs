@@ -38,7 +38,8 @@ public sealed record PreMatchBriefing(
         int? averageFitness = null,
         int injuredSlotCount = 0,
         PreMatchPromiseTensionReadModel? tension = null,
-        IReadOnlyList<string>? injuredPlayerNames = null)
+        IReadOnlyList<string>? injuredPlayerNames = null,
+        IReadOnlyList<string>? autoSwapWarningLines = null)
     {
         if (pending is null)
         {
@@ -64,18 +65,26 @@ public sealed record PreMatchBriefing(
 
         var ready = pending.IsApproved;
         var injuryPressure = injuredSlotCount > 0;
-        var headline = ResolveHeadline(ready, atRisk, onTrack, injuryPressure);
+        var hasAutoSwap = autoSwapWarningLines is { Count: > 0 };
+        var headline = ResolveHeadline(ready, atRisk, onTrack, injuryPressure, hasAutoSwap);
 
         var beats = new List<string>();
         if (!ready)
         {
             beats.Add(injuryPressure
-                ? "Sakatlık onayı düşürdü — sakatsız XI onayla."
+                ? hasAutoSwap
+                    ? "Onayda sakatlar otomatik dışarı — sakatsız XI kilitle."
+                    : "Sakatlık onayı düşürdü — sakatsız XI onayla."
                 : "Kadro onayı bekliyor — onaylamadan maç oynanmaz.");
         }
         else
         {
             beats.Add("Kadro onaylı.");
+        }
+
+        if (autoSwapWarningLines is { Count: > 0 })
+        {
+            beats.AddRange(autoSwapWarningLines.Take(2));
         }
 
         if (injuredPlayerNames is { Count: > 0 })
@@ -167,7 +176,8 @@ public sealed record PreMatchBriefing(
 
         foreach (var beat in BeatLines)
         {
-            if (beat.StartsWith("Sakat:", StringComparison.Ordinal)
+            if (beat.StartsWith("Sakat XI'de:", StringComparison.Ordinal)
+                || beat.StartsWith("Sakat:", StringComparison.Ordinal)
                 || beat.StartsWith("Taktik:", StringComparison.Ordinal)
                 || beat.StartsWith("Söz riski:", StringComparison.Ordinal)
                 || beat.StartsWith("XI yorgunluk", StringComparison.Ordinal))
@@ -184,13 +194,20 @@ public sealed record PreMatchBriefing(
         return lines.Take(4).ToArray();
     }
 
-    private static string ResolveHeadline(bool approved, bool atRisk, bool onTrack, bool injuryPressure)
+    private static string ResolveHeadline(
+        bool approved,
+        bool atRisk,
+        bool onTrack,
+        bool injuryPressure,
+        bool hasAutoSwap = false)
     {
         if (!approved)
         {
             if (injuryPressure)
             {
-                return "Sakatlık kadroyu düşürdü — sakatsız XI onayla.";
+                return hasAutoSwap
+                    ? "Sakatlar XI'den düşecek — onayda yedekler gelir."
+                    : "Sakatlık kadroyu düşürdü — sakatsız XI onayla.";
             }
 
             return atRisk
