@@ -1721,11 +1721,19 @@ public sealed class CareerSessionController
 
             if (_trainingFocus == TrainingFocus.Recovery)
             {
+                var training = GetTrainingSummary();
+                var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+                var pending = Host.TeamPreparationModule.SelectionQueries
+                    .GetNextDueManagedFixture(day);
                 var confirmation = PostMatchOfficeDigest.AfterRecoveryApplied(
-                    GetTrainingSummary().InjuredNames);
+                    training.InjuredNames,
+                    hasDueUnapprovedMatch: pending is { IsApproved: false },
+                    hasDuePlayableMatch: pending is { IsApproved: true },
+                    hasInjuryPressure: training.InjuredSlotCount > 0);
                 return UiActionResult.Ok(
-                    confirmation.Headline + "\n" + appliedLine,
-                    narrativeBridgeLine: confirmation.ToDisplayText());
+                    confirmation.Headline + "\n" + confirmation.AdviceLine + "\n" + appliedLine,
+                    narrativeBridgeLine: confirmation.ToDisplayText(),
+                    nextFocusCode: confirmation.NextFocusCode);
             }
 
             return UiActionResult.Ok(appliedLine);
@@ -2674,13 +2682,15 @@ public sealed record UiActionResult(
     bool Succeeded,
     string Message,
     TimeAdvanceDigest? Digest = null,
-    string? NarrativeBridgeLine = null)
+    string? NarrativeBridgeLine = null,
+    string? NextFocusCode = null)
 {
     public static UiActionResult Ok(
         string message,
         TimeAdvanceDigest? digest = null,
-        string? narrativeBridgeLine = null) =>
-        new(true, message, digest, narrativeBridgeLine);
+        string? narrativeBridgeLine = null,
+        string? nextFocusCode = null) =>
+        new(true, message, digest, narrativeBridgeLine, nextFocusCode);
 
     public static UiActionResult Fail(string message) => new(false, message);
 }

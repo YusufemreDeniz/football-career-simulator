@@ -989,6 +989,28 @@ public partial class CareerHubScreen : Control
         {
             _officeLabel.Text = result.NarrativeBridgeLine;
         }
+
+        if (!string.IsNullOrWhiteSpace(result.NextFocusCode))
+        {
+            BindOfficeNextStepForFocus(result.NextFocusCode);
+        }
+    }
+
+    private void BindOfficeNextStepForFocus(string focusCode)
+    {
+        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = _controller.Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        var blocker = _controller.BuildTimeAdvanceBlockerDigest();
+        var prepBriefing = _controller.BuildPreparationBriefing();
+        BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
+            focusCode,
+            hasDueUnapprovedMatch: pending is { IsApproved: false },
+            hasDuePlayableMatch: pending is { IsApproved: true },
+            canAdvanceDay: blocker.CanAdvance,
+            primaryBlockerCode: blocker.PrimaryBlockerCode,
+            prepSuggestion: prepBriefing.Suggestion,
+            hasInjuryPressure: prepBriefing.HasInjuryPressure));
     }
 
     private void OnLoadGamePressed()

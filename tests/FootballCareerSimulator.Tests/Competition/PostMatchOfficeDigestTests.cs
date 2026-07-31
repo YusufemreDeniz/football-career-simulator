@@ -18,11 +18,26 @@ public sealed class PostMatchOfficeDigestTests
 
         Assert.Equal(PostMatchOfficeDigest.Brand, digest.BrandTitle);
         Assert.Equal("Toparlanma işledi — sakatlar listede.", digest.Headline);
+        Assert.Equal(TodayPulseDigest.FocusCalm, digest.NextFocusCode);
         Assert.Contains(digest.BeatLines, b => b.StartsWith("Sakat:", StringComparison.Ordinal)
             && b.Contains("Tolga Kurt", StringComparison.Ordinal));
         Assert.Contains(digest.BeatLines, b => b.Contains("Toparlanma", StringComparison.Ordinal));
-        Assert.Contains("XI'de sakatı oynatma", digest.AdviceLine, StringComparison.Ordinal);
+        Assert.Contains(digest.BeatLines, b => b.Contains("nabız sakin", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("günü ilerlet", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Ofiste", digest.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AfterRecoveryApplied_WithDueUnapprovedMatch_HandsOffToXi()
+    {
+        var digest = PostMatchOfficeDigest.AfterRecoveryApplied(
+            ["Tolga Kurt"],
+            hasDueUnapprovedMatch: true,
+            hasInjuryPressure: true);
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, digest.NextFocusCode);
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Sakatsız Kadro Onayla");
+        Assert.Equal("Hazırlık oturdu — şimdi Sakatsız Kadro Onayla.", digest.AdviceLine);
     }
 
     [Fact]

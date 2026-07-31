@@ -20,10 +20,13 @@ public sealed record PostMatchOfficeDigest(
         new(Brand, "Ofis sakin — sıradaki güne bak.", "Bugün nabzına bak.", null, Array.Empty<string>());
 
     /// <summary>
-    /// Toparlanma CTA sonrası kısa onay — oyuncu planın işlediğini görsün.
+    /// Toparlanma CTA sonrası kısa onay — prep bitti, sıradaki maç/sakin nabız.
     /// </summary>
     public static PostMatchOfficeDigest AfterRecoveryApplied(
-        IReadOnlyList<string>? injuredPlayerNames = null)
+        IReadOnlyList<string>? injuredPlayerNames = null,
+        bool hasDueUnapprovedMatch = false,
+        bool hasDuePlayableMatch = false,
+        bool hasInjuryPressure = false)
     {
         var names = injuredPlayerNames ?? Array.Empty<string>();
         var beats = new List<string>
@@ -34,11 +37,34 @@ public sealed record PostMatchOfficeDigest(
             "Plan: Toparlanma / Hafif / Bol dinlenme",
         };
 
+        string nextFocus;
+        string advice;
+        if (hasDueUnapprovedMatch)
+        {
+            nextFocus = TodayPulseDigest.FocusMatch;
+            var cta = hasInjuryPressure ? "Sakatsız Kadro Onayla" : "Kadro Onayla";
+            beats.Add($"Sıradaki: {cta}");
+            advice = $"Hazırlık oturdu — şimdi {cta}.";
+        }
+        else if (hasDuePlayableMatch)
+        {
+            nextFocus = TodayPulseDigest.FocusMatch;
+            var cta = hasInjuryPressure ? "Maç Günü — XI Kontrol" : "Maç Gününe Git";
+            beats.Add($"Sıradaki: {cta}");
+            advice = $"Hazırlık oturdu — şimdi {cta}.";
+        }
+        else
+        {
+            nextFocus = TodayPulseDigest.FocusCalm;
+            beats.Add("Sıradaki: nabız sakin — 1 gün ilerlet");
+            advice = "Hazırlık oturdu — nabız sakin, günü ilerlet.";
+        }
+
         return new(
             Brand,
             "Toparlanma işledi — sakatlar listede.",
-            "XI'de sakatı oynatma; nabza bakıp günü ilerlet.",
-            null,
+            advice,
+            nextFocus,
             beats);
     }
 
