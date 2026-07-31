@@ -696,18 +696,24 @@ public sealed class CareerSessionController
             Host.InteractionModule.Queries.GetPending(take: 5),
             day);
         var match = BuildNextMatchBriefing();
+        var prep = BuildPreparationBriefing();
+        var league = BuildLeagueWorldBriefing();
+        var transfer = BuildTransferDeskBriefing();
         var recoveryPath = BuildInjuryRecoveryPath();
+        var weekStory = BuildWeekStory(match, recoveryPath);
+        var weekMood = BuildWeekMood(desk, match, prep, league, transfer, weekStory.IsActive);
         return TodayPulseDigest.Compose(
             desk,
             match,
-            BuildPreparationBriefing(),
-            BuildLeagueWorldBriefing(),
+            prep,
+            league,
             BuildSquadCapacityDigest(),
-            BuildTransferDeskBriefing(),
+            transfer,
             seasonTransitionReady: CanTransitionToNextSeason(),
             seasonArchivePhase: IsSeasonArchivePhase(),
             recoveryPath: recoveryPath,
-            weekStory: BuildWeekStory(match, recoveryPath));
+            weekStory: weekStory,
+            weekMood: weekMood);
     }
 
     public InjuryRecoveryPathDigest BuildInjuryRecoveryPath()
@@ -731,6 +737,26 @@ public sealed class CareerSessionController
             recoveryPath ?? BuildInjuryRecoveryPath(),
             match ?? BuildNextMatchBriefing(),
             closedArcVerdictBeat: _pendingWeekStoryClosure);
+
+    public WeekMoodDigest BuildWeekMood(
+        DecisionDeskDigest? desk = null,
+        PreMatchBriefing? match = null,
+        PreparationBriefing? prep = null,
+        LeagueWorldBriefing? league = null,
+        TransferDeskBriefing? transfer = null,
+        bool? weekStoryActive = null)
+    {
+        var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        desk ??= DecisionDeskDigest.Compose(
+            Host.InteractionModule.Queries.GetPending(take: 5),
+            day);
+        match ??= BuildNextMatchBriefing();
+        prep ??= BuildPreparationBriefing();
+        league ??= BuildLeagueWorldBriefing();
+        transfer ??= BuildTransferDeskBriefing();
+        var storyActive = weekStoryActive ?? BuildWeekStory(match).IsActive;
+        return WeekMoodDigest.Compose(desk, match, prep, league, transfer, storyActive);
+    }
 
     public PreMatchBriefing BuildNextMatchBriefing()
     {

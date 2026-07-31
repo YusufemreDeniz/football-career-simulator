@@ -1754,8 +1754,22 @@ public partial class CareerHubScreen : Control
         var pulse = _controller.BuildTodayPulse();
         _pulseLabel.Text = pulse.ToDisplayText();
         var weekStory = _controller.BuildWeekStory();
-        _weekStoryLabel.Visible = weekStory.IsActive;
-        _weekStoryLabel.Text = weekStory.IsActive ? weekStory.ToDisplayText() : string.Empty;
+        var weekMood = _controller.BuildWeekMood(weekStoryActive: weekStory.IsActive);
+        if (weekStory.IsActive)
+        {
+            _weekStoryLabel.Visible = true;
+            _weekStoryLabel.Text = weekStory.ToDisplayText();
+        }
+        else if (weekMood.IsActive)
+        {
+            _weekStoryLabel.Visible = true;
+            _weekStoryLabel.Text = weekMood.ToDisplayText();
+        }
+        else
+        {
+            _weekStoryLabel.Visible = false;
+            _weekStoryLabel.Text = string.Empty;
+        }
         var recoveryPath = _controller.BuildInjuryRecoveryPath();
         _recoveryPathLabel.Visible = recoveryPath.IsActive;
         _recoveryPathLabel.Text = recoveryPath.IsActive ? recoveryPath.ToDisplayText() : string.Empty;
