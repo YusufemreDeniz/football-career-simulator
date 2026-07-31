@@ -34,7 +34,7 @@ Alınan tüm kararların günlüğü için:
 run-game.cmd
 ```
 
-Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentation/CareerAppRoot.tscn`.
+Komut, Presentation projesini zorunlu olarak yeniden derler ve güncel assembly ile yeni bir oyun penceresi açar. Yalnız derleme doğrulaması için `run-game.cmd --build-only` kullanılabilir. Godot 4.7-stable mono gerekir. Ana sahne: `src/FootballCareerSimulator.Presentation/CareerAppRoot.tscn`.
 
 ## Sonraki Adımlar
 
