@@ -25,6 +25,7 @@ public partial class CareerHubScreen : Control
     private Label _relationshipLabel = null!;
     private Label _deskLabel = null!;
     private Label _officeLabel = null!;
+    private Label _recoveryPathLabel = null!;
     private Button _officeNextStepButton = null!;
     private HubPage _officeNextStepTarget = HubPage.Today;
     private string _officeNextStepAction = Application.CareerHub.Queries.OfficeNextStepGuide.ActionNavigate;
@@ -386,6 +387,10 @@ public partial class CareerHubScreen : Control
         page.AddChild(SectionTitle("Günün Nabzı"));
         _pulseLabel = BodyLabel("PulseLabel", autowrap: true);
         page.AddChild(_pulseLabel);
+
+        _recoveryPathLabel = BodyLabel("RecoveryPathLabel", autowrap: true);
+        _recoveryPathLabel.Visible = false;
+        page.AddChild(_recoveryPathLabel);
 
         _officeNextStepButton = PrimaryButton("Sıradaki Adım");
         _officeNextStepButton.Visible = false;
@@ -1010,7 +1015,8 @@ public partial class CareerHubScreen : Control
             canAdvanceDay: blocker.CanAdvance,
             primaryBlockerCode: blocker.PrimaryBlockerCode,
             prepSuggestion: prepBriefing.Suggestion,
-            hasInjuryPressure: prepBriefing.HasInjuryPressure));
+            hasInjuryPressure: prepBriefing.HasInjuryPressure,
+            recoveryPath: _controller.BuildInjuryRecoveryPath()));
     }
 
     private void OnLoadGamePressed()
@@ -1748,6 +1754,9 @@ public partial class CareerHubScreen : Control
     {
         var pulse = _controller.BuildTodayPulse();
         _pulseLabel.Text = pulse.ToDisplayText();
+        var recoveryPath = _controller.BuildInjuryRecoveryPath();
+        _recoveryPathLabel.Visible = recoveryPath.IsActive;
+        _recoveryPathLabel.Text = recoveryPath.IsActive ? recoveryPath.ToDisplayText() : string.Empty;
         _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest
             .FromTodayPulse(pulse)
             .ToDisplayText();
@@ -1774,7 +1783,8 @@ public partial class CareerHubScreen : Control
             prepSuggestion: prepSuggestion,
             leagueNextStep: leagueNextStep,
             transferNextStep: transferNextStep,
-            hasInjuryPressure: prepBriefing.HasInjuryPressure));
+            hasInjuryPressure: prepBriefing.HasInjuryPressure,
+            recoveryPath: recoveryPath));
     }
 
     private void RefreshSelectionStatus()

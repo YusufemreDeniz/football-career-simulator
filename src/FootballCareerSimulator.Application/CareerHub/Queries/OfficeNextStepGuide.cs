@@ -88,7 +88,8 @@ public static class OfficeNextStepGuide
         PrepPlanSuggestion? prepSuggestion = null,
         LeagueNextStep? leagueNextStep = null,
         TransferNextStep? transferNextStep = null,
-        bool hasInjuryPressure = false)
+        bool hasInjuryPressure = false,
+        InjuryRecoveryPathDigest? recoveryPath = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(focusCode);
 
@@ -101,6 +102,12 @@ public static class OfficeNextStepGuide
                 hasInjuryPressure);
             if (unblock is not null)
             {
+                // İyileşme 1/3: engel kadro dese bile önce Toparlanma.
+                if (recoveryPath is { IsActive: true, CurrentStepCode: InjuryRecoveryPathDigest.StepRecovery })
+                {
+                    return ResolveRecoveryPathStep(recoveryPath, canAdvanceDay);
+                }
+
                 return unblock;
             }
         }
@@ -113,6 +120,15 @@ public static class OfficeNextStepGuide
                 TargetToday,
                 TodayPulseDigest.FocusSeason,
                 ActionTransitionSeason);
+        }
+
+        if (recoveryPath is { IsActive: true })
+        {
+            var recoveryStep = ResolveRecoveryPathStep(recoveryPath, canAdvanceDay);
+            if (recoveryStep is not null)
+            {
+                return recoveryStep;
+            }
         }
 
         if (string.Equals(focusCode, TodayPulseDigest.FocusPrep, StringComparison.Ordinal)
@@ -186,6 +202,36 @@ public static class OfficeNextStepGuide
         }
 
         return Resolve(focusCode);
+    }
+
+    private static OfficeNextStep? ResolveRecoveryPathStep(
+        InjuryRecoveryPathDigest recoveryPath,
+        bool canAdvanceDay)
+    {
+        return recoveryPath.CurrentStepCode switch
+        {
+            InjuryRecoveryPathDigest.StepRecovery => new OfficeNextStep(
+                PrepPlanSuggestion.RecoveryPlan().ButtonLabel,
+                TargetPrep,
+                TodayPulseDigest.FocusPrep,
+                ActionApplyPrepSuggestion),
+            InjuryRecoveryPathDigest.StepXi => new OfficeNextStep(
+                "Sakatsız Kadro Onayla",
+                TargetToday,
+                TodayPulseDigest.FocusMatch,
+                ActionApproveSelection),
+            InjuryRecoveryPathDigest.StepKickoff => new OfficeNextStep(
+                "Maç Gününe Git",
+                TargetToday,
+                TodayPulseDigest.FocusMatch,
+                ActionOpenMatchDay),
+            InjuryRecoveryPathDigest.StepHold when canAdvanceDay => new OfficeNextStep(
+                "1 Gün İlerlet",
+                TargetToday,
+                TodayPulseDigest.FocusCalm,
+                ActionAdvanceDay),
+            _ => null,
+        };
     }
 
     private static OfficeNextStep? ResolveBlocker(

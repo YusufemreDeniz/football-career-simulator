@@ -33,7 +33,8 @@ public sealed record TodayPulseDigest(
         SquadCapacityDigest? squad = null,
         TransferDeskBriefing? transfer = null,
         bool seasonTransitionReady = false,
-        bool seasonArchivePhase = false)
+        bool seasonArchivePhase = false,
+        InjuryRecoveryPathDigest? recoveryPath = null)
     {
         ArgumentNullException.ThrowIfNull(desk);
         ArgumentNullException.ThrowIfNull(match);
@@ -42,8 +43,14 @@ public sealed record TodayPulseDigest(
 
         squad ??= SquadCapacityDigest.Unemployed();
         transfer ??= TransferDeskBriefing.Unemployed();
+        recoveryPath ??= InjuryRecoveryPathDigest.Clear();
 
         var lines = new List<string>();
+        if (recoveryPath.IsActive)
+        {
+            lines.Add($"İyileşme: {recoveryPath.Headline}");
+        }
+
         if (desk.HasOpenDecision)
         {
             lines.Add($"Masada: {desk.Headline}");

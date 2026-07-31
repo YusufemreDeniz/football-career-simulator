@@ -206,6 +206,71 @@ public sealed class OfficeNextStepGuideTests
     }
 
     [Fact]
+    public void RecoveryPathStepOne_OverridesMatchApproveCta()
+    {
+        var path = InjuryRecoveryPathDigest.Compose(
+            hasInjuryPressure: true,
+            injuredPlayerNames: ["Tolga Kurt"],
+            isOnRecoveryPlan: false,
+            hasDueMatch: true,
+            isMatchApproved: false);
+
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusMatch,
+            hasDueUnapprovedMatch: true,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: false,
+            primaryBlockerCode: TimeAdvanceBlockerDigest.CodeUnplayedFixtures,
+            hasInjuryPressure: true,
+            recoveryPath: path);
+
+        Assert.Equal(OfficeNextStepGuide.ActionApplyPrepSuggestion, step!.ActionCode);
+        Assert.Equal("Toparlanma Uygula", step.ButtonLabel);
+    }
+
+    [Fact]
+    public void RecoveryPathStepTwo_ApprovesInjuryAwareXi()
+    {
+        var path = InjuryRecoveryPathDigest.Compose(
+            hasInjuryPressure: true,
+            injuredPlayerNames: ["Tolga Kurt"],
+            isOnRecoveryPlan: true,
+            hasDueMatch: true,
+            isMatchApproved: false);
+
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusCalm,
+            hasDueUnapprovedMatch: true,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            recoveryPath: path);
+
+        Assert.Equal(OfficeNextStepGuide.ActionApproveSelection, step!.ActionCode);
+        Assert.Equal("Sakatsız Kadro Onayla", step.ButtonLabel);
+    }
+
+    [Fact]
+    public void RecoveryPathStepThree_OpensMatchDay()
+    {
+        var path = InjuryRecoveryPathDigest.Compose(
+            hasInjuryPressure: true,
+            injuredPlayerNames: ["Tolga Kurt"],
+            isOnRecoveryPlan: true,
+            hasDueMatch: true,
+            isMatchApproved: true);
+
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusLeague,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: true,
+            canAdvanceDay: true,
+            recoveryPath: path);
+
+        Assert.Equal(OfficeNextStepGuide.ActionOpenMatchDay, step!.ActionCode);
+        Assert.Equal("Maç Gününe Git", step.ButtonLabel);
+    }
+
+    [Fact]
     public void LeagueSurvival_RoutesPrimaryCtaToToday()
     {
         var step = OfficeNextStepGuide.ResolveFromPulse(

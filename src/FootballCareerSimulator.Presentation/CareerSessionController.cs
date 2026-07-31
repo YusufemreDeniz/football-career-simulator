@@ -698,7 +698,21 @@ public sealed class CareerSessionController
             BuildSquadCapacityDigest(),
             BuildTransferDeskBriefing(),
             seasonTransitionReady: CanTransitionToNextSeason(),
-            seasonArchivePhase: IsSeasonArchivePhase());
+            seasonArchivePhase: IsSeasonArchivePhase(),
+            recoveryPath: BuildInjuryRecoveryPath());
+    }
+
+    public InjuryRecoveryPathDigest BuildInjuryRecoveryPath()
+    {
+        var prep = BuildPreparationBriefing();
+        var match = BuildNextMatchBriefing();
+        var training = GetTrainingSummary();
+        return InjuryRecoveryPathDigest.Compose(
+            hasInjuryPressure: prep.HasInjuryPressure,
+            injuredPlayerNames: prep.InjuredNames,
+            isOnRecoveryPlan: training.Focus == (int)TrainingFocus.Recovery,
+            hasDueMatch: match.HasMatch,
+            isMatchApproved: match.IsReadyToKickOff);
     }
 
     public PreMatchBriefing BuildNextMatchBriefing()
