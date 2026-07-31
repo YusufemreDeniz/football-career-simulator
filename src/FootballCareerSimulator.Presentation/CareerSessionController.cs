@@ -1928,6 +1928,16 @@ public sealed class CareerSessionController
                     heroManagedIsHome = fixture.HomeClubId == managedClubId;
                     heroTacticNote = tacticNote;
                     beatLines.AddRange(FormatMatchKeyMomentBeats(result));
+                    var halfTimeDecisionMoment = MatchHalfTimeDigest
+                        .FormatDecisionKeyMoment(halfTimeDecisionLabel);
+                    if (!string.IsNullOrWhiteSpace(halfTimeDecisionMoment))
+                    {
+                        SelectionAutoSwapWarning.InsertHalfTimeKeyMoment(
+                            beatLines,
+                            halfTimeDecisionMoment);
+                        keyMomentLines.Add($"{scoreline} · {halfTimeDecisionMoment}");
+                    }
+
                     var halfTimeMoment = SelectionAutoSwapWarning
                         .FormatHalfTimeKeyMomentFromBridge(halfTimeSubstitutionLabel);
                     if (!string.IsNullOrWhiteSpace(halfTimeMoment))

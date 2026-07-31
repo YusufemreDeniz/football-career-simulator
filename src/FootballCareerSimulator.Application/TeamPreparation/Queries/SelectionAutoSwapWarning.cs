@@ -127,7 +127,8 @@ public static class SelectionAutoSwapWarning
                 continue;
             }
 
-            if (int.TryParse(beatLines[i].AsSpan(0, tick), out var minute) && minute < 46)
+            // <= 46: peş peşe HT satırları (karar sonra değişiklik) üst üste binebilsin.
+            if (int.TryParse(beatLines[i].AsSpan(0, tick), out var minute) && minute <= 46)
             {
                 insertAt = i + 1;
             }

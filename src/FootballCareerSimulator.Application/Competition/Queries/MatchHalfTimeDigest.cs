@@ -75,6 +75,34 @@ public sealed record MatchHalfTimeDigest(
         return $"{BrandTitle}\n{Headline}\n{Scoreline}{beats}\nÖneri: {AdviceLine}";
     }
 
+    /// <summary>
+    /// Maç gecesi Anlar — HT yaklaşım kararı.
+    /// </summary>
+    public static string? FormatDecisionKeyMoment(string? decisionLabel)
+    {
+        if (string.IsNullOrWhiteSpace(decisionLabel))
+        {
+            return null;
+        }
+
+        if (decisionLabel.Contains("hücuma", StringComparison.OrdinalIgnoreCase))
+        {
+            return "46' Karar · Hücuma geçtin";
+        }
+
+        if (decisionLabel.Contains("savunmaya", StringComparison.OrdinalIgnoreCase))
+        {
+            return "46' Karar · Savunmaya çektin";
+        }
+
+        if (decisionLabel.Contains("aynı plan", StringComparison.OrdinalIgnoreCase))
+        {
+            return "46' Karar · Aynı plan";
+        }
+
+        return null;
+    }
+
     private static (string Headline, string Advice) ResolveAdvice(int managedGoals, int opponentGoals)
     {
         if (managedGoals > opponentGoals)

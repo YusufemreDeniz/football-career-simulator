@@ -59,10 +59,14 @@ public sealed class SelectionAutoSwapWarningTests
         };
         SelectionAutoSwapWarning.InsertHalfTimeKeyMoment(
             beats,
+            "46' Karar · Hücuma geçtin");
+        SelectionAutoSwapWarning.InsertHalfTimeKeyMoment(
+            beats,
             "46' Değişiklik · Ali Yılmaz↔Can Demir");
 
-        Assert.Equal("46' Değişiklik · Ali Yılmaz↔Can Demir", beats[2]);
-        Assert.Equal("67' Ev gol · Z", beats[3]);
+        Assert.Equal("46' Karar · Hücuma geçtin", beats[2]);
+        Assert.Equal("46' Değişiklik · Ali Yılmaz↔Can Demir", beats[3]);
+        Assert.Equal("67' Ev gol · Z", beats[4]);
     }
 
     [Fact]
