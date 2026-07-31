@@ -10,6 +10,7 @@ public partial class MatchHalfTimeScreen : Control
 {
     private readonly CareerSessionController _controller;
     private readonly MatchHalfTimeDigest _digest;
+    private Control _lineupHost = null!;
     private Label _statusLabel = null!;
     private bool _subMade;
 
@@ -102,6 +103,11 @@ public partial class MatchHalfTimeScreen : Control
             shell.AddChild(line);
         }
 
+        shell.AddChild(SectionLabel("Sahadaki XI"));
+        _lineupHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        shell.AddChild(_lineupHost);
+        RefreshLineupStrip();
+
         shell.AddChild(SectionLabel("İkinci yarı kararı"));
         var decisionRow = ActionRow();
         shell.AddChild(decisionRow);
@@ -143,8 +149,36 @@ public partial class MatchHalfTimeScreen : Control
         var result = _controller.SwapLastStarterWithFirstBenchForNextDueMatch();
         _subMade = result.Succeeded || _subMade;
         _statusLabel.Text = _subMade
-            ? result.Message + "\nDeğişiklik ikinci yarıya yansır."
+            ? result.Message + "\nDeğişiklik ikinci yarıya yansır — XI şeridi güncellendi."
             : result.Message;
+        if (result.Succeeded)
+        {
+            RefreshLineupStrip();
+        }
+    }
+
+    private void RefreshLineupStrip()
+    {
+        foreach (var child in _lineupHost.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        var strip = _controller.BuildMatchDayLineupStrip();
+        if (!strip.HasMatch || strip.StartingXi.Count == 0)
+        {
+            var empty = new Label
+            {
+                Text = strip.Caption,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            CareerUiTheme.StyleBody(empty, muted: true);
+            _lineupHost.AddChild(empty);
+            return;
+        }
+
+        _lineupHost.AddChild(LineupStripUi.BuildPanel(strip, strip.HalfTimeBridgeCaption));
     }
 
     private Button DecisionButton(string text, int delta)

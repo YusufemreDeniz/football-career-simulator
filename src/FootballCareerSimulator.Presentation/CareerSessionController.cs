@@ -1773,12 +1773,27 @@ public sealed class CareerSessionController
             season.SeasonId,
             pending.FixtureId,
             currentDay);
-        return MatchHalfTimeDigest.Compose(
+        var digest = MatchHalfTimeDigest.Compose(
             preview.HomeClubName,
             preview.AwayClubName,
             preview.HomeGoals,
             preview.AwayGoals,
             preview.ManagedIsHome);
+        var strip = BuildMatchDayLineupStrip();
+        if (strip.OutPlayers.Count > 0)
+        {
+            var outs = string.Join(
+                ", ",
+                strip.OutPlayers.Take(2).Select(c => c.DisplayName));
+            return digest with
+            {
+                BeatLines = digest.BeatLines
+                    .Append($"Sakat dışarıda: {outs} — değişiklik düşün.")
+                    .ToArray(),
+            };
+        }
+
+        return digest;
     }
 
     public PlayMatchesUiResult PlayDueMatches(

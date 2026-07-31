@@ -67,5 +67,7 @@ public sealed class MatchDayLineupStripTests
         Assert.Contains(strip.OutPlayers, c => c.SlotIndex == 0 && c.IsOut);
         Assert.Contains("Sahaya bu XI ile çıktın", strip.ResultBridgeCaption, StringComparison.Ordinal);
         Assert.Contains("Böyle çıktın:", strip.ResultBridgeBeatLine(), StringComparison.Ordinal);
+        Assert.Contains("Sahadaki XI", strip.HalfTimeBridgeCaption, StringComparison.Ordinal);
+        Assert.Contains("değişiklik düşün", strip.HalfTimeBridgeCaption, StringComparison.OrdinalIgnoreCase);
     }
 }

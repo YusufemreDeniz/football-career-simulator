@@ -79,6 +79,16 @@ public sealed record MatchDayLineupStrip(
                 ? "Sahaya bu XI ile çıktın"
                 : $"Sahaya bu XI ile çıktın · {OutPlayers.Count} sakat dışarıda";
 
+    /// <summary>
+    /// Devre arası — kim sahada, sakat hatırlatması.
+    /// </summary>
+    public string HalfTimeBridgeCaption =>
+        !HasMatch || StartingXi.Count == 0
+            ? Caption
+            : OutPlayers.Count == 0
+                ? "Sahadaki XI — bir değişiklik XI↔Yedek ile"
+                : $"Sahadaki XI · {OutPlayers.Count} sakat dışarıda — değişiklik düşün";
+
     public string? ResultBridgeBeatLine()
     {
         if (!HasMatch || OutPlayers.Count == 0)
