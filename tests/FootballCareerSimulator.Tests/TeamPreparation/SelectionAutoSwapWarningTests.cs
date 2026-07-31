@@ -32,6 +32,14 @@ public sealed class SelectionAutoSwapWarningTests
     }
 
     [Fact]
+    public void FormatHalfTimeBridge_NamesSwapForResultKickoff()
+    {
+        Assert.Equal(
+            "Devre arasında Ali Yılmaz↔Can Demir.",
+            SelectionAutoSwapWarning.FormatHalfTimeBridge("Ali Yılmaz", "Can Demir"));
+    }
+
+    [Fact]
     public void FormatToastSuffix_CompressesPairs()
     {
         var suffix = SelectionAutoSwapWarning.FormatToastSuffix(

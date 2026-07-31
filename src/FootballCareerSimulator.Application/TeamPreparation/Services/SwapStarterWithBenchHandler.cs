@@ -81,12 +81,14 @@ public sealed class SwapStarterWithBenchHandler : ICommandIdempotencyReset
         _selectionStore.Upsert(swapped);
 
         string? swapSummary = null;
+        string? halfTimeBridge = null;
         if (_timelineStore is not null)
         {
             var names = MvpSquadRosterGenerator.GeneratePlayerNames(
                 clubId,
                 _timelineStore.Timeline.RootSeed);
             swapSummary = SelectionAutoSwapWarning.FormatSubstitution(outSlot, inSlot, names);
+            halfTimeBridge = SelectionAutoSwapWarning.FormatHalfTimeBridge(outSlot, inSlot, names);
         }
 
         var result = new SwapStarterWithBenchResult(
@@ -97,7 +99,8 @@ public sealed class SwapStarterWithBenchHandler : ICommandIdempotencyReset
             swapped.BenchSlotIndices,
             outSlot,
             inSlot,
-            swapSummary);
+            swapSummary,
+            halfTimeBridge);
         _completedCommands[command.CommandId] = result;
         return result;
     }

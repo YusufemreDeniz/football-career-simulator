@@ -58,6 +58,15 @@ public sealed record PostMatchOfficeDigest(
             beats.Add(nightDecision);
         }
 
+        var halfTimeSub = narrative.KickoffLines
+            .Concat(narrative.AfterWhistleLines)
+            .FirstOrDefault(line => line.Contains('↔', StringComparison.Ordinal));
+        if (!string.IsNullOrWhiteSpace(halfTimeSub)
+            && !string.Equals(halfTimeSub, nightDecision, StringComparison.Ordinal))
+        {
+            beats.Add(halfTimeSub);
+        }
+
         foreach (var line in narrative.AfterWhistleLines.Take(4))
         {
             if (line.Contains("Devre arasında", StringComparison.OrdinalIgnoreCase))

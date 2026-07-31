@@ -42,4 +42,5 @@ public sealed record SwapStarterWithBenchResult(
     IReadOnlyList<int> BenchSlotIndices,
     int OutSlotIndex = -1,
     int InSlotIndex = -1,
-    string? SwapSummary = null);
+    string? SwapSummary = null,
+    string? HalfTimeBridgeLine = null);

@@ -82,6 +82,29 @@ public sealed class MatchNightNarrativeTests
     }
 
     [Fact]
+    public void PreferKickoffBridgeLines_KeepsHalfTimeDecisionAndSub()
+    {
+        var preferred = MatchNightNarrative.PreferKickoffBridgeLines(
+            [
+                "Ev vs B · bugün",
+                "Maça söz riskiyle girdin.",
+                "Taktik: 4-3-3",
+                "XI yorgunluk 40 · fitness 70",
+                "Sakat: Ali",
+                "Devre arası: A 0-1 B",
+                "Devre arasında hücuma geçtin.",
+                "Devre arasında Ali Yılmaz↔Can Demir.",
+            ],
+            maxLines: 6);
+
+        Assert.Equal(6, preferred.Count);
+        Assert.Equal("Ev vs B · bugün", preferred[0]);
+        Assert.Contains(preferred, l => l.Contains("hücuma", StringComparison.Ordinal));
+        Assert.Contains(preferred, l => l.Contains('↔'));
+        Assert.Contains(preferred, l => l.StartsWith("Devre arası:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Compose_CarriesLineupBridgeForResultScreen()
     {
         var names = Enumerable.Range(0, 25).Select(i => $"P{i} N{i}").ToArray();

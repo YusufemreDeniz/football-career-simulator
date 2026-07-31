@@ -96,6 +96,36 @@ public sealed class PostMatchOfficeDigestTests
     }
 
     [Fact]
+    public void HalfTimeSubstitution_SurfacesNamedBridgeBeat()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 1-0 B",
+            1,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 10,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni +1 → 55 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines:
+            [
+                "Ev vs B · bugün",
+                "Devre arasında hücuma geçtin.",
+                "Devre arasında Ali Yılmaz↔Can Demir.",
+            ]);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Contains(digest.BeatLines, b => b.Contains("hücuma", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(digest.BeatLines, b => b.Contains('↔'));
+    }
+
+    [Fact]
     public void LineupBridge_SurfacesBöyleÇıktınBeat()
     {
         var names = Enumerable.Range(0, 25).Select(i => $"Ali{i} Demir{i}").ToArray();

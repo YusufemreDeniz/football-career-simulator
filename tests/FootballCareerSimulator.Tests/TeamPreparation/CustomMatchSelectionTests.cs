@@ -130,6 +130,9 @@ public sealed class CustomMatchSelectionTests
         Assert.False(string.IsNullOrWhiteSpace(swapped.SwapSummary));
         Assert.Contains("çıktı", swapped.SwapSummary!, StringComparison.Ordinal);
         Assert.Contains("XI'ye girdi", swapped.SwapSummary!, StringComparison.Ordinal);
+        Assert.False(string.IsNullOrWhiteSpace(swapped.HalfTimeBridgeLine));
+        Assert.StartsWith("Devre arasında", swapped.HalfTimeBridgeLine!, StringComparison.Ordinal);
+        Assert.Contains("↔", swapped.HalfTimeBridgeLine!, StringComparison.Ordinal);
     }
 
     [Fact]

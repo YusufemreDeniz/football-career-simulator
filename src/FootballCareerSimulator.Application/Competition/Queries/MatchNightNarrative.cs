@@ -64,12 +64,45 @@ public sealed record MatchNightNarrative(
             beatLines,
             afterWhistleLines.Take(3).ToArray(),
             otherScorelines,
-            kickoffLines is null || kickoffLines.Count == 0
-                ? Array.Empty<string>()
-                : kickoffLines.Take(4).ToArray(),
+            PreferKickoffBridgeLines(kickoffLines),
             hasManagedMatch && lineupBridge is { StartingXi.Count: > 0 }
                 ? lineupBridge
                 : null);
+    }
+
+    /// <summary>
+    /// HT karar/değişim satırlarını kesmeden köprüye sığdır (en fazla 6).
+    /// </summary>
+    public static IReadOnlyList<string> PreferKickoffBridgeLines(
+        IReadOnlyList<string>? kickoffLines,
+        int maxLines = 6)
+    {
+        if (kickoffLines is null || kickoffLines.Count == 0 || maxLines <= 0)
+        {
+            return Array.Empty<string>();
+        }
+
+        if (kickoffLines.Count <= maxLines)
+        {
+            return kickoffLines.ToArray();
+        }
+
+        static bool IsHalfTimeLine(string line) =>
+            line.StartsWith("Devre arası", StringComparison.OrdinalIgnoreCase)
+            || line.StartsWith("Devre arasında", StringComparison.OrdinalIgnoreCase);
+
+        var preferred = kickoffLines.Where(IsHalfTimeLine).ToList();
+        var rest = kickoffLines.Where(line => !IsHalfTimeLine(line)).ToList();
+        var ordered = new List<string>();
+        if (rest.Count > 0)
+        {
+            ordered.Add(rest[0]);
+            rest.RemoveAt(0);
+        }
+
+        ordered.AddRange(preferred);
+        ordered.AddRange(rest);
+        return ordered.Take(maxLines).ToArray();
     }
 
     public static string ToneForManaged(

@@ -94,7 +94,7 @@ public partial class CareerAppRoot : Control
     {
         var panel = new MatchHalfTimeScreen(controller, digest);
         panel.BackRequested += () => ShowMatchDay(controller);
-        panel.SecondHalfRequested += delta =>
+        panel.SecondHalfRequested += (delta, substitutionBridge) =>
         {
             var decisionLabel = delta switch
             {
@@ -107,7 +107,8 @@ public partial class CareerAppRoot : Control
             var results = controller.PlayDueMatches(
                 managedSecondHalfDelta: delta,
                 halfTime: digest,
-                halfTimeDecisionLabel: decisionLabel);
+                halfTimeDecisionLabel: decisionLabel,
+                halfTimeSubstitutionLabel: substitutionBridge);
             if (results.Succeeded && results.MatchLines.Count > 0)
             {
                 ShowMatchResults(controller, results);

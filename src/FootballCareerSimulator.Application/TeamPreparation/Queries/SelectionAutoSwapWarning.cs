@@ -64,6 +64,22 @@ public static class SelectionAutoSwapWarning
         IReadOnlyList<string> playerNames) =>
         FormatSubstitution(NameOf(playerNames, outSlotIndex), NameOf(playerNames, inSlotIndex));
 
+    /// <summary>
+    /// Sonuç köprüsü — HT değişimi.
+    /// </summary>
+    public static string FormatHalfTimeBridge(string outPlayerName, string inPlayerName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outPlayerName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(inPlayerName);
+        return $"Devre arasında {outPlayerName}↔{inPlayerName}.";
+    }
+
+    public static string FormatHalfTimeBridge(
+        int outSlotIndex,
+        int inSlotIndex,
+        IReadOnlyList<string> playerNames) =>
+        FormatHalfTimeBridge(NameOf(playerNames, outSlotIndex), NameOf(playerNames, inSlotIndex));
+
     private static string NameOf(IReadOnlyList<string> playerNames, int slotIndex) =>
         slotIndex >= 0 && slotIndex < playerNames.Count
             ? playerNames[slotIndex]

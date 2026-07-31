@@ -13,10 +13,12 @@ public partial class MatchHalfTimeScreen : Control
     private Control _lineupHost = null!;
     private Label _statusLabel = null!;
     private bool _subMade;
+    private string? _substitutionBridgeLine;
 
     public event Action? BackRequested;
 
-    public event Action<int>? SecondHalfRequested;
+    /// <summary>İkinci yarı delta + isteğe bağlı isimli HT değişim köprüsü.</summary>
+    public event Action<int, string?>? SecondHalfRequested;
 
     public MatchHalfTimeScreen(CareerSessionController controller, MatchHalfTimeDigest digest)
     {
@@ -148,6 +150,11 @@ public partial class MatchHalfTimeScreen : Control
     {
         var result = _controller.SwapLastStarterWithFirstBenchForNextDueMatch();
         _subMade = result.Succeeded || _subMade;
+        if (result.Succeeded && !string.IsNullOrWhiteSpace(result.NarrativeBridgeLine))
+        {
+            _substitutionBridgeLine = result.NarrativeBridgeLine;
+        }
+
         _statusLabel.Text = _subMade
             ? result.Message + "\nDeğişiklik ikinci yarıya yansır — XI şeridi güncellendi."
             : result.Message;
@@ -185,7 +192,8 @@ public partial class MatchHalfTimeScreen : Control
     {
         var button = PrimaryButton(text);
         button.Pressed += () =>
-            Callable.From(() => SecondHalfRequested?.Invoke(delta)).CallDeferred();
+            Callable.From(() => SecondHalfRequested?.Invoke(delta, _substitutionBridgeLine))
+                .CallDeferred();
         return button;
     }
 

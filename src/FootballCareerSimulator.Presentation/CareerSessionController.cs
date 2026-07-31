@@ -187,7 +187,9 @@ public sealed class CareerSessionController
             var summary = string.IsNullOrWhiteSpace(result.SwapSummary)
                 ? $"slot {result.OutSlotIndex} ↔ {result.InSlotIndex}"
                 : result.SwapSummary;
-            return UiActionResult.Ok($"Değişiklik: {summary}.");
+            return UiActionResult.Ok(
+                $"Değişiklik: {summary}.",
+                narrativeBridgeLine: result.HalfTimeBridgeLine);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -1799,7 +1801,8 @@ public sealed class CareerSessionController
     public PlayMatchesUiResult PlayDueMatches(
         int managedSecondHalfDelta = 0,
         MatchHalfTimeDigest? halfTime = null,
-        string? halfTimeDecisionLabel = null)
+        string? halfTimeDecisionLabel = null,
+        string? halfTimeSubstitutionLabel = null)
     {
         try
         {
@@ -1834,6 +1837,11 @@ public sealed class CareerSessionController
             if (!string.IsNullOrWhiteSpace(halfTimeDecisionLabel))
             {
                 kickoffLines.Add(halfTimeDecisionLabel);
+            }
+
+            if (!string.IsNullOrWhiteSpace(halfTimeSubstitutionLabel))
+            {
+                kickoffLines.Add(halfTimeSubstitutionLabel);
             }
 
             // Maç sonrası sakatlık invalidate etmeden önce XI köprüsünü yakala.
@@ -1921,6 +1929,11 @@ public sealed class CareerSessionController
                     heroTacticNote = tacticNote;
                     beatLines.AddRange(FormatMatchKeyMomentBeats(result));
                     afterWhistle.AddRange(FormatMatchAfterWhistle(result));
+                    if (!string.IsNullOrWhiteSpace(halfTimeSubstitutionLabel))
+                    {
+                        afterWhistle.Insert(0, halfTimeSubstitutionLabel);
+                    }
+
                     if (!string.IsNullOrWhiteSpace(halfTimeDecisionLabel))
                     {
                         afterWhistle.Insert(0, halfTimeDecisionLabel);
@@ -2625,10 +2638,14 @@ public sealed class CareerSessionController
 public sealed record UiActionResult(
     bool Succeeded,
     string Message,
-    TimeAdvanceDigest? Digest = null)
+    TimeAdvanceDigest? Digest = null,
+    string? NarrativeBridgeLine = null)
 {
-    public static UiActionResult Ok(string message, TimeAdvanceDigest? digest = null) =>
-        new(true, message, digest);
+    public static UiActionResult Ok(
+        string message,
+        TimeAdvanceDigest? digest = null,
+        string? narrativeBridgeLine = null) =>
+        new(true, message, digest, narrativeBridgeLine);
 
     public static UiActionResult Fail(string message) => new(false, message);
 }
