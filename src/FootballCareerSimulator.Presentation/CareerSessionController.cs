@@ -2302,7 +2302,8 @@ public sealed class CareerSessionController
             results.Narrative,
             desk,
             hasManaged,
-            BuildTodayPulse());
+            BuildTodayPulse(),
+            halfTimeNoteLine: results.Report?.HalfTimeNoteLine);
     }
 
     public UiActionResult CompleteSeason()

@@ -121,8 +121,12 @@ public sealed class PostMatchOfficeDigestTests
             DecisionDeskDigest.Clear(),
             hasManagedMatch: true);
 
-        Assert.Contains(digest.BeatLines, b => b.Contains("hücuma", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(digest.BeatLines, b => b.Contains('↔'));
+        Assert.Contains(
+            digest.BeatLines,
+            b => b == "Devre arası: Hücuma geçtin · Ali Yılmaz↔Can Demir");
+        Assert.Single(
+            digest.BeatLines,
+            b => b.StartsWith("Devre arası:", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -264,8 +268,40 @@ public sealed class PostMatchOfficeDigestTests
 
         Assert.Equal(TodayPulseDigest.FocusPrep, digest.NextFocusCode);
         Assert.Contains("Hücum riski", digest.Headline, StringComparison.Ordinal);
-        Assert.Contains(digest.BeatLines, b => b.StartsWith("Gece kararı:", StringComparison.Ordinal));
+        Assert.Contains(
+            digest.BeatLines,
+            b => b == "Devre arası: Hücuma geçtin");
         Assert.Contains("Hazırlık", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExplicitHalfTimeNoteLine_PrefersReportWording()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-1 B",
+            2,
+            1,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 9,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni +1 → 58 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines: ["Devre arasında hücuma geçtin."]);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true,
+            halfTimeNoteLine: "Devre arası: Savunmaya çektin · Efe↔Mert");
+
+        Assert.Contains(
+            digest.BeatLines,
+            b => b == "Devre arası: Savunmaya çektin · Efe↔Mert");
+        Assert.DoesNotContain(
+            digest.BeatLines,
+            b => b.Contains("Hücuma", StringComparison.OrdinalIgnoreCase));
     }
 
     private static PreparationBriefing PrepOk() =>

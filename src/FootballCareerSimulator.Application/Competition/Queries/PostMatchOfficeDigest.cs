@@ -31,7 +31,8 @@ public sealed record PostMatchOfficeDigest(
         MatchNightNarrative? narrative,
         DecisionDeskDigest desk,
         bool hasManagedMatch,
-        TodayPulseDigest? nextPulse = null)
+        TodayPulseDigest? nextPulse = null,
+        string? halfTimeNoteLine = null)
     {
         ArgumentNullException.ThrowIfNull(desk);
 
@@ -52,19 +53,12 @@ public sealed record PostMatchOfficeDigest(
         }
 
         var beats = new List<string>();
-        var nightDecision = ExtractNightDecision(narrative);
-        if (!string.IsNullOrWhiteSpace(nightDecision))
+        var halfTimeNote = !string.IsNullOrWhiteSpace(halfTimeNoteLine)
+            ? halfTimeNoteLine
+            : ExtractHalfTimeNote(narrative);
+        if (!string.IsNullOrWhiteSpace(halfTimeNote))
         {
-            beats.Add(nightDecision);
-        }
-
-        var halfTimeSub = narrative.KickoffLines
-            .Concat(narrative.AfterWhistleLines)
-            .FirstOrDefault(line => line.Contains('↔', StringComparison.Ordinal));
-        if (!string.IsNullOrWhiteSpace(halfTimeSub)
-            && !string.Equals(halfTimeSub, nightDecision, StringComparison.Ordinal))
-        {
-            beats.Add(halfTimeSub);
+            beats.Add(halfTimeNote);
         }
 
         foreach (var line in narrative.AfterWhistleLines.Take(4))
@@ -108,7 +102,7 @@ public sealed record PostMatchOfficeDigest(
         if (hasInjury)
         {
             focusCode = TodayPulseDigest.FocusPrep;
-            advice = string.IsNullOrWhiteSpace(nightDecision)
+            advice = string.IsNullOrWhiteSpace(halfTimeNote)
                 ? "Hazırlık Masası — sakat kadroyu toparla."
                 : "Gece kararı sakatlık getirdi — Hazırlık'ta toparlan.";
         }
@@ -116,7 +110,7 @@ public sealed record PostMatchOfficeDigest(
         {
             focusCode = nextPulse.PrimaryFocusCode;
             advice = AdviceForFocus(nextPulse.PrimaryFocusCode);
-            if (!string.IsNullOrWhiteSpace(nightDecision)
+            if (!string.IsNullOrWhiteSpace(halfTimeNote)
                 && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
             {
                 advice = "Gece kararını hatırla — nabız sakinse günü ilerlet.";
@@ -131,8 +125,8 @@ public sealed record PostMatchOfficeDigest(
 
         var headline = ResolveHeadline(narrative, desk, nextPulse);
         if (hasInjury
-            && !string.IsNullOrWhiteSpace(nightDecision)
-            && nightDecision.Contains("hücuma", StringComparison.OrdinalIgnoreCase))
+            && !string.IsNullOrWhiteSpace(halfTimeNote)
+            && halfTimeNote.Contains("Hücuma", StringComparison.OrdinalIgnoreCase))
         {
             headline = "Hücum riski pahalıya patladı — sakatlık var.";
         }
@@ -146,13 +140,17 @@ public sealed record PostMatchOfficeDigest(
         || narrative.BeatLines.Any(line =>
             line.Contains("sakatlık", StringComparison.OrdinalIgnoreCase));
 
-    private static string? ExtractNightDecision(MatchNightNarrative narrative)
+    /// <summary>
+    /// Raporla aynı dil — tek satır HT hatırlatması.
+    /// </summary>
+    private static string? ExtractHalfTimeNote(MatchNightNarrative narrative)
     {
-        var line = narrative.KickoffLines
-            .Concat(narrative.AfterWhistleLines)
-            .FirstOrDefault(candidate =>
-                candidate.Contains("Devre arasında", StringComparison.OrdinalIgnoreCase));
-        return line is null ? null : $"Gece kararı: {line}";
+        var lines = narrative.KickoffLines.Concat(narrative.AfterWhistleLines).ToArray();
+        var decision = lines.FirstOrDefault(line =>
+            MatchHalfTimeDigest.FormatDecisionKeyMoment(line) is not null);
+        var substitution = lines.FirstOrDefault(line =>
+            line.Contains('↔', StringComparison.Ordinal));
+        return MatchReportDigest.ComposeHalfTimeNote(decision, substitution);
     }
 
     public string ToStatusMessage()
