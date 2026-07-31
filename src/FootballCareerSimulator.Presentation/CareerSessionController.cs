@@ -2709,7 +2709,9 @@ public sealed class CareerSessionController
     {
         try
         {
-            var result = Host.GameSession.Save(Host.DefaultSavePath);
+            var result = Host.GameSession.Save(
+                Host.DefaultSavePath,
+                CaptureHubNarrativeUiState());
             var desk = BuildSaveDeskDigest();
             return UiActionResult.Ok(
                 $"Kayıt Masası\nKariyer diske işlendi — gün {result.SavedDayNumber}, {result.SavedFixtureCount} maç."
@@ -2734,6 +2736,7 @@ public sealed class CareerSessionController
             }
 
             var result = Host.GameSession.Load(Host.DefaultSavePath);
+            ApplyHubNarrativeUiState(result.HubNarrativeUiState);
             LastCareerResume = BuildCareerResumeDigest(
                 result.WasMigrated,
                 result.LoadedFixtureCount);
@@ -2744,6 +2747,22 @@ public sealed class CareerSessionController
             LastCareerResume = null;
             return UiActionResult.Fail($"Yükleme hatası: {ex.Message}");
         }
+    }
+
+    public HubNarrativeUiState CaptureHubNarrativeUiState() =>
+        HubNarrativeUiState.Compose(
+            _pendingWeekStoryClosure,
+            _weekStoryClosureDismissOnNextAdvance,
+            _pendingCleanXiBridgeNames,
+            _pendingInjuryClearedNames);
+
+    public void ApplyHubNarrativeUiState(HubNarrativeUiState? state)
+    {
+        state ??= HubNarrativeUiState.Empty;
+        _pendingWeekStoryClosure = state.WeekStoryClosureBeat;
+        _weekStoryClosureDismissOnNextAdvance = state.WeekStoryDismissOnNextAdvance;
+        _pendingCleanXiBridgeNames = state.CleanXiNames.Count > 0 ? state.CleanXiNames : null;
+        _pendingInjuryClearedNames = state.InjuryClearedNames.Count > 0 ? state.InjuryClearedNames : null;
     }
 
     public CareerResumeDigest BuildCareerResumeDigest(bool wasMigrated, int loadedFixtureCount)

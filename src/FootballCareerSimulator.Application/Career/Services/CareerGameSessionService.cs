@@ -2,6 +2,7 @@ namespace FootballCareerSimulator.Application.Career.Services;
 
 using FootballCareerSimulator.Application.Career.Commands;
 using FootballCareerSimulator.Application.Career.Ports;
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
@@ -110,7 +111,9 @@ public sealed class CareerGameSessionService
         _scheduledEvaluationStore = scheduledEvaluationStore;
     }
 
-    public SaveCareerGameResult Save(string filePath)
+    public SaveCareerGameResult Save(
+        string filePath,
+        HubNarrativeUiState? hubNarrativeUiState = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
@@ -146,7 +149,8 @@ public sealed class CareerGameSessionService
             _dialogueSessionStore.Sessions,
             _disciplinaryActionStore.Actions,
             _eventEffectRegistry?.SnapshotKeys(),
-            _scheduledEvaluationStore?.Items);
+            _scheduledEvaluationStore?.Items,
+            hubNarrativeUiState);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -201,6 +205,7 @@ public sealed class CareerGameSessionService
             SavePath: filePath,
             LoadedDayNumber: loaded.Timeline.CurrentDate.DayNumber,
             LoadedFixtureCount: fixtureCount,
-            WasMigrated: loaded.WasMigrated);
+            WasMigrated: loaded.WasMigrated,
+            HubNarrativeUiState: loaded.HubNarrativeUiState);
     }
 }

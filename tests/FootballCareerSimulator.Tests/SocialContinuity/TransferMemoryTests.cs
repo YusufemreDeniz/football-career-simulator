@@ -114,7 +114,7 @@ public sealed class TransferMemoryTests : IDisposable
             social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(39, loaded.SchemaVersion);
+        Assert.Equal(40, loaded.SchemaVersion);
         Assert.Equal(2, loaded.Memories.Count(m => m.Category == MemoryCategory.Transfer));
     }
 

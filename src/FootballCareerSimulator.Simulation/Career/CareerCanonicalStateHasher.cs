@@ -460,7 +460,8 @@ public static class CareerCanonicalStateHasher
         IReadOnlyList<DialogueSession>? dialogueSessions = null,
         IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null,
         IReadOnlyList<string>? eventEffectProcessingKeys = null,
-        IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null)
+        IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null,
+        string? hubNarrativeCanonicalText = null)
     {
         ArgumentNullException.ThrowIfNull(timeline);
         ArgumentNullException.ThrowIfNull(league);
@@ -488,6 +489,7 @@ public static class CareerCanonicalStateHasher
         disciplinaryActions ??= Array.Empty<DisciplinaryAction>();
         eventEffectProcessingKeys ??= Array.Empty<string>();
         scheduledEvaluations ??= Array.Empty<ScheduledEvaluation>();
+        hubNarrativeCanonicalText ??= string.Empty;
 
         var canonicalText = string.Concat(
             WorldTimelineCanonicalStateHasher.BuildCanonicalText(timeline),
@@ -536,7 +538,9 @@ public static class CareerCanonicalStateHasher
             "|",
             EventEffectIdempotencyCanonicalStateHasher.BuildCanonicalText(eventEffectProcessingKeys),
             "|",
-            ScheduledEvaluationCanonicalStateHasher.BuildCanonicalText(scheduledEvaluations));
+            ScheduledEvaluationCanonicalStateHasher.BuildCanonicalText(scheduledEvaluations),
+            "|",
+            hubNarrativeCanonicalText);
 
         var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonicalText));
         return Convert.ToHexString(hashBytes);

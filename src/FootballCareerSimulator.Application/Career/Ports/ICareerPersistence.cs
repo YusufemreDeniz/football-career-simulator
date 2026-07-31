@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Application.Career.Ports;
 
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
@@ -43,7 +44,8 @@ public interface ICareerPersistence
         IReadOnlyList<DialogueSession>? dialogueSessions = null,
         IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null,
         IReadOnlyList<string>? eventEffectProcessingKeys = null,
-        IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null);
+        IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null,
+        HubNarrativeUiState? hubNarrativeUiState = null);
 
     CareerLoadResult Load(string filePath);
 }
@@ -76,4 +78,5 @@ public sealed record CareerLoadResult(
     int SchemaVersion,
     bool WasMigrated,
     IReadOnlyList<string>? EventEffectProcessingKeys = null,
-    IReadOnlyList<ScheduledEvaluation>? ScheduledEvaluations = null);
+    IReadOnlyList<ScheduledEvaluation>? ScheduledEvaluations = null,
+    HubNarrativeUiState? HubNarrativeUiState = null);

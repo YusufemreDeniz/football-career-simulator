@@ -144,7 +144,7 @@ public sealed class TacticPlanTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(39, loaded.SchemaVersion);
+        Assert.Equal(40, loaded.SchemaVersion);
         Assert.Single(loaded.TacticPlans);
         Assert.Equal(Formation.F433, loaded.TacticPlans[0].Formation);
         Assert.Equal(TacticalApproach.Attacking, loaded.TacticPlans[0].Approach);

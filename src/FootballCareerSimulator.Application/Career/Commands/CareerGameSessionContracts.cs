@@ -1,5 +1,7 @@
 namespace FootballCareerSimulator.Application.Career.Commands;
 
+using FootballCareerSimulator.Application.CareerHub.Queries;
+
 public sealed record SaveCareerGameResult(
     bool Succeeded,
     string SavePath,
@@ -11,4 +13,5 @@ public sealed record LoadCareerGameResult(
     string SavePath,
     int LoadedDayNumber,
     int LoadedFixtureCount,
-    bool WasMigrated);
+    bool WasMigrated,
+    HubNarrativeUiState? HubNarrativeUiState = null);

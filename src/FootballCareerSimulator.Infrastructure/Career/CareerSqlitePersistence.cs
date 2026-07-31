@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.Career.Ports;
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
@@ -49,7 +50,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<DialogueSession>? dialogueSessions = null,
         IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null,
         IReadOnlyList<string>? eventEffectProcessingKeys = null,
-        IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null)
+        IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null,
+        HubNarrativeUiState? hubNarrativeUiState = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -78,6 +80,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         disciplinaryActions ??= Array.Empty<DisciplinaryAction>();
         eventEffectProcessingKeys ??= Array.Empty<string>();
         scheduledEvaluations ??= Array.Empty<ScheduledEvaluation>();
+        hubNarrativeUiState ??= HubNarrativeUiState.Empty;
+        var hubNarrativeCanonical = BuildHubNarrativeCanonicalText(hubNarrativeUiState);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -105,7 +109,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             dialogueSessions,
             disciplinaryActions,
             eventEffectProcessingKeys,
-            scheduledEvaluations);
+            scheduledEvaluations,
+            hubNarrativeCanonical);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -146,6 +151,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertDisciplinaryActions(connection, transaction, disciplinaryActions);
             InsertEventEffectProcessingKeys(connection, transaction, eventEffectProcessingKeys);
             InsertScheduledEvaluations(connection, transaction, scheduledEvaluations);
+            InsertHubNarrativeUiState(connection, transaction, hubNarrativeUiState);
 
             transaction.Commit();
         }
@@ -443,6 +449,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV38ToV39InPlace(filePath);
             wasMigrated = true;
             version = 39;
+        }
+
+        if (version == 39 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 40)
+        {
+            WorldCalendarSqliteMigrator.MigrateV39ToV40InPlace(filePath);
+            wasMigrated = true;
+            version = 40;
         }
 
         if (wasMigrated)
@@ -858,6 +871,16 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 DueDayNumber INTEGER NOT NULL,
                 SourceEventId TEXT NULL,
                 Status INTEGER NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE HubNarrativeUiState (
+                SingletonId INTEGER PRIMARY KEY CHECK (SingletonId = 1),
+                WeekStoryClosureBeat TEXT NULL,
+                WeekStoryDismissOnNextAdvance INTEGER NOT NULL DEFAULT 0,
+                CleanXiNamesCsv TEXT NULL,
+                InjuryClearedNamesCsv TEXT NULL
             );
             """);
     }
@@ -1716,6 +1739,41 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertHubNarrativeUiState(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        HubNarrativeUiState state)
+    {
+        if (state.IsEmpty)
+        {
+            return;
+        }
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO HubNarrativeUiState (
+                SingletonId, WeekStoryClosureBeat, WeekStoryDismissOnNextAdvance,
+                CleanXiNamesCsv, InjuryClearedNamesCsv)
+            VALUES (1, $beat, $dismiss, $clean, $cleared);
+            """;
+        command.Parameters.AddWithValue(
+            "$beat",
+            (object?)state.WeekStoryClosureBeat ?? DBNull.Value);
+        command.Parameters.AddWithValue("$dismiss", state.WeekStoryDismissOnNextAdvance ? 1 : 0);
+        command.Parameters.AddWithValue(
+            "$clean",
+            state.CleanXiNames.Count == 0
+                ? DBNull.Value
+                : string.Join('|', state.CleanXiNames));
+        command.Parameters.AddWithValue(
+            "$cleared",
+            state.InjuryClearedNames.Count == 0
+                ? DBNull.Value
+                : string.Join('|', state.InjuryClearedNames));
+        command.ExecuteNonQuery();
+    }
+
     private static void InsertScheduledEvaluations(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -1872,6 +1930,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var disciplinaryActions = ReadDisciplinaryActions(connection);
         var eventEffectProcessingKeys = ReadEventEffectProcessingKeys(connection);
         var scheduledEvaluations = ReadScheduledEvaluations(connection);
+        var hubNarrativeUiState = ReadHubNarrativeUiState(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -1898,7 +1957,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             dialogueSessions,
             disciplinaryActions,
             eventEffectProcessingKeys,
-            scheduledEvaluations);
+            scheduledEvaluations,
+            BuildHubNarrativeCanonicalText(hubNarrativeUiState));
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -1947,6 +2007,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<DisciplinaryAction> disciplinaryActions;
             IReadOnlyList<string> eventEffectProcessingKeys;
             IReadOnlyList<ScheduledEvaluation> scheduledEvaluations;
+            HubNarrativeUiState hubNarrativeUiState;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -1984,6 +2045,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 disciplinaryActions = ReadDisciplinaryActions(connection);
                 eventEffectProcessingKeys = ReadEventEffectProcessingKeys(connection);
                 scheduledEvaluations = ReadScheduledEvaluations(connection);
+                hubNarrativeUiState = ReadHubNarrativeUiState(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -2014,7 +2076,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 dialogueSessions,
                 disciplinaryActions,
                 eventEffectProcessingKeys,
-                scheduledEvaluations);
+                scheduledEvaluations,
+                BuildHubNarrativeCanonicalText(hubNarrativeUiState));
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -2049,7 +2112,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 schemaVersion,
                 wasMigrated,
                 eventEffectProcessingKeys,
-                scheduledEvaluations);
+                scheduledEvaluations,
+                hubNarrativeUiState);
         }
         catch (SaveIntegrityException)
         {
@@ -3044,6 +3108,58 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
 
         return keys;
     }
+
+    private static HubNarrativeUiState ReadHubNarrativeUiState(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "HubNarrativeUiState"))
+        {
+            return HubNarrativeUiState.Empty;
+        }
+
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT WeekStoryClosureBeat, WeekStoryDismissOnNextAdvance,
+                   CleanXiNamesCsv, InjuryClearedNamesCsv
+            FROM HubNarrativeUiState
+            WHERE SingletonId = 1
+            LIMIT 1;
+            """;
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return HubNarrativeUiState.Empty;
+        }
+
+        var beat = reader.IsDBNull(0) ? null : reader.GetString(0);
+        var dismiss = !reader.IsDBNull(1) && reader.GetInt32(1) != 0;
+        var cleanCsv = reader.IsDBNull(2) ? null : reader.GetString(2);
+        var clearedCsv = reader.IsDBNull(3) ? null : reader.GetString(3);
+        return HubNarrativeUiState.Compose(
+            beat,
+            dismiss,
+            SplitCsv(cleanCsv),
+            SplitCsv(clearedCsv));
+    }
+
+    private static string BuildHubNarrativeCanonicalText(HubNarrativeUiState state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        if (state.IsEmpty)
+        {
+            return string.Empty;
+        }
+
+        var beat = state.WeekStoryClosureBeat ?? string.Empty;
+        var dismiss = state.WeekStoryDismissOnNextAdvance ? "1" : "0";
+        var clean = string.Join('|', state.CleanXiNames.OrderBy(n => n, StringComparer.Ordinal));
+        var cleared = string.Join('|', state.InjuryClearedNames.OrderBy(n => n, StringComparer.Ordinal));
+        return $"hub|{beat}|{dismiss}|{clean}|{cleared}";
+    }
+
+    private static IReadOnlyList<string> SplitCsv(string? csv) =>
+        string.IsNullOrWhiteSpace(csv)
+            ? Array.Empty<string>()
+            : csv.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private static IReadOnlyList<DisciplinaryAction> ReadDisciplinaryActions(SqliteConnection connection)
     {

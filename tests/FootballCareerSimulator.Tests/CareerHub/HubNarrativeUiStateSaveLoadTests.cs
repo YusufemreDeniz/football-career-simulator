@@ -1,28 +1,25 @@
-using FootballCareerSimulator.Application.Competition.Commands;
-using FootballCareerSimulator.Application.Competition.Composition;
-using FootballCareerSimulator.Application.WorldCalendar.Commands;
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
-using FootballCareerSimulator.Domain.EventRuleEvaluation;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure.Career;
 using Microsoft.Data.Sqlite;
 
-namespace FootballCareerSimulator.Tests.EventRuleEvaluation;
+namespace FootballCareerSimulator.Tests.CareerHub;
 
-public sealed class EventEffectIdempotencySaveLoadTests : IDisposable
+public sealed class HubNarrativeUiStateSaveLoadTests : IDisposable
 {
-    private static readonly GameDate PreseasonStart = GameDate.FromCalendarDate(2026, 7, 1);
+    private static readonly GameDate Start = GameDate.FromCalendarDate(2026, 7, 1);
 
     private readonly string _tempDirectory;
     private readonly CareerSqlitePersistence _persistence = new();
 
-    public EventEffectIdempotencySaveLoadTests()
+    public HubNarrativeUiStateSaveLoadTests()
     {
-        _tempDirectory = Path.Combine(Path.GetTempPath(), "fcs-effect-save-tests", Guid.NewGuid().ToString("N"));
+        _tempDirectory = Path.Combine(Path.GetTempPath(), "fcs-hub-narrative", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDirectory);
     }
 
@@ -36,34 +33,27 @@ public sealed class EventEffectIdempotencySaveLoadTests : IDisposable
     }
 
     [Fact]
-    public void SaveAndLoad_PreservesEventEffectProcessingKeys()
+    public void SaveAndLoad_PreservesWeekStoryAndCleanXiBridge()
     {
-        var world = WorldCalendarModule.Create(PreseasonStart, rootSeed: 42);
-        var advance = world.AdvanceSimulationTime.Handle(
-            new AdvanceSimulationTimeCommand(
-                Guid.NewGuid(),
-                GameDate.FromCalendarDate(2026, 7, 4).DayNumber));
-        Assert.True(advance.AppliedEffectCount > 0);
-
-        var keys = world.EventRuleEvaluation!.Registry.SnapshotKeys();
-        Assert.NotEmpty(keys);
-
-        var competition = CompetitionModule.CreateNewLeague();
-        competition.CreateSeason.Handle(
-            new CreateSeasonCommand(Guid.NewGuid(), 1, PreseasonStart.DayNumber));
-
-        var path = Path.Combine(_tempDirectory, "effect-keys.db");
+        var world = WorldCalendarModule.Create(Start, rootSeed: 11);
+        var competition = new LeagueCompetition(new CompetitionId(1));
         var manager = ManagerCareer.StartNewCareerForClubStrength(
             new ManagerId(1),
             "Teknik Direktör",
             new ClubId(1),
             world.TimelineStore.Timeline.CurrentDate,
             clubSportiveStrength: 50);
+        var path = Path.Combine(_tempDirectory, "hub.db");
+        var hub = HubNarrativeUiState.Compose(
+            weekStoryClosureBeat: "Dönenler işe yaradı — Kurt",
+            weekStoryDismissOnNextAdvance: true,
+            cleanXiNames: ["Tolga Kurt", "Ali Yılmaz"],
+            injuryClearedNames: ["Tolga Kurt"]);
 
         _persistence.Save(
             path,
             world.TimelineStore.Timeline,
-            competition.Store.League,
+            competition,
             LeagueClubRegistry.CreateMvpLeague(),
             manager,
             Array.Empty<Domain.TeamPreparation.MatchSelection>(),
@@ -82,17 +72,16 @@ public sealed class EventEffectIdempotencySaveLoadTests : IDisposable
             Array.Empty<Domain.Transfer.PlayerContractProposal>(),
             Array.Empty<Domain.SocialContinuity.Promise>(),
             Array.Empty<Domain.SocialContinuity.MemoryRecord>(),
-            eventEffectProcessingKeys: keys);
+            hubNarrativeUiState: hub);
 
         var loaded = _persistence.Load(path);
         Assert.Equal(40, loaded.SchemaVersion);
-        Assert.Equal(keys, loaded.EventEffectProcessingKeys);
-
-        var registry = world.EventRuleEvaluation.Registry;
-        registry.Clear();
-        registry.ReplaceAll(loaded.EventEffectProcessingKeys!);
-        Assert.Equal(
-            EventEffectApplicationStatus.Duplicate,
-            world.EventRuleEvaluation.Gate.TryApply(new EventEffectProcessingKey(keys[0])));
+        Assert.NotNull(loaded.HubNarrativeUiState);
+        Assert.Equal("Dönenler işe yaradı — Kurt", loaded.HubNarrativeUiState!.WeekStoryClosureBeat);
+        Assert.True(loaded.HubNarrativeUiState.WeekStoryDismissOnNextAdvance);
+        Assert.Equal(2, loaded.HubNarrativeUiState.CleanXiNames.Count);
+        Assert.Contains("Tolga Kurt", loaded.HubNarrativeUiState.CleanXiNames);
+        Assert.Contains("Ali Yılmaz", loaded.HubNarrativeUiState.CleanXiNames);
+        Assert.Equal(["Tolga Kurt"], loaded.HubNarrativeUiState.InjuryClearedNames);
     }
 }
