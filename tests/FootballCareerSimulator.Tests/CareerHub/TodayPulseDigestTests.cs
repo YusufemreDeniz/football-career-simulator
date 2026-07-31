@@ -42,6 +42,65 @@ public sealed class TodayPulseDigestTests
     }
 
     [Fact]
+    public void NamedInjury_ShowsPulseLineAndMatchFocus()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.General,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Medium,
+                (int)Domain.TrainingPhysicalState.RestApproach.Normal,
+                null, null, null, 1, 30, 70, true, 1, 1,
+                InjuredPlayerNames: ["Ali Yılmaz"]),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 4);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Compose(
+                new ManagedFixtureSelectionStatusReadModel(
+                    1, 1, 1, 2, true, 10, "2026-08-15", IsApproved: false),
+                "Rival",
+                10,
+                injuredSlotCount: 1,
+                injuredPlayerNames: ["Ali Yılmaz"]),
+            prep,
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, pulse.PrimaryFocusCode);
+        Assert.Contains("sakatsız", pulse.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(pulse.PulseLines, l => l.StartsWith("Sakat:", StringComparison.Ordinal)
+            && l.Contains("Ali Yılmaz", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NamedInjuryWithoutDueMatch_PrepRecoveryFocus()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.General,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Medium,
+                (int)Domain.TrainingPhysicalState.RestApproach.Normal,
+                null, null, null, 1, 30, 70, true, 1, 1,
+                InjuredPlayerNames: ["Can Demir"]),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 5);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusPrep, pulse.PrimaryFocusCode);
+        Assert.Contains("Can Demir", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains("Toparlanma", pulse.Headline, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void FatiguedPrep_SurfacesWhenElseQuiet()
     {
         var prep = PreparationBriefing.Compose(

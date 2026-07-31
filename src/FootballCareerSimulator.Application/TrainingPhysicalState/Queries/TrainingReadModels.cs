@@ -13,4 +13,9 @@ public sealed record ClubTrainingSummaryReadModel(
     int? AverageFitness,
     bool HasPlan,
     int InjuredSlotCount,
-    int UnavailableSlotCount);
+    int UnavailableSlotCount,
+    IReadOnlyList<string>? InjuredPlayerNames = null)
+{
+    public IReadOnlyList<string> InjuredNames =>
+        InjuredPlayerNames ?? Array.Empty<string>();
+}

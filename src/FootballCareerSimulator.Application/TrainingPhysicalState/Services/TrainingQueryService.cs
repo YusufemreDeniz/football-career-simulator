@@ -4,6 +4,7 @@ using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Simulation.TeamPreparation;
 
 namespace FootballCareerSimulator.Application.TrainingPhysicalState.Services;
 
@@ -41,8 +42,19 @@ public sealed class TrainingQueryService
         var day = _timelineStore.Timeline.CurrentDate;
         var plan = _store.GetPlan(clubId);
         var allForClub = _store.PhysicalStates.Where(s => s.ClubId == clubId).ToArray();
-        var injured = allForClub.Count(s => s.IsInjured);
+        var injuredStates = allForClub.Where(s => s.IsInjured).OrderBy(s => s.SlotIndex).ToArray();
+        var injured = injuredStates.Length;
         var unavailable = allForClub.Count(s => !s.IsAvailableOn(day));
+        var names = MvpSquadRosterGenerator.GeneratePlayerNames(
+            clubId,
+            _timelineStore.Timeline.RootSeed);
+        var injuredNames = injuredStates
+            .Select(state =>
+                state.SlotIndex >= 0 && state.SlotIndex < names.Count
+                    ? names[state.SlotIndex]
+                    : $"Oyuncu #{state.SlotIndex + 1}")
+            .Take(4)
+            .ToArray();
 
         var slots = Enumerable.Range(MatchSelection.MinSquadSlot, MatchSelection.StartingXiSize)
             .Select(slot => _store.GetPhysical(clubId, slot))
@@ -72,7 +84,8 @@ public sealed class TrainingQueryService
                 avgFitness,
                 false,
                 injured,
-                unavailable);
+                unavailable,
+                injuredNames);
         }
 
         return new ClubTrainingSummaryReadModel(
@@ -88,6 +101,7 @@ public sealed class TrainingQueryService
             avgFitness,
             true,
             injured,
-            unavailable);
+            unavailable,
+            injuredNames);
     }
 }

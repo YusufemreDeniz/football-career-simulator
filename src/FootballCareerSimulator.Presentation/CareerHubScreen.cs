@@ -1717,10 +1717,10 @@ public partial class CareerHubScreen : Control
         var dueUnapproved = pending is { IsApproved: false };
         var blocker = _controller.BuildTimeAdvanceBlockerDigest();
         var archivePhase = _controller.IsSeasonArchivePhase();
-        var prepSuggestion = _controller.BuildPreparationBriefing().Suggestion;
+        var prepBriefing = _controller.BuildPreparationBriefing();
+        var prepSuggestion = prepBriefing.Suggestion;
         var leagueNextStep = _controller.BuildLeagueWorldBriefing().NextStep;
         var transferNextStep = _controller.BuildTransferDeskBriefing().NextStep;
-
         BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
             pulse.PrimaryFocusCode,
             hasDueUnapprovedMatch: dueUnapproved,
@@ -1731,7 +1731,8 @@ public partial class CareerHubScreen : Control
             seasonArchivePhase: archivePhase,
             prepSuggestion: prepSuggestion,
             leagueNextStep: leagueNextStep,
-            transferNextStep: transferNextStep));
+            transferNextStep: transferNextStep,
+            hasInjuryPressure: prepBriefing.HasInjuryPressure));
     }
 
     private void RefreshSelectionStatus()
@@ -1753,7 +1754,8 @@ public partial class CareerHubScreen : Control
             training.HasPlan ? training.AverageFatigue : null,
             training.HasPlan ? training.AverageFitness : null,
             training.InjuredSlotCount,
-            tension);
+            tension,
+            training.InjuredNames);
         _briefingLabel.Text = briefing.ToDisplayText();
         RefreshTodayPulse();
 

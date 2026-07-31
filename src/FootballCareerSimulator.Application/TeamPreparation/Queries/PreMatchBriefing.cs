@@ -12,7 +12,8 @@ public sealed record PreMatchBriefing(
     string BrandTitle,
     string Headline,
     string FixtureLine,
-    IReadOnlyList<string> BeatLines)
+    IReadOnlyList<string> BeatLines,
+    bool HasInjuryPressure = false)
 {
     public const string Brand = "Sıradaki Maç";
 
@@ -24,7 +25,8 @@ public sealed record PreMatchBriefing(
             Brand,
             "Takvimde vadesi gelmiş maç yok — günü ilerlet veya lig kur.",
             string.Empty,
-            Array.Empty<string>());
+            Array.Empty<string>(),
+            HasInjuryPressure: false);
 
     public static PreMatchBriefing Compose(
         ManagedFixtureSelectionStatusReadModel? pending,
@@ -35,7 +37,8 @@ public sealed record PreMatchBriefing(
         int? averageFatigue = null,
         int? averageFitness = null,
         int injuredSlotCount = 0,
-        PreMatchPromiseTensionReadModel? tension = null)
+        PreMatchPromiseTensionReadModel? tension = null,
+        IReadOnlyList<string>? injuredPlayerNames = null)
     {
         if (pending is null)
         {
@@ -60,16 +63,28 @@ public sealed record PreMatchBriefing(
         };
 
         var ready = pending.IsApproved;
-        var headline = ResolveHeadline(ready, atRisk, onTrack);
+        var injuryPressure = injuredSlotCount > 0;
+        var headline = ResolveHeadline(ready, atRisk, onTrack, injuryPressure);
 
         var beats = new List<string>();
         if (!ready)
         {
-            beats.Add("Kadro onayı bekliyor — onaylamadan maç oynanmaz.");
+            beats.Add(injuryPressure
+                ? "Sakatlık onayı düşürdü — sakatsız XI onayla."
+                : "Kadro onayı bekliyor — onaylamadan maç oynanmaz.");
         }
         else
         {
             beats.Add("Kadro onaylı.");
+        }
+
+        if (injuredPlayerNames is { Count: > 0 })
+        {
+            beats.Add("Sakat: " + string.Join(", ", injuredPlayerNames.Take(3)));
+        }
+        else if (injuredSlotCount > 0)
+        {
+            beats.Add($"Sakat oyuncu: {injuredSlotCount}");
         }
 
         if (!string.IsNullOrWhiteSpace(formationName)
@@ -88,10 +103,6 @@ public sealed record PreMatchBriefing(
         {
             var injury = injuredSlotCount > 0 ? $" · sakat {injuredSlotCount}" : string.Empty;
             beats.Add($"XI yorgunluk {fatigue} · fitness {fitness}{injury}");
-        }
-        else if (injuredSlotCount > 0)
-        {
-            beats.Add($"Sakat oyuncu: {injuredSlotCount}");
         }
 
         if (tension is { HasTension: true })
@@ -113,7 +124,8 @@ public sealed record PreMatchBriefing(
             Brand,
             headline,
             fixtureLine,
-            beats);
+            beats,
+            HasInjuryPressure: injuryPressure);
     }
 
     public string ToDisplayText()
@@ -140,7 +152,11 @@ public sealed record PreMatchBriefing(
         }
 
         var lines = new List<string> { FixtureLine };
-        if (HasPromiseRisk)
+        if (HasInjuryPressure)
+        {
+            lines.Add("Maça sakatlık baskısıyla girdin.");
+        }
+        else if (HasPromiseRisk)
         {
             lines.Add("Maça söz riskiyle girdin.");
         }
@@ -151,7 +167,8 @@ public sealed record PreMatchBriefing(
 
         foreach (var beat in BeatLines)
         {
-            if (beat.StartsWith("Taktik:", StringComparison.Ordinal)
+            if (beat.StartsWith("Sakat:", StringComparison.Ordinal)
+                || beat.StartsWith("Taktik:", StringComparison.Ordinal)
                 || beat.StartsWith("Söz riski:", StringComparison.Ordinal)
                 || beat.StartsWith("XI yorgunluk", StringComparison.Ordinal))
             {
@@ -167,13 +184,23 @@ public sealed record PreMatchBriefing(
         return lines.Take(4).ToArray();
     }
 
-    private static string ResolveHeadline(bool approved, bool atRisk, bool onTrack)
+    private static string ResolveHeadline(bool approved, bool atRisk, bool onTrack, bool injuryPressure)
     {
         if (!approved)
         {
+            if (injuryPressure)
+            {
+                return "Sakatlık kadroyu düşürdü — sakatsız XI onayla.";
+            }
+
             return atRisk
                 ? "Kadro eksik ve söz riski var — önce XI'yi düzelt."
                 : "Henüz hazır değilsin — önce kadroyu onayla.";
+        }
+
+        if (injuryPressure)
+        {
+            return "Sakatlar listede — XI'yi kontrol et.";
         }
 
         if (atRisk)

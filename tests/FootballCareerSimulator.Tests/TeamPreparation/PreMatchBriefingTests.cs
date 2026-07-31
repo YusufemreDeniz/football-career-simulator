@@ -65,7 +65,7 @@ public sealed class PreMatchBriefingTests
             currentDayNumber: 10,
             averageFatigue: 40,
             averageFitness: 72,
-            injuredSlotCount: 1,
+            injuredSlotCount: 0,
             tension: tension);
 
         Assert.True(briefing.IsReadyToKickOff);
@@ -77,6 +77,27 @@ public sealed class PreMatchBriefingTests
 
         var text = briefing.ToDisplayText();
         Assert.Contains("· ", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UnapprovedWithInjury_NamesPlayersAndForcesXi()
+    {
+        var briefing = PreMatchBriefing.Compose(
+            Fixture(approved: false, scheduledDay: 10),
+            "Rival FC",
+            currentDayNumber: 10,
+            injuredSlotCount: 2,
+            injuredPlayerNames: ["Ali Yılmaz", "Can Demir"]);
+
+        Assert.True(briefing.HasInjuryPressure);
+        Assert.False(briefing.IsReadyToKickOff);
+        Assert.Contains("sakatsız XI", briefing.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(briefing.BeatLines, b => b.Contains("Ali Yılmaz", StringComparison.Ordinal));
+        Assert.Contains(briefing.BeatLines, b => b.Contains("sakatsız XI onayla", StringComparison.OrdinalIgnoreCase));
+
+        var bridge = briefing.ToKickoffBridgeLines();
+        Assert.Contains(bridge, l => l.Contains("sakatlık", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(bridge, l => l.StartsWith("Sakat:", StringComparison.Ordinal));
     }
 
     [Fact]

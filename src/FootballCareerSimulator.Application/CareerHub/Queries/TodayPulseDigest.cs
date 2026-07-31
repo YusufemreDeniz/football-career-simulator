@@ -70,6 +70,11 @@ public sealed record TodayPulseDigest(
             lines.Add($"Transfer: {transfer.Headline}");
         }
 
+        if (prep.InjuredNames.Count > 0)
+        {
+            lines.Add("Sakat: " + string.Join(", ", prep.InjuredNames.Take(3)));
+        }
+
         if (match.HasMatch)
         {
             lines.Add($"Maç: {match.Headline}");
@@ -132,7 +137,16 @@ public sealed record TodayPulseDigest(
 
         if (match.HasMatch && !match.IsReadyToKickOff)
         {
-            return (FocusMatch, "Maç kapıda — kadroyu kilitle.");
+            return (
+                FocusMatch,
+                match.HasInjuryPressure
+                    ? "Sakatlık kadroyu düşürdü — sakatsız XI onayla."
+                    : "Maç kapıda — kadroyu kilitle.");
+        }
+
+        if (match is { HasMatch: true, HasInjuryPressure: true })
+        {
+            return (FocusMatch, "Sakatlar listede — XI'yi kontrol et / Maç Gününe git.");
         }
 
         if (match is { HasMatch: true, HasPromiseRisk: true })
@@ -155,6 +169,10 @@ public sealed record TodayPulseDigest(
             var prepHeadline = prep.Suggestion?.ActionCode switch
             {
                 PrepPlanSuggestion.SeedWeek => "Haftalık plan boş — birincil düğmeyle kur.",
+                PrepPlanSuggestion.ApplyRecovery when prep.HasInjuryPressure =>
+                    prep.InjuredNames.Count > 0
+                        ? $"{prep.InjuredNames[0]} sakat — Toparlanma Uygula."
+                        : "Sakatlık var — Toparlanma Uygula.",
                 PrepPlanSuggestion.ApplyRecovery => "Kadro yorgun — Toparlanma Uygula.",
                 PrepPlanSuggestion.ApplyFitness => "Fitness düşük — Kondisyon Uygula.",
                 PrepPlanSuggestion.SoftenLoad => "Yük ağır — Yükü Hafiflet.",

@@ -13,9 +13,15 @@ public sealed record PreparationBriefing(
     string AdviceLine,
     IReadOnlyList<string> BeatLines,
     bool DemandsAttention = false,
-    PrepPlanSuggestion? Suggestion = null)
+    PrepPlanSuggestion? Suggestion = null,
+    IReadOnlyList<string>? InjuredPlayerNames = null)
 {
     public const string Brand = "Hazırlık Masası";
+
+    public IReadOnlyList<string> InjuredNames =>
+        InjuredPlayerNames ?? Array.Empty<string>();
+
+    public bool HasInjuryPressure => InjuredNames.Count > 0;
 
     public static PreparationBriefing Unemployed() =>
         new(
@@ -25,7 +31,8 @@ public sealed record PreparationBriefing(
             "Önce işe dön; sonra antrenman ve taktik seçersin.",
             Array.Empty<string>(),
             DemandsAttention: false,
-            Suggestion: null);
+            Suggestion: null,
+            InjuredPlayerNames: Array.Empty<string>());
 
     public static PreparationBriefing Compose(
         ClubTrainingSummaryReadModel training,
@@ -50,6 +57,7 @@ public sealed record PreparationBriefing(
         var focus = training.Focus;
         var rest = training.RestApproach;
 
+        var injuredNames = training.InjuredNames;
         var beats = new List<string>();
         if (!training.HasPlan)
         {
@@ -61,6 +69,11 @@ public sealed record PreparationBriefing(
                 $"Antrenman: {NameIntensity(intensity)} / {NameFocus(focus)} · {NameRest(rest)}");
             beats.Add($"XI yorgunluk {fatigue} · fitness {fitness}"
                 + (injured > 0 ? $" · sakat {injured}" : string.Empty));
+        }
+
+        if (injuredNames.Count > 0)
+        {
+            beats.Add("Sakat: " + string.Join(", ", injuredNames.Take(3)));
         }
 
         if (!string.Equals(tactic.FormationName, "yok", StringComparison.Ordinal)
@@ -85,8 +98,15 @@ public sealed record PreparationBriefing(
             injured,
             intensity,
             focus,
-            daysUntilNextMatch);
-        var headline = ResolveHeadline(training.HasPlan, fatigue, injured, daysUntilNextMatch, advice);
+            daysUntilNextMatch,
+            injuredNames);
+        var headline = ResolveHeadline(
+            training.HasPlan,
+            fatigue,
+            injured,
+            daysUntilNextMatch,
+            advice,
+            injuredNames);
         var suggestion = ResolveSuggestion(
             training.HasPlan,
             fatigue,
@@ -104,7 +124,8 @@ public sealed record PreparationBriefing(
             advice,
             beats,
             DemandsAttention: suggestion is not null,
-            Suggestion: suggestion);
+            Suggestion: suggestion,
+            InjuredPlayerNames: injuredNames);
     }
 
     public string ToDisplayText()
@@ -123,16 +144,27 @@ public sealed record PreparationBriefing(
         int fatigue,
         int injured,
         int? daysUntilNextMatch,
-        string advice)
+        string advice,
+        IReadOnlyList<string> injuredNames)
     {
         if (!hasPlan)
         {
             return "Antrenman planı boş — bu haftayı şekillendir.";
         }
 
-        if (injured > 0 && daysUntilNextMatch is <= 2)
+        if (injured > 0)
         {
-            return "Maç yakın ve sakatlık var — temkinli ol.";
+            var who = injuredNames.Count > 0 ? injuredNames[0] : null;
+            if (daysUntilNextMatch is <= 2)
+            {
+                return who is null
+                    ? "Maç yakın ve sakatlık var — temkinli ol."
+                    : $"{who} sakat — maç öncesi yükü düşür.";
+            }
+
+            return who is null
+                ? "Sakatlık var — Toparlanma düşün."
+                : $"{who} sakat — Toparlanma uygula.";
         }
 
         if (fatigue >= 60 && daysUntilNextMatch is <= 2)
@@ -160,7 +192,8 @@ public sealed record PreparationBriefing(
         int injured,
         int? intensity,
         int? focus,
-        int? daysUntilNextMatch)
+        int? daysUntilNextMatch,
+        IReadOnlyList<string> injuredNames)
     {
         if (!hasPlan)
         {
@@ -170,6 +203,17 @@ public sealed record PreparationBriefing(
         if (injured > 0 && intensity == (int)TrainingIntensity.High)
         {
             return "Sakatlık varken Yoğun riskli — Hafif'e çek.";
+        }
+
+        if (injured > 0)
+        {
+            var who = injuredNames.Count > 0 ? injuredNames[0] + " — " : string.Empty;
+            if (focus != (int)TrainingFocus.Recovery || intensity == (int)TrainingIntensity.High)
+            {
+                return who + "Sakat kadro için Toparlanma + Hafif / Bol dinlenme.";
+            }
+
+            return who + "Toparlanma doğru — XI'de sakatı oynatma.";
         }
 
         if (fatigue >= 55)
@@ -213,6 +257,16 @@ public sealed record PreparationBriefing(
         if (injured > 0 && intensity == (int)TrainingIntensity.High)
         {
             return PrepPlanSuggestion.SoftenLoadPlan(focus);
+        }
+
+        if (injured > 0)
+        {
+            if (focus != (int)TrainingFocus.Recovery || intensity == (int)TrainingIntensity.High)
+            {
+                return PrepPlanSuggestion.RecoveryPlan();
+            }
+
+            return null;
         }
 
         if (fatigue >= 55)

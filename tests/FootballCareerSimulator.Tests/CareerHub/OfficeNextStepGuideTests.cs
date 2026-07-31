@@ -64,6 +64,20 @@ public sealed class OfficeNextStepGuideTests
     }
 
     [Fact]
+    public void MatchPulse_UnapprovedWithInjury_LabelsSakatsizApprove()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusMatch,
+            hasDueUnapprovedMatch: true,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            hasInjuryPressure: true);
+
+        Assert.Equal(OfficeNextStepGuide.ActionApproveSelection, step!.ActionCode);
+        Assert.Equal("Sakatsız Kadro Onayla", step.ButtonLabel);
+    }
+
+    [Fact]
     public void MatchPulse_Playable_OpensMatchDay()
     {
         var step = OfficeNextStepGuide.ResolveFromPulse(
@@ -74,6 +88,20 @@ public sealed class OfficeNextStepGuideTests
 
         Assert.Equal(OfficeNextStepGuide.ActionOpenMatchDay, step!.ActionCode);
         Assert.Contains("Maç Gününe", step.ButtonLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MatchPulse_PlayableWithInjury_LabelsXiCheck()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusMatch,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: true,
+            canAdvanceDay: true,
+            hasInjuryPressure: true);
+
+        Assert.Equal(OfficeNextStepGuide.ActionOpenMatchDay, step!.ActionCode);
+        Assert.Equal("Maç Günü — XI Kontrol", step.ButtonLabel);
     }
 
     [Fact]

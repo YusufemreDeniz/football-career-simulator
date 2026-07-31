@@ -2138,7 +2138,8 @@ public sealed class CareerSessionController
             training.HasPlan ? training.AverageFatigue : null,
             training.HasPlan ? training.AverageFitness : null,
             training.InjuredSlotCount,
-            tension);
+            tension,
+            training.InjuredNames);
     }
 
     private string? BuildNextMatchHint(int currentDayNumber)

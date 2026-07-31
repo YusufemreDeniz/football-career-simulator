@@ -105,6 +105,30 @@ public sealed class PreparationBriefingTests
         Assert.Contains("doğru yönde", briefing.AdviceLine, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void NamedInjury_SurfacesRecoveryAndBeat()
+    {
+        var briefing = PreparationBriefing.Compose(
+            Employed(
+                hasPlan: true,
+                intensity: (int)TrainingIntensity.Medium,
+                focus: (int)TrainingFocus.General,
+                rest: (int)RestApproach.Normal,
+                fatigue: 35,
+                fitness: 70,
+                injured: 1,
+                injuredNames: ["Ali Yılmaz"]),
+            new TacticPlanReadModel(1, "4-3-3", "Dengeli", 1),
+            "+1",
+            daysUntilNextMatch: 4);
+
+        Assert.True(briefing.HasInjuryPressure);
+        Assert.Contains("Ali Yılmaz", briefing.Headline, StringComparison.Ordinal);
+        Assert.Contains(briefing.BeatLines, b => b.Contains("Ali Yılmaz", StringComparison.Ordinal));
+        Assert.Equal(PrepPlanSuggestion.ApplyRecovery, briefing.Suggestion!.ActionCode);
+        Assert.True(briefing.DemandsAttention);
+    }
+
     private static ClubTrainingSummaryReadModel Employed(
         bool hasPlan,
         int? intensity = null,
@@ -112,7 +136,8 @@ public sealed class PreparationBriefingTests
         int? rest = null,
         int fatigue = 40,
         int fitness = 60,
-        int injured = 0) =>
+        int injured = 0,
+        IReadOnlyList<string>? injuredNames = null) =>
         new(
             ClubId: 1,
             Focus: focus,
@@ -126,5 +151,6 @@ public sealed class PreparationBriefingTests
             AverageFitness: hasPlan ? fitness : null,
             HasPlan: hasPlan,
             InjuredSlotCount: injured,
-            UnavailableSlotCount: injured);
+            UnavailableSlotCount: injured,
+            InjuredPlayerNames: injuredNames);
 }

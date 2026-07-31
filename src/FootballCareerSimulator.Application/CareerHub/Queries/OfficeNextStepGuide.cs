@@ -87,7 +87,8 @@ public static class OfficeNextStepGuide
         bool seasonArchivePhase = false,
         PrepPlanSuggestion? prepSuggestion = null,
         LeagueNextStep? leagueNextStep = null,
-        TransferNextStep? transferNextStep = null)
+        TransferNextStep? transferNextStep = null,
+        bool hasInjuryPressure = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(focusCode);
 
@@ -96,7 +97,8 @@ public static class OfficeNextStepGuide
             var unblock = ResolveBlocker(
                 primaryBlockerCode,
                 hasDueUnapprovedMatch,
-                hasDuePlayableMatch);
+                hasDuePlayableMatch,
+                hasInjuryPressure);
             if (unblock is not null)
             {
                 return unblock;
@@ -148,7 +150,7 @@ public static class OfficeNextStepGuide
             if (hasDueUnapprovedMatch)
             {
                 return new OfficeNextStep(
-                    "Kadro Onayla",
+                    hasInjuryPressure ? "Sakatsız Kadro Onayla" : "Kadro Onayla",
                     TargetToday,
                     TodayPulseDigest.FocusMatch,
                     ActionApproveSelection);
@@ -157,7 +159,7 @@ public static class OfficeNextStepGuide
             if (hasDuePlayableMatch)
             {
                 return new OfficeNextStep(
-                    "Maç Gününe Git",
+                    hasInjuryPressure ? "Maç Günü — XI Kontrol" : "Maç Gününe Git",
                     TargetToday,
                     TodayPulseDigest.FocusMatch,
                     ActionOpenMatchDay);
@@ -189,7 +191,8 @@ public static class OfficeNextStepGuide
     private static OfficeNextStep? ResolveBlocker(
         string? primaryBlockerCode,
         bool hasDueUnapprovedMatch,
-        bool hasDuePlayableMatch)
+        bool hasDuePlayableMatch,
+        bool hasInjuryPressure = false)
     {
         if (string.IsNullOrWhiteSpace(primaryBlockerCode))
         {
@@ -204,14 +207,14 @@ public static class OfficeNextStepGuide
             if (hasDueUnapprovedMatch)
             {
                 return new OfficeNextStep(
-                    "Kadro Onayla (engel)",
+                    hasInjuryPressure ? "Sakatsız Kadro Onayla (engel)" : "Kadro Onayla (engel)",
                     TargetToday,
                     TodayPulseDigest.FocusMatch,
                     ActionApproveSelection);
             }
 
             return new OfficeNextStep(
-                "Maç Gününe Git (engel)",
+                hasInjuryPressure ? "Maç Günü — XI Kontrol (engel)" : "Maç Gününe Git (engel)",
                 TargetToday,
                 TodayPulseDigest.FocusMatch,
                 ActionOpenMatchDay);
