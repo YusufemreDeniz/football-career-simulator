@@ -51,4 +51,27 @@ public static class OfficeCalmNote
         var note = Resolve(moodCode, dayNumber);
         return note is null ? null : $"Not: {note}";
     }
+
+    /// <summary>
+    /// Gün ilerledikten sonra status satırı — not değiştiyse oyuncu fark etsin.
+    /// </summary>
+    public static string? ToAdvanceConfirmation(string? previousNote, string? nextNote)
+    {
+        if (string.IsNullOrWhiteSpace(nextNote))
+        {
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(previousNote))
+        {
+            return $"Ofis notu: {nextNote}";
+        }
+
+        if (string.Equals(previousNote, nextNote, StringComparison.Ordinal))
+        {
+            return "Yeni gün — sakin tempo sürüyor.";
+        }
+
+        return $"Not yenilendi: {nextNote}";
+    }
 }

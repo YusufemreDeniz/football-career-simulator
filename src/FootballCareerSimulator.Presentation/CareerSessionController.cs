@@ -2297,6 +2297,7 @@ public sealed class CareerSessionController
             var injuredBefore = SnapshotInjuredPlayerNames();
             var world = Host.WorldModule;
             var current = world.Queries.GetCurrentGameDate();
+            var noteBefore = OfficeCalmNote.Resolve(BuildWeekMood().MoodCode, current.DayNumber);
             var result = world.AdvanceSimulationTime.Handle(
                 new AdvanceSimulationTimeCommand(Guid.NewGuid(), current.DayNumber + dayCount));
 
@@ -2336,7 +2337,15 @@ public sealed class CareerSessionController
                     nextFocusCode: office.NextFocusCode);
             }
 
-            return UiActionResult.Ok(digest.ToStatusMessage(), digest);
+            var noteAfter = OfficeCalmNote.Resolve(BuildWeekMood().MoodCode, day.DayNumber);
+            var noteConfirm = OfficeCalmNote.ToAdvanceConfirmation(noteBefore, noteAfter);
+            var message = digest.ToStatusMessage();
+            if (!string.IsNullOrWhiteSpace(noteConfirm))
+            {
+                message += "\n" + noteConfirm;
+            }
+
+            return UiActionResult.Ok(message, digest);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
