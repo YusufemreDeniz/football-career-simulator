@@ -37,6 +37,43 @@ public sealed class CareerResumeDigestTests
     }
 
     [Fact]
+    public void WeekStory_BindsPrimaryCtaAdviceOnResume()
+    {
+        var story = WeekStoryDigest.Compose(
+            InjuryRecoveryPathDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            closedArcVerdictBeat: "Dönenler işe yaradı — Kurt");
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            weekStory: story);
+        var next = OfficeNextStepGuide.ResolveWeekStoryStep(
+            story,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true);
+
+        var resume = CareerResumeDigest.Compose(
+            pulse,
+            dayNumber: 41,
+            isoDate: "2026-09-10",
+            managerDisplayName: "Yusuf",
+            clubDisplayName: "Home FC",
+            loadedFixtureCount: 13,
+            wasMigrated: false,
+            weekStory: story,
+            nextStep: next);
+
+        Assert.Contains("işe yaradı", resume.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(resume.BeatLines, b => b.StartsWith("Hikâye:", StringComparison.Ordinal));
+        Assert.Contains("Birincil düğme:", resume.AdviceLine, StringComparison.Ordinal);
+        Assert.Contains("Hikâyeyi kapat", resume.AdviceLine, StringComparison.Ordinal);
+        Assert.Equal(next!.ButtonLabel, resume.NextCtaLabel);
+    }
+
+    [Fact]
     public void SquadFocus_PointsToYerAc_AndNotesMigration()
     {
         var squad = SquadCapacityDigest.Compose(

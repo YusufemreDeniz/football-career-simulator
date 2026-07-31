@@ -89,7 +89,8 @@ public static class OfficeNextStepGuide
         LeagueNextStep? leagueNextStep = null,
         TransferNextStep? transferNextStep = null,
         bool hasInjuryPressure = false,
-        InjuryRecoveryPathDigest? recoveryPath = null)
+        InjuryRecoveryPathDigest? recoveryPath = null,
+        WeekStoryDigest? weekStory = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(focusCode);
 
@@ -103,9 +104,17 @@ public static class OfficeNextStepGuide
             if (unblock is not null)
             {
                 // İyileşme 1/3: engel kadro dese bile önce Toparlanma.
-                if (recoveryPath is { IsActive: true, CurrentStepCode: InjuryRecoveryPathDigest.StepRecovery })
+                if (recoveryPath is { IsActive: true, CurrentStepCode: InjuryRecoveryPathDigest.StepRecovery }
+                    || weekStory is { IsActive: true, PhaseCode: WeekStoryDigest.PhaseInjury })
                 {
-                    return ResolveRecoveryPathStep(recoveryPath, canAdvanceDay);
+                    return ResolveRecoveryPathStep(
+                        recoveryPath ?? InjuryRecoveryPathDigest.Clear(),
+                        canAdvanceDay)
+                        ?? ResolveWeekStoryStep(
+                            weekStory,
+                            hasDueUnapprovedMatch,
+                            hasDuePlayableMatch,
+                            canAdvanceDay);
                 }
 
                 return unblock;
@@ -128,6 +137,19 @@ public static class OfficeNextStepGuide
             if (recoveryStep is not null)
             {
                 return recoveryStep;
+            }
+        }
+
+        if (weekStory is { IsActive: true })
+        {
+            var storyStep = ResolveWeekStoryStep(
+                weekStory,
+                hasDueUnapprovedMatch,
+                hasDuePlayableMatch,
+                canAdvanceDay);
+            if (storyStep is not null)
+            {
+                return storyStep;
             }
         }
 
@@ -208,6 +230,11 @@ public static class OfficeNextStepGuide
         InjuryRecoveryPathDigest recoveryPath,
         bool canAdvanceDay)
     {
+        if (!recoveryPath.IsActive)
+        {
+            return null;
+        }
+
         return recoveryPath.CurrentStepCode switch
         {
             InjuryRecoveryPathDigest.StepRecovery => new OfficeNextStep(
@@ -226,6 +253,58 @@ public static class OfficeNextStepGuide
                 TodayPulseDigest.FocusMatch,
                 ActionOpenMatchDay),
             InjuryRecoveryPathDigest.StepHold when canAdvanceDay => new OfficeNextStep(
+                "1 Gün İlerlet",
+                TargetToday,
+                TodayPulseDigest.FocusCalm,
+                ActionAdvanceDay),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Haftanın Hikâyesi — kariyere dönüşte / Temiz XI / hüküm fazlarında birincil CTA.
+    /// </summary>
+    public static OfficeNextStep? ResolveWeekStoryStep(
+        WeekStoryDigest? weekStory,
+        bool hasDueUnapprovedMatch,
+        bool hasDuePlayableMatch,
+        bool canAdvanceDay)
+    {
+        if (weekStory is not { IsActive: true })
+        {
+            return null;
+        }
+
+        return weekStory.PhaseCode switch
+        {
+            WeekStoryDigest.PhaseInjury or WeekStoryDigest.PhaseRecovery => new OfficeNextStep(
+                PrepPlanSuggestion.RecoveryPlan().ButtonLabel,
+                TargetPrep,
+                TodayPulseDigest.FocusPrep,
+                ActionApplyPrepSuggestion),
+            WeekStoryDigest.PhaseXi => new OfficeNextStep(
+                "Sakatsız Kadro Onayla",
+                TargetToday,
+                TodayPulseDigest.FocusMatch,
+                ActionApproveSelection),
+            WeekStoryDigest.PhaseKickoff or WeekStoryDigest.PhaseCleanXi or WeekStoryDigest.PhaseCleared
+                when hasDueUnapprovedMatch => new OfficeNextStep(
+                "Temiz XI Onayla",
+                TargetToday,
+                TodayPulseDigest.FocusMatch,
+                ActionApproveSelection),
+            WeekStoryDigest.PhaseKickoff or WeekStoryDigest.PhaseCleanXi or WeekStoryDigest.PhaseCleared
+                when hasDuePlayableMatch => new OfficeNextStep(
+                "Temiz XI — Maç Gününe Git",
+                TargetToday,
+                TodayPulseDigest.FocusMatch,
+                ActionOpenMatchDay),
+            WeekStoryDigest.PhaseVerdict when canAdvanceDay => new OfficeNextStep(
+                "Hikâyeyi kapat — 1 Gün İlerlet",
+                TargetToday,
+                TodayPulseDigest.FocusCalm,
+                ActionAdvanceDay),
+            WeekStoryDigest.PhaseCleared when canAdvanceDay => new OfficeNextStep(
                 "1 Gün İlerlet",
                 TargetToday,
                 TodayPulseDigest.FocusCalm,

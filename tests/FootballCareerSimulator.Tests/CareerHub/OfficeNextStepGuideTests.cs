@@ -271,6 +271,46 @@ public sealed class OfficeNextStepGuideTests
     }
 
     [Fact]
+    public void WeekStoryCleanXi_OpensTemizXiMatchDay()
+    {
+        var match = PreMatchBriefing.Compose(
+            new ManagedFixtureSelectionStatusReadModel(
+                1, 1, 1, 2, true, 10, "2026-08-15", IsApproved: true),
+            "Rival",
+            10,
+            cleanReturnNames: ["Tolga Kurt"]);
+        var story = WeekStoryDigest.Compose(InjuryRecoveryPathDigest.Clear(), match);
+
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusCalm,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: true,
+            canAdvanceDay: true,
+            weekStory: story);
+
+        Assert.Equal(OfficeNextStepGuide.ActionOpenMatchDay, step!.ActionCode);
+        Assert.Contains("Temiz XI", step.ButtonLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WeekStoryVerdict_AdvancesDayToCloseArc()
+    {
+        var story = WeekStoryDigest.Compose(
+            InjuryRecoveryPathDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            closedArcVerdictBeat: "Dönenler işe yaradı — Kurt");
+
+        var step = OfficeNextStepGuide.ResolveWeekStoryStep(
+            story,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true);
+
+        Assert.Equal(OfficeNextStepGuide.ActionAdvanceDay, step!.ActionCode);
+        Assert.Contains("Hikâyeyi kapat", step.ButtonLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void LeagueSurvival_RoutesPrimaryCtaToToday()
     {
         var step = OfficeNextStepGuide.ResolveFromPulse(

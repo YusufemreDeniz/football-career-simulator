@@ -2772,15 +2772,47 @@ public sealed class CareerSessionController
         string? clubName = manager.EmployedClubId is long clubId
             ? GetClubDisplayName(clubId)
             : null;
+        var pulse = BuildTodayPulse();
+        var weekStory = BuildWeekStory();
+        var nextStep = BuildOfficeNextStep(pulse.PrimaryFocusCode, weekStory);
 
         return CareerResumeDigest.Compose(
-            BuildTodayPulse(),
+            pulse,
             day.DayNumber,
             day.IsoDate,
             manager.DisplayName,
             clubName,
             loadedFixtureCount,
-            wasMigrated);
+            wasMigrated,
+            weekStory,
+            nextStep);
+    }
+
+    public OfficeNextStep? BuildOfficeNextStep(
+        string? focusCode = null,
+        WeekStoryDigest? weekStory = null)
+    {
+        var pulseFocus = focusCode ?? BuildTodayPulse().PrimaryFocusCode;
+        var story = weekStory ?? BuildWeekStory();
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        var blocker = BuildTimeAdvanceBlockerDigest();
+        var prepBriefing = BuildPreparationBriefing();
+        return OfficeNextStepGuide.ResolveFromPulse(
+            pulseFocus,
+            hasDueUnapprovedMatch: pending is { IsApproved: false },
+            hasDuePlayableMatch: pending is { IsApproved: true },
+            canAdvanceDay: blocker.CanAdvance,
+            primaryBlockerCode: blocker.PrimaryBlockerCode,
+            seasonTransitionReady: CanTransitionToNextSeason(),
+            seasonArchivePhase: IsSeasonArchivePhase(),
+            prepSuggestion: prepBriefing.Suggestion,
+            leagueNextStep: BuildLeagueWorldBriefing().NextStep,
+            transferNextStep: BuildTransferDeskBriefing().NextStep,
+            hasInjuryPressure: prepBriefing.HasInjuryPressure,
+            recoveryPath: BuildInjuryRecoveryPath(),
+            weekStory: story);
     }
 
     public UiActionResult OpenPlanningPeriod()

@@ -180,6 +180,13 @@ public partial class CareerHubScreen : Control
         ShowPage(HubPage.Today);
         RefreshUi();
         _officeLabel.Text = digest.ToDisplayText();
+        // RefreshUi nabız CTA'sını kurar; hikâye varsa birincil düğmeyi kariyere dönüşle senkron tut.
+        var resumeStep = _controller.BuildOfficeNextStep();
+        if (resumeStep is not null)
+        {
+            BindOfficeNextStep(resumeStep);
+        }
+
         PulseStatus(digest.ToStatusMessage());
     }
 
@@ -1008,20 +1015,7 @@ public partial class CareerHubScreen : Control
 
     private void BindOfficeNextStepForFocus(string focusCode)
     {
-        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
-        var pending = _controller.Host.TeamPreparationModule.SelectionQueries
-            .GetNextDueManagedFixture(currentDay);
-        var blocker = _controller.BuildTimeAdvanceBlockerDigest();
-        var prepBriefing = _controller.BuildPreparationBriefing();
-        BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStepGuide.ResolveFromPulse(
-            focusCode,
-            hasDueUnapprovedMatch: pending is { IsApproved: false },
-            hasDuePlayableMatch: pending is { IsApproved: true },
-            canAdvanceDay: blocker.CanAdvance,
-            primaryBlockerCode: blocker.PrimaryBlockerCode,
-            prepSuggestion: prepBriefing.Suggestion,
-            hasInjuryPressure: prepBriefing.HasInjuryPressure,
-            recoveryPath: _controller.BuildInjuryRecoveryPath()));
+        BindOfficeNextStep(_controller.BuildOfficeNextStep(focusCode));
     }
 
     private void OnLoadGamePressed()
@@ -1792,7 +1786,8 @@ public partial class CareerHubScreen : Control
             leagueNextStep: leagueNextStep,
             transferNextStep: transferNextStep,
             hasInjuryPressure: prepBriefing.HasInjuryPressure,
-            recoveryPath: recoveryPath));
+            recoveryPath: recoveryPath,
+            weekStory: weekStory));
     }
 
     private void RefreshSelectionStatus()
