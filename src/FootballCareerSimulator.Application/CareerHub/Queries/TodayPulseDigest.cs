@@ -34,7 +34,8 @@ public sealed record TodayPulseDigest(
         TransferDeskBriefing? transfer = null,
         bool seasonTransitionReady = false,
         bool seasonArchivePhase = false,
-        InjuryRecoveryPathDigest? recoveryPath = null)
+        InjuryRecoveryPathDigest? recoveryPath = null,
+        WeekStoryDigest? weekStory = null)
     {
         ArgumentNullException.ThrowIfNull(desk);
         ArgumentNullException.ThrowIfNull(match);
@@ -44,9 +45,14 @@ public sealed record TodayPulseDigest(
         squad ??= SquadCapacityDigest.Unemployed();
         transfer ??= TransferDeskBriefing.Unemployed();
         recoveryPath ??= InjuryRecoveryPathDigest.Clear();
+        weekStory ??= WeekStoryDigest.Clear();
 
         var lines = new List<string>();
-        if (recoveryPath.IsActive)
+        if (weekStory.IsActive)
+        {
+            lines.Add(weekStory.ToPulseLine());
+        }
+        else if (recoveryPath.IsActive)
         {
             lines.Add(
                 string.Equals(

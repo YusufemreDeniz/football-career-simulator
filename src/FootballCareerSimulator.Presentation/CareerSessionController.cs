@@ -42,6 +42,8 @@ public sealed class CareerSessionController
     private RestApproach _trainingRest = RestApproach.Normal;
     private IReadOnlyList<string>? _pendingInjuryClearedNames;
     private IReadOnlyList<string>? _pendingCleanXiBridgeNames;
+    private string? _pendingWeekStoryClosure;
+    private bool _weekStoryClosureDismissOnNextAdvance;
 
     public CareerSessionController(CareerPresentationHost host)
     {
@@ -694,6 +696,7 @@ public sealed class CareerSessionController
             Host.InteractionModule.Queries.GetPending(take: 5),
             day);
         var match = BuildNextMatchBriefing();
+        var recoveryPath = BuildInjuryRecoveryPath();
         return TodayPulseDigest.Compose(
             desk,
             match,
@@ -703,7 +706,8 @@ public sealed class CareerSessionController
             BuildTransferDeskBriefing(),
             seasonTransitionReady: CanTransitionToNextSeason(),
             seasonArchivePhase: IsSeasonArchivePhase(),
-            recoveryPath: BuildInjuryRecoveryPath());
+            recoveryPath: recoveryPath,
+            weekStory: BuildWeekStory(match, recoveryPath));
     }
 
     public InjuryRecoveryPathDigest BuildInjuryRecoveryPath()
@@ -719,6 +723,14 @@ public sealed class CareerSessionController
             isMatchApproved: match.IsReadyToKickOff,
             freshlyRecoveredNames: _pendingInjuryClearedNames);
     }
+
+    public WeekStoryDigest BuildWeekStory(
+        PreMatchBriefing? match = null,
+        InjuryRecoveryPathDigest? recoveryPath = null) =>
+        WeekStoryDigest.Compose(
+            recoveryPath ?? BuildInjuryRecoveryPath(),
+            match ?? BuildNextMatchBriefing(),
+            closedArcVerdictBeat: _pendingWeekStoryClosure);
 
     public PreMatchBriefing BuildNextMatchBriefing()
     {
@@ -2009,6 +2021,8 @@ public sealed class CareerSessionController
                         if (!string.IsNullOrWhiteSpace(cleanBeat))
                         {
                             afterWhistle.Insert(0, cleanBeat);
+                            _pendingWeekStoryClosure = cleanBeat;
+                            _weekStoryClosureDismissOnNextAdvance = false;
                         }
                     }
 
@@ -2407,6 +2421,7 @@ public sealed class CareerSessionController
         {
             _pendingInjuryClearedNames = null;
             _pendingCleanXiBridgeNames = null;
+            ClearWeekStoryClosure();
             return;
         }
 
@@ -2418,11 +2433,36 @@ public sealed class CareerSessionController
         {
             _pendingInjuryClearedNames = recovered;
             _pendingCleanXiBridgeNames = recovered;
+            ClearWeekStoryClosure();
             return;
         }
 
         // Kutlama bir sonraki günde düşer; Temiz XI köprüsü ilk sakatsız maça kadar kalır.
+        // Haftanın hikâyesi hükmü bir sabah daha Bugün'de kalsın.
         _pendingInjuryClearedNames = null;
+        DismissWeekStoryClosureAfterLinger();
+    }
+
+    private void ClearWeekStoryClosure()
+    {
+        _pendingWeekStoryClosure = null;
+        _weekStoryClosureDismissOnNextAdvance = false;
+    }
+
+    private void DismissWeekStoryClosureAfterLinger()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingWeekStoryClosure))
+        {
+            return;
+        }
+
+        if (_weekStoryClosureDismissOnNextAdvance)
+        {
+            ClearWeekStoryClosure();
+            return;
+        }
+
+        _weekStoryClosureDismissOnNextAdvance = true;
     }
 
     private IReadOnlyList<string>? ResolveCleanXiBridgeNames(int? injuredSlotCount = null)

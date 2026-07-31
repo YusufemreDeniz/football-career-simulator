@@ -26,6 +26,7 @@ public partial class CareerHubScreen : Control
     private Label _deskLabel = null!;
     private Label _officeLabel = null!;
     private Label _recoveryPathLabel = null!;
+    private Label _weekStoryLabel = null!;
     private Button _officeNextStepButton = null!;
     private HubPage _officeNextStepTarget = HubPage.Today;
     private string _officeNextStepAction = Application.CareerHub.Queries.OfficeNextStepGuide.ActionNavigate;
@@ -387,6 +388,10 @@ public partial class CareerHubScreen : Control
         page.AddChild(SectionTitle("Günün Nabzı"));
         _pulseLabel = BodyLabel("PulseLabel", autowrap: true);
         page.AddChild(_pulseLabel);
+
+        _weekStoryLabel = BodyLabel("WeekStoryLabel", autowrap: true);
+        _weekStoryLabel.Visible = false;
+        page.AddChild(_weekStoryLabel);
 
         _recoveryPathLabel = BodyLabel("RecoveryPathLabel", autowrap: true);
         _recoveryPathLabel.Visible = false;
@@ -1754,6 +1759,9 @@ public partial class CareerHubScreen : Control
     {
         var pulse = _controller.BuildTodayPulse();
         _pulseLabel.Text = pulse.ToDisplayText();
+        var weekStory = _controller.BuildWeekStory();
+        _weekStoryLabel.Visible = weekStory.IsActive;
+        _weekStoryLabel.Text = weekStory.IsActive ? weekStory.ToDisplayText() : string.Empty;
         var recoveryPath = _controller.BuildInjuryRecoveryPath();
         _recoveryPathLabel.Visible = recoveryPath.IsActive;
         _recoveryPathLabel.Text = recoveryPath.IsActive ? recoveryPath.ToDisplayText() : string.Empty;

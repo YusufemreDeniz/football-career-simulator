@@ -38,7 +38,7 @@ Komut, Presentation projesini zorunlu olarak yeniden derler ve güncel assembly 
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık / iyileşme yolu** + **auto-swap** + **görsel XI şeridi** kilitlenmiştir (Bugün: `İyileşme` + **İyileşti** + **Temiz XI** + ofiste **döndüler işe yaradı/yetmedi**). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: sakatlık→iyileşme→Temiz XI döngüsünü kısa “haftanın hikâyesi” satırında Bugün’de özetlemek.
+İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık / iyileşme yolu** + **auto-swap** + **görsel XI şeridi** kilitlenmiştir (Bugün: **Haftanın Hikâyesi** + iyileşme yolu + Temiz XI + döndüler hükmü). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: Haftanın Hikâyesi’ni kaydet/yükle ile kariyer devamında da hatırlamak.
 
 ## Klasör Yapısı
 
