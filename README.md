@@ -38,7 +38,7 @@ Komut, Presentation projesini zorunlu olarak yeniden derler ve güncel assembly 
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + nabız→birincil CTA zinciri + transfer CTA + **maç günü → devre arası karar → sonuç** akışı kilitlenmiştir (ikinci yarı yaklaşımı + isteğe bağlı bir XI↔Yedek değişiklik; HT skoru deterministik kilitlenir). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: maç içi sakatlık anının HT/sonuç raporuna bağlanması ve ofis dönüşünün gece kararını hatırlatması.
+İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT karar → sonuç** + **sakatlık anı / ofis gece kararı hatırlatması** kilitlenmiştir (hücum riski sakatlık şansını artırır; rapor + Ofiste Prep'e yönlendirir). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: sakat oyuncunun bir sonraki XI/Hazırlık nabzında zorunlu görünürlüğü.
 
 ## Klasör Yapısı
 

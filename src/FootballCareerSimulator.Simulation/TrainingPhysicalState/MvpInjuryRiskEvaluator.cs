@@ -89,7 +89,8 @@ public static class MvpInjuryRiskEvaluator
         PlayerPhysicalState state,
         int rootSeed,
         long fixtureId,
-        GameDate day)
+        GameDate day,
+        int riskBonusPercent = 0)
     {
         ArgumentNullException.ThrowIfNull(state);
 
@@ -103,7 +104,7 @@ public static class MvpInjuryRiskEvaluator
             Math.Clamp(state.Fatigue + 12, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel),
             Math.Clamp(state.Fitness - 2, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel));
 
-        var risk = ComputeMatchRiskPercent(afterMatch.Fatigue);
+        var risk = Math.Clamp(ComputeMatchRiskPercent(afterMatch.Fatigue) + riskBonusPercent, 0, 45);
         var roll = Roll(rootSeed, state.ClubId.Value, state.SlotIndex, day.DayNumber, salt: unchecked((int)fixtureId) ^ 909);
         if (!ShouldInjure(risk, roll))
         {

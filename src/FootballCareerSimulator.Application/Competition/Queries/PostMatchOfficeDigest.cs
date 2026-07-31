@@ -52,8 +52,19 @@ public sealed record PostMatchOfficeDigest(
         }
 
         var beats = new List<string>();
-        foreach (var line in narrative.AfterWhistleLines.Take(3))
+        var nightDecision = ExtractNightDecision(narrative);
+        if (!string.IsNullOrWhiteSpace(nightDecision))
         {
+            beats.Add(nightDecision);
+        }
+
+        foreach (var line in narrative.AfterWhistleLines.Take(4))
+        {
+            if (line.Contains("Devre arasında", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             beats.Add(line);
         }
 
@@ -76,20 +87,57 @@ public sealed record PostMatchOfficeDigest(
             beats.Add("Maça söz gerilimiyle girmiştin — sonuçlar ofise yansıdı.");
         }
 
+        var hasInjury = HasInjuryNight(narrative);
         string? focusCode = null;
         var advice = "Bugün nabzına bak — sonra günü ilerlet.";
-        if (nextPulse is not null)
+        if (hasInjury)
+        {
+            focusCode = TodayPulseDigest.FocusPrep;
+            advice = string.IsNullOrWhiteSpace(nightDecision)
+                ? "Hazırlık Masası — sakat kadroyu toparla."
+                : "Gece kararı sakatlık getirdi — Hazırlık'ta toparlan.";
+        }
+        else if (nextPulse is not null)
         {
             focusCode = nextPulse.PrimaryFocusCode;
             advice = AdviceForFocus(nextPulse.PrimaryFocusCode);
-            if (!string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(nightDecision)
+                && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
             {
-                beats.Add($"Sıradaki: {nextPulse.Headline}");
+                advice = "Gece kararını hatırla — nabız sakinse günü ilerlet.";
             }
         }
 
+        if (nextPulse is not null
+            && !string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
+        {
+            beats.Add($"Sıradaki: {nextPulse.Headline}");
+        }
+
         var headline = ResolveHeadline(narrative, desk, nextPulse);
+        if (hasInjury
+            && !string.IsNullOrWhiteSpace(nightDecision)
+            && nightDecision.Contains("hücuma", StringComparison.OrdinalIgnoreCase))
+        {
+            headline = "Hücum riski pahalıya patladı — sakatlık var.";
+        }
+
         return new PostMatchOfficeDigest(Brand, headline, advice, focusCode, beats.Take(6).ToArray());
+    }
+
+    private static bool HasInjuryNight(MatchNightNarrative narrative) =>
+        narrative.AfterWhistleLines.Any(line =>
+            line.Contains("Sakatlık", StringComparison.OrdinalIgnoreCase))
+        || narrative.BeatLines.Any(line =>
+            line.Contains("sakatlık", StringComparison.OrdinalIgnoreCase));
+
+    private static string? ExtractNightDecision(MatchNightNarrative narrative)
+    {
+        var line = narrative.KickoffLines
+            .Concat(narrative.AfterWhistleLines)
+            .FirstOrDefault(candidate =>
+                candidate.Contains("Devre arasında", StringComparison.OrdinalIgnoreCase));
+        return line is null ? null : $"Gece kararı: {line}";
     }
 
     public string ToStatusMessage()

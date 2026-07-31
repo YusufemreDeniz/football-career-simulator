@@ -153,6 +153,19 @@ public partial class MatchResultScreen : Control
                 standout.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
                 layout.AddChild(standout);
             }
+
+            if (!string.IsNullOrWhiteSpace(report.InjuryLine))
+            {
+                var injury = new Label
+                {
+                    Text = report.InjuryLine,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                };
+                CareerUiTheme.StyleBody(injury);
+                injury.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
+                layout.AddChild(injury);
+            }
         }
 
         if (narrative.BeatLines.Count > 0)

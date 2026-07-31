@@ -1957,7 +1957,15 @@ public sealed class CareerSessionController
 
         if (c.NewlyInjuredSlots.Count > 0)
         {
-            yield return $"Sakatlık: slot {string.Join(", ", c.NewlyInjuredSlots)}";
+            var named = result.KeyMoments?
+                .Where(moment =>
+                    string.Equals(moment.Kind, nameof(MatchKeyMomentKind.Injury), StringComparison.Ordinal))
+                .Select(moment => FormatPlayerRef(moment.PrimaryPlayerName, moment.PrimarySlotIndex))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            yield return named is { Length: > 0 }
+                ? $"Sakatlık: {string.Join(", ", named)}"
+                : $"Sakatlık: slot {string.Join(", ", c.NewlyInjuredSlots)}";
         }
 
         if (c.PressQuestionOpened)
@@ -2002,6 +2010,8 @@ public sealed class CareerSessionController
                 $"{moment.Minute}' {side} sarı kart · {primary}",
             nameof(MatchKeyMomentKind.RedCard) =>
                 $"{moment.Minute}' {side} kırmızı kart · {primary}",
+            nameof(MatchKeyMomentKind.Injury) =>
+                $"{moment.Minute}' {side} sakatlık · {primary}",
             _ => $"{moment.Minute}' {side} {moment.Kind} · {primary}",
         };
     }
@@ -2040,7 +2050,15 @@ public sealed class CareerSessionController
 
         if (c.NewlyInjuredSlots.Count > 0)
         {
-            yield return $"{header} · sakatlık: slot {string.Join(", ", c.NewlyInjuredSlots)}";
+            var named = result.KeyMoments?
+                .Where(moment =>
+                    string.Equals(moment.Kind, nameof(MatchKeyMomentKind.Injury), StringComparison.Ordinal))
+                .Select(moment => FormatPlayerRef(moment.PrimaryPlayerName, moment.PrimarySlotIndex))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            yield return named is { Length: > 0 }
+                ? $"{header} · sakatlık: {string.Join(", ", named)}"
+                : $"{header} · sakatlık: slot {string.Join(", ", c.NewlyInjuredSlots)}";
         }
 
         if (c.PressQuestionOpened)

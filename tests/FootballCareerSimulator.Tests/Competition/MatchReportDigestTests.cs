@@ -58,6 +58,33 @@ public sealed class MatchReportDigestTests
         Assert.Contains("Deniz Tekin", report.StandoutLine, StringComparison.Ordinal);
         Assert.Contains("2 gol", report.StandoutLine, StringComparison.Ordinal);
         Assert.Contains("Boğaziçi Spor", report.StandoutLine, StringComparison.Ordinal);
+        Assert.Null(report.InjuryLine);
+    }
+
+    [Fact]
+    public void Compose_SurfacesInjuryLineFromKeyMoments()
+    {
+        var result = new PlayFixtureMatchResult(
+            Succeeded: true,
+            SeasonId: 1,
+            FixtureId: 11,
+            HomeGoals: 1,
+            AwayGoals: 1,
+            Status: "ResultAccepted",
+            KeyMoments:
+            [
+                new MatchKeyMomentReadModel(
+                    nameof(MatchKeyMomentKind.Injury),
+                    71,
+                    IsHomeSide: true,
+                    PrimarySlotIndex: 4,
+                    PrimaryPlayerName: "Tolga Kurt"),
+            ],
+            Statistics: new MatchStatisticsReadModel(50, 50, 8, 7, 3, 2, 4, 3));
+
+        var report = MatchReportDigest.Compose(result, "Home", "Away");
+
+        Assert.Equal("Sakatlık: 71' Tolga Kurt", report!.InjuryLine);
     }
 
     [Fact]

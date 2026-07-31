@@ -4,13 +4,14 @@ using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Domain.Match;
 
 /// <summary>
-/// Maç sonucunun oyuncuya dönük kısa raporu: temel sayılar ve gecenin öne çıkanı.
+/// Maç sonucunun oyuncuya dönük kısa raporu: temel sayılar, sakatlık ve gecenin öne çıkanı.
 /// </summary>
 public sealed record MatchReportDigest(
     string HomeClubName,
     string AwayClubName,
     IReadOnlyList<MatchReportStatLine> StatLines,
-    string? StandoutLine)
+    string? StandoutLine,
+    string? InjuryLine = null)
 {
     public static MatchReportDigest? Compose(
         PlayFixtureMatchResult result,
@@ -41,7 +42,32 @@ public sealed record MatchReportDigest(
                     stats.AwayShotsOnTarget.ToString()),
                 new MatchReportStatLine("Korner", stats.HomeCorners.ToString(), stats.AwayCorners.ToString()),
             ],
-            ComposeStandout(result.KeyMoments, homeClubName, awayClubName));
+            ComposeStandout(result.KeyMoments, homeClubName, awayClubName),
+            ComposeInjuryLine(result.KeyMoments));
+    }
+
+    private static string? ComposeInjuryLine(IReadOnlyList<MatchKeyMomentReadModel>? moments)
+    {
+        if (moments is null || moments.Count == 0)
+        {
+            return null;
+        }
+
+        var injuries = moments
+            .Where(moment => string.Equals(moment.Kind, nameof(MatchKeyMomentKind.Injury), StringComparison.Ordinal))
+            .OrderBy(moment => moment.Minute)
+            .Select(moment =>
+            {
+                var name = string.IsNullOrWhiteSpace(moment.PrimaryPlayerName)
+                    ? $"Oyuncu #{moment.PrimarySlotIndex + 1}"
+                    : moment.PrimaryPlayerName;
+                return $"{moment.Minute}' {name}";
+            })
+            .ToArray();
+
+        return injuries.Length == 0
+            ? null
+            : $"Sakatlık: {string.Join(" · ", injuries)}";
     }
 
     private static string? ComposeStandout(

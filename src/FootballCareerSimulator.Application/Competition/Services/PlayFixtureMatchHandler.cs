@@ -184,7 +184,12 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             ? SnapshotInjuredSlots(clubForInjury)
             : Array.Empty<int>();
 
-        ApplyMatchPhysicalConsequences(fixture, occurredAt, rootSeed);
+        ApplyMatchPhysicalConsequences(
+            fixture,
+            occurredAt,
+            rootSeed,
+            managedClubBefore,
+            command.ManagedSecondHalfDelta);
         var newlyInjured = isManagedMatch && managedClubBefore is ClubId clubAfterInjury
             ? DiffNewlyInjuredSlots(clubAfterInjury, injuredBefore)
             : Array.Empty<int>();
@@ -249,6 +254,25 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                         ? ResolveXiPlayerName(starting, names, assistXi)
                         : null);
             })
+            .ToList();
+
+        if (newlyInjured.Length > 0 && managedClubBefore is ClubId injuredClub)
+        {
+            AppendInjuryMoments(
+                keyMoments,
+                newlyInjured,
+                fixture.HomeClubId == injuredClub,
+                fixture.HomeClubId == injuredClub ? homeStarting : awayStarting,
+                fixture.HomeClubId == injuredClub ? homeNames : awayNames,
+                rootSeed,
+                command.FixtureId);
+        }
+
+        var keyMomentArray = keyMoments
+            .OrderBy(moment => moment.Minute)
+            .ThenBy(moment => moment.Kind, StringComparer.Ordinal)
+            .ThenBy(moment => moment.IsHomeSide ? 0 : 1)
+            .ThenBy(moment => moment.PrimarySlotIndex)
             .ToArray();
         var statistics = new MatchStatisticsReadModel(
             simulation.Statistics.HomePossessionPercent,
@@ -270,7 +294,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             invalidated,
             managedTacticModifier,
             consequences,
-            keyMoments,
+            keyMomentArray,
             statistics);
 
         _completedCommands[command.CommandId] = result;
@@ -502,18 +526,38 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         }
     }
 
-    private void ApplyMatchPhysicalConsequences(Fixture fixture, GameDate day, int rootSeed)
+    private void ApplyMatchPhysicalConsequences(
+        Fixture fixture,
+        GameDate day,
+        int rootSeed,
+        ClubId? managedClubId,
+        int managedSecondHalfDelta)
     {
         if (_trainingStore is null)
         {
             return;
         }
 
-        ApplyMatchLoadForClub(fixture.HomeClubId, fixture.Id, day, rootSeed);
-        ApplyMatchLoadForClub(fixture.AwayClubId, fixture.Id, day, rootSeed);
+        var homeRiskBonus = managedClubId == fixture.HomeClubId
+            ? ResolveHalfTimeInjuryRiskBonus(managedSecondHalfDelta)
+            : 0;
+        var awayRiskBonus = managedClubId == fixture.AwayClubId
+            ? ResolveHalfTimeInjuryRiskBonus(managedSecondHalfDelta)
+            : 0;
+
+        ApplyMatchLoadForClub(fixture.HomeClubId, fixture.Id, day, rootSeed, homeRiskBonus);
+        ApplyMatchLoadForClub(fixture.AwayClubId, fixture.Id, day, rootSeed, awayRiskBonus);
     }
 
-    private void ApplyMatchLoadForClub(ClubId clubId, FixtureId fixtureId, GameDate day, int rootSeed)
+    private static int ResolveHalfTimeInjuryRiskBonus(int managedSecondHalfDelta) =>
+        managedSecondHalfDelta >= 2 ? 8 : 0;
+
+    private void ApplyMatchLoadForClub(
+        ClubId clubId,
+        FixtureId fixtureId,
+        GameDate day,
+        int rootSeed,
+        int riskBonusPercent)
     {
         var existing = _trainingStore!.PhysicalStates
             .Where(state => state.ClubId == clubId)
@@ -541,12 +585,85 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 state,
                 rootSeed,
                 fixtureId.Value,
-                day);
+                day,
+                riskBonusPercent);
         }
 
         _trainingStore.ReplacePhysicalStatesForClub(
             clubId,
             existing.Values.OrderBy(state => state.SlotIndex));
+    }
+
+    private static void AppendInjuryMoments(
+        List<MatchKeyMomentReadModel> moments,
+        IReadOnlyList<int> newlyInjuredClubSlots,
+        bool managedIsHome,
+        IReadOnlyList<int> startingSlots,
+        IReadOnlyList<string> names,
+        int rootSeed,
+        long fixtureId)
+    {
+        var usedMinutes = moments.Select(moment => moment.Minute).ToHashSet();
+        foreach (var clubSlot in newlyInjuredClubSlots.OrderBy(slot => slot))
+        {
+            var xiIndex = -1;
+            for (var i = 0; i < startingSlots.Count; i++)
+            {
+                if (startingSlots[i] == clubSlot)
+                {
+                    xiIndex = i;
+                    break;
+                }
+            }
+
+            if (xiIndex < 0)
+            {
+                xiIndex = Math.Clamp(clubSlot, 0, MatchSelection.StartingXiSize - 1);
+            }
+
+            var playerName = clubSlot >= 0 && clubSlot < names.Count
+                ? names[clubSlot]
+                : ResolveXiPlayerName(startingSlots, names, xiIndex);
+            var minute = NextInjuryMinute(rootSeed, fixtureId, clubSlot, usedMinutes);
+            moments.Add(
+                new MatchKeyMomentReadModel(
+                    nameof(MatchKeyMomentKind.Injury),
+                    minute,
+                    managedIsHome,
+                    xiIndex,
+                    AssistSlotIndex: null,
+                    playerName,
+                    AssistPlayerName: null));
+        }
+    }
+
+    private static int NextInjuryMinute(
+        int rootSeed,
+        long fixtureId,
+        int clubSlot,
+        HashSet<int> usedMinutes)
+    {
+        var rng = new FootballCareerSimulator.Simulation.SimulationRandomContext(
+            unchecked(rootSeed * 613) ^ ((int)fixtureId * 17) ^ (clubSlot * 41));
+        for (var attempt = 0; attempt < 24; attempt++)
+        {
+            // Maç içi his: çoğu sakatlık ikinci yarıda.
+            var minute = rng.NextInt(38, 90);
+            if (usedMinutes.Add(minute))
+            {
+                return minute;
+            }
+        }
+
+        for (var minute = 38; minute <= 90; minute++)
+        {
+            if (usedMinutes.Add(minute))
+            {
+                return minute;
+            }
+        }
+
+        return 90;
     }
 
     private void ApplySocialContinuityAfterMatch(Fixture fixture, GameDate day)

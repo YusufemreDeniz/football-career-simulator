@@ -172,6 +172,38 @@ public sealed class PostMatchOfficeDigestTests
         Assert.Contains("Öneri:", digest.ToDisplayText(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void HalfTimeAttackWithInjury_RemembersNightDecision()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 1-2 B",
+            1,
+            2,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 12,
+            beatLines: ["71' Ev sakatlık · Tolga Kurt"],
+            afterWhistleLines:
+            [
+                "Devre arasında hücuma geçtin.",
+                "Sakatlık: Tolga Kurt",
+                "Yönetim güveni -2 → 48 (Stabil)",
+            ],
+            otherScorelines: Array.Empty<string>(),
+            kickoffLines: ["Devre arası: A 0-1 B", "Devre arasında hücuma geçtin."]);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Equal(TodayPulseDigest.FocusPrep, digest.NextFocusCode);
+        Assert.Contains("Hücum riski", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Gece kararı:", StringComparison.Ordinal));
+        Assert.Contains("Hazırlık", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
     private static PreparationBriefing PrepOk() =>
         PreparationBriefing.Compose(
             new ClubTrainingSummaryReadModel(
