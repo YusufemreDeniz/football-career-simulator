@@ -122,7 +122,8 @@ public sealed record PostMatchOfficeDigest(
         TodayPulseDigest pulse,
         WeekMoodDigest? weekMood = null,
         WeekStoryDigest? weekStory = null,
-        string? nextCtaLabel = null)
+        string? nextCtaLabel = null,
+        int dayNumber = 0)
     {
         ArgumentNullException.ThrowIfNull(pulse);
         weekMood ??= WeekMoodDigest.Clear();
@@ -135,7 +136,7 @@ public sealed record PostMatchOfficeDigest(
 
         if (weekMood.IsActive)
         {
-            return FromWeekMoodPulse(weekMood, pulse, nextCtaLabel);
+            return FromWeekMoodPulse(weekMood, pulse, nextCtaLabel, dayNumber);
         }
 
         return Compose(narrative: null, DecisionDeskDigest.Clear(), hasManagedMatch: false, pulse);
@@ -175,9 +176,16 @@ public sealed record PostMatchOfficeDigest(
     private static PostMatchOfficeDigest FromWeekMoodPulse(
         WeekMoodDigest mood,
         TodayPulseDigest pulse,
-        string? nextCtaLabel)
+        string? nextCtaLabel,
+        int dayNumber)
     {
         var beats = new List<string> { mood.ToPulseLine() };
+        var calmNote = OfficeCalmNote.ToBeatLine(mood.MoodCode, dayNumber);
+        if (!string.IsNullOrWhiteSpace(calmNote))
+        {
+            beats.Add(calmNote);
+        }
+
         if (!string.IsNullOrWhiteSpace(nextCtaLabel))
         {
             beats.Add($"Sıradaki: {nextCtaLabel}");

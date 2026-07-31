@@ -130,15 +130,48 @@ public sealed class PostMatchOfficeDigestTests
         var digest = PostMatchOfficeDigest.FromTodayPulse(
             pulse,
             mood,
-            nextCtaLabel: "1 Gün İlerlet");
+            nextCtaLabel: "1 Gün İlerlet",
+            dayNumber: 12);
 
         Assert.Equal(TodayPulseDigest.FocusCalm, digest.NextFocusCode);
         Assert.Contains("Haftanın havası", digest.Headline, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(digest.BeatLines, b => b.StartsWith("Hava:", StringComparison.Ordinal)
             && b.Contains("Sakin hafta", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Not:", StringComparison.Ordinal));
         Assert.Contains(digest.BeatLines, b => b == "Sıradaki: 1 Gün İlerlet");
         Assert.Contains("birincil düğme", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("1 Gün İlerlet", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FromTodayPulse_PrepMood_SkipsCalmOfficeNote()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1, null, null, null, null, null, null, null, null, null,
+                HasPlan: false, 0, 0),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 4);
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk());
+        var mood = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Plan boş — haftayı birincil düğmeyle kur.",
+            WeekMoodDigest.MoodPrep);
+
+        var digest = PostMatchOfficeDigest.FromTodayPulse(
+            pulse,
+            mood,
+            nextCtaLabel: "Haftalık Plan Kur",
+            dayNumber: 12);
+
+        Assert.DoesNotContain(digest.BeatLines, b => b.StartsWith("Not:", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Haftalık Plan Kur");
     }
 
     [Fact]

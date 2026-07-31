@@ -1800,7 +1800,7 @@ public partial class CareerHubScreen : Control
             recoveryPath: recoveryPath,
             weekStory: weekStory);
         _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest
-            .FromTodayPulse(pulse, weekMood, weekStory, nextStep?.ButtonLabel)
+            .FromTodayPulse(pulse, weekMood, weekStory, nextStep?.ButtonLabel, currentDay)
             .ToDisplayText();
         BindOfficeNextStep(nextStep);
     }
