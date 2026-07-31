@@ -201,13 +201,24 @@ public sealed record PostMatchOfficeDigest(
             beats.Add("Maça söz gerilimiyle girmiştin — sonuçlar ofise yansıdı.");
         }
 
-        var lineupBeat = narrative.LineupBridge?.ResultBridgeBeatLine();
-        if (!string.IsNullOrWhiteSpace(lineupBeat))
+        var cleanReturnBeat = FormatCleanReturnVerdictBeat(
+            narrative.LineupBridge,
+            narrative.ManagedGoalMargin);
+        if (!string.IsNullOrWhiteSpace(cleanReturnBeat))
         {
-            beats.Add(lineupBeat);
+            beats.Add(cleanReturnBeat);
+        }
+        else
+        {
+            var lineupBeat = narrative.LineupBridge?.ResultBridgeBeatLine();
+            if (!string.IsNullOrWhiteSpace(lineupBeat))
+            {
+                beats.Add(lineupBeat);
+            }
         }
 
         var hasInjury = HasInjuryNight(narrative);
+        var hasCleanReturnVerdict = narrative.LineupBridge is { HasCleanReturn: true };
         string? focusCode = null;
         var advice = "Bugün nabzına bak — sonra günü ilerlet.";
         var recoveryCta = PrepPlanSuggestion.RecoveryPlan().ButtonLabel;
@@ -220,8 +231,11 @@ public sealed record PostMatchOfficeDigest(
         else if (nextPulse is not null)
         {
             focusCode = nextPulse.PrimaryFocusCode;
-            advice = AdviceForFocus(nextPulse.PrimaryFocusCode);
-            if (!string.IsNullOrWhiteSpace(halfTimeNote)
+            advice = hasCleanReturnVerdict
+                ? ComposeCleanReturnAdvice(narrative.ManagedGoalMargin, nextPulse.PrimaryFocusCode)
+                : AdviceForFocus(nextPulse.PrimaryFocusCode);
+            if (!hasCleanReturnVerdict
+                && !string.IsNullOrWhiteSpace(halfTimeNote)
                 && string.Equals(nextPulse.PrimaryFocusCode, TodayPulseDigest.FocusCalm, StringComparison.Ordinal))
             {
                 advice = "Gece kararını hatırla — nabız sakinse günü ilerlet.";
@@ -231,6 +245,10 @@ public sealed record PostMatchOfficeDigest(
             {
                 beats.Add($"Sıradaki: {nextPulse.Headline}");
             }
+        }
+        else if (hasCleanReturnVerdict)
+        {
+            advice = ComposeCleanReturnAdvice(narrative.ManagedGoalMargin, TodayPulseDigest.FocusCalm);
         }
 
         var headline = ResolveHeadline(narrative, desk, nextPulse);
@@ -251,6 +269,76 @@ public sealed record PostMatchOfficeDigest(
         }
 
         return new PostMatchOfficeDigest(Brand, headline, advice, focusCode, beats.Take(6).ToArray());
+    }
+
+    /// <summary>
+    /// Temiz XI maçı sonrası — dönenler işe yaradı / dengede / yetmedi.
+    /// </summary>
+    public static string? FormatCleanReturnVerdictBeat(
+        MatchDayLineupStrip? lineupBridge,
+        int? managedGoalMargin)
+    {
+        if (lineupBridge is not { HasCleanReturn: true })
+        {
+            return null;
+        }
+
+        var who = string.Join(
+            ", ",
+            lineupBridge.ReturnedNames.Take(2).Select(ShortLastName));
+        if (string.IsNullOrWhiteSpace(who))
+        {
+            who = "Dönenler";
+        }
+
+        if (managedGoalMargin is null)
+        {
+            return $"Temiz XI: {who} döndü";
+        }
+
+        if (managedGoalMargin > 0)
+        {
+            return $"Dönenler işe yaradı — {who}";
+        }
+
+        if (managedGoalMargin == 0)
+        {
+            return $"Dönenler dengede — {who}";
+        }
+
+        return $"Dönenler yetmedi — {who}";
+    }
+
+    public static string? FormatCleanReturnVerdictHeadline(int? managedGoalMargin) =>
+        managedGoalMargin switch
+        {
+            > 0 => "Dönenler işe yaradı — Temiz XI tuttu.",
+            0 => "Dönenler dengede — Temiz XI puan getirdi.",
+            < 0 => "Dönenler yetmedi — Temiz XI yetmedi.",
+            _ => null,
+        };
+
+    private static string ComposeCleanReturnAdvice(int? managedGoalMargin, string focusCode)
+    {
+        var focusAdvice = AdviceForFocus(focusCode);
+        return managedGoalMargin switch
+        {
+            > 0 => "Dönenler tuttu — nabza bak, ritmi bozma.",
+            0 => "Dönenler dengede — nabza bak, sıradaki adımı seç.",
+            < 0 => "Dönenler yetmedi — nabza bak, yükü yumuşatmayı düşün.",
+            _ => focusAdvice,
+        };
+    }
+
+    private static string ShortLastName(string full)
+    {
+        if (string.IsNullOrWhiteSpace(full))
+        {
+            return "?";
+        }
+
+        var parts = full.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 ? parts[^1] : parts[0];
     }
 
     private static string ComposeInjuryRecoveryAdvice(string? halfTimeNote, string recoveryCta)
@@ -349,6 +437,12 @@ public sealed record PostMatchOfficeDigest(
         if (desk.HasOpenDecision)
         {
             return "Ofiste iş birikti — Masada bak.";
+        }
+
+        if (narrative.LineupBridge is { HasCleanReturn: true }
+            && FormatCleanReturnVerdictHeadline(narrative.ManagedGoalMargin) is { } cleanHeadline)
+        {
+            return cleanHeadline;
         }
 
         if (nextPulse is not null

@@ -360,6 +360,83 @@ public sealed class PostMatchOfficeDigestTests
     }
 
     [Fact]
+    public void CleanReturnWin_OfficeSaysPaidOff()
+    {
+        var names = Enumerable.Range(0, 25).Select(i => $"P{i} Kurt{i}").ToArray();
+        names[0] = "Tolga Kurt";
+        var strip = MatchDayLineupStrip.Compose(
+            true,
+            true,
+            Enumerable.Range(0, 11).ToArray(),
+            Array.Empty<MvpAvailabilityAwareSelection.AvailabilityAutoSwap>(),
+            names,
+            cleanReturnNames: ["Tolga Kurt"]);
+
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-0 B",
+            2,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 12,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni +2 → 60 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines: ["Ev vs B · bugün", "Temiz XI — Tolga Kurt döndü, sakatsız çıktın."],
+            lineupBridge: strip);
+
+        Assert.Equal(2, narrative.ManagedGoalMargin);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Contains("işe yaradı", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            digest.BeatLines,
+            b => b.StartsWith("Dönenler işe yaradı", StringComparison.Ordinal)
+                && b.Contains("Kurt", StringComparison.Ordinal));
+        Assert.Contains("tuttu", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CleanReturnLoss_OfficeSaysNotEnough()
+    {
+        var names = Enumerable.Range(0, 25).Select(i => $"P{i} N{i}").ToArray();
+        var strip = MatchDayLineupStrip.Compose(
+            true,
+            true,
+            Enumerable.Range(0, 11).ToArray(),
+            Array.Empty<MvpAvailabilityAwareSelection.AvailabilityAutoSwap>(),
+            names,
+            cleanReturnNames: ["Ali Yılmaz"]);
+
+        var narrative = MatchNightNarrative.Compose(
+            "A 0-2 B",
+            0,
+            2,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 13,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni -1 → 52 (Stabil)"],
+            otherScorelines: [],
+            lineupBridge: strip);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Contains("yetmedi", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Dönenler yetmedi", StringComparison.Ordinal));
+        Assert.Contains("yumuşat", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void ExplicitHalfTimeNoteLine_PrefersReportWording()
     {
         var narrative = MatchNightNarrative.Compose(

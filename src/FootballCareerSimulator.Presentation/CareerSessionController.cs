@@ -1998,6 +1998,20 @@ public sealed class CareerSessionController
                     }
 
                     afterWhistle.AddRange(FormatMatchAfterWhistle(result));
+                    if (kickoffBriefing.HasCleanReturn)
+                    {
+                        var cleanMargin = heroManagedIsHome
+                            ? result.HomeGoals - result.AwayGoals
+                            : result.AwayGoals - result.HomeGoals;
+                        var cleanBeat = PostMatchOfficeDigest.FormatCleanReturnVerdictBeat(
+                            lineupBridge,
+                            cleanMargin);
+                        if (!string.IsNullOrWhiteSpace(cleanBeat))
+                        {
+                            afterWhistle.Insert(0, cleanBeat);
+                        }
+                    }
+
                     if (!string.IsNullOrWhiteSpace(halfTimeSubstitutionLabel))
                     {
                         afterWhistle.Insert(0, halfTimeSubstitutionLabel);

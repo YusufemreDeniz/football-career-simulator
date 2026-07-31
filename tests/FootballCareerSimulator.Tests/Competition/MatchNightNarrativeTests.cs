@@ -132,6 +132,7 @@ public sealed class MatchNightNarrativeTests
         Assert.NotNull(narrative.LineupBridge);
         Assert.Equal(11, narrative.LineupBridge!.StartingXi.Count);
         Assert.Contains("Sahaya bu XI ile çıktın", narrative.LineupBridge.ResultBridgeCaption, StringComparison.Ordinal);
+        Assert.Equal(1, narrative.ManagedGoalMargin);
     }
 
     [Fact]

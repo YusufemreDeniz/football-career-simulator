@@ -15,7 +15,8 @@ public sealed record MatchNightNarrative(
     IReadOnlyList<string> AfterWhistleLines,
     IReadOnlyList<string> OtherScorelines,
     IReadOnlyList<string> KickoffLines,
-    MatchDayLineupStrip? LineupBridge = null)
+    MatchDayLineupStrip? LineupBridge = null,
+    int? ManagedGoalMargin = null)
 {
     public static MatchNightNarrative Failure(string message) =>
         new(
@@ -55,6 +56,9 @@ public sealed record MatchNightNarrative(
         var support = string.IsNullOrWhiteSpace(tacticNote)
             ? $"Tarih {matchDate}"
             : $"Tarih {matchDate} · {tacticNote}";
+        int? margin = hasManagedMatch
+            ? (managedIsHome ? homeGoals - awayGoals : awayGoals - homeGoals)
+            : null;
 
         return new MatchNightNarrative(
             hasManagedMatch ? "Maç Gecesi" : "Lig Günü",
@@ -67,7 +71,8 @@ public sealed record MatchNightNarrative(
             PreferKickoffBridgeLines(kickoffLines),
             hasManagedMatch && lineupBridge is { StartingXi.Count: > 0 }
                 ? lineupBridge
-                : null);
+                : null,
+            margin);
     }
 
     /// <summary>
