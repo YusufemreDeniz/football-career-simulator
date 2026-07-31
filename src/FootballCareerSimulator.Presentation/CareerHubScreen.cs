@@ -984,6 +984,11 @@ public partial class CareerHubScreen : Control
     {
         PulseStatus(result.Message);
         RefreshUi();
+        // Toparlanma onayı gibi ofis köprüleri nabız metninin üstüne yazılır.
+        if (!string.IsNullOrWhiteSpace(result.NarrativeBridgeLine))
+        {
+            _officeLabel.Text = result.NarrativeBridgeLine;
+        }
     }
 
     private void OnLoadGamePressed()

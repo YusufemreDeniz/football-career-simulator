@@ -1714,10 +1714,21 @@ public sealed class CareerSessionController
                 ? $" · kadro onayı düştü ({result.InvalidatedSelectionCount})"
                 : string.Empty;
             var advice = BuildPreparationBriefing().AdviceLine;
-            return UiActionResult.Ok(
+            var appliedLine =
                 $"Antrenman uygulandı ({FormatTrainingFocus(_trainingFocus)}/{FormatTrainingIntensity(_trainingIntensity)}/{FormatRestApproach(_trainingRest)}):"
                 + $" yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}{invalidatedText}."
-                + $"\nÖneri: {advice}");
+                + $"\nÖneri: {advice}";
+
+            if (_trainingFocus == TrainingFocus.Recovery)
+            {
+                var confirmation = PostMatchOfficeDigest.AfterRecoveryApplied(
+                    GetTrainingSummary().InjuredNames);
+                return UiActionResult.Ok(
+                    confirmation.Headline + "\n" + appliedLine,
+                    narrativeBridgeLine: confirmation.ToDisplayText());
+            }
+
+            return UiActionResult.Ok(appliedLine);
         }
         catch (TrainingPhysicalStateInvariantViolationException ex)
         {

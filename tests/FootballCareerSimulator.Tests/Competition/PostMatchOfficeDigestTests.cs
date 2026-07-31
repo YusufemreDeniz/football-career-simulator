@@ -12,6 +12,20 @@ namespace FootballCareerSimulator.Tests.Competition;
 public sealed class PostMatchOfficeDigestTests
 {
     [Fact]
+    public void AfterRecoveryApplied_ConfirmsPlanAndListsInjured()
+    {
+        var digest = PostMatchOfficeDigest.AfterRecoveryApplied(["Tolga Kurt", "Ali Yılmaz"]);
+
+        Assert.Equal(PostMatchOfficeDigest.Brand, digest.BrandTitle);
+        Assert.Equal("Toparlanma işledi — sakatlar listede.", digest.Headline);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Sakat:", StringComparison.Ordinal)
+            && b.Contains("Tolga Kurt", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b.Contains("Toparlanma", StringComparison.Ordinal));
+        Assert.Contains("XI'de sakatı oynatma", digest.AdviceLine, StringComparison.Ordinal);
+        Assert.Contains("Ofiste", digest.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Quiet_WhenNoManagedNarrative()
     {
         var digest = PostMatchOfficeDigest.Compose(

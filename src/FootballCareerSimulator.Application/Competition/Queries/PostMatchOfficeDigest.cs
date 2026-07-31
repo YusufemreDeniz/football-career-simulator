@@ -20,6 +20,29 @@ public sealed record PostMatchOfficeDigest(
         new(Brand, "Ofis sakin — sıradaki güne bak.", "Bugün nabzına bak.", null, Array.Empty<string>());
 
     /// <summary>
+    /// Toparlanma CTA sonrası kısa onay — oyuncu planın işlediğini görsün.
+    /// </summary>
+    public static PostMatchOfficeDigest AfterRecoveryApplied(
+        IReadOnlyList<string>? injuredPlayerNames = null)
+    {
+        var names = injuredPlayerNames ?? Array.Empty<string>();
+        var beats = new List<string>
+        {
+            names.Count > 0
+                ? "Sakat: " + string.Join(", ", names.Take(3))
+                : "Aktif sakat yok — plan yine de yumuşak.",
+            "Plan: Toparlanma / Hafif / Bol dinlenme",
+        };
+
+        return new(
+            Brand,
+            "Toparlanma işledi — sakatlar listede.",
+            "XI'de sakatı oynatma; nabza bakıp günü ilerlet.",
+            null,
+            beats);
+    }
+
+    /// <summary>
     /// Günlük Bugün ekranı — Ofiste metni nabızla aynı dili konuşsun.
     /// </summary>
     public static PostMatchOfficeDigest FromTodayPulse(TodayPulseDigest pulse)
