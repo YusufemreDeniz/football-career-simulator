@@ -39,4 +39,7 @@ public sealed record SwapStarterWithBenchResult(
     long FixtureId,
     long ClubId,
     IReadOnlyList<int> StartingSlotIndices,
-    IReadOnlyList<int> BenchSlotIndices);
+    IReadOnlyList<int> BenchSlotIndices,
+    int OutSlotIndex = -1,
+    int InSlotIndex = -1,
+    string? SwapSummary = null);

@@ -184,10 +184,10 @@ public sealed class CareerSessionController
                     StartingIndex: MatchSelection.StartingXiSize - 1,
                     BenchIndex: 0));
 
-            return UiActionResult.Ok(
-                $"Kadro değişti: fikstür #{result.FixtureId}"
-                + $" · XI[{MatchSelection.StartingXiSize - 1}]={result.StartingSlotIndices[^1]}"
-                + $" · Yedek[0]={result.BenchSlotIndices[0]}.");
+            var summary = string.IsNullOrWhiteSpace(result.SwapSummary)
+                ? $"slot {result.OutSlotIndex} ↔ {result.InSlotIndex}"
+                : result.SwapSummary;
+            return UiActionResult.Ok($"Değişiklik: {summary}.");
         }
         catch (TeamPreparationInvariantViolationException ex)
         {

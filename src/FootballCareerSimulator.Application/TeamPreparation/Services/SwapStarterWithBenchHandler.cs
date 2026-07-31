@@ -1,12 +1,14 @@
 using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.TeamPreparation;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 namespace FootballCareerSimulator.Application.TeamPreparation.Services;
@@ -65,6 +67,10 @@ public sealed class SwapStarterWithBenchHandler : ICommandIdempotencyReset
         var physical = _trainingStore is not null && day is not null
             ? _trainingStore.PhysicalBySlot
             : null;
+
+        var outSlot = current.StartingSlotIndices[command.StartingIndex];
+        var inSlot = current.BenchSlotIndices[command.BenchIndex];
+
         var swapped = MvpAvailabilityAwareSelection.SwapStarterWithBench(
             current,
             command.StartingIndex,
@@ -74,12 +80,24 @@ public sealed class SwapStarterWithBenchHandler : ICommandIdempotencyReset
             clubSquad);
         _selectionStore.Upsert(swapped);
 
+        string? swapSummary = null;
+        if (_timelineStore is not null)
+        {
+            var names = MvpSquadRosterGenerator.GeneratePlayerNames(
+                clubId,
+                _timelineStore.Timeline.RootSeed);
+            swapSummary = SelectionAutoSwapWarning.FormatSubstitution(outSlot, inSlot, names);
+        }
+
         var result = new SwapStarterWithBenchResult(
             true,
             command.FixtureId,
             command.ClubId,
             swapped.StartingSlotIndices,
-            swapped.BenchSlotIndices);
+            swapped.BenchSlotIndices,
+            outSlot,
+            inSlot,
+            swapSummary);
         _completedCommands[command.CommandId] = result;
         return result;
     }

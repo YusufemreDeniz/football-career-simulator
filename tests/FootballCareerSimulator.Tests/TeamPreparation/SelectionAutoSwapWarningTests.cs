@@ -17,6 +17,21 @@ public sealed class SelectionAutoSwapWarningTests
     }
 
     [Fact]
+    public void FormatSubstitution_UsesPlayerNames()
+    {
+        Assert.Equal(
+            "Ali Yılmaz çıktı · Can Demir XI'ye girdi",
+            SelectionAutoSwapWarning.FormatSubstitution("Ali Yılmaz", "Can Demir"));
+
+        Assert.Equal(
+            "Ali Yılmaz çıktı · Can Demir XI'ye girdi",
+            SelectionAutoSwapWarning.FormatSubstitution(
+                0,
+                11,
+                ["Ali Yılmaz", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "Can Demir"]));
+    }
+
+    [Fact]
     public void FormatToastSuffix_CompressesPairs()
     {
         var suffix = SelectionAutoSwapWarning.FormatToastSuffix(

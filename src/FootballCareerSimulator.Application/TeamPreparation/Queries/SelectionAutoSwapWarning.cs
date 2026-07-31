@@ -48,6 +48,22 @@ public static class SelectionAutoSwapWarning
         return "sakatlar dışarı (" + string.Join(", ", pairs) + ")";
     }
 
+    /// <summary>
+    /// XI↔Yedek değişimi — oyuncu dilinde toast.
+    /// </summary>
+    public static string FormatSubstitution(string outPlayerName, string inPlayerName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(outPlayerName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(inPlayerName);
+        return $"{outPlayerName} çıktı · {inPlayerName} XI'ye girdi";
+    }
+
+    public static string FormatSubstitution(
+        int outSlotIndex,
+        int inSlotIndex,
+        IReadOnlyList<string> playerNames) =>
+        FormatSubstitution(NameOf(playerNames, outSlotIndex), NameOf(playerNames, inSlotIndex));
+
     private static string NameOf(IReadOnlyList<string> playerNames, int slotIndex) =>
         slotIndex >= 0 && slotIndex < playerNames.Count
             ? playerNames[slotIndex]

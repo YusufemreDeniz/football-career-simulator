@@ -125,6 +125,11 @@ public sealed class CustomMatchSelectionTests
 
         Assert.Equal(firstBench, swapped.StartingSlotIndices[^1]);
         Assert.Equal(lastStarter, swapped.BenchSlotIndices[0]);
+        Assert.Equal(lastStarter, swapped.OutSlotIndex);
+        Assert.Equal(firstBench, swapped.InSlotIndex);
+        Assert.False(string.IsNullOrWhiteSpace(swapped.SwapSummary));
+        Assert.Contains("çıktı", swapped.SwapSummary!, StringComparison.Ordinal);
+        Assert.Contains("XI'ye girdi", swapped.SwapSummary!, StringComparison.Ordinal);
     }
 
     [Fact]
