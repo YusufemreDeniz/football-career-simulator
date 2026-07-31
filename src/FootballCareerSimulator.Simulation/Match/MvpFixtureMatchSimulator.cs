@@ -3,18 +3,41 @@ using FootballCareerSimulator.Domain.Match;
 namespace FootballCareerSimulator.Simulation.Match;
 
 /// <summary>
-/// MVP deterministik maç skoru + gol/asist/kart anları; güç farkına ve isteğe bağlı kadro bonusuna dayalı.
+/// MVP deterministik maç: ilk yarı + ikinci yarı (devre arası müdahale deltası) + gol/kart anları.
 /// </summary>
 public static class MvpFixtureMatchSimulator
 {
     public const int MinMomentMinute = 1;
     public const int MaxMomentMinute = 90;
+    public const int HalfTimeMinute = 45;
     public const int MinGoalMinute = MinMomentMinute;
     public const int MaxGoalMinute = MaxMomentMinute;
     public const int StartingXiSize = 11;
     public const int MaxCardsPerMatch = 3;
+    public const int MaxGoalsPerHalf = 4;
 
     public static MatchScore Simulate(
+        int simulationSeed,
+        long fixtureId,
+        int homeStrength,
+        int awayStrength,
+        int homeLineupBonus = 0,
+        int awayLineupBonus = 0,
+        int homeSecondHalfDelta = 0,
+        int awaySecondHalfDelta = 0,
+        MatchScore? forcedHalfTime = null) =>
+        SimulateWithKeyMoments(
+            simulationSeed,
+            fixtureId,
+            homeStrength,
+            awayStrength,
+            homeLineupBonus,
+            awayLineupBonus,
+            homeSecondHalfDelta,
+            awaySecondHalfDelta,
+            forcedHalfTime).Score;
+
+    public static MatchScore PreviewHalfTime(
         int simulationSeed,
         long fixtureId,
         int homeStrength,
@@ -27,7 +50,7 @@ public static class MvpFixtureMatchSimulator
             homeStrength,
             awayStrength,
             homeLineupBonus,
-            awayLineupBonus).Score;
+            awayLineupBonus).HalfTimeScore;
 
     public static MatchSimulationOutcome SimulateWithKeyMoments(
         int simulationSeed,
@@ -35,20 +58,41 @@ public static class MvpFixtureMatchSimulator
         int homeStrength,
         int awayStrength,
         int homeLineupBonus = 0,
-        int awayLineupBonus = 0)
+        int awayLineupBonus = 0,
+        int homeSecondHalfDelta = 0,
+        int awaySecondHalfDelta = 0,
+        MatchScore? forcedHalfTime = null)
     {
         var effectiveHome = Math.Clamp(homeStrength + homeLineupBonus, 1, 100);
         var effectiveAway = Math.Clamp(awayStrength + awayLineupBonus, 1, 100);
 
         var rng = new SimulationRandomContext(unchecked(simulationSeed * 397) ^ (int)fixtureId);
-        var homeBase = Math.Clamp(effectiveHome / 35, 0, 4);
-        var awayBase = Math.Clamp(effectiveAway / 35, 0, 4);
-        var homeGoals = Math.Clamp(homeBase + rng.NextInt(-1, 3), 0, 6);
-        var awayGoals = Math.Clamp(awayBase + rng.NextInt(-1, 3), 0, 6);
-        var score = new MatchScore(homeGoals, awayGoals);
-        var moments = BuildKeyMoments(rng, homeGoals, awayGoals);
-        var statistics = BuildStatistics(rng, effectiveHome, effectiveAway, score);
-        return new MatchSimulationOutcome(score, moments, statistics);
+        // RNG sırası sabit kalsın; forced HT yalnızca skor/anları kilitler (devre arası değişiklik sonrası).
+        var rolledHtHome = RollHalfGoals(rng, effectiveHome);
+        var rolledHtAway = RollHalfGoals(rng, effectiveAway);
+        var htHome = forcedHalfTime?.HomeGoals ?? rolledHtHome;
+        var htAway = forcedHalfTime?.AwayGoals ?? rolledHtAway;
+
+        var secondHome = Math.Clamp(effectiveHome + homeSecondHalfDelta, 1, 100);
+        var secondAway = Math.Clamp(effectiveAway + awaySecondHalfDelta, 1, 100);
+        var shHome = RollHalfGoals(rng, secondHome);
+        var shAway = RollHalfGoals(rng, secondAway);
+
+        var score = new MatchScore(htHome + shHome, htAway + shAway);
+        var halfTime = new MatchScore(htHome, htAway);
+        var moments = BuildKeyMoments(rng, htHome, htAway, shHome, shAway);
+        var statistics = BuildStatistics(
+            rng,
+            (effectiveHome + secondHome) / 2,
+            (effectiveAway + secondAway) / 2,
+            score);
+        return new MatchSimulationOutcome(score, moments, statistics, halfTime);
+    }
+
+    private static int RollHalfGoals(SimulationRandomContext rng, int effectiveStrength)
+    {
+        var halfBase = Math.Clamp(effectiveStrength / 45, 0, 3);
+        return Math.Clamp(halfBase + rng.NextInt(-1, 2), 0, MaxGoalsPerHalf);
     }
 
     private static MatchStatistics BuildStatistics(
@@ -93,20 +137,33 @@ public static class MvpFixtureMatchSimulator
 
     private static IReadOnlyList<MatchKeyMoment> BuildKeyMoments(
         SimulationRandomContext rng,
-        int homeGoals,
-        int awayGoals)
+        int htHomeGoals,
+        int htAwayGoals,
+        int shHomeGoals,
+        int shAwayGoals)
     {
         var usedMinutes = new HashSet<int>();
-        var moments = new List<MatchKeyMoment>(homeGoals + awayGoals + MaxCardsPerMatch);
+        var moments = new List<MatchKeyMoment>(
+            htHomeGoals + htAwayGoals + shHomeGoals + shAwayGoals + MaxCardsPerMatch);
 
-        for (var i = 0; i < homeGoals; i++)
+        for (var i = 0; i < htHomeGoals; i++)
         {
-            moments.Add(BuildGoalMoment(rng, usedMinutes, isHomeSide: true));
+            moments.Add(BuildGoalMoment(rng, usedMinutes, isHomeSide: true, MinMomentMinute, HalfTimeMinute));
         }
 
-        for (var i = 0; i < awayGoals; i++)
+        for (var i = 0; i < htAwayGoals; i++)
         {
-            moments.Add(BuildGoalMoment(rng, usedMinutes, isHomeSide: false));
+            moments.Add(BuildGoalMoment(rng, usedMinutes, isHomeSide: false, MinMomentMinute, HalfTimeMinute));
+        }
+
+        for (var i = 0; i < shHomeGoals; i++)
+        {
+            moments.Add(BuildGoalMoment(rng, usedMinutes, isHomeSide: true, HalfTimeMinute + 1, MaxMomentMinute));
+        }
+
+        for (var i = 0; i < shAwayGoals; i++)
+        {
+            moments.Add(BuildGoalMoment(rng, usedMinutes, isHomeSide: false, HalfTimeMinute + 1, MaxMomentMinute));
         }
 
         var cardCount = rng.NextInt(0, MaxCardsPerMatch + 1);
@@ -127,11 +184,12 @@ public static class MvpFixtureMatchSimulator
     private static MatchKeyMoment BuildGoalMoment(
         SimulationRandomContext rng,
         HashSet<int> usedMinutes,
-        bool isHomeSide)
+        bool isHomeSide,
+        int minMinute,
+        int maxMinute)
     {
         var scorer = rng.NextInt(0, StartingXiSize);
         int? assist = null;
-        // ~2/3 golde asist; asistçi golcüden farklı slot.
         if (rng.NextInt(0, 3) != 0)
         {
             var assistSlot = rng.NextInt(0, StartingXiSize - 1);
@@ -145,7 +203,7 @@ public static class MvpFixtureMatchSimulator
 
         return new MatchKeyMoment(
             MatchKeyMomentKind.Goal,
-            NextDistinctMinute(rng, usedMinutes),
+            NextDistinctMinute(rng, usedMinutes, minMinute, maxMinute),
             isHomeSide,
             scorer,
             assist);
@@ -160,16 +218,28 @@ public static class MvpFixtureMatchSimulator
             : MatchKeyMomentKind.YellowCard;
         return new MatchKeyMoment(
             kind,
-            NextDistinctMinute(rng, usedMinutes),
+            NextDistinctMinute(rng, usedMinutes, MinMomentMinute, MaxMomentMinute),
             IsHomeSide: rng.NextInt(0, 2) == 0,
             PrimarySlotIndex: rng.NextInt(0, StartingXiSize));
     }
 
-    private static int NextDistinctMinute(SimulationRandomContext rng, HashSet<int> usedMinutes)
+    private static int NextDistinctMinute(
+        SimulationRandomContext rng,
+        HashSet<int> usedMinutes,
+        int minMinute,
+        int maxMinute)
     {
         for (var attempt = 0; attempt < 24; attempt++)
         {
-            var minute = rng.NextInt(MinMomentMinute, MaxMomentMinute + 1);
+            var minute = rng.NextInt(minMinute, maxMinute + 1);
+            if (usedMinutes.Add(minute))
+            {
+                return minute;
+            }
+        }
+
+        for (var minute = minMinute; minute <= maxMinute; minute++)
+        {
             if (usedMinutes.Add(minute))
             {
                 return minute;
@@ -184,14 +254,15 @@ public static class MvpFixtureMatchSimulator
             }
         }
 
-        return MaxMomentMinute;
+        return maxMinute;
     }
 }
 
 public sealed record MatchSimulationOutcome(
     MatchScore Score,
     IReadOnlyList<MatchKeyMoment> KeyMoments,
-    MatchStatistics Statistics);
+    MatchStatistics Statistics,
+    MatchScore HalfTimeScore);
 
 public sealed record MatchStatistics(
     int HomePossessionPercent,

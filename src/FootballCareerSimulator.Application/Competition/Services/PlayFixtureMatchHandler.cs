@@ -139,13 +139,39 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
             + awayTactic;
 
+        var homeSecondHalfDelta = 0;
+        var awaySecondHalfDelta = 0;
+        if (isManagedMatch
+            && managedClubBefore is ClubId managedForDelta
+            && command.ManagedSecondHalfDelta != 0)
+        {
+            if (fixture.HomeClubId == managedForDelta)
+            {
+                homeSecondHalfDelta = command.ManagedSecondHalfDelta;
+            }
+            else
+            {
+                awaySecondHalfDelta = command.ManagedSecondHalfDelta;
+            }
+        }
+
+        MatchScore? forcedHalfTime = null;
+        if (command.ForcedHalfTimeHomeGoals is int forcedHome
+            && command.ForcedHalfTimeAwayGoals is int forcedAway)
+        {
+            forcedHalfTime = new MatchScore(forcedHome, forcedAway);
+        }
+
         var simulation = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
             rootSeed,
             command.FixtureId,
             homeClub.SportiveStrength,
             awayClub.SportiveStrength,
             homeBonus,
-            awayBonus);
+            awayBonus,
+            homeSecondHalfDelta,
+            awaySecondHalfDelta,
+            forcedHalfTime);
         var score = simulation.Score;
 
         _competitionStore.League.AcceptFixtureResult(
@@ -749,4 +775,56 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             })
             .ToArray();
     }
+
+    /// <summary>
+    /// Devre arası kontrol noktası — maçı işlemeden ilk yarı skorunu üretir.
+    /// </summary>
+    public MatchHalfTimePreview PreviewHalfTime(
+        long seasonId,
+        long fixtureId,
+        int occurredAtDayNumber)
+    {
+        var occurredAt = CompetitionSeasonCommandSupport.ToGameDate(occurredAtDayNumber);
+        var season = CompetitionSeasonCommandSupport.GetSeasonOrThrow(_competitionStore, seasonId);
+        var fixture = season.Fixtures.FirstOrDefault(candidate => candidate.Id.Value == fixtureId)
+            ?? throw new CompetitionInvariantViolationException($"Fixture {fixtureId} was not found.");
+
+        var homeClub = _clubRegistryStore.Registry.GetClubOrThrow(fixture.HomeClubId);
+        var awayClub = _clubRegistryStore.Registry.GetClubOrThrow(fixture.AwayClubId);
+        var rootSeed = _timelineStore.Timeline.RootSeed;
+
+        var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
+            + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
+            + ResolveTacticModifier(fixture.HomeClubId);
+        var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed, occurredAt)
+            + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
+            + ResolveTacticModifier(fixture.AwayClubId);
+
+        var halfTime = MvpFixtureMatchSimulator.PreviewHalfTime(
+            rootSeed,
+            fixtureId,
+            homeClub.SportiveStrength,
+            awayClub.SportiveStrength,
+            homeBonus,
+            awayBonus);
+
+        var managedClubId = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
+        var managedIsHome = managedClubId is ClubId managed && fixture.HomeClubId == managed;
+
+        return new MatchHalfTimePreview(
+            fixtureId,
+            homeClub.DisplayName,
+            awayClub.DisplayName,
+            halfTime.HomeGoals,
+            halfTime.AwayGoals,
+            managedIsHome);
+    }
 }
+
+public sealed record MatchHalfTimePreview(
+    long FixtureId,
+    string HomeClubName,
+    string AwayClubName,
+    int HomeGoals,
+    int AwayGoals,
+    bool ManagedIsHome);

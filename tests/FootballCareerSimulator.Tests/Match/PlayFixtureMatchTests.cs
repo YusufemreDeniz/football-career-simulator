@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.ClubGovernance.Composition;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Match;
@@ -42,13 +43,23 @@ public sealed class MvpFixtureMatchSimulatorTests
         Assert.Equal(first.Score, second.Score);
         Assert.Equal(first.KeyMoments, second.KeyMoments);
         Assert.Equal(first.Statistics, second.Statistics);
+        Assert.Equal(first.HalfTimeScore, second.HalfTimeScore);
         Assert.Equal(
             first.Score.HomeGoals,
             first.KeyMoments.Count(m => m.Kind == MatchKeyMomentKind.Goal && m.IsHomeSide));
         Assert.Equal(
             first.Score.AwayGoals,
             first.KeyMoments.Count(m => m.Kind == MatchKeyMomentKind.Goal && !m.IsHomeSide));
+        Assert.Equal(
+            first.HalfTimeScore.HomeGoals,
+            first.KeyMoments.Count(m =>
+                m.Kind == MatchKeyMomentKind.Goal
+                && m.IsHomeSide
+                && m.Minute <= MvpFixtureMatchSimulator.HalfTimeMinute));
         Assert.Equal(first.Score, MvpFixtureMatchSimulator.Simulate(42, 11, 75, 50));
+        Assert.Equal(
+            first.HalfTimeScore,
+            MvpFixtureMatchSimulator.PreviewHalfTime(42, 11, 75, 50));
         Assert.True(first.KeyMoments.Select(m => m.Minute).SequenceEqual(
             first.KeyMoments.Select(m => m.Minute).OrderBy(m => m)));
         Assert.All(
@@ -83,6 +94,34 @@ public sealed class MvpFixtureMatchSimulatorTests
             first.Statistics.AwayShotsOnTarget,
             first.Score.AwayGoals,
             first.Statistics.AwayShots);
+    }
+
+    [Fact]
+    public void SecondHalfAttackDelta_KeepsHalfTime_AndCanChangeFinal()
+    {
+        var baseline = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
+            99, fixtureId: 4, homeStrength: 70, awayStrength: 70);
+        var attack = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
+            99,
+            fixtureId: 4,
+            homeStrength: 70,
+            awayStrength: 70,
+            homeSecondHalfDelta: MatchHalfTimeDigest.DecisionAttack);
+
+        Assert.Equal(baseline.HalfTimeScore, attack.HalfTimeScore);
+        Assert.Equal(
+            baseline.HalfTimeScore,
+            MvpFixtureMatchSimulator.PreviewHalfTime(99, 4, 70, 70));
+
+        var forced = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
+            99,
+            fixtureId: 4,
+            homeStrength: 70,
+            awayStrength: 70,
+            homeSecondHalfDelta: MatchHalfTimeDigest.DecisionAttack,
+            forcedHalfTime: baseline.HalfTimeScore);
+        Assert.Equal(baseline.HalfTimeScore, forced.HalfTimeScore);
+        Assert.Equal(attack.Score, forced.Score);
     }
 
     [Fact]

@@ -68,7 +68,10 @@ public sealed record PlayFixtureMatchCommand(
     Guid CommandId,
     long SeasonId,
     long FixtureId,
-    int OccurredAtDayNumber);
+    int OccurredAtDayNumber,
+    int ManagedSecondHalfDelta = 0,
+    int? ForcedHalfTimeHomeGoals = null,
+    int? ForcedHalfTimeAwayGoals = null);
 
 public sealed record PlayFixtureMatchResult(
     bool Succeeded,

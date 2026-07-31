@@ -64,14 +64,57 @@ public partial class CareerAppRoot : Control
         panel.BackRequested += () => ShowHub(controller);
         panel.KickoffRequested += () =>
         {
-            var results = controller.PlayDueMatches();
+            try
+            {
+                var halfTime = controller.BuildManagedHalfTimeDigest();
+                if (halfTime.HasManagedMatch)
+                {
+                    ShowHalfTime(controller, halfTime);
+                    return;
+                }
+
+                var results = controller.PlayDueMatches();
+                if (results.Succeeded && results.MatchLines.Count > 0)
+                {
+                    ShowMatchResults(controller, results);
+                    return;
+                }
+
+                panel.SetStatus(results.Message);
+            }
+            catch (Exception ex)
+            {
+                panel.SetStatus($"Devre arası açılamadı: {ex.Message}");
+            }
+        };
+        ReplaceScreen(panel);
+    }
+
+    public void ShowHalfTime(CareerSessionController controller, Application.Competition.Queries.MatchHalfTimeDigest digest)
+    {
+        var panel = new MatchHalfTimeScreen(controller, digest);
+        panel.BackRequested += () => ShowMatchDay(controller);
+        panel.SecondHalfRequested += delta =>
+        {
+            var decisionLabel = delta switch
+            {
+                Application.Competition.Queries.MatchHalfTimeDigest.DecisionAttack =>
+                    "Devre arasında hücuma geçtin.",
+                Application.Competition.Queries.MatchHalfTimeDigest.DecisionDefend =>
+                    "Devre arasında savunmaya çektin.",
+                _ => "Devre arasında aynı planla devam ettin.",
+            };
+            var results = controller.PlayDueMatches(
+                managedSecondHalfDelta: delta,
+                halfTime: digest,
+                halfTimeDecisionLabel: decisionLabel);
             if (results.Succeeded && results.MatchLines.Count > 0)
             {
                 ShowMatchResults(controller, results);
                 return;
             }
 
-            panel.SetStatus(results.Message);
+            ShowMatchDay(controller);
         };
         ReplaceScreen(panel);
     }

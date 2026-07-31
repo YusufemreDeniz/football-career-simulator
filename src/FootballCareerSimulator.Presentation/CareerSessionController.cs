@@ -1700,7 +1700,37 @@ public sealed class CareerSessionController
             _ => rest.ToString(),
         };
 
-    public PlayMatchesUiResult PlayDueMatches()
+    public MatchHalfTimeDigest BuildManagedHalfTimeDigest()
+    {
+        var competition = Host.CompetitionModule;
+        var playHandler = competition.PlayFixtureMatch
+            ?? throw new InvalidOperationException("Maç oynatma servisi bağlı değil.");
+        var season = competition.Queries.GetCurrentSeason()
+            ?? throw new InvalidOperationException("Aktif sezon yok.");
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        if (pending is null || !pending.IsApproved)
+        {
+            return MatchHalfTimeDigest.None();
+        }
+
+        var preview = playHandler.PreviewHalfTime(
+            season.SeasonId,
+            pending.FixtureId,
+            currentDay);
+        return MatchHalfTimeDigest.Compose(
+            preview.HomeClubName,
+            preview.AwayClubName,
+            preview.HomeGoals,
+            preview.AwayGoals,
+            preview.ManagedIsHome);
+    }
+
+    public PlayMatchesUiResult PlayDueMatches(
+        int managedSecondHalfDelta = 0,
+        MatchHalfTimeDigest? halfTime = null,
+        string? halfTimeDecisionLabel = null)
     {
         try
         {
@@ -1726,7 +1756,17 @@ public sealed class CareerSessionController
             }
 
             var kickoffBriefing = CaptureKickoffBriefing(currentDay, pendingSelection);
-            var kickoffLines = kickoffBriefing.ToKickoffBridgeLines();
+            var kickoffLines = kickoffBriefing.ToKickoffBridgeLines().ToList();
+            if (halfTime is { HasManagedMatch: true })
+            {
+                kickoffLines.Add($"Devre arası: {halfTime.Scoreline}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(halfTimeDecisionLabel))
+            {
+                kickoffLines.Add(halfTimeDecisionLabel);
+            }
+
             var enteredWithPromiseRisk = kickoffBriefing.HasPromiseRisk;
 
             var dueFixtures = competition.Queries
@@ -1766,12 +1806,21 @@ public sealed class CareerSessionController
 
             foreach (var fixture in dueFixtures)
             {
+                var isManagedFixture = managedClubId is long clubId
+                    && (fixture.HomeClubId == clubId || fixture.AwayClubId == clubId);
                 var result = playHandler.Handle(
                     new PlayFixtureMatchCommand(
                         Guid.NewGuid(),
                         season.SeasonId,
                         fixture.FixtureId,
-                        currentDay));
+                        currentDay,
+                        ManagedSecondHalfDelta: isManagedFixture ? managedSecondHalfDelta : 0,
+                        ForcedHalfTimeHomeGoals: isManagedFixture && halfTime is { HasManagedMatch: true }
+                            ? halfTime.HomeGoals
+                            : null,
+                        ForcedHalfTimeAwayGoals: isManagedFixture && halfTime is { HasManagedMatch: true }
+                            ? halfTime.AwayGoals
+                            : null));
 
                 var home = GetClubDisplayName(fixture.HomeClubId);
                 var away = GetClubDisplayName(fixture.AwayClubId);
@@ -1785,8 +1834,8 @@ public sealed class CareerSessionController
                 keyMomentLines.AddRange(FormatMatchKeyMoments(result, home, away));
 
                 var isManaged = result.Consequences is { IsManagedMatch: true }
-                    && managedClubId is long clubId
-                    && (fixture.HomeClubId == clubId || fixture.AwayClubId == clubId);
+                    && managedClubId is long managedId
+                    && (fixture.HomeClubId == managedId || fixture.AwayClubId == managedId);
 
                 if (isManaged && !hasManaged)
                 {
@@ -1798,6 +1847,11 @@ public sealed class CareerSessionController
                     heroTacticNote = tacticNote;
                     beatLines.AddRange(FormatMatchKeyMomentBeats(result));
                     afterWhistle.AddRange(FormatMatchAfterWhistle(result));
+                    if (!string.IsNullOrWhiteSpace(halfTimeDecisionLabel))
+                    {
+                        afterWhistle.Insert(0, halfTimeDecisionLabel);
+                    }
+
                     heroReport = MatchReportDigest.Compose(result, home, away);
                 }
                 else
