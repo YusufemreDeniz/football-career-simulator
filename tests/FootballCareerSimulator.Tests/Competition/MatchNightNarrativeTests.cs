@@ -2,6 +2,7 @@ using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 namespace FootballCareerSimulator.Tests.Competition;
 
@@ -78,6 +79,36 @@ public sealed class MatchNightNarrativeTests
         Assert.Single(narrative.OtherScorelines);
         Assert.Equal(2, narrative.KickoffLines.Count);
         Assert.Contains("söz riski", narrative.KickoffLines[1], StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Compose_CarriesLineupBridgeForResultScreen()
+    {
+        var names = Enumerable.Range(0, 25).Select(i => $"P{i} N{i}").ToArray();
+        var strip = MatchDayLineupStrip.Compose(
+            true,
+            true,
+            Enumerable.Range(2, 11).ToArray(),
+            [new MvpAvailabilityAwareSelection.AvailabilityAutoSwap(0, 11)],
+            names);
+
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-1 B",
+            2,
+            1,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 10,
+            beatLines: [],
+            afterWhistleLines: [],
+            otherScorelines: [],
+            kickoffLines: ["Ev vs B · bugün"],
+            lineupBridge: strip);
+
+        Assert.NotNull(narrative.LineupBridge);
+        Assert.Equal(11, narrative.LineupBridge!.StartingXi.Count);
+        Assert.Contains("Sahaya bu XI ile çıktın", narrative.LineupBridge.ResultBridgeCaption, StringComparison.Ordinal);
     }
 
     [Fact]

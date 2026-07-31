@@ -87,6 +87,12 @@ public sealed record PostMatchOfficeDigest(
             beats.Add("Maça söz gerilimiyle girmiştin — sonuçlar ofise yansıdı.");
         }
 
+        var lineupBeat = narrative.LineupBridge?.ResultBridgeBeatLine();
+        if (!string.IsNullOrWhiteSpace(lineupBeat))
+        {
+            beats.Add(lineupBeat);
+        }
+
         var hasInjury = HasInjuryNight(narrative);
         string? focusCode = null;
         var advice = "Bugün nabzına bak — sonra günü ilerlet.";

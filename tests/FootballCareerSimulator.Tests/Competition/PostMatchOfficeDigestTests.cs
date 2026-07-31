@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
 using FootballCareerSimulator.Application.Transfer.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 namespace FootballCareerSimulator.Tests.Competition;
 
@@ -92,6 +93,39 @@ public sealed class PostMatchOfficeDigestTests
         Assert.Contains("Ofiste", text, StringComparison.Ordinal);
         Assert.Contains("· ", text, StringComparison.Ordinal);
         Assert.Contains("Öneri:", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LineupBridge_SurfacesBöyleÇıktınBeat()
+    {
+        var names = Enumerable.Range(0, 25).Select(i => $"Ali{i} Demir{i}").ToArray();
+        var strip = MatchDayLineupStrip.Compose(
+            true,
+            true,
+            Enumerable.Range(2, 11).ToArray(),
+            [new MvpAvailabilityAwareSelection.AvailabilityAutoSwap(0, 11)],
+            names);
+
+        var narrative = MatchNightNarrative.Compose(
+            "A 1-0 B",
+            1,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 10,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni +1 → 55 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines: ["Ev vs B · bugün"],
+            lineupBridge: strip);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Böyle çıktın:", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -118,6 +118,12 @@ public partial class MatchResultScreen : Control
             }
         }
 
+        if (narrative.LineupBridge is { StartingXi.Count: > 0 } lineup)
+        {
+            layout.AddChild(SectionLabel("Böyle çıktın"));
+            layout.AddChild(LineupStripUi.BuildPanel(lineup, lineup.ResultBridgeCaption));
+        }
+
         if (_results.Report is { } report)
         {
             layout.AddChild(SectionLabel("Maç Raporu"));

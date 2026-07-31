@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Application.Competition.Queries;
 
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 /// <summary>
@@ -13,7 +14,8 @@ public sealed record MatchNightNarrative(
     IReadOnlyList<string> BeatLines,
     IReadOnlyList<string> AfterWhistleLines,
     IReadOnlyList<string> OtherScorelines,
-    IReadOnlyList<string> KickoffLines)
+    IReadOnlyList<string> KickoffLines,
+    MatchDayLineupStrip? LineupBridge = null)
 {
     public static MatchNightNarrative Failure(string message) =>
         new(
@@ -38,7 +40,8 @@ public sealed record MatchNightNarrative(
         IReadOnlyList<string> afterWhistleLines,
         IReadOnlyList<string> otherScorelines,
         IReadOnlyList<string>? kickoffLines = null,
-        bool enteredWithPromiseRisk = false)
+        bool enteredWithPromiseRisk = false,
+        MatchDayLineupStrip? lineupBridge = null)
     {
         var tone = hasManagedMatch
             ? ToneForManaged(
@@ -63,7 +66,10 @@ public sealed record MatchNightNarrative(
             otherScorelines,
             kickoffLines is null || kickoffLines.Count == 0
                 ? Array.Empty<string>()
-                : kickoffLines.Take(4).ToArray());
+                : kickoffLines.Take(4).ToArray(),
+            hasManagedMatch && lineupBridge is { StartingXi.Count: > 0 }
+                ? lineupBridge
+                : null);
     }
 
     public static string ToneForManaged(

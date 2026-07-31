@@ -1,4 +1,3 @@
-using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using Godot;
 
@@ -14,9 +13,7 @@ public partial class MatchDayScreen : Control
     private Label _headlineLabel = null!;
     private Label _fixtureLabel = null!;
     private VBoxContainer _briefingLines = null!;
-    private Label _lineupCaption = null!;
-    private HFlowContainer _xiStrip = null!;
-    private HFlowContainer _outStrip = null!;
+    private Control _lineupHost = null!;
     private Label _statusLabel = null!;
     private Button _approveButton = null!;
     private Button _swapButton = null!;
@@ -99,23 +96,8 @@ public partial class MatchDayScreen : Control
         briefingPanel.AddChild(_briefingLines);
 
         controls.AddChild(SectionLabel("Kadro"));
-        var lineupPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        lineupPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
-        controls.AddChild(lineupPanel);
-        var lineupBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        lineupBox.AddThemeConstantOverride("separation", 8);
-        lineupPanel.AddChild(lineupBox);
-        _lineupCaption = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        CareerUiTheme.StyleBody(_lineupCaption, muted: true);
-        lineupBox.AddChild(_lineupCaption);
-        _xiStrip = new HFlowContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _xiStrip.AddThemeConstantOverride("h_separation", 6);
-        _xiStrip.AddThemeConstantOverride("v_separation", 6);
-        lineupBox.AddChild(_xiStrip);
-        _outStrip = new HFlowContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _outStrip.AddThemeConstantOverride("h_separation", 6);
-        _outStrip.AddThemeConstantOverride("v_separation", 6);
-        lineupBox.AddChild(_outStrip);
+        _lineupHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        controls.AddChild(_lineupHost);
 
         var selectionRow = ActionRow();
         controls.AddChild(selectionRow);
@@ -213,42 +195,25 @@ public partial class MatchDayScreen : Control
 
     private void RefreshLineupStrip()
     {
-        var strip = _controller.BuildMatchDayLineupStrip();
-        _lineupCaption.Text = strip.Caption;
-
-        ClearFlow(_xiStrip);
-        foreach (var chip in strip.StartingXi)
-        {
-            _xiStrip.AddChild(BuildChip(chip));
-        }
-
-        ClearFlow(_outStrip);
-        foreach (var chip in strip.OutPlayers)
-        {
-            _outStrip.AddChild(BuildChip(chip));
-        }
-
-        _outStrip.Visible = strip.OutPlayers.Count > 0;
-    }
-
-    private static void ClearFlow(HFlowContainer flow)
-    {
-        foreach (var child in flow.GetChildren())
+        foreach (var child in _lineupHost.GetChildren())
         {
             child.QueueFree();
         }
-    }
 
-    private static Control BuildChip(MatchDayLineupChip chip)
-    {
-        var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride(
-            "panel",
-            CareerUiTheme.LineupChipPanel(chip.IsIn, chip.IsOut));
-        var label = new Label { Text = chip.ChipLabel };
-        CareerUiTheme.StyleLineupChip(label, chip.IsIn, chip.IsOut);
-        panel.AddChild(label);
-        return panel;
+        var strip = _controller.BuildMatchDayLineupStrip();
+        if (!strip.HasMatch || strip.StartingXi.Count == 0)
+        {
+            var empty = new Label
+            {
+                Text = strip.Caption,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            CareerUiTheme.StyleBody(empty, muted: true);
+            _lineupHost.AddChild(empty);
+            return;
+        }
+
+        _lineupHost.AddChild(LineupStripUi.BuildPanel(strip));
     }
 
     private Button ActionButton(string text, Func<UiActionResult> action)

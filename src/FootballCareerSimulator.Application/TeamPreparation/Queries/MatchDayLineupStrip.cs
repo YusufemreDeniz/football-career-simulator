@@ -69,10 +69,44 @@ public sealed record MatchDayLineupStrip(
         return new MatchDayLineupStrip(true, isApproved, caption, xi, outs);
     }
 
+    /// <summary>
+    /// Maç sonucu köprüsü — geçmiş zaman: sahaya böyle çıktın.
+    /// </summary>
+    public string ResultBridgeCaption =>
+        !HasMatch || StartingXi.Count == 0
+            ? Caption
+            : OutPlayers.Count == 0
+                ? "Sahaya bu XI ile çıktın"
+                : $"Sahaya bu XI ile çıktın · {OutPlayers.Count} sakat dışarıda";
+
+    public string? ResultBridgeBeatLine()
+    {
+        if (!HasMatch || OutPlayers.Count == 0)
+        {
+            return null;
+        }
+
+        var outs = string.Join(", ", OutPlayers.Take(2).Select(c => "× " + ShortLast(c.DisplayName)));
+        var ins = StartingXi.Where(c => c.IsIn).Take(2).Select(c => "↑ " + ShortLast(c.DisplayName));
+        var inPart = ins.Any() ? " · " + string.Join(", ", ins) : string.Empty;
+        return $"Böyle çıktın: {outs}{inPart}";
+    }
+
     private static string NameOf(IReadOnlyList<string> playerNames, int slotIndex) =>
         slotIndex >= 0 && slotIndex < playerNames.Count
             ? playerNames[slotIndex]
             : $"#{slotIndex + 1}";
+
+    private static string ShortLast(string full)
+    {
+        if (string.IsNullOrWhiteSpace(full))
+        {
+            return "?";
+        }
+
+        var parts = full.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 ? parts[^1] : parts[0];
+    }
 }
 
 public sealed record MatchDayLineupChip(

@@ -1821,6 +1821,11 @@ public sealed class CareerSessionController
                 kickoffLines.Add(halfTimeDecisionLabel);
             }
 
+            // Maç sonrası sakatlık invalidate etmeden önce XI köprüsünü yakala.
+            var lineupBridge = pendingSelection is not null
+                ? BuildMatchDayLineupStrip()
+                : MatchDayLineupStrip.Clear();
+
             var enteredWithPromiseRisk = kickoffBriefing.HasPromiseRisk;
 
             var dueFixtures = competition.Queries
@@ -1938,7 +1943,8 @@ public sealed class CareerSessionController
                 afterWhistle,
                 otherScores,
                 hasManaged ? kickoffLines : Array.Empty<string>(),
-                hasManaged && enteredWithPromiseRisk);
+                hasManaged && enteredWithPromiseRisk,
+                hasManaged ? lineupBridge : null);
 
             var invalidatedNote = invalidatedTotal > 0
                 ? $" · kadro onayı düştü ({invalidatedTotal})"
