@@ -11,6 +11,7 @@ public partial class MatchDayScreen : Control
 {
     private readonly CareerSessionController _controller;
     private Label _headlineLabel = null!;
+    private Label _tempoFlashLabel = null!;
     private Label _fixtureLabel = null!;
     private VBoxContainer _briefingLines = null!;
     private Control _lineupHost = null!;
@@ -74,6 +75,15 @@ public partial class MatchDayScreen : Control
         };
         CareerUiTheme.StyleBody(_headlineLabel, muted: true);
         shell.AddChild(_headlineLabel);
+
+        _tempoFlashLabel = new Label
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleBody(_tempoFlashLabel, muted: true);
+        _tempoFlashLabel.Visible = false;
+        shell.AddChild(_tempoFlashLabel);
 
         var scroll = new ScrollContainer
         {
@@ -163,6 +173,19 @@ public partial class MatchDayScreen : Control
         var briefing = _controller.BuildNextMatchBriefing();
         _fixtureLabel.Text = briefing.HasMatch ? briefing.FixtureLine : "Maç bekleniyor";
         _headlineLabel.Text = briefing.Headline;
+
+        // Ofisteki tempo flash'ı düdük anına kadar taşır: "kadro kilitli, düdük yakın."
+        var tempoFlash = _controller.BuildMatchDayTempoFlash();
+        _tempoFlashLabel.Visible = tempoFlash is not null;
+        if (tempoFlash is not null)
+        {
+            _tempoFlashLabel.Text = "· " + tempoFlash.BeatLine;
+            _tempoFlashLabel.Modulate = new Color(1f, 1f, 1f, 0.35f);
+            var flashTween = CreateTween();
+            flashTween.TweenProperty(_tempoFlashLabel, "modulate:a", 1f, 0.4f)
+                .SetTrans(Tween.TransitionType.Sine)
+                .SetEase(Tween.EaseType.Out);
+        }
 
         foreach (var child in _briefingLines.GetChildren())
         {

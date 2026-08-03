@@ -782,6 +782,25 @@ public sealed class CareerSessionController
         return ComposePreMatchBriefing(currentDay, pending);
     }
 
+    /// <summary>
+    /// Maç gününe varış — ofisteki "kadro kilitli, düdük yakın" flash'ının maç ekranındaki karşılığı.
+    /// </summary>
+    public Application.CareerHub.Queries.MatchDayTempoFlash.Flash? BuildMatchDayTempoFlash()
+    {
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        if (pending is null)
+        {
+            return null;
+        }
+
+        return Application.CareerHub.Queries.MatchDayTempoFlash.ResolveArrival(
+            BuildWeekMood(),
+            hasDueMatch: true,
+            hasInjuryPressure: BuildPreparationBriefing().HasInjuryPressure);
+    }
+
     public MatchDayLineupStrip BuildMatchDayLineupStrip()
     {
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
