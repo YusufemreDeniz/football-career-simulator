@@ -1906,12 +1906,19 @@ public sealed class CareerSessionController
             season.SeasonId,
             pending.FixtureId,
             currentDay);
+        var momentLines = preview.FirstHalfMoments
+            .Take(4)
+            .Select(moment => FormatKeyMomentLine(
+                moment,
+                moment.IsHomeSide ? "Ev" : "Dep"))
+            .ToArray();
         var digest = MatchHalfTimeDigest.Compose(
             preview.HomeClubName,
             preview.AwayClubName,
             preview.HomeGoals,
             preview.AwayGoals,
-            preview.ManagedIsHome);
+            preview.ManagedIsHome,
+            momentLines);
         var strip = BuildMatchDayLineupStrip();
         if (strip.OutPlayers.Count > 0)
         {

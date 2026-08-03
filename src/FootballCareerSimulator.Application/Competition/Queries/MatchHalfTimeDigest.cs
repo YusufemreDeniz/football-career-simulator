@@ -39,7 +39,8 @@ public sealed record MatchHalfTimeDigest(
         string awayClubName,
         int homeGoals,
         int awayGoals,
-        bool managedIsHome)
+        bool managedIsHome,
+        IReadOnlyList<string>? firstHalfMomentLines = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(homeClubName);
         ArgumentException.ThrowIfNullOrWhiteSpace(awayClubName);
@@ -51,8 +52,15 @@ public sealed record MatchHalfTimeDigest(
         var beats = new List<string>
         {
             $"İlk yarı: {scoreline}",
-            "İkinci yarı için yaklaşım seç — veya bir değişiklik yap.",
         };
+
+        if (firstHalfMomentLines is { Count: > 0 })
+        {
+            beats.Add("İlk yarı anları:");
+            beats.AddRange(firstHalfMomentLines.Take(4));
+        }
+
+        beats.Add("İkinci yarı için yaklaşım seç — veya bir değişiklik yap.");
 
         return new MatchHalfTimeDigest(
             HasManagedMatch: true,

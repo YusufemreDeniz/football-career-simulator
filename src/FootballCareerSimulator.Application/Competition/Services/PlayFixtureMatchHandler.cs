@@ -233,37 +233,20 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 pressOpened);
         }
 
-        var homeStarting = ResolveStartingSlots(fixture.Id, fixture.HomeClubId);
-        var awayStarting = ResolveStartingSlots(fixture.Id, fixture.AwayClubId);
-        var homeNames = MvpSquadRosterGenerator.GeneratePlayerNames(fixture.HomeClubId, rootSeed);
-        var awayNames = MvpSquadRosterGenerator.GeneratePlayerNames(fixture.AwayClubId, rootSeed);
-
         var keyMoments = simulation.KeyMoments
-            .Select(moment =>
-            {
-                var starting = moment.IsHomeSide ? homeStarting : awayStarting;
-                var names = moment.IsHomeSide ? homeNames : awayNames;
-                return new MatchKeyMomentReadModel(
-                    moment.Kind.ToString(),
-                    moment.Minute,
-                    moment.IsHomeSide,
-                    moment.PrimarySlotIndex,
-                    moment.AssistSlotIndex,
-                    ResolveXiPlayerName(starting, names, moment.PrimarySlotIndex),
-                    moment.AssistSlotIndex is int assistXi
-                        ? ResolveXiPlayerName(starting, names, assistXi)
-                        : null);
-            })
+            .Select(moment => MapMomentToReadModel(moment, fixture.Id, fixture.HomeClubId, fixture.AwayClubId, rootSeed))
             .ToList();
 
         if (newlyInjured.Length > 0 && managedClubBefore is ClubId injuredClub)
         {
+            var injuredStarting = ResolveStartingSlots(fixture.Id, injuredClub);
+            var injuredNames = MvpSquadRosterGenerator.GeneratePlayerNames(injuredClub, rootSeed);
             AppendInjuryMoments(
                 keyMoments,
                 newlyInjured,
                 fixture.HomeClubId == injuredClub,
-                fixture.HomeClubId == injuredClub ? homeStarting : awayStarting,
-                fixture.HomeClubId == injuredClub ? homeNames : awayNames,
+                injuredStarting,
+                injuredNames,
                 rootSeed,
                 command.FixtureId);
         }
@@ -865,6 +848,28 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         return $"slot {clubSlot}";
     }
 
+    private MatchKeyMomentReadModel MapMomentToReadModel(
+        MatchKeyMoment moment,
+        FixtureId fixtureId,
+        ClubId homeClubId,
+        ClubId awayClubId,
+        int rootSeed)
+    {
+        var clubId = moment.IsHomeSide ? homeClubId : awayClubId;
+        var starting = ResolveStartingSlots(fixtureId, clubId);
+        var names = MvpSquadRosterGenerator.GeneratePlayerNames(clubId, rootSeed);
+        return new MatchKeyMomentReadModel(
+            moment.Kind.ToString(),
+            moment.Minute,
+            moment.IsHomeSide,
+            moment.PrimarySlotIndex,
+            moment.AssistSlotIndex,
+            ResolveXiPlayerName(starting, names, moment.PrimarySlotIndex),
+            moment.AssistSlotIndex is int assistXi
+                ? ResolveXiPlayerName(starting, names, assistXi)
+                : null);
+    }
+
     private IReadOnlyList<int> ResolveMatchdaySlots(FixtureId fixtureId, ClubId clubId)
     {
         var selection = _matchSelectionStore?.Get(fixtureId, clubId);
@@ -917,13 +922,23 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
             + ResolveTacticModifier(fixture.AwayClubId);
 
-        var halfTime = MvpFixtureMatchSimulator.PreviewHalfTime(
+        var simulation = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
             rootSeed,
             fixtureId,
             homeClub.SportiveStrength,
             awayClub.SportiveStrength,
             homeBonus,
             awayBonus);
+        var halfTime = simulation.HalfTimeScore;
+
+        var firstHalfMoments = simulation.KeyMoments
+            .Where(moment => moment.Minute <= MvpFixtureMatchSimulator.HalfTimeMinute)
+            .Select(moment => MapMomentToReadModel(moment, fixture.Id, fixture.HomeClubId, fixture.AwayClubId, rootSeed))
+            .OrderBy(moment => moment.Minute)
+            .ThenBy(moment => moment.Kind, StringComparer.Ordinal)
+            .ThenBy(moment => moment.IsHomeSide ? 0 : 1)
+            .ThenBy(moment => moment.PrimarySlotIndex)
+            .ToArray();
 
         var managedClubId = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
         var managedIsHome = managedClubId is ClubId managed && fixture.HomeClubId == managed;
@@ -934,7 +949,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             awayClub.DisplayName,
             halfTime.HomeGoals,
             halfTime.AwayGoals,
-            managedIsHome);
+            managedIsHome,
+            firstHalfMoments);
     }
 }
 
@@ -944,4 +960,5 @@ public sealed record MatchHalfTimePreview(
     string AwayClubName,
     int HomeGoals,
     int AwayGoals,
-    bool ManagedIsHome);
+    bool ManagedIsHome,
+    IReadOnlyList<MatchKeyMomentReadModel> FirstHalfMoments);
