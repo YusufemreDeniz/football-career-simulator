@@ -62,32 +62,46 @@ public partial class CareerAppRoot : Control
     {
         var panel = new MatchDayScreen(controller);
         panel.BackRequested += () => ShowHub(controller);
-        panel.KickoffRequested += () =>
-        {
-            try
-            {
-                var halfTime = controller.BuildManagedHalfTimeDigest();
-                if (halfTime.HasManagedMatch)
-                {
-                    ShowHalfTime(controller, halfTime);
-                    return;
-                }
-
-                var results = controller.PlayDueMatches();
-                if (results.Succeeded && results.MatchLines.Count > 0)
-                {
-                    ShowMatchResults(controller, results);
-                    return;
-                }
-
-                panel.SetStatus(results.Message);
-            }
-            catch (Exception ex)
-            {
-                panel.SetStatus($"Devre arası açılamadı: {ex.Message}");
-            }
-        };
+        panel.KickoffRequested += () => ShowKickoffMoment(controller);
         ReplaceScreen(panel);
+    }
+
+    /// <summary>
+    /// Düdük anı — maç nabzı: düdükten sonra sahaya giriş satırları, sonra HT/sonuç.
+    /// </summary>
+    public void ShowKickoffMoment(CareerSessionController controller)
+    {
+        var panel = new MatchKickoffScreen(controller.BuildMatchKickoffMoment());
+        panel.BackRequested += () => ShowMatchDay(controller);
+        panel.ProceedRequested += () => ProceedAfterKickoff(controller);
+        ReplaceScreen(panel);
+    }
+
+    private void ProceedAfterKickoff(CareerSessionController controller)
+    {
+        try
+        {
+            var halfTime = controller.BuildManagedHalfTimeDigest();
+            if (halfTime.HasManagedMatch)
+            {
+                ShowHalfTime(controller, halfTime);
+                return;
+            }
+
+            var results = controller.PlayDueMatches();
+            if (results.Succeeded && results.MatchLines.Count > 0)
+            {
+                ShowMatchResults(controller, results);
+                return;
+            }
+
+            ShowMatchDay(controller);
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"[CareerAppRoot] Düdük sonrası ilerleme başarısız: {ex}");
+            ShowMatchDay(controller);
+        }
     }
 
     public void ShowHalfTime(CareerSessionController controller, Application.Competition.Queries.MatchHalfTimeDigest digest)

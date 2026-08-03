@@ -801,6 +801,14 @@ public sealed class CareerSessionController
             hasInjuryPressure: BuildPreparationBriefing().HasInjuryPressure);
     }
 
+    /// <summary>
+    /// Düdük anı — ofisteki "kadro kilitli, düdük yakın" flash'ının maç başlangıcındaki karşılığı.
+    /// </summary>
+    public Application.Competition.Queries.MatchKickoffMoment BuildMatchKickoffMoment() =>
+        Application.Competition.Queries.MatchKickoffMoment.Compose(
+            BuildNextMatchBriefing(),
+            BuildMatchDayTempoFlash());
+
     public MatchDayLineupStrip BuildMatchDayLineupStrip()
     {
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
