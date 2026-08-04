@@ -266,7 +266,9 @@ public sealed record PostMatchOfficeDigest(
         int dayNumber)
     {
         var beats = new List<string> { mood.ToPulseLine() };
-        var calmNote = OfficeCalmNote.ToBeatLine(mood.MoodCode, dayNumber);
+        var calmNote = pulse.PulseLines.FirstOrDefault(
+            line => line.StartsWith("Not:", StringComparison.Ordinal))
+            ?? OfficeCalmNote.ToBeatLine(mood.MoodCode, dayNumber);
         if (!string.IsNullOrWhiteSpace(calmNote))
         {
             beats.Add(calmNote);

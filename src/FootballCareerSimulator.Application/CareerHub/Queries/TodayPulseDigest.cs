@@ -58,7 +58,7 @@ public sealed record TodayPulseDigest(
         else if (weekMood.IsActive)
         {
             lines.Add(weekMood.ToPulseLine());
-            var calmNote = OfficeCalmNote.ToBeatLine(weekMood.MoodCode, dayNumber);
+            var calmNote = StaffWhisper.Compose(match, prep, league, weekMood.MoodCode, dayNumber);
             if (!string.IsNullOrWhiteSpace(calmNote))
             {
                 lines.Add(calmNote);
