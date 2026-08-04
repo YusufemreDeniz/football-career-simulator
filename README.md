@@ -38,7 +38,7 @@ Komut, Presentation projesini zorunlu olarak yeniden derler ve güncel assembly 
 
 ## Sonraki Adımlar
 
-İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık / iyileşme yolu** + **auto-swap** + **görsel XI şeridi** + **Maç Günü tempo flash’ı** + **Maç Nabzı (düdük anı)** + **İlk Yarı Anları (devre arası özeti)** kilitlenmiştir (Bugün ↔ Ofis tempo: Calm→Match + **Kadro Onayla→düdük** köprüleri; Not flash; düdük anında “kadro kilitli” vurgusu; düdük sonrası sahaya giriş satırları; devre arasına ilk yarı anahtar anları — gol/kart/sakatlık). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: sakin haftada staff fısıltısı.
+İnce kariyer döngüsü (MVP: teknik direktör) + nabız→CTA + transfer CTA + **maç günü → HT → sonuç** + **sakatlık / iyileşme yolu** + **auto-swap** + **görsel XI şeridi** + **Maç Günü tempo flash’ı** + **Maç Nabzı (düdük anı)** + **İlk Yarı Anları (devre arası özeti)** + **Yarılara bölünmüş Maç Gecesi Anlar** kilitlenmiştir (Bugün ↔ Ofis tempo: Calm→Match + **Kadro Onayla→düdük** köprüleri; Not flash; düdük anında “kadro kilitli” vurgusu; düdük sonrası sahaya giriş satırları; devre arasına ilk yarı anahtar anları — gol/kart/sakatlık; maç sonucu Anlar “1. Yarı / 2. Yarı” başlıklı, HT kararı ve değişikliği ikinci yarı başında). Futbolcu kariyeri ertelenmiştir (D-028). Uzun diyalog ağacı / kapsamlı gazeteci ağı açılmaz (D-118, `02_MVP_SCOPE`); D-150 transfer fiyat formüllerini açık bırakır. Sıradaki aday: sakin haftada staff fısıltısı.
 
 ## Klasör Yapısı
 

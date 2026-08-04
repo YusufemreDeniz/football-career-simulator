@@ -24,6 +24,7 @@ using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.Match;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
@@ -2066,24 +2067,24 @@ public sealed class CareerSessionController
                     heroAwayGoals = result.AwayGoals;
                     heroManagedIsHome = fixture.HomeClubId == managedClubId;
                     heroTacticNote = tacticNote;
-                    beatLines.AddRange(FormatMatchKeyMomentBeats(result));
                     var halfTimeDecisionMoment = MatchHalfTimeDigest
                         .FormatDecisionKeyMoment(halfTimeDecisionLabel);
+                    var halfTimeSubstitutionMoment = SelectionAutoSwapWarning
+                        .FormatHalfTimeKeyMomentFromBridge(halfTimeSubstitutionLabel);
+                    var secondHalfExtras = new List<string>();
                     if (!string.IsNullOrWhiteSpace(halfTimeDecisionMoment))
                     {
-                        SelectionAutoSwapWarning.InsertHalfTimeKeyMoment(
-                            beatLines,
-                            halfTimeDecisionMoment);
+                        secondHalfExtras.Add(halfTimeDecisionMoment);
                         keyMomentLines.Add($"{scoreline} · {halfTimeDecisionMoment}");
                     }
 
-                    var halfTimeMoment = SelectionAutoSwapWarning
-                        .FormatHalfTimeKeyMomentFromBridge(halfTimeSubstitutionLabel);
-                    if (!string.IsNullOrWhiteSpace(halfTimeMoment))
+                    if (!string.IsNullOrWhiteSpace(halfTimeSubstitutionMoment))
                     {
-                        SelectionAutoSwapWarning.InsertHalfTimeKeyMoment(beatLines, halfTimeMoment);
-                        keyMomentLines.Add($"{scoreline} · {halfTimeMoment}");
+                        secondHalfExtras.Add(halfTimeSubstitutionMoment);
+                        keyMomentLines.Add($"{scoreline} · {halfTimeSubstitutionMoment}");
                     }
+
+                    beatLines.AddRange(FormatMatchMomentBeatsByHalf(result, secondHalfExtras));
 
                     afterWhistle.AddRange(FormatMatchAfterWhistle(result));
                     if (kickoffBriefing.HasCleanReturn)
@@ -2188,17 +2189,37 @@ public sealed class CareerSessionController
         }
     }
 
-    private static IEnumerable<string> FormatMatchKeyMomentBeats(PlayFixtureMatchResult result)
+    private static IEnumerable<string> FormatMatchMomentBeatsByHalf(
+        PlayFixtureMatchResult result,
+        IReadOnlyList<string>? secondHalfExtras = null)
     {
         if (result.KeyMoments is null || result.KeyMoments.Count == 0)
         {
             yield break;
         }
 
+        var firstHalf = new List<string>();
+        var secondHalf = new List<string>();
         foreach (var moment in result.KeyMoments)
         {
             var side = moment.IsHomeSide ? "Ev" : "Dep";
-            yield return FormatKeyMomentLine(moment, side);
+            var line = FormatKeyMomentLine(moment, side);
+            if (moment.Minute <= MvpFixtureMatchSimulator.HalfTimeMinute)
+            {
+                firstHalf.Add(line);
+            }
+            else
+            {
+                secondHalf.Add(line);
+            }
+        }
+
+        foreach (var beat in MatchNightNarrative.ComposeHalfSegmentedBeats(
+            firstHalf,
+            secondHalf,
+            secondHalfExtras))
+        {
+            yield return beat;
         }
     }
 

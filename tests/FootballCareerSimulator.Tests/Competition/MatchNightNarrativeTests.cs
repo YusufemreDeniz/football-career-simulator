@@ -179,4 +179,64 @@ public sealed class MatchNightNarrativeTests
         Assert.Contains(bridge, l => l.StartsWith("Taktik:", StringComparison.Ordinal));
         Assert.True(bridge.Count <= 4);
     }
+
+    [Fact]
+    public void ComposeHalfSegmentedBeats_BothHalvesWithExtras_PlacesExtrasAtSecondHalfStart()
+    {
+        var beats = MatchNightNarrative.ComposeHalfSegmentedBeats(
+            ["12' Ev gol · Kaya"],
+            ["58' Dep gol · Ali", "71' Ev kırmızı · Can"],
+            ["46' Karar · Hücuma geçtin", "46' Değişiklik · Ali↔Can"]);
+
+        Assert.Equal(
+            [
+                "1. Yarı",
+                "12' Ev gol · Kaya",
+                "2. Yarı",
+                "46' Karar · Hücuma geçtin",
+                "46' Değişiklik · Ali↔Can",
+                "58' Dep gol · Ali",
+                "71' Ev kırmızı · Can",
+            ],
+            beats);
+    }
+
+    [Fact]
+    public void ComposeHalfSegmentedBeats_FirstHalfOnly_OmitsSecondHalfHeader()
+    {
+        var beats = MatchNightNarrative.ComposeHalfSegmentedBeats(
+            ["12' Ev gol · Kaya"],
+            []);
+
+        Assert.Equal(["1. Yarı", "12' Ev gol · Kaya"], beats);
+    }
+
+    [Fact]
+    public void ComposeHalfSegmentedBeats_SecondHalfOnly_OmitsFirstHalfHeader()
+    {
+        var beats = MatchNightNarrative.ComposeHalfSegmentedBeats(
+            [],
+            ["58' Dep gol · Ali"]);
+
+        Assert.Equal(["2. Yarı", "58' Dep gol · Ali"], beats);
+    }
+
+    [Fact]
+    public void ComposeHalfSegmentedBeats_ExtrasOnly_ShowsSecondHalfHeader()
+    {
+        var beats = MatchNightNarrative.ComposeHalfSegmentedBeats(
+            [],
+            [],
+            ["46' Karar · Hücuma geçtin"]);
+
+        Assert.Equal(["2. Yarı", "46' Karar · Hücuma geçtin"], beats);
+    }
+
+    [Fact]
+    public void ComposeHalfSegmentedBeats_EmptyEverything_ReturnsEmpty()
+    {
+        var beats = MatchNightNarrative.ComposeHalfSegmentedBeats([], []);
+
+        Assert.Empty(beats);
+    }
 }

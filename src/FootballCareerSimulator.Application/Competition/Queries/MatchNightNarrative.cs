@@ -76,6 +76,39 @@ public sealed record MatchNightNarrative(
     }
 
     /// <summary>
+    /// Anları yarılara böler — 45' eşiği; HT ekstraları (karar/değişiklik) ikinci yarı başına koyar.
+    /// </summary>
+    public static IReadOnlyList<string> ComposeHalfSegmentedBeats(
+        IReadOnlyList<string> firstHalfLines,
+        IReadOnlyList<string> secondHalfLines,
+        IReadOnlyList<string>? secondHalfExtras = null)
+    {
+        ArgumentNullException.ThrowIfNull(firstHalfLines);
+        ArgumentNullException.ThrowIfNull(secondHalfLines);
+
+        var beats = new List<string>();
+        if (firstHalfLines.Count > 0)
+        {
+            beats.Add("1. Yarı");
+            beats.AddRange(firstHalfLines);
+        }
+
+        var hasExtras = secondHalfExtras is { Count: > 0 };
+        if (secondHalfLines.Count > 0 || hasExtras)
+        {
+            beats.Add("2. Yarı");
+            if (hasExtras)
+            {
+                beats.AddRange(secondHalfExtras!);
+            }
+
+            beats.AddRange(secondHalfLines);
+        }
+
+        return beats;
+    }
+
+    /// <summary>
     /// HT karar/değişim satırlarını kesmeden köprüye sığdır (en fazla 6).
     /// </summary>
     public static IReadOnlyList<string> PreferKickoffBridgeLines(
