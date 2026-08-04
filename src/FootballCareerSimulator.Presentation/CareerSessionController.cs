@@ -2173,6 +2173,19 @@ public sealed class CareerSessionController
                     ? GetClubDisplayName(nextPending.OpponentClubId)
                     : null);
 
+            int? managedMargin = null;
+            if (hasManaged)
+            {
+                managedMargin = heroManagedIsHome
+                    ? heroHomeGoals - heroAwayGoals
+                    : heroAwayGoals - heroHomeGoals;
+            }
+
+            var dressingRoom = CaptainReactionDigest.Compose(
+                managedMargin,
+                afterWhistle.Any(line =>
+                    line.Contains("işten çıkardı", StringComparison.OrdinalIgnoreCase)));
+
             var narrative = MatchNightNarrative.Compose(
                 heroScoreline ?? "—",
                 heroHomeGoals,
@@ -2205,7 +2218,8 @@ public sealed class CareerSessionController
                 keyMomentLines,
                 narrative,
                 heroReport,
-                roundup);
+                roundup,
+                dressingRoom);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -3123,4 +3137,5 @@ public sealed record PlayMatchesUiResult(
     IReadOnlyList<string>? KeyMomentLines = null,
     MatchNightNarrative? Narrative = null,
     MatchReportDigest? Report = null,
-    LeagueRoundupDigest? Roundup = null);
+    LeagueRoundupDigest? Roundup = null,
+    CaptainReactionDigest? DressingRoom = null);

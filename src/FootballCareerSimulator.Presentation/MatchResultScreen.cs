@@ -248,6 +248,24 @@ public partial class MatchResultScreen : Control
             layout.AddChild(list);
         }
 
+        if (_results.DressingRoom is { } dressingRoom)
+        {
+            layout.AddChild(SectionLabel(dressingRoom.BrandTitle));
+            var voice = new Label
+            {
+                Text = dressingRoom.VoiceLine,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            CareerUiTheme.StyleBody(voice);
+            voice.Modulate = new Color(
+                CareerUiTheme.Accent.R,
+                CareerUiTheme.Accent.G,
+                CareerUiTheme.Accent.B,
+                1f);
+            layout.AddChild(voice);
+        }
+
         var continueButton = new Button
         {
             Text = "Kariyere Dön",
