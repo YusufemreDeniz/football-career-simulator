@@ -379,6 +379,32 @@ public sealed class PostMatchOfficeDigestTests
     }
 
     [Fact]
+    public void Compose_ManagedMatchNight_CarriesMorningHeadlineBeat()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 3-0 B",
+            3,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 10,
+            beatLines: ["12' Ev gol · Kaya"],
+            afterWhistleLines: ["Yönetim güveni +2 → 60 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines: ["Ev vs B · bugün"]);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Equal(
+            "Sabah manşeti: \"Rakibe nefes aldırmadılar — şehir zevk uyandı.\"",
+            digest.BeatLines.First());
+    }
+
+    [Fact]
     public void LineupBridge_SurfacesBöyleÇıktınBeat()
     {
         var names = Enumerable.Range(0, 25).Select(i => $"Ali{i} Demir{i}").ToArray();

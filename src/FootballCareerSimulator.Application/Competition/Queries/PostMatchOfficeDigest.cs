@@ -357,6 +357,14 @@ public sealed record PostMatchOfficeDigest(
         }
 
         var beats = new List<string>();
+        var morningHeadline = MorningHeadline.Compose(
+            narrative.ManagedGoalMargin,
+            narrative.AfterWhistleLines);
+        if (!string.IsNullOrWhiteSpace(morningHeadline))
+        {
+            beats.Add(morningHeadline);
+        }
+
         var halfTimeNote = !string.IsNullOrWhiteSpace(halfTimeNoteLine)
             ? halfTimeNoteLine
             : ExtractHalfTimeNote(narrative);
@@ -469,7 +477,7 @@ public sealed record PostMatchOfficeDigest(
             headline = $"İyileşti — {who} sahaya döndü.";
         }
 
-        return new PostMatchOfficeDigest(Brand, headline, advice, focusCode, beats.Take(6).ToArray());
+        return new PostMatchOfficeDigest(Brand, headline, advice, focusCode, beats.Take(7).ToArray());
     }
 
     /// <summary>

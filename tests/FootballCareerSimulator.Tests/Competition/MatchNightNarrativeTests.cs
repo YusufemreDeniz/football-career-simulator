@@ -181,6 +181,37 @@ public sealed class MatchNightNarrativeTests
     }
 
     [Fact]
+    public void Compose_WithManyAfterWhistleLines_KeepsCriticalOnes()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 0-3 B",
+            0,
+            3,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 20,
+            beatLines: ["12' Ev gol · Kaya"],
+            afterWhistleLines:
+            [
+                "Devre arasında hücuma geçtin.",
+                "Devre arasında Ali Yılmaz↔Can Demir.",
+                "Yönetim güveni -5 → 40 (İncelemede)",
+                "Sakatlık: Tolga Kurt",
+                "Basın sorusu açıldı.",
+            ],
+            otherScorelines: [],
+            kickoffLines: ["Ev vs B · bugün"]);
+
+        Assert.Equal(3, narrative.AfterWhistleLines.Count);
+        Assert.Contains(narrative.AfterWhistleLines, l => l.Contains("Yönetim güveni", StringComparison.Ordinal));
+        Assert.Contains(narrative.AfterWhistleLines, l => l.Contains("basın", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(
+            "Ağır yenilgi — basın kapıda.",
+            narrative.OutcomeTone);
+    }
+
+    [Fact]
     public void ComposeHalfSegmentedBeats_BothHalvesWithExtras_PlacesExtrasAtSecondHalfStart()
     {
         var beats = MatchNightNarrative.ComposeHalfSegmentedBeats(

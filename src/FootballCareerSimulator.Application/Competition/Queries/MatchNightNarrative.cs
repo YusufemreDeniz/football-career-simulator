@@ -66,13 +66,36 @@ public sealed record MatchNightNarrative(
             tone,
             support,
             beatLines,
-            afterWhistleLines.Take(3).ToArray(),
+            PreferCriticalAfterWhistleLines(afterWhistleLines),
             otherScorelines,
             PreferKickoffBridgeLines(kickoffLines),
             hasManagedMatch && lineupBridge is { StartingXi.Count: > 0 }
                 ? lineupBridge
                 : null,
             margin);
+    }
+
+    /// <summary>
+    /// Düdük sonrası satırlarını kısarken kritik olanları koru (kovulma, basın, güven).
+    /// </summary>
+    private static IReadOnlyList<string> PreferCriticalAfterWhistleLines(
+        IReadOnlyList<string> afterWhistleLines)
+    {
+        if (afterWhistleLines.Count <= 3)
+        {
+            return afterWhistleLines.ToArray();
+        }
+
+        static bool IsCritical(string line) =>
+            line.Contains("işten çıkardı", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("basın", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("Yönetim güveni", StringComparison.Ordinal);
+
+        return afterWhistleLines
+            .Where(IsCritical)
+            .Concat(afterWhistleLines.Where(line => !IsCritical(line)))
+            .Take(3)
+            .ToArray();
     }
 
     /// <summary>
