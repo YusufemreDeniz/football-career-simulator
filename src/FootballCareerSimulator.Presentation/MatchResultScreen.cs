@@ -216,6 +216,21 @@ public partial class MatchResultScreen : Control
             }
         }
 
+        if (_results.Roundup is { } roundup)
+        {
+            layout.AddChild(SectionLabel(roundup.Headline));
+            foreach (var beat in roundup.BeatLines)
+            {
+                var line = new Label
+                {
+                    Text = "· " + beat,
+                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                };
+                CareerUiTheme.StyleBody(line);
+                layout.AddChild(line);
+            }
+        }
+
         if (narrative.OtherScorelines.Count > 0)
         {
             layout.AddChild(SectionLabel("Diğer sonuçlar"));

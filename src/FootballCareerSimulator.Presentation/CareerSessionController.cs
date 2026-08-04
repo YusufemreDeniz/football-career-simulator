@@ -2026,6 +2026,12 @@ public sealed class CareerSessionController
 
             var managedClubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
 
+            var beforeStandings = competition.Queries.GetStandings(season.SeasonId);
+            string? beforeLeaderName = beforeStandings.Count > 0
+                ? GetClubDisplayName(beforeStandings[0].ClubId)
+                : null;
+            var beforeManagedRank = FindStandingRank(beforeStandings, managedClubId);
+
             foreach (var fixture in dueFixtures)
             {
                 var isManagedFixture = managedClubId is long clubId
@@ -2138,6 +2144,35 @@ public sealed class CareerSessionController
                 otherScores = lines.Skip(1).Select(l => l.Split(" · ")[0]).ToList();
             }
 
+            var afterStandings = competition.Queries.GetStandings(season.SeasonId);
+            string? afterLeaderName = afterStandings.Count > 0
+                ? GetClubDisplayName(afterStandings[0].ClubId)
+                : null;
+            int? afterLeaderPoints = afterStandings.Count > 0
+                ? afterStandings[0].Points
+                : null;
+            var afterManagedRank = FindStandingRank(afterStandings, managedClubId);
+            var relegationZone = afterStandings.Count >= 3
+                ? afterStandings
+                    .Skip(Math.Max(0, afterStandings.Count - 2))
+                    .Select(entry => GetClubDisplayName(entry.ClubId))
+                    .ToArray()
+                : Array.Empty<string>();
+            var nextPending = Host.TeamPreparationModule.SelectionQueries
+                .GetNextDueManagedFixture(currentDay);
+            var roundup = LeagueRoundupDigest.Compose(
+                beforeLeaderName,
+                afterLeaderName,
+                afterLeaderPoints,
+                beforeManagedRank,
+                afterManagedRank,
+                relegationZone,
+                managedClubId is long employedId ? GetClubDisplayName(employedId) : null,
+                otherScores,
+                nextPending is not null
+                    ? GetClubDisplayName(nextPending.OpponentClubId)
+                    : null);
+
             var narrative = MatchNightNarrative.Compose(
                 heroScoreline ?? "—",
                 heroHomeGoals,
@@ -2169,7 +2204,8 @@ public sealed class CareerSessionController
                 consequenceLines,
                 keyMomentLines,
                 narrative,
-                heroReport);
+                heroReport,
+                roundup);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -2985,6 +3021,26 @@ public sealed class CareerSessionController
     public string GetClubDisplayName(long clubId) =>
         Host.ClubModule.Queries.GetClub(clubId)?.DisplayName ?? $"Kulüp {clubId}";
 
+    private static int? FindStandingRank(
+        IReadOnlyList<StandingEntryReadModel> standings,
+        long? managedClubId)
+    {
+        if (managedClubId is not long clubId)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < standings.Count; i++)
+        {
+            if (standings[i].ClubId == clubId)
+            {
+                return i + 1;
+            }
+        }
+
+        return null;
+    }
+
     public string FormatActiveBlockerSummary() =>
         BuildTimeAdvanceBlockerDigest().ToDisplayText();
 
@@ -3066,4 +3122,5 @@ public sealed record PlayMatchesUiResult(
     IReadOnlyList<string>? ConsequenceLines = null,
     IReadOnlyList<string>? KeyMomentLines = null,
     MatchNightNarrative? Narrative = null,
-    MatchReportDigest? Report = null);
+    MatchReportDigest? Report = null,
+    LeagueRoundupDigest? Roundup = null);
