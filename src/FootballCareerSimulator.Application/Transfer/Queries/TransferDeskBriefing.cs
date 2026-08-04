@@ -10,7 +10,12 @@ public sealed record TransferDeskBriefing(
     string AdviceLine,
     bool DemandsAttention,
     IReadOnlyList<string> BeatLines,
-    TransferNextStep? NextStep = null)
+    TransferNextStep? NextStep = null,
+    bool WindowOpen = false,
+    string WindowStatusName = "",
+    int? WindowClosesOnDayNumber = null,
+    int? DaysUntilClose = null,
+    int? DaysSinceClose = null)
 {
     public const string Brand = "Transfer Masası";
 
@@ -19,6 +24,40 @@ public sealed record TransferDeskBriefing(
 
     /// <summary>Son gün uyarısı eşiği.</summary>
     public const int ClosingCriticalDays = 3;
+
+    /// <summary>
+    /// Pencere ritmi — ofis nabzına taşınan kısa satır: kapanış baskısı, açık ritim,
+    /// ya da yeni kapanmış pencere hükmü.
+    /// </summary>
+    public string? WindowRhythmLine
+    {
+        get
+        {
+            if (!IsEmployed)
+            {
+                return null;
+            }
+
+            if (WindowOpen)
+            {
+                if (DaysUntilClose is int left && left >= 0 && left <= ClosingCriticalDays)
+                {
+                    return left == 0
+                        ? "Pencere bugün kapanıyor — işi bitir."
+                        : $"Pencere {left} gün içinde kapanıyor — masaya bak.";
+                }
+
+                return "Pencere açık — transfer masası çalışıyor.";
+            }
+
+            if (DaysSinceClose is int since && since >= 0 && since <= 2)
+            {
+                return "Pencere kapandı — kadro bu haliyle ilerliyor.";
+            }
+
+            return null;
+        }
+    }
 
     public static TransferDeskBriefing Unemployed() =>
         new(
@@ -53,6 +92,14 @@ public sealed record TransferDeskBriefing(
             && currentDayNumber is int today)
         {
             daysUntilClose = closesOn - today;
+        }
+
+        int? daysSinceClose = null;
+        if (!windowOpen
+            && windowClosesOnDayNumber is int closedOn
+            && currentDayNumber is int todayDate)
+        {
+            daysSinceClose = todayDate - closedOn;
         }
 
         var beats = new List<string>
@@ -133,7 +180,12 @@ public sealed record TransferDeskBriefing(
             advice,
             demands,
             beats.Take(6).ToArray(),
-            nextStep);
+            nextStep,
+            windowOpen,
+            windowStatusName,
+            windowClosesOnDayNumber,
+            daysUntilClose,
+            daysSinceClose);
     }
 
     public string ToDisplayText()

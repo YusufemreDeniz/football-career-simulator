@@ -379,6 +379,67 @@ public sealed class TodayPulseDigestTests
         Assert.Equal(TodayPulseDigest.FocusMatch, lockedMatch.PrimaryFocusCode);
     }
 
+    [Fact]
+    public void OpenWindowWithoutAttention_ShowsWindowRhythmLine()
+    {
+        var transfer = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            windowStatusName: "Açık",
+            windowClosesOnDayNumber: 40,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null,
+            currentDayNumber: 10);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            transfer: transfer);
+
+        Assert.False(transfer.DemandsAttention);
+        Assert.Contains(
+            pulse.PulseLines,
+            l => l == "Transfer: Pencere açık — transfer masası çalışıyor.");
+    }
+
+    [Fact]
+    public void ClosedWindowRecently_ShowsClosingRhythmLine()
+    {
+        var transfer = TransferDeskBriefing.Compose(
+            windowOpen: false,
+            windowStatusName: "Kapalı",
+            windowClosesOnDayNumber: 38,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null,
+            currentDayNumber: 40);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            transfer: transfer);
+
+        Assert.Equal(
+            "Transfer: Pencere kapandı — kadro bu haliyle ilerliyor.",
+            pulse.PulseLines.FirstOrDefault(l => l.StartsWith("Transfer:", StringComparison.Ordinal)));
+    }
+
     private static DecisionDeskDigest Desk(bool hard, bool open, string headline) =>
         open
             ? new DecisionDeskDigest(

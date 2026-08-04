@@ -112,5 +112,119 @@ public sealed class TransferDeskBriefingTests
         Assert.False(desk.IsEmployed);
         Assert.Contains("kapalı", desk.Headline, StringComparison.OrdinalIgnoreCase);
         Assert.Null(desk.NextStep);
+        Assert.Null(desk.WindowRhythmLine);
+    }
+
+    [Fact]
+    public void OpenWindow_NoCloseInfo_CalmRhythmLine()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: null,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null);
+
+        Assert.False(desk.DemandsAttention);
+        Assert.Equal(
+            "Pencere açık — transfer masası çalışıyor.",
+            desk.WindowRhythmLine);
+    }
+
+    [Fact]
+    public void OpenWindow_ClosingInTwoDays_CriticalRhythmLine()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: 42,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null,
+            currentDayNumber: 40);
+
+        Assert.Equal(
+            "Pencere 2 gün içinde kapanıyor — masaya bak.",
+            desk.WindowRhythmLine);
+    }
+
+    [Fact]
+    public void OpenWindow_ClosingToday_LastDayRhythmLine()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: 40,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null,
+            currentDayNumber: 40);
+
+        Assert.Equal(
+            "Pencere bugün kapanıyor — işi bitir.",
+            desk.WindowRhythmLine);
+    }
+
+    [Fact]
+    public void ClosedWindow_OneDayAgo_ClosingRhythmLine()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: false,
+            "Kapalı",
+            windowClosesOnDayNumber: 39,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null,
+            currentDayNumber: 40);
+
+        Assert.Equal(
+            "Pencere kapandı — kadro bu haliyle ilerliyor.",
+            desk.WindowRhythmLine);
+    }
+
+    [Fact]
+    public void ClosedWindow_LongAgo_NoRhythmLine()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: false,
+            "Kapalı",
+            windowClosesOnDayNumber: 30,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null,
+            currentDayNumber: 40);
+
+        Assert.Null(desk.WindowRhythmLine);
     }
 }

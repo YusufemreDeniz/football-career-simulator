@@ -100,6 +100,10 @@ public sealed record TodayPulseDigest(
         {
             lines.Add($"Transfer: {transfer.Headline}");
         }
+        else if (transfer is { IsEmployed: true, WindowRhythmLine: { } rhythm })
+        {
+            lines.Add($"Transfer: {rhythm}");
+        }
 
         if (prep.InjuredNames.Count > 0)
         {
