@@ -14,7 +14,8 @@ public sealed record PreparationBriefing(
     IReadOnlyList<string> BeatLines,
     bool DemandsAttention = false,
     PrepPlanSuggestion? Suggestion = null,
-    IReadOnlyList<string>? InjuredPlayerNames = null)
+    IReadOnlyList<string>? InjuredPlayerNames = null,
+    string? GroundLine = null)
 {
     public const string Brand = "Hazırlık Masası";
 
@@ -125,7 +126,8 @@ public sealed record PreparationBriefing(
             beats,
             DemandsAttention: suggestion is not null,
             Suggestion: suggestion,
-            InjuredPlayerNames: injuredNames);
+            InjuredPlayerNames: injuredNames,
+            GroundLine: TrainingGroundDigest.Compose(training, daysUntilNextMatch)?.VoiceLine);
     }
 
     public string ToDisplayText()
@@ -136,7 +138,10 @@ public sealed record PreparationBriefing(
         var advice = string.IsNullOrWhiteSpace(AdviceLine)
             ? string.Empty
             : $"\nÖneri: {AdviceLine}";
-        return $"{BrandTitle}\n{Headline}{beats}{advice}";
+        var ground = string.IsNullOrWhiteSpace(GroundLine)
+            ? string.Empty
+            : $"\nSahadan: {GroundLine}";
+        return $"{BrandTitle}\n{Headline}{beats}{advice}{ground}";
     }
 
     private static string ResolveHeadline(

@@ -86,6 +86,60 @@ public sealed class PreparationBriefingTests
     }
 
     [Fact]
+    public void BalancedPlan_CarriesGroundVoice()
+    {
+        var briefing = PreparationBriefing.Compose(
+            Employed(
+                hasPlan: true,
+                intensity: (int)TrainingIntensity.Medium,
+                focus: (int)TrainingFocus.General,
+                rest: (int)RestApproach.Normal,
+                fatigue: 35,
+                fitness: 70),
+            new TacticPlanReadModel(1, "3-5-2", "Dengeli", 3),
+            "±0",
+            daysUntilNextMatch: 5);
+
+        Assert.Contains("Plan oturuyor", briefing.GroundLine, StringComparison.Ordinal);
+        Assert.Contains(
+            "\nSahadan: Plan oturuyor",
+            briefing.ToDisplayText(),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HighFatigueNearMatch_GroundVoiceWarns()
+    {
+        var briefing = PreparationBriefing.Compose(
+            Employed(
+                hasPlan: true,
+                intensity: (int)TrainingIntensity.High,
+                focus: (int)TrainingFocus.Fitness,
+                rest: (int)RestApproach.Light,
+                fatigue: 68,
+                fitness: 55),
+            new TacticPlanReadModel(1, "4-4-2", "Hücum", 2),
+            "+2",
+            "Dep vs Away · yarın",
+            daysUntilNextMatch: 1);
+
+        Assert.Contains("yükü düşür", briefing.GroundLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Unemployed_HasNoGroundVoice()
+    {
+        var briefing = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                null, null, null, null, null, null, null, null, null, null,
+                HasPlan: false, 0, 0),
+            new TacticPlanReadModel(null, "—", "—", 0),
+            "±0");
+
+        Assert.Null(briefing.GroundLine);
+    }
+
+    [Fact]
     public void AlreadyOnRecovery_DoesNotSuggestAgain()
     {
         var briefing = PreparationBriefing.Compose(
