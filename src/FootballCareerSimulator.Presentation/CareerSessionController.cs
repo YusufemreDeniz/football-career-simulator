@@ -2181,6 +2181,13 @@ public sealed class CareerSessionController
                     : heroAwayGoals - heroHomeGoals;
             }
 
+            var stadium = hasManaged
+                ? StadiumAtmosphereDigest.Compose(
+                    heroManagedIsHome,
+                    beforeManagedRank,
+                    season.ParticipantCount)
+                : null;
+
             var dressingRoom = CaptainReactionDigest.Compose(
                 managedMargin,
                 afterWhistle.Any(line =>
@@ -2199,7 +2206,8 @@ public sealed class CareerSessionController
                 otherScores,
                 hasManaged ? kickoffLines : Array.Empty<string>(),
                 hasManaged && enteredWithPromiseRisk,
-                hasManaged ? lineupBridge : null);
+                hasManaged ? lineupBridge : null,
+                stadium);
 
             var invalidatedNote = invalidatedTotal > 0
                 ? $" · kadro onayı düştü ({invalidatedTotal})"

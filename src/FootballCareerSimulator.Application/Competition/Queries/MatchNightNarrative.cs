@@ -16,7 +16,8 @@ public sealed record MatchNightNarrative(
     IReadOnlyList<string> OtherScorelines,
     IReadOnlyList<string> KickoffLines,
     MatchDayLineupStrip? LineupBridge = null,
-    int? ManagedGoalMargin = null)
+    int? ManagedGoalMargin = null,
+    StadiumAtmosphereDigest? Atmosphere = null)
 {
     public static MatchNightNarrative Failure(string message) =>
         new(
@@ -42,7 +43,8 @@ public sealed record MatchNightNarrative(
         IReadOnlyList<string> otherScorelines,
         IReadOnlyList<string>? kickoffLines = null,
         bool enteredWithPromiseRisk = false,
-        MatchDayLineupStrip? lineupBridge = null)
+        MatchDayLineupStrip? lineupBridge = null,
+        StadiumAtmosphereDigest? atmosphere = null)
     {
         var tone = hasManagedMatch
             ? ToneForManaged(
@@ -72,7 +74,8 @@ public sealed record MatchNightNarrative(
             hasManagedMatch && lineupBridge is { StartingXi.Count: > 0 }
                 ? lineupBridge
                 : null,
-            margin);
+            margin,
+            hasManagedMatch ? atmosphere : null);
     }
 
     /// <summary>

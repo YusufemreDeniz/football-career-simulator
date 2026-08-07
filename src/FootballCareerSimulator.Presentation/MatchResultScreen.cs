@@ -103,6 +103,19 @@ public partial class MatchResultScreen : Control
             layout.AddChild(support);
         }
 
+        if (narrative.Atmosphere is { } stadium)
+        {
+            layout.AddChild(SectionLabel(stadium.Headline));
+            var crowd = new Label
+            {
+                Text = stadium.CrowdLine,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            CareerUiTheme.StyleBody(crowd, muted: true);
+            layout.AddChild(crowd);
+        }
+
         if (narrative.KickoffLines.Count > 0)
         {
             layout.AddChild(SectionLabel("Maça böyle girdin"));

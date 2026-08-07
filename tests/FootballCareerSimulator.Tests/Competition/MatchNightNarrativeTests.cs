@@ -136,6 +136,54 @@ public sealed class MatchNightNarrativeTests
     }
 
     [Fact]
+    public void Compose_ManagedMatch_CarriesStadiumAtmosphere()
+    {
+        var atmosphere = StadiumAtmosphereDigest.Compose(
+            isHome: true,
+            managedRank: 1,
+            clubCount: 10);
+
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-1 B",
+            2,
+            1,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 10,
+            beatLines: [],
+            afterWhistleLines: [],
+            otherScorelines: [],
+            atmosphere: atmosphere);
+
+        Assert.Same(atmosphere, narrative.Atmosphere);
+    }
+
+    [Fact]
+    public void Compose_UnmanagedMatch_DropsStadiumAtmosphere()
+    {
+        var atmosphere = StadiumAtmosphereDigest.Compose(
+            isHome: true,
+            managedRank: 1,
+            clubCount: 10);
+
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-1 B",
+            2,
+            1,
+            managedIsHome: true,
+            hasManagedMatch: false,
+            tacticNote: null,
+            dayNumber: 10,
+            beatLines: [],
+            afterWhistleLines: [],
+            otherScorelines: [],
+            atmosphere: atmosphere);
+
+        Assert.Null(narrative.Atmosphere);
+    }
+
+    [Fact]
     public void Briefing_ToKickoffBridgeLines_KeepsFixtureAndRisk()
     {
         var tension = new PreMatchPromiseTensionReadModel(
