@@ -24,33 +24,44 @@ public partial class MatchKickoffScreen : Control
     public override void _Ready()
     {
         CareerUiTheme.EnsureLoaded();
-        AddChild(CareerUiTheme.CreateAtmosphereBackground());
+        var margin = MatchScreenUi.CreateStageRoot(
+            this,
+            new Color(CareerUiTheme.Action.R, CareerUiTheme.Action.G, CareerUiTheme.Action.B, 0.075f));
 
-        var margin = new MarginContainer();
-        margin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        margin.GrowHorizontal = GrowDirection.Both;
-        margin.GrowVertical = GrowDirection.Both;
-        margin.AddThemeConstantOverride("margin_left", 42);
-        margin.AddThemeConstantOverride("margin_top", 34);
-        margin.AddThemeConstantOverride("margin_right", 42);
-        margin.AddThemeConstantOverride("margin_bottom", 30);
-        AddChild(margin);
-
-        var shell = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        shell.AddThemeConstantOverride("separation", 12);
+        var shell = MatchScreenUi.VerticalStack(12);
+        shell.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(shell);
+
+        shell.AddChild(MatchScreenUi.StageMarker("02  •  SAHAYA ÇIKIŞ", "CANLI", CareerUiTheme.ActionBright));
+
+        var scroll = MatchScreenUi.ScrollArea();
+        shell.AddChild(scroll);
+
+        var content = MatchScreenUi.VerticalStack(16);
+        scroll.AddChild(content);
+
+        var hero = MatchScreenUi.Card(emphasized: true);
+        content.AddChild(hero);
+        var heroContent = MatchScreenUi.VerticalStack(9);
+        hero.AddChild(heroContent);
+
+        var live = new Label
+        {
+            Text = "●  DÜDÜK ÖNCESİ",
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.StyleEyebrow(live, CareerUiTheme.ActionBright);
+        heroContent.AddChild(live);
 
         var brand = new Label
         {
             Text = _moment.BrandTitle.ToUpperInvariant(),
             HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBrand(brand);
-        shell.AddChild(brand);
+        brand.AddThemeFontSizeOverride("font_size", 30);
+        heroContent.AddChild(brand);
 
         var fixture = new Label
         {
@@ -59,7 +70,15 @@ public partial class MatchKickoffScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(fixture, muted: true);
-        shell.AddChild(fixture);
+        heroContent.AddChild(fixture);
+
+        var divider = new ColorRect
+        {
+            Color = new Color(CareerUiTheme.Action.R, CareerUiTheme.Action.G, CareerUiTheme.Action.B, 0.64f),
+            CustomMinimumSize = new Vector2(0, 2),
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        heroContent.AddChild(divider);
 
         var headline = new Label
         {
@@ -69,55 +88,105 @@ public partial class MatchKickoffScreen : Control
         };
         CareerUiTheme.StyleHeadline(headline);
         headline.AddThemeFontSizeOverride("font_size", 24);
-        shell.AddChild(headline);
+        heroContent.AddChild(headline);
 
+        content.AddChild(MatchScreenUi.SectionTitle("TÜNEL", "Maçın ilk nefesi"));
+        var beatsPanel = MatchScreenUi.Card();
+        content.AddChild(beatsPanel);
+        var beats = MatchScreenUi.VerticalStack(10);
+        beatsPanel.AddChild(beats);
+
+        var beatIndex = 1;
         foreach (var beat in _moment.BeatLines)
         {
-            var line = new Label
+            var row = new HBoxContainer
             {
-                Text = "· " + beat,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
             };
-            CareerUiTheme.StyleBody(line);
-            shell.AddChild(line);
+            row.AddThemeConstantOverride("separation", 10);
+            beats.AddChild(row);
+
+            var number = new Label
+            {
+                Text = beatIndex.ToString("00"),
+                CustomMinimumSize = new Vector2(28, 0),
+            };
+            CareerUiTheme.StyleEyebrow(number, CareerUiTheme.ActionBright);
+            row.AddChild(number);
+
+            var line = MatchScreenUi.BodyLine(beat);
+            line.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            row.AddChild(line);
+            beatIndex++;
         }
 
-        var spacer = new Control { SizeFlagsVertical = SizeFlags.ExpandFill };
-        shell.AddChild(spacer);
+        if (_moment.BeatLines.Count == 0)
+        {
+            beats.AddChild(MatchScreenUi.BodyLine("Takımlar sahaya çıkmaya hazır.", muted: true));
+        }
 
-        var footer = new HBoxContainer
+        var readinessPanel = new PanelContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
         };
-        footer.AddThemeConstantOverride("separation", 9);
+        readinessPanel.AddThemeStyleboxOverride(
+            "panel",
+            CareerUiTheme.BadgePanel(_moment.IsReadyToKickOff ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft));
+        content.AddChild(readinessPanel);
+
+        var readiness = MatchScreenUi.BodyLine(
+            _moment.IsReadyToKickOff
+                ? "Kadro kilitli. Tribün hazır. Maç başlıyor."
+                : "Başlama düdüğü için maç hazırlığının tamamlanması gerekiyor.",
+            alignment: HorizontalAlignment.Center);
+        readiness.AddThemeColorOverride(
+            "font_color",
+            _moment.IsReadyToKickOff ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
+        readinessPanel.AddChild(readiness);
+
+        var footer = MatchScreenUi.VerticalStack(8);
         shell.AddChild(footer);
 
-        var backButton = SecondaryButton("Maç gününe dön");
+        var proceedButton = PrimaryButton("Devam");
+        proceedButton.Disabled = !_moment.IsReadyToKickOff;
+        proceedButton.Text = _moment.IsReadyToKickOff
+            ? "Maçı Başlat"
+            : "Maçı Başlat (düdük kapalı)";
+        proceedButton.Pressed += () => Callable.From(() => ProceedRequested?.Invoke()).CallDeferred();
+        footer.AddChild(proceedButton);
+
+        var backButton = SecondaryButton("Maç Gününe Dön");
         backButton.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
         footer.AddChild(backButton);
 
-        var proceedButton = PrimaryButton("Devam");
-        proceedButton.CustomMinimumSize = new Vector2(220, 42);
-        proceedButton.Disabled = !_moment.IsReadyToKickOff;
-        proceedButton.Text = _moment.IsReadyToKickOff
-            ? "Devam"
-            : "Devam (düdük kapalı)";
-        proceedButton.Pressed += () => Callable.From(() => ProceedRequested?.Invoke()).CallDeferred();
-        footer.AddChild(proceedButton);
+        MatchScreenUi.FadeIn(content, this);
+        var pulseTween = CreateTween().SetLoops();
+        pulseTween.TweenProperty(live, "modulate:a", 0.52f, 0.72f)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.InOut);
+        pulseTween.TweenProperty(live, "modulate:a", 1f, 0.72f)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.InOut);
     }
 
     private static Button PrimaryButton(string text)
     {
-        var button = new Button { Text = text };
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
         CareerUiTheme.StylePrimaryButton(button);
         return button;
     }
 
     private static Button SecondaryButton(string text)
     {
-        var button = new Button { Text = text };
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
         CareerUiTheme.StyleSecondaryButton(button);
         return button;
     }

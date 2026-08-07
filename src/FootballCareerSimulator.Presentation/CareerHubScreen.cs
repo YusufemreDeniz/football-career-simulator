@@ -118,6 +118,10 @@ public partial class CareerHubScreen : Control
     private Button _seasonTransitionButton = null!;
     private Button _advanceDayButton = null!;
     private Button _advanceWeekButton = null!;
+    private Label _pageTitleLabel = null!;
+    private Label _pageSubtitleLabel = null!;
+    private MobileScrollContainer _pageScroll = null!;
+    private Button _careerButton = null!;
     private Control[] _pages = null!;
     private Button[] _navButtons = null!;
     private HubPage _currentPage = HubPage.Today;
@@ -251,10 +255,10 @@ public partial class CareerHubScreen : Control
         margin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         margin.GrowHorizontal = GrowDirection.Both;
         margin.GrowVertical = GrowDirection.Both;
-        margin.AddThemeConstantOverride("margin_left", 28);
-        margin.AddThemeConstantOverride("margin_top", 20);
-        margin.AddThemeConstantOverride("margin_right", 28);
-        margin.AddThemeConstantOverride("margin_bottom", 16);
+        margin.AddThemeConstantOverride("margin_left", 16);
+        margin.AddThemeConstantOverride("margin_top", 14);
+        margin.AddThemeConstantOverride("margin_right", 16);
+        margin.AddThemeConstantOverride("margin_bottom", 10);
         AddChild(margin);
 
         var shell = new VBoxContainer
@@ -262,55 +266,95 @@ public partial class CareerHubScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        shell.AddThemeConstantOverride("separation", 14);
+        shell.AddThemeConstantOverride("separation", 10);
         margin.AddChild(shell);
 
-        // —— Marka / üst şerit (sabit) ——
-        var brand = new Label
+        // Sabit kariyer kabuğu: kulüp kimliği + tarih, ardından aktif ekran başlığı.
+        var topBar = new HBoxContainer
         {
-            Text = "Football Career Simulator",
-            MouseFilter = MouseFilterEnum.Ignore,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Alignment = BoxContainer.AlignmentMode.Center,
         };
-        CareerUiTheme.StyleBrand(brand);
-        shell.AddChild(brand);
+        topBar.AddThemeConstantOverride("separation", 10);
+        shell.AddChild(topBar);
 
-        var brandLine = new ColorRect
+        var brandLockup = new VBoxContainer
         {
-            Color = new Color(CareerUiTheme.Accent.R, CareerUiTheme.Accent.G, CareerUiTheme.Accent.B, 0.55f),
-            CustomMinimumSize = new Vector2(120, 3),
-            SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
-            MouseFilter = MouseFilterEnum.Ignore,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        shell.AddChild(brandLine);
+        brandLockup.AddThemeConstantOverride("separation", 0);
+        topBar.AddChild(brandLockup);
 
-        var hubTitle = new Label { Text = "Teknik Direktör Ofisi" };
-        CareerUiTheme.StyleHeadline(hubTitle);
-        shell.AddChild(hubTitle);
+        var brand = new Label { Text = "FCS  /  CAREER MODE" };
+        CareerUiTheme.StyleSection(brand);
+        brandLockup.AddChild(brand);
 
-        _dateLabel = BodyLabel("DateLabel");
-        shell.AddChild(_dateLabel);
         _managerLabel = BodyLabel("ManagerLabel", autowrap: true);
-        shell.AddChild(_managerLabel);
-        _seasonLabel = BodyLabel("SeasonLabel", muted: true);
-        shell.AddChild(_seasonLabel);
-        _progressLabel = BodyLabel("ProgressLabel", muted: true);
-        shell.AddChild(_progressLabel);
+        CareerUiTheme.StyleHeadline(_managerLabel);
+        _managerLabel.AddThemeFontSizeOverride("font_size", 22);
+        brandLockup.AddChild(_managerLabel);
 
-        BuildNavBar(shell);
+        var datePanel = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        datePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.PillPanel());
+        topBar.AddChild(datePanel);
+        _dateLabel = BodyLabel("DateLabel");
+        _dateLabel.HorizontalAlignment = HorizontalAlignment.Center;
+        _dateLabel.AddThemeFontSizeOverride("font_size", 12);
+        datePanel.AddChild(_dateLabel);
 
-        var scroll = new ScrollContainer
+        _careerButton = SecondaryButton("DOSYA");
+        _careerButton.CustomMinimumSize = new Vector2(58, 48);
+        _careerButton.AddThemeFontSizeOverride("font_size", 11);
+        _careerButton.TooltipText = "Kariyer dosyası, kayıt ve ana menü";
+        _careerButton.Pressed += () => ShowPage(HubPage.File);
+        topBar.AddChild(_careerButton);
+
+        var careerMeta = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        careerMeta.AddThemeConstantOverride("separation", 2);
+        shell.AddChild(careerMeta);
+        _seasonLabel = BodyLabel("SeasonLabel", muted: true, autowrap: true);
+        careerMeta.AddChild(_seasonLabel);
+        _progressLabel = BodyLabel("ProgressLabel", muted: true, autowrap: true);
+        _progressLabel.AddThemeFontSizeOverride("font_size", 12);
+        careerMeta.AddChild(_progressLabel);
+
+        var screenHeading = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        screenHeading.AddThemeConstantOverride("separation", 10);
+        shell.AddChild(screenHeading);
+        var headingCopy = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        headingCopy.AddThemeConstantOverride("separation", 0);
+        screenHeading.AddChild(headingCopy);
+        _pageTitleLabel = new Label();
+        CareerUiTheme.StyleHeadline(_pageTitleLabel);
+        _pageTitleLabel.AddThemeFontSizeOverride("font_size", 26);
+        headingCopy.AddChild(_pageTitleLabel);
+        _pageSubtitleLabel = BodyLabel("PageSubtitle", muted: true, autowrap: true);
+        _pageSubtitleLabel.AddThemeFontSizeOverride("font_size", 12);
+        headingCopy.AddChild(_pageSubtitleLabel);
+
+        var liveChip = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        liveChip.AddThemeStyleboxOverride("panel", CareerUiTheme.LivePillPanel());
+        var liveLabel = new Label { Text = "●  CANLI" };
+        CareerUiTheme.StyleBody(liveLabel);
+        liveLabel.AddThemeFontSizeOverride("font_size", 11);
+        liveLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        liveChip.AddChild(liveLabel);
+        screenHeading.AddChild(liveChip);
+
+        _pageScroll = new MobileScrollContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
         };
-        shell.AddChild(scroll);
+        shell.AddChild(_pageScroll);
 
         var pageHost = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         pageHost.AddThemeConstantOverride("separation", 0);
-        scroll.AddChild(pageHost);
+        _pageScroll.AddChild(pageHost);
 
         _pages =
         [
@@ -328,50 +372,85 @@ public partial class CareerHubScreen : Control
         }
 
         _statusLabel = BodyLabel("StatusLabel", autowrap: true);
-        _statusLabel.CustomMinimumSize = new Vector2(0, 64);
-        shell.AddChild(_statusLabel);
+        _statusLabel.CustomMinimumSize = new Vector2(0, 42);
+        _statusLabel.VerticalAlignment = VerticalAlignment.Center;
+        var statusPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        statusPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel());
+        statusPanel.AddChild(_statusLabel);
+        shell.AddChild(statusPanel);
+
+        BuildNavBar(shell);
 
         ShowPage(HubPage.Today);
 
-        brandLine.CustomMinimumSize = new Vector2(24, 3);
-        var brandTween = CreateTween();
-        brandTween.TweenProperty(brandLine, "custom_minimum_size", new Vector2(160, 3), 0.55f)
-            .SetTrans(Tween.TransitionType.Cubic)
-            .SetEase(Tween.EaseType.Out);
-
         shell.Modulate = new Color(1f, 1f, 1f, 0f);
         var fadeTween = CreateTween();
-        fadeTween.TweenProperty(shell, "modulate:a", 1f, 0.4f)
+        fadeTween.TweenProperty(shell, "modulate:a", 1f, 0.28f)
             .SetTrans(Tween.TransitionType.Sine)
             .SetEase(Tween.EaseType.Out);
     }
 
     private void BuildNavBar(Control parent)
     {
-        var nav = new HBoxContainer();
-        nav.AddThemeConstantOverride("separation", 8);
-        parent.AddChild(nav);
+        var navPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        navPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NavigationPanel());
+        parent.AddChild(navPanel);
 
-        var labels = new[] { "Bugün", "Kulüp", "Transfer", "Hazırlık", "Dünya", "Dosya" };
-        _navButtons = new Button[labels.Length];
+        var nav = new GridContainer
+        {
+            Columns = 5,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        nav.AddThemeConstantOverride("h_separation", 4);
+        navPanel.AddChild(nav);
+
+        var labels = new[] { "MERKEZ", "KADRO", "TRANSFER", "TAKTİK", "LİG" };
+        _navButtons = new Button[6];
         for (var i = 0; i < labels.Length; i++)
         {
             var page = (HubPage)i;
-            var button = new Button { Text = labels[i], ToggleMode = false };
+            var button = new Button
+            {
+                Text = labels[i],
+                ToggleMode = false,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            };
             button.Pressed += () => ShowPage(page);
             nav.AddChild(button);
             _navButtons[i] = button;
         }
+
+        _navButtons[(int)HubPage.File] = _careerButton;
     }
 
     private void ShowPage(HubPage page)
     {
         _currentPage = page;
+        var titles = new[] { "Merkez", "Kadro", "Transfer Merkezi", "Taktik & Antrenman", "Lig Merkezi", "Kariyer" };
+        var subtitles = new[]
+        {
+            "Bugünün kritik kararları ve sıradaki hamle",
+            "Oyuncular, sözler ve soyunma odası",
+            "İhtiyaçtan imzaya bütün transfer dosyaları",
+            "Haftanın yükü ve maç planı",
+            "Puan durumu, fikstür ve sezon akışı",
+            "Menajer yolculuğu, kayıt ve kulüp geleceği",
+        };
+        _pageTitleLabel.Text = titles[(int)page];
+        _pageSubtitleLabel.Text = subtitles[(int)page];
         for (var i = 0; i < _pages.Length; i++)
         {
             _pages[i].Visible = i == (int)page;
             CareerUiTheme.StyleNavButton(_navButtons[i], selected: i == (int)page);
         }
+
+        var current = _pages[(int)page];
+        current.Modulate = new Color(1f, 1f, 1f, 0.25f);
+        CreateTween()
+            .TweenProperty(current, "modulate:a", 1f, 0.2f)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.Out);
+        Callable.From(() => _pageScroll.ScrollVertical = 0).CallDeferred();
     }
 
     private VBoxContainer PageRoot()
@@ -381,46 +460,64 @@ public partial class CareerHubScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Visible = false,
         };
-        page.AddThemeConstantOverride("separation", 12);
+        page.AddThemeConstantOverride("separation", 14);
         return page;
+    }
+
+    private static VBoxContainer AddCard(VBoxContainer page, string title, bool emphasized = false)
+    {
+        var panel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.CardPanel(emphasized));
+        page.AddChild(panel);
+
+        var content = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        content.AddThemeConstantOverride("separation", 9);
+        panel.AddChild(content);
+        content.AddChild(SectionTitle(title));
+        return content;
+    }
+
+    private static HFlowContainer ActionFlow()
+    {
+        var flow = new HFlowContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        flow.AddThemeConstantOverride("h_separation", 8);
+        flow.AddThemeConstantOverride("v_separation", 8);
+        return flow;
     }
 
     private Control BuildTodayPage()
     {
         var page = PageRoot();
-        page.AddChild(SectionTitle("Bugün"));
+        var priorityCard = AddCard(page, "GÜNÜN NABZI", emphasized: true);
         _blockerLabel = BodyLabel("BlockerLabel", autowrap: true);
-        page.AddChild(_blockerLabel);
-
-        page.AddChild(SectionTitle("Günün Nabzı"));
+        priorityCard.AddChild(_blockerLabel);
         _pulseLabel = BodyLabel("PulseLabel", autowrap: true);
-        page.AddChild(_pulseLabel);
+        priorityCard.AddChild(_pulseLabel);
 
         _weekStoryLabel = BodyLabel("WeekStoryLabel", autowrap: true);
         _weekStoryLabel.Visible = false;
-        page.AddChild(_weekStoryLabel);
+        priorityCard.AddChild(_weekStoryLabel);
 
         _recoveryPathLabel = BodyLabel("RecoveryPathLabel", autowrap: true);
         _recoveryPathLabel.Visible = false;
-        page.AddChild(_recoveryPathLabel);
+        priorityCard.AddChild(_recoveryPathLabel);
 
         _officeNextStepButton = PrimaryButton("Sıradaki Adım");
         _officeNextStepButton.Visible = false;
         _officeNextStepButton.Pressed += OnOfficeNextStepPressed;
-        page.AddChild(_officeNextStepButton);
+        priorityCard.AddChild(_officeNextStepButton);
 
-        page.AddChild(SectionTitle("Ofiste"));
+        var officeCard = AddCard(page, "OFİSTEN NOTLAR");
         _officeLabel = BodyLabel("OfficeLabel", autowrap: true);
         _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest.Quiet().ToDisplayText();
-        page.AddChild(_officeLabel);
+        officeCard.AddChild(_officeLabel);
 
-        page.AddChild(SectionTitle("Masada"));
+        var decisionCard = AddCard(page, "KARAR MASASI");
         _deskLabel = BodyLabel("DeskLabel", autowrap: true);
-        page.AddChild(_deskLabel);
+        decisionCard.AddChild(_deskLabel);
 
-        var deskRow = new HBoxContainer();
-        deskRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(deskRow);
+        var deskRow = ActionFlow();
+        decisionCard.AddChild(deskRow);
         _grantDecisionButton = PrimaryButton("Talebi Kabul Et");
         _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
         deskRow.AddChild(_grantDecisionButton);
@@ -450,16 +547,15 @@ public partial class CareerHubScreen : Control
                 Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
         deskRow.AddChild(_pressCriticizeButton);
 
-        page.AddChild(SectionTitle("Sıradaki Maç"));
+        var matchCard = AddCard(page, "SIRADAKİ MAÇ", emphasized: true);
         _briefingLabel = BodyLabel("BriefingLabel", autowrap: true);
-        page.AddChild(_briefingLabel);
+        matchCard.AddChild(_briefingLabel);
 
         _selectionLabel = BodyLabel("SelectionLabel", autowrap: true);
-        page.AddChild(_selectionLabel);
+        matchCard.AddChild(_selectionLabel);
 
-        var primaryRow = new HBoxContainer();
-        primaryRow.AddThemeConstantOverride("separation", 10);
-        page.AddChild(primaryRow);
+        var primaryRow = ActionFlow();
+        matchCard.AddChild(primaryRow);
 
         _approveSelectionButton = PrimaryButton("Kadro Onayla");
         _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
@@ -491,23 +587,25 @@ public partial class CareerHubScreen : Control
     private Control BuildClubPage()
     {
         var page = PageRoot();
-        page.AddChild(SectionTitle("Kulüp"));
+        var squadCard = AddCard(page, "KADRO DURUMU", emphasized: true);
         _squadCapacityLabel = BodyLabel("SquadCapacityLabel", autowrap: true);
-        page.AddChild(_squadCapacityLabel);
+        squadCard.AddChild(_squadCapacityLabel);
         _squadStatusLabel = BodyLabel("SquadStatusLabel", autowrap: true);
-        page.AddChild(_squadStatusLabel);
+        squadCard.AddChild(_squadStatusLabel);
         _developmentLabel = BodyLabel("DevelopmentLabel", autowrap: true);
-        page.AddChild(_developmentLabel);
+        squadCard.AddChild(_developmentLabel);
         _contractLabel = BodyLabel("ContractLabel", autowrap: true);
-        page.AddChild(_contractLabel);
+        squadCard.AddChild(_contractLabel);
+
+        var teamDynamicsCard = AddCard(page, "SOYUNMA ODASI & SÖZLER");
         _memoryLabel = BodyLabel("MemoryLabel", autowrap: true);
-        page.AddChild(_memoryLabel);
+        teamDynamicsCard.AddChild(_memoryLabel);
         _promiseLabel = BodyLabel("PromiseLabel", autowrap: true);
-        page.AddChild(_promiseLabel);
+        teamDynamicsCard.AddChild(_promiseLabel);
         _relationshipLabel = BodyLabel("RelationshipLabel", autowrap: true);
-        page.AddChild(_relationshipLabel);
+        teamDynamicsCard.AddChild(_relationshipLabel);
         _decisionLabel = BodyLabel("DecisionLabel", autowrap: true);
-        page.AddChild(_decisionLabel);
+        teamDynamicsCard.AddChild(_decisionLabel);
 
         _squadList = new ItemList
         {
@@ -516,11 +614,11 @@ public partial class CareerHubScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StyleList(_squadList);
-        page.AddChild(_squadList);
+        squadCard.AddChild(_squadList);
 
-        var jobRow = new HBoxContainer();
-        jobRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(jobRow);
+        var actionCard = AddCard(page, "KADRO & KARİYER AKSİYONLARI");
+        var jobRow = ActionFlow();
+        actionCard.AddChild(jobRow);
 
         _generateOfferButton = SecondaryButton("İş Teklifi Ara");
         _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
@@ -554,9 +652,8 @@ public partial class CareerHubScreen : Control
         _promisePlayingTimeButton.Pressed += () => Apply(_controller.PromisePlayingTimeToOldestSquadPlayer());
         jobRow.AddChild(_promisePlayingTimeButton);
 
-        var decisionRow = new HBoxContainer();
-        decisionRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(decisionRow);
+        var decisionRow = ActionFlow();
+        teamDynamicsCard.AddChild(decisionRow);
         _openDecisionButton = SecondaryButton("Süre Talebi Aç");
         _openDecisionButton.Pressed += () => Apply(_controller.OpenPlayingTimeDecisionForOldestSquadPlayer());
         decisionRow.AddChild(_openDecisionButton);
@@ -585,17 +682,16 @@ public partial class CareerHubScreen : Control
     private Control BuildTransferPage()
     {
         var page = PageRoot();
-        page.AddChild(SectionTitle("Transfer"));
+        var overviewCard = AddCard(page, "TRANSFER PENCERESİ", emphasized: true);
         _transferDeskLabel = BodyLabel("TransferDeskLabel", autowrap: true);
-        page.AddChild(_transferDeskLabel);
+        overviewCard.AddChild(_transferDeskLabel);
         _transferWindowLabel = BodyLabel("TransferWindowLabel", autowrap: true);
-        page.AddChild(_transferWindowLabel);
+        overviewCard.AddChild(_transferWindowLabel);
         _transferBudgetLabel = BodyLabel("TransferBudgetLabel", autowrap: true);
-        page.AddChild(_transferBudgetLabel);
+        overviewCard.AddChild(_transferBudgetLabel);
 
-        var windowRow = new HBoxContainer();
-        windowRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(windowRow);
+        var windowRow = ActionFlow();
+        overviewCard.AddChild(windowRow);
 
         _openTransferWindowButton = SecondaryButton("Pencere Aç");
         _openTransferWindowButton.Pressed += () => Apply(_controller.OpenTransferWindow());
@@ -605,12 +701,12 @@ public partial class CareerHubScreen : Control
         _closeTransferWindowButton.Pressed += () => Apply(_controller.CloseTransferWindow());
         windowRow.AddChild(_closeTransferWindowButton);
 
+        var scoutingCard = AddCard(page, "1  İHTİYAÇ & HEDEF");
         _transferNeedLabel = BodyLabel("TransferNeedLabel", autowrap: true);
-        page.AddChild(_transferNeedLabel);
+        scoutingCard.AddChild(_transferNeedLabel);
 
-        var needRow = new HBoxContainer();
-        needRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(needRow);
+        var needRow = ActionFlow();
+        scoutingCard.AddChild(needRow);
 
         _refreshTransferNeedsButton = SecondaryButton("İhtiyaç Tara");
         _refreshTransferNeedsButton.Pressed += () => Apply(_controller.RefreshTransferNeedSuggestions());
@@ -625,11 +721,10 @@ public partial class CareerHubScreen : Control
         needRow.AddChild(_closeTransferNeedButton);
 
         _shortlistTargetLabel = BodyLabel("ShortlistTargetLabel", autowrap: true);
-        page.AddChild(_shortlistTargetLabel);
+        scoutingCard.AddChild(_shortlistTargetLabel);
 
-        var targetRow = new HBoxContainer();
-        targetRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(targetRow);
+        var targetRow = ActionFlow();
+        scoutingCard.AddChild(targetRow);
 
         _suggestTargetButton = SecondaryButton("Hedef Öner");
         _suggestTargetButton.Pressed += () => Apply(_controller.SuggestTransferTarget());
@@ -639,12 +734,12 @@ public partial class CareerHubScreen : Control
         _dropTargetButton.Pressed += () => Apply(_controller.DropOldestListedTransferTarget());
         targetRow.AddChild(_dropTargetButton);
 
+        var processCard = AddCard(page, "2  SÜREÇ & SPORTİF ONAY");
         _transferProcessLabel = BodyLabel("TransferProcessLabel", autowrap: true);
-        page.AddChild(_transferProcessLabel);
+        processCard.AddChild(_transferProcessLabel);
 
-        var processRow = new HBoxContainer();
-        processRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(processRow);
+        var processRow = ActionFlow();
+        processCard.AddChild(processRow);
 
         _openProcessButton = SecondaryButton("Süreç Aç");
         _openProcessButton.Pressed += () => Apply(_controller.OpenTransferProcessFromOldestTarget());
@@ -654,9 +749,8 @@ public partial class CareerHubScreen : Control
         _withdrawProcessButton.Pressed += () => Apply(_controller.WithdrawOldestActiveTransferProcess());
         processRow.AddChild(_withdrawProcessButton);
 
-        var sportingRow = new HBoxContainer();
-        sportingRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(sportingRow);
+        var sportingRow = ActionFlow();
+        processCard.AddChild(sportingRow);
 
         _requestSportingApprovalButton = SecondaryButton("Sportif Onay İste");
         _requestSportingApprovalButton.Pressed += () =>
@@ -673,12 +767,12 @@ public partial class CareerHubScreen : Control
             Apply(_controller.RejectSportingApprovalForOldestPendingProcess());
         sportingRow.AddChild(_rejectSportingApprovalButton);
 
+        var offerCard = AddCard(page, "3  KULÜP TEKLİFİ");
         _clubOfferLabel = BodyLabel("ClubOfferLabel", autowrap: true);
-        page.AddChild(_clubOfferLabel);
+        offerCard.AddChild(_clubOfferLabel);
 
-        var offerRow = new HBoxContainer();
-        offerRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(offerRow);
+        var offerRow = ActionFlow();
+        offerCard.AddChild(offerRow);
 
         _submitClubOfferButton = SecondaryButton("Teklif Sun");
         _submitClubOfferButton.Pressed += () => Apply(_controller.SubmitDefaultClubOffer());
@@ -696,12 +790,12 @@ public partial class CareerHubScreen : Control
         _counterClubOfferButton.Pressed += () => Apply(_controller.CounterPendingClubOffer());
         offerRow.AddChild(_counterClubOfferButton);
 
+        var contractCard = AddCard(page, "4  OYUNCU SÖZLEŞMESİ");
         _contractProposalLabel = BodyLabel("ContractProposalLabel", autowrap: true);
-        page.AddChild(_contractProposalLabel);
+        contractCard.AddChild(_contractProposalLabel);
 
-        var proposalRow = new HBoxContainer();
-        proposalRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(proposalRow);
+        var proposalRow = ActionFlow();
+        contractCard.AddChild(proposalRow);
 
         _submitContractProposalButton = SecondaryButton("Sözleşme Teklif");
         _submitContractProposalButton.Pressed += () =>
@@ -723,9 +817,9 @@ public partial class CareerHubScreen : Control
             Apply(_controller.CounterPendingContractProposal());
         proposalRow.AddChild(_counterContractProposalButton);
 
-        var financialRow = new HBoxContainer();
-        financialRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(financialRow);
+        var financeCard = AddCard(page, "5  MALİ ONAY & İMZA", emphasized: true);
+        var financialRow = ActionFlow();
+        financeCard.AddChild(financialRow);
 
         _requestFinancialApprovalButton = SecondaryButton("Mali Onay İste");
         _requestFinancialApprovalButton.Pressed += () =>
@@ -752,17 +846,16 @@ public partial class CareerHubScreen : Control
     private Control BuildPrepPage()
     {
         var page = PageRoot();
-        page.AddChild(SectionTitle("Hazırlık"));
+        var briefingCard = AddCard(page, "HAFTANIN PLANI", emphasized: true);
         _prepBriefingLabel = BodyLabel("PrepBriefingLabel", autowrap: true);
-        page.AddChild(_prepBriefingLabel);
+        briefingCard.AddChild(_prepBriefingLabel);
 
-        page.AddChild(SectionTitle("Antrenman"));
+        var trainingCard = AddCard(page, "ANTRENMAN");
         _trainingLabel = BodyLabel("TrainingLabel", autowrap: true);
-        page.AddChild(_trainingLabel);
+        trainingCard.AddChild(_trainingLabel);
 
-        var trainingRow = new HBoxContainer();
-        trainingRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(trainingRow);
+        var trainingRow = ActionFlow();
+        trainingCard.AddChild(trainingRow);
 
         _trainLowButton = SecondaryButton("Hafif");
         _trainLowButton.Pressed += () => Apply(_controller.SetWeeklyTraining(TrainingIntensity.Low));
@@ -776,9 +869,8 @@ public partial class CareerHubScreen : Control
         _trainHighButton.Pressed += () => Apply(_controller.SetWeeklyTraining(TrainingIntensity.High));
         trainingRow.AddChild(_trainHighButton);
 
-        var focusRow = new HBoxContainer();
-        focusRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(focusRow);
+        var focusRow = ActionFlow();
+        trainingCard.AddChild(focusRow);
 
         _focusGeneralButton = SecondaryButton("Odak: Genel");
         _focusGeneralButton.Pressed += () =>
@@ -795,9 +887,8 @@ public partial class CareerHubScreen : Control
             Apply(_controller.SetWeeklyTrainingFocus(TrainingFocus.Recovery));
         focusRow.AddChild(_focusRecoveryButton);
 
-        var restRow = new HBoxContainer();
-        restRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(restRow);
+        var restRow = ActionFlow();
+        trainingCard.AddChild(restRow);
 
         _restLightButton = SecondaryButton("Az dinlenme");
         _restLightButton.Pressed += () =>
@@ -814,13 +905,12 @@ public partial class CareerHubScreen : Control
             Apply(_controller.SetWeeklyTrainingRest(RestApproach.Heavy));
         restRow.AddChild(_restHeavyButton);
 
-        page.AddChild(SectionTitle("Taktik"));
+        var tacticsCard = AddCard(page, "MAÇ PLANI", emphasized: true);
         _tacticLabel = BodyLabel("TacticLabel", autowrap: true);
-        page.AddChild(_tacticLabel);
+        tacticsCard.AddChild(_tacticLabel);
 
-        var formationRow = new HBoxContainer();
-        formationRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(formationRow);
+        var formationRow = ActionFlow();
+        tacticsCard.AddChild(formationRow);
 
         _formation442Button = SecondaryButton("4-4-2");
         _formation442Button.Pressed += () => Apply(_controller.SetTacticFormation(Formation.F442));
@@ -834,9 +924,8 @@ public partial class CareerHubScreen : Control
         _formation352Button.Pressed += () => Apply(_controller.SetTacticFormation(Formation.F352));
         formationRow.AddChild(_formation352Button);
 
-        var approachRow = new HBoxContainer();
-        approachRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(approachRow);
+        var approachRow = ActionFlow();
+        tacticsCard.AddChild(approachRow);
 
         _approachBalancedButton = SecondaryButton("Dengeli");
         _approachBalancedButton.Pressed += () => Apply(_controller.SetTacticApproach(TacticalApproach.Balanced));
@@ -855,18 +944,17 @@ public partial class CareerHubScreen : Control
     private Control BuildWorldPage()
     {
         var page = PageRoot();
-        page.AddChild(SectionTitle("Dünya"));
+        var leagueCard = AddCard(page, "LİG NABZI", emphasized: true);
         _leagueBriefingLabel = BodyLabel("LeagueBriefingLabel", autowrap: true);
-        page.AddChild(_leagueBriefingLabel);
+        leagueCard.AddChild(_leagueBriefingLabel);
 
-        page.AddChild(SectionTitle("Puan durumu"));
+        var tableCard = AddCard(page, "PUAN DURUMU");
         _standingsLabel = BodyLabel("StandingsLabel", autowrap: true);
-        page.AddChild(_standingsLabel);
+        tableCard.AddChild(_standingsLabel);
 
-        page.AddChild(SectionTitle("Hafta fikstürü"));
-        var roundRow = new HBoxContainer();
-        roundRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(roundRow);
+        var fixtureCard = AddCard(page, "HAFTA FİKSTÜRÜ");
+        var roundRow = ActionFlow();
+        fixtureCard.AddChild(roundRow);
         var weekLabel = new Label { Text = "Hafta" };
         CareerUiTheme.StyleBody(weekLabel, muted: true);
         roundRow.AddChild(weekLabel);
@@ -886,14 +974,14 @@ public partial class CareerHubScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StyleList(_fixtureList);
-        page.AddChild(_fixtureList);
+        fixtureCard.AddChild(_fixtureList);
 
         var advancedToggle = SecondaryButton("Gelişmiş sezon araçları");
-        page.AddChild(advancedToggle);
+        fixtureCard.AddChild(advancedToggle);
 
         var advanced = new VBoxContainer { Visible = false };
         advanced.AddThemeConstantOverride("separation", 8);
-        page.AddChild(advanced);
+        fixtureCard.AddChild(advanced);
         advancedToggle.Pressed += () =>
         {
             advanced.Visible = !advanced.Visible;
@@ -902,16 +990,14 @@ public partial class CareerHubScreen : Control
                 : "Gelişmiş sezon araçları";
         };
 
-        var seasonRow = new HBoxContainer();
-        seasonRow.AddThemeConstantOverride("separation", 8);
+        var seasonRow = ActionFlow();
         advanced.AddChild(seasonRow);
         AddActionButton(seasonRow, "Ligi Kur / Tamamla", () => Apply(_controller.EnsureLeagueReady()));
         AddActionButton(seasonRow, "Sezonu Kapat", () => Apply(_controller.CompleteSeason()));
         AddActionButton(seasonRow, "Sezonu Arşivle", () => Apply(_controller.ArchiveSeason()));
         AddActionButton(seasonRow, "Yeni Sezon", () => Apply(_controller.StartNewSeason()));
 
-        var planningRow = new HBoxContainer();
-        planningRow.AddThemeConstantOverride("separation", 8);
+        var planningRow = ActionFlow();
         advanced.AddChild(planningRow);
         AddActionButton(planningRow, "Planlama Dönemi Aç", () => Apply(_controller.OpenPlanningPeriod()));
         AddActionButton(planningRow, "Planlama Dönemini Bitir", () => Apply(_controller.CompletePlanningPeriod()));
@@ -921,13 +1007,12 @@ public partial class CareerHubScreen : Control
     private Control BuildFilePage()
     {
         var page = PageRoot();
-        page.AddChild(SectionTitle("Dosya"));
+        var saveCard = AddCard(page, "KARİYER DOSYASI", emphasized: true);
         _saveDeskLabel = BodyLabel("SaveDeskLabel", autowrap: true);
-        page.AddChild(_saveDeskLabel);
+        saveCard.AddChild(_saveDeskLabel);
 
-        var saveLoadRow = new HBoxContainer();
-        saveLoadRow.AddThemeConstantOverride("separation", 8);
-        page.AddChild(saveLoadRow);
+        var saveLoadRow = ActionFlow();
+        saveCard.AddChild(saveLoadRow);
 
         _saveGameButton = PrimaryButton("Kaydet");
         _saveGameButton.Pressed += () => Apply(_controller.SaveGame());
@@ -975,7 +1060,7 @@ public partial class CareerHubScreen : Control
         return button;
     }
 
-    private static void AddActionButton(HBoxContainer row, string text, Action action)
+    private static void AddActionButton(Container row, string text, Action action)
     {
         var button = SecondaryButton(text);
         button.Pressed += action;
@@ -1040,7 +1125,7 @@ public partial class CareerHubScreen : Control
         var manager = host.ManagerModule.Queries.GetCareer();
         var period = world.Queries.GetCurrentPlanningPeriod();
 
-        _dateLabel.Text = $"Tarih: {current.IsoDate}";
+        _dateLabel.Text = current.IsoDate;
 
         if (string.Equals(manager.EmploymentStatus, "Unemployed", StringComparison.Ordinal))
         {
@@ -1048,10 +1133,11 @@ public partial class CareerHubScreen : Control
                 ? _controller.GetClubDisplayName(lastClubId)
                 : "—";
             var offerText = manager.PendingOfferClubId is long offerClubId
-                ? $" · Teklif: {GetClubDisplayNameSafe(offerClubId)} (#{manager.PendingOfferId})"
-                : " · Teklif: yok — 'İş Teklifi Ara'";
-            _managerLabel.Text =
-                $"Menajer: {manager.DisplayName} · İŞSİZ (kovuldu: {lastClub}){offerText}";
+                ? $"Aktif teklif: {GetClubDisplayNameSafe(offerClubId)} (#{manager.PendingOfferId})"
+                : "Aktif teklif yok · Kadro ekranından iş ara";
+            _managerLabel.Text = "SERBEST MENAJER";
+            _seasonLabel.Text = $"{manager.DisplayName} · Son kulüp: {lastClub} · İtibar {manager.ManagerReputation}";
+            _progressLabel.Text = offerText;
         }
         else
         {
@@ -1059,14 +1145,10 @@ public partial class CareerHubScreen : Control
                 ? _controller.GetClubDisplayName(clubId)
                 : "—";
             var boardText = manager.BoardConfidence is int confidence
-                ? $" · Yönetim: {confidence} ({TranslateRisk(manager.EmploymentRiskBand)}) · Beklenti: {TranslateExpectation(manager.SeasonExpectation)}"
+                ? $"Yönetim {confidence} · {TranslateRisk(manager.EmploymentRiskBand)} · {TranslateExpectation(manager.SeasonExpectation)}"
                 : string.Empty;
-            var reputationText = $" · İtibar: {manager.ManagerReputation}";
-            var reasonText = string.IsNullOrWhiteSpace(manager.LastAssessmentReasonCode)
-                ? string.Empty
-                : $" · Son değerlendirme: {TranslateReason(manager.LastAssessmentReasonCode)}";
-            _managerLabel.Text =
-                $"Menajer: {manager.DisplayName} · Kulüp: {clubName}{boardText}{reputationText}{reasonText}";
+            _managerLabel.Text = clubName.ToUpperInvariant();
+            _seasonLabel.Text = $"{manager.DisplayName} · {boardText} · İtibar {manager.ManagerReputation}";
         }
 
         var periodText = period is null
@@ -1075,8 +1157,7 @@ public partial class CareerHubScreen : Control
 
         if (season is null)
         {
-            _seasonLabel.Text = "Lig sezonu: yok — 'Ligi Kur' ile başla.";
-            _progressLabel.Text = periodText;
+            _progressLabel.Text = $"Lig sezonu yok · {periodText}";
             _leagueBriefingLabel.Text = Application.Competition.Queries.LeagueWorldBriefing.NoSeason().ToDisplayText();
             _standingsLabel.Text = "Puan durumu: —";
             _fixtureList.Clear();
@@ -1109,16 +1190,14 @@ public partial class CareerHubScreen : Control
             return;
         }
 
-        _seasonLabel.Text =
-            $"Sezon #{season.SeasonId} ({season.Status}) — {season.ParticipantCount} takım, {season.FixtureCount} maç";
-
         var progress = competition.Queries.GetSeasonProgress(season.SeasonId);
         var progressText = progress is null
             ? "İlerleme: —"
             : $"İlerleme: {progress.AcceptedFixtureCount}/{progress.TotalFixtureCount} maç"
               + (progress.CanComplete ? " · sezon geçişine hazır" : string.Empty)
               + (progress.CanArchive ? " · arşiv + yeni sezon hazır" : string.Empty);
-        _progressLabel.Text = $"{progressText} · {periodText}";
+        _progressLabel.Text =
+            $"Sezon #{season.SeasonId} · {progressText} · {periodText}";
 
         _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
         RefreshTodayPulse();

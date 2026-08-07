@@ -35,33 +35,33 @@ public partial class MatchDayScreen : Control
     public override void _Ready()
     {
         CareerUiTheme.EnsureLoaded();
-        AddChild(CareerUiTheme.CreateAtmosphereBackground());
+        var margin = MatchScreenUi.CreateStageRoot(this, new Color(CareerUiTheme.Data.R, CareerUiTheme.Data.G, CareerUiTheme.Data.B, 0.055f));
 
-        var margin = new MarginContainer();
-        margin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        margin.GrowHorizontal = GrowDirection.Both;
-        margin.GrowVertical = GrowDirection.Both;
-        margin.AddThemeConstantOverride("margin_left", 42);
-        margin.AddThemeConstantOverride("margin_top", 34);
-        margin.AddThemeConstantOverride("margin_right", 42);
-        margin.AddThemeConstantOverride("margin_bottom", 30);
-        AddChild(margin);
-
-        var shell = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        shell.AddThemeConstantOverride("separation", 12);
+        var shell = MatchScreenUi.VerticalStack(12);
+        shell.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(shell);
+
+        shell.AddChild(MatchScreenUi.StageMarker("01  •  MAÇ GÜNÜ", "SON KONTROLLER", CareerUiTheme.Data));
+
+        var scroll = MatchScreenUi.ScrollArea();
+        shell.AddChild(scroll);
+
+        var content = MatchScreenUi.VerticalStack(14);
+        scroll.AddChild(content);
+
+        var hero = MatchScreenUi.Card(emphasized: true);
+        content.AddChild(hero);
+        var heroContent = MatchScreenUi.VerticalStack(7);
+        hero.AddChild(heroContent);
 
         var brand = new Label
         {
-            Text = "MAÇ GÜNÜ",
+            Text = "MATCHDAY",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleBrand(brand);
-        shell.AddChild(brand);
+        brand.AddThemeFontSizeOverride("font_size", 31);
+        heroContent.AddChild(brand);
 
         _fixtureLabel = new Label
         {
@@ -69,7 +69,8 @@ public partial class MatchDayScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(_fixtureLabel);
-        shell.AddChild(_fixtureLabel);
+        _fixtureLabel.AddThemeFontSizeOverride("font_size", 24);
+        heroContent.AddChild(_fixtureLabel);
 
         _headlineLabel = new Label
         {
@@ -77,78 +78,67 @@ public partial class MatchDayScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(_headlineLabel, muted: true);
-        shell.AddChild(_headlineLabel);
+        heroContent.AddChild(_headlineLabel);
 
         _tempoFlashLabel = new Label
         {
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        CareerUiTheme.StyleBody(_tempoFlashLabel, muted: true);
+        CareerUiTheme.StyleBody(_tempoFlashLabel);
+        _tempoFlashLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _tempoFlashLabel.Visible = false;
-        shell.AddChild(_tempoFlashLabel);
+        heroContent.AddChild(_tempoFlashLabel);
 
-        var scroll = new ScrollContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-        };
-        shell.AddChild(scroll);
-
-        var controls = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        controls.AddThemeConstantOverride("separation", 12);
-        scroll.AddChild(controls);
-
-        controls.AddChild(SectionLabel("Son Kontroller"));
-        var briefingPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        briefingPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
-        controls.AddChild(briefingPanel);
-        _briefingLines = new VBoxContainer();
-        _briefingLines.AddThemeConstantOverride("separation", 6);
+        content.AddChild(MatchScreenUi.SectionTitle("MAÇ PLANI", "Son kontroller"));
+        var briefingPanel = MatchScreenUi.Card();
+        content.AddChild(briefingPanel);
+        _briefingLines = MatchScreenUi.VerticalStack(7);
         briefingPanel.AddChild(_briefingLines);
 
-        controls.AddChild(SectionLabel("Rakip Dosyası"));
-        var opponentPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        opponentPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
-        controls.AddChild(opponentPanel);
-        _opponentDossierLines = new VBoxContainer();
-        _opponentDossierLines.AddThemeConstantOverride("separation", 6);
+        content.AddChild(MatchScreenUi.SectionTitle("RAKİP ANALİZİ", "Rakip dosyası"));
+        var opponentPanel = MatchScreenUi.Card();
+        content.AddChild(opponentPanel);
+        _opponentDossierLines = MatchScreenUi.VerticalStack(7);
         opponentPanel.AddChild(_opponentDossierLines);
 
-        controls.AddChild(SectionLabel("Kadro"));
-        _lineupHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        controls.AddChild(_lineupHost);
+        content.AddChild(MatchScreenUi.SectionTitle("TAKIM", "Sahaya çıkacak kadro"));
+        _lineupHost = MatchScreenUi.VerticalStack(8);
+        content.AddChild(_lineupHost);
 
-        var selectionRow = ActionRow();
-        controls.AddChild(selectionRow);
+        var selectionPanel = MatchScreenUi.Card();
+        content.AddChild(selectionPanel);
+        var selectionStack = MatchScreenUi.VerticalStack(8);
+        selectionPanel.AddChild(selectionStack);
         _approveButton = PrimaryButton("Kadro Onayla");
         _approveButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
-        selectionRow.AddChild(_approveButton);
+        selectionStack.AddChild(_approveButton);
         _swapButton = SecondaryButton("XI ↔ Yedek");
         _swapButton.Pressed += () => Apply(_controller.SwapLastStarterWithFirstBenchForNextDueMatch());
-        selectionRow.AddChild(_swapButton);
+        selectionStack.AddChild(_swapButton);
 
-        controls.AddChild(SectionLabel("Formasyon"));
-        var formationRow = ActionRow();
-        controls.AddChild(formationRow);
-        formationRow.AddChild(ActionButton("4-4-2", () => _controller.SetTacticFormation(Formation.F442)));
-        formationRow.AddChild(ActionButton("4-3-3", () => _controller.SetTacticFormation(Formation.F433)));
-        formationRow.AddChild(ActionButton("3-5-2", () => _controller.SetTacticFormation(Formation.F352)));
+        content.AddChild(MatchScreenUi.SectionTitle("TAKTİK TAHTASI", "Formasyon"));
+        var formationPanel = MatchScreenUi.Card();
+        content.AddChild(formationPanel);
+        var formationStack = MatchScreenUi.VerticalStack(8);
+        formationPanel.AddChild(formationStack);
+        formationStack.AddChild(ActionButton("4-4-2", () => _controller.SetTacticFormation(Formation.F442)));
+        formationStack.AddChild(ActionButton("4-3-3", () => _controller.SetTacticFormation(Formation.F433)));
+        formationStack.AddChild(ActionButton("3-5-2", () => _controller.SetTacticFormation(Formation.F352)));
 
-        controls.AddChild(SectionLabel("Maç Yaklaşımı"));
-        var approachRow = ActionRow();
-        controls.AddChild(approachRow);
-        approachRow.AddChild(ActionButton("Dengeli", () => _controller.SetTacticApproach(TacticalApproach.Balanced)));
-        approachRow.AddChild(ActionButton("Hücum", () => _controller.SetTacticApproach(TacticalApproach.Attacking)));
-        approachRow.AddChild(ActionButton("Savunma", () => _controller.SetTacticApproach(TacticalApproach.Defensive)));
+        content.AddChild(MatchScreenUi.SectionTitle("OYUN PLANI", "Maç yaklaşımı"));
+        var approachPanel = MatchScreenUi.Card();
+        content.AddChild(approachPanel);
+        var approachStack = MatchScreenUi.VerticalStack(8);
+        approachPanel.AddChild(approachStack);
+        approachStack.AddChild(ActionButton("Dengeli", () => _controller.SetTacticApproach(TacticalApproach.Balanced)));
+        approachStack.AddChild(ActionButton("Hücum", () => _controller.SetTacticApproach(TacticalApproach.Attacking)));
+        approachStack.AddChild(ActionButton("Savunma", () => _controller.SetTacticApproach(TacticalApproach.Defensive)));
 
-        controls.AddChild(SectionLabel("Eşleşme Planı"));
-        var matchupPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        matchupPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
-        controls.AddChild(matchupPanel);
-        _matchupPlanLines = new VBoxContainer();
-        _matchupPlanLines.AddThemeConstantOverride("separation", 6);
+        content.AddChild(MatchScreenUi.SectionTitle("EŞLEŞME", "Saha içi avantajlar"));
+        var matchupPanel = MatchScreenUi.Card();
+        content.AddChild(matchupPanel);
+        _matchupPlanLines = MatchScreenUi.VerticalStack(7);
         matchupPanel.AddChild(_matchupPlanLines);
 
         _statusLabel = new Label
@@ -157,20 +147,25 @@ public partial class MatchDayScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(_statusLabel, muted: true);
-        shell.AddChild(_statusLabel);
+        var statusPanel = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        statusPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel());
+        statusPanel.AddChild(_statusLabel);
+        shell.AddChild(statusPanel);
 
-        var footer = ActionRow();
-        footer.Alignment = BoxContainer.AlignmentMode.Center;
+        var footer = MatchScreenUi.VerticalStack(8);
         shell.AddChild(footer);
+        _kickoffButton = PrimaryButton("Düdüğü Çal");
+        _kickoffButton.Pressed += () => Callable.From(() => KickoffRequested?.Invoke()).CallDeferred();
+        footer.AddChild(_kickoffButton);
         var backButton = SecondaryButton("Ofise Dön");
         backButton.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
         footer.AddChild(backButton);
-        _kickoffButton = PrimaryButton("Düdüğü Çal");
-        _kickoffButton.CustomMinimumSize = new Vector2(220, 42);
-        _kickoffButton.Pressed += () => Callable.From(() => KickoffRequested?.Invoke()).CallDeferred();
-        footer.AddChild(_kickoffButton);
 
         RefreshBriefing();
+        MatchScreenUi.FadeIn(content, this);
     }
 
     public void SetStatus(string message)
@@ -193,12 +188,11 @@ public partial class MatchDayScreen : Control
         _fixtureLabel.Text = briefing.HasMatch ? briefing.FixtureLine : "Maç bekleniyor";
         _headlineLabel.Text = briefing.Headline;
 
-        // Ofisteki tempo flash'ı düdük anına kadar taşır: "kadro kilitli, düdük yakın."
         var tempoFlash = _controller.BuildMatchDayTempoFlash();
         _tempoFlashLabel.Visible = tempoFlash is not null;
         if (tempoFlash is not null)
         {
-            _tempoFlashLabel.Text = "· " + tempoFlash.BeatLine;
+            _tempoFlashLabel.Text = "●  " + tempoFlash.BeatLine;
             _tempoFlashLabel.Modulate = new Color(1f, 1f, 1f, 0.35f);
             var flashTween = CreateTween();
             flashTween.TweenProperty(_tempoFlashLabel, "modulate:a", 1f, 0.4f)
@@ -206,26 +200,14 @@ public partial class MatchDayScreen : Control
                 .SetEase(Tween.EaseType.Out);
         }
 
-        foreach (var child in _briefingLines.GetChildren())
-        {
-            child.QueueFree();
-        }
-
+        MatchScreenUi.ClearChildren(_briefingLines);
         foreach (var beat in briefing.BeatLines)
         {
-            var line = new Label
-            {
-                Text = "· " + beat,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(line);
-            _briefingLines.AddChild(line);
+            _briefingLines.AddChild(MatchScreenUi.BeatLine(beat));
         }
 
         RefreshOpponentDossier();
-
         RefreshMatchupPlan();
-
         RefreshLineupStrip();
 
         _approveButton.Disabled = !briefing.HasMatch || briefing.IsReadyToKickOff;
@@ -241,85 +223,48 @@ public partial class MatchDayScreen : Control
 
     private void RefreshOpponentDossier()
     {
-        foreach (var child in _opponentDossierLines.GetChildren())
-        {
-            child.QueueFree();
-        }
+        MatchScreenUi.ClearChildren(_opponentDossierLines);
 
         var dossier = _controller.BuildOpponentDossier();
         if (dossier is null)
         {
-            var empty = new Label
-            {
-                Text = "Rakip verisi henüz hazır değil.",
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(empty, muted: true);
+            var empty = MatchScreenUi.BodyLine("Rakip verisi henüz hazır değil.", muted: true);
             _opponentDossierLines.AddChild(empty);
             return;
         }
 
-        var headline = new Label
-        {
-            Text = dossier.Headline,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        CareerUiTheme.StyleBody(headline);
+        var headline = MatchScreenUi.BodyLine(dossier.Headline);
         headline.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         _opponentDossierLines.AddChild(headline);
 
         foreach (var detail in dossier.DetailLines)
         {
-            var line = new Label
-            {
-                Text = "· " + detail,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(line, muted: true);
-            _opponentDossierLines.AddChild(line);
+            _opponentDossierLines.AddChild(MatchScreenUi.BeatLine(detail, muted: true));
         }
     }
 
     private void RefreshMatchupPlan()
     {
-        foreach (var child in _matchupPlanLines.GetChildren())
-        {
-            child.QueueFree();
-        }
+        MatchScreenUi.ClearChildren(_matchupPlanLines);
 
         var plan = _controller.BuildMatchupPlan();
         if (plan is null)
         {
-            var empty = new Label
-            {
-                Text = "Eşleşme değerlendirmesi için maç ve taktik verisi bekleniyor.",
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(empty, muted: true);
-            _matchupPlanLines.AddChild(empty);
+            _matchupPlanLines.AddChild(MatchScreenUi.BodyLine(
+                "Eşleşme değerlendirmesi için maç ve taktik verisi bekleniyor.",
+                muted: true));
             return;
         }
 
-        var selection = new Label
-        {
-            Text = plan.SelectionLine,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        CareerUiTheme.StyleBody(selection, muted: true);
-        _matchupPlanLines.AddChild(selection);
+        _matchupPlanLines.AddChild(MatchScreenUi.BodyLine(plan.SelectionLine, muted: true));
 
-        var verdict = new Label
-        {
-            Text = plan.VerdictLine,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        CareerUiTheme.StyleBody(verdict);
+        var verdict = MatchScreenUi.BodyLine(plan.VerdictLine);
         verdict.AddThemeColorOverride(
             "font_color",
             plan.Signal switch
             {
                 MatchupPlanSignal.Risk => CareerUiTheme.DangerSoft,
-                MatchupPlanSignal.Opportunity => CareerUiTheme.Action,
+                MatchupPlanSignal.Opportunity => CareerUiTheme.ActionBright,
                 _ => CareerUiTheme.Accent,
             });
         _matchupPlanLines.AddChild(verdict);
@@ -327,21 +272,12 @@ public partial class MatchDayScreen : Control
 
     private void RefreshLineupStrip()
     {
-        foreach (var child in _lineupHost.GetChildren())
-        {
-            child.QueueFree();
-        }
+        MatchScreenUi.ClearChildren(_lineupHost);
 
         var strip = _controller.BuildMatchDayLineupStrip();
         if (!strip.HasMatch || strip.StartingXi.Count == 0)
         {
-            var empty = new Label
-            {
-                Text = strip.Caption,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(empty, muted: true);
-            _lineupHost.AddChild(empty);
+            _lineupHost.AddChild(MatchScreenUi.BodyLine(strip.Caption, muted: true));
             return;
         }
 
@@ -355,35 +291,169 @@ public partial class MatchDayScreen : Control
         return button;
     }
 
-    private static HBoxContainer ActionRow()
-    {
-        var row = new HBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
-        };
-        row.AddThemeConstantOverride("separation", 9);
-        return row;
-    }
-
-    private static Label SectionLabel(string text)
-    {
-        var label = new Label { Text = text };
-        CareerUiTheme.StyleSection(label);
-        return label;
-    }
-
     private static Button PrimaryButton(string text)
     {
-        var button = new Button { Text = text };
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
         CareerUiTheme.StylePrimaryButton(button);
         return button;
     }
 
     private static Button SecondaryButton(string text)
     {
-        var button = new Button { Text = text };
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
         CareerUiTheme.StyleSecondaryButton(button);
         return button;
+    }
+}
+
+/// <summary>Maç gecesi ekranlarının küçük, kod-tabanlı mobil yerleşim yapı taşları.</summary>
+internal static class MatchScreenUi
+{
+    public static MarginContainer CreateStageRoot(Control owner, Color stageWash)
+    {
+        owner.AddChild(CareerUiTheme.CreateAtmosphereBackground());
+
+        var wash = new ColorRect
+        {
+            Color = stageWash,
+            MouseFilter = Control.MouseFilterEnum.Ignore,
+        };
+        wash.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        owner.AddChild(wash);
+
+        var margin = new MarginContainer();
+        margin.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
+        margin.GrowHorizontal = Control.GrowDirection.Both;
+        margin.GrowVertical = Control.GrowDirection.Both;
+        margin.AddThemeConstantOverride("margin_left", 16);
+        margin.AddThemeConstantOverride("margin_top", 16);
+        margin.AddThemeConstantOverride("margin_right", 16);
+        margin.AddThemeConstantOverride("margin_bottom", 16);
+        owner.AddChild(margin);
+        return margin;
+    }
+
+    public static VBoxContainer VerticalStack(int separation)
+    {
+        var stack = new VBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        stack.AddThemeConstantOverride("separation", separation);
+        return stack;
+    }
+
+    public static MobileScrollContainer ScrollArea()
+    {
+        return new MobileScrollContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+    }
+
+    public static PanelContainer Card(bool emphasized = false)
+    {
+        var panel = new PanelContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.CardPanel(emphasized));
+        return panel;
+    }
+
+    public static PanelContainer StageMarker(string stage, string state, Color color)
+    {
+        var panel = new PanelContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePanel(color));
+
+        var row = new HBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        row.AddThemeConstantOverride("separation", 8);
+        panel.AddChild(row);
+
+        var stageLabel = new Label
+        {
+            Text = stage,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StyleEyebrow(stageLabel, color);
+        row.AddChild(stageLabel);
+
+        var stateLabel = new Label
+        {
+            Text = state,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        CareerUiTheme.StyleEyebrow(stateLabel, CareerUiTheme.InkMuted);
+        row.AddChild(stateLabel);
+        return panel;
+    }
+
+    public static Control SectionTitle(string eyebrow, string title)
+    {
+        var stack = VerticalStack(2);
+        var eyebrowLabel = new Label { Text = eyebrow };
+        CareerUiTheme.StyleEyebrow(eyebrowLabel);
+        stack.AddChild(eyebrowLabel);
+
+        var titleLabel = new Label
+        {
+            Text = title,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleHeadline(titleLabel);
+        titleLabel.AddThemeFontSizeOverride("font_size", 19);
+        stack.AddChild(titleLabel);
+        return stack;
+    }
+
+    public static Label BodyLine(string text, bool muted = false, HorizontalAlignment alignment = HorizontalAlignment.Left)
+    {
+        var label = new Label
+        {
+            Text = text,
+            HorizontalAlignment = alignment,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleBody(label, muted);
+        return label;
+    }
+
+    public static Label BeatLine(string text, bool muted = false)
+    {
+        var label = BodyLine("•  " + text, muted);
+        return label;
+    }
+
+    public static void ClearChildren(Node parent)
+    {
+        foreach (var child in parent.GetChildren())
+        {
+            child.QueueFree();
+        }
+    }
+
+    public static void FadeIn(Control content, Node owner)
+    {
+        content.Modulate = new Color(1f, 1f, 1f, 0f);
+        var tween = owner.CreateTween();
+        tween.TweenProperty(content, "modulate:a", 1f, 0.35f)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.Out);
     }
 }

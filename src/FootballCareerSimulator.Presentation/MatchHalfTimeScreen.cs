@@ -29,33 +29,35 @@ public partial class MatchHalfTimeScreen : Control
     public override void _Ready()
     {
         CareerUiTheme.EnsureLoaded();
-        AddChild(CareerUiTheme.CreateAtmosphereBackground());
+        var margin = MatchScreenUi.CreateStageRoot(
+            this,
+            new Color(CareerUiTheme.Accent.R, CareerUiTheme.Accent.G, CareerUiTheme.Accent.B, 0.075f));
 
-        var margin = new MarginContainer();
-        margin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        margin.GrowHorizontal = GrowDirection.Both;
-        margin.GrowVertical = GrowDirection.Both;
-        margin.AddThemeConstantOverride("margin_left", 42);
-        margin.AddThemeConstantOverride("margin_top", 34);
-        margin.AddThemeConstantOverride("margin_right", 42);
-        margin.AddThemeConstantOverride("margin_bottom", 30);
-        AddChild(margin);
-
-        var shell = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        shell.AddThemeConstantOverride("separation", 12);
+        var shell = MatchScreenUi.VerticalStack(12);
+        shell.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(shell);
+
+        shell.AddChild(MatchScreenUi.StageMarker("03  •  DEVRE ARASI", "SOYUNMA ODASI", CareerUiTheme.Accent));
+
+        var scroll = MatchScreenUi.ScrollArea();
+        shell.AddChild(scroll);
+
+        var content = MatchScreenUi.VerticalStack(15);
+        scroll.AddChild(content);
+
+        var scorePanel = MatchScreenUi.Card(emphasized: true);
+        content.AddChild(scorePanel);
+        var scoreContent = MatchScreenUi.VerticalStack(8);
+        scorePanel.AddChild(scoreContent);
 
         var brand = new Label
         {
             Text = _digest.BrandTitle.ToUpperInvariant(),
             HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        CareerUiTheme.StyleBrand(brand);
-        shell.AddChild(brand);
+        CareerUiTheme.StyleEyebrow(brand, CareerUiTheme.Accent);
+        scoreContent.AddChild(brand);
 
         var fixture = new Label
         {
@@ -64,16 +66,25 @@ public partial class MatchHalfTimeScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(fixture, muted: true);
-        shell.AddChild(fixture);
+        scoreContent.AddChild(fixture);
 
         var score = new Label
         {
             Text = _digest.Scoreline,
             HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        CareerUiTheme.StyleHeadline(score);
-        score.AddThemeFontSizeOverride("font_size", 28);
-        shell.AddChild(score);
+        CareerUiTheme.StyleBrand(score);
+        score.AddThemeFontSizeOverride("font_size", 38);
+        scoreContent.AddChild(score);
+
+        var halfLabel = new Label
+        {
+            Text = "45'  •  İLK YARI TAMAMLANDI",
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.StyleEyebrow(halfLabel, CareerUiTheme.Accent);
+        scoreContent.AddChild(halfLabel);
 
         var headline = new Label
         {
@@ -82,53 +93,59 @@ public partial class MatchHalfTimeScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(headline);
-        shell.AddChild(headline);
+        headline.AddThemeFontSizeOverride("font_size", 23);
+        scoreContent.AddChild(headline);
 
-        var advice = new Label
-        {
-            Text = "Öneri: " + _digest.AdviceLine,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        CareerUiTheme.StyleBody(advice, muted: true);
-        shell.AddChild(advice);
+        content.AddChild(MatchScreenUi.SectionTitle("TEKNİK EKİP", "Devre arası notları"));
+        var analysisPanel = MatchScreenUi.Card();
+        content.AddChild(analysisPanel);
+        var analysis = MatchScreenUi.VerticalStack(9);
+        analysisPanel.AddChild(analysis);
+
+        var advice = MatchScreenUi.BodyLine("Öneri: " + _digest.AdviceLine);
+        advice.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        analysis.AddChild(advice);
 
         foreach (var beat in _digest.BeatLines)
         {
-            var line = new Label
-            {
-                Text = "· " + beat,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(line);
-            shell.AddChild(line);
+            analysis.AddChild(MatchScreenUi.BeatLine(beat));
         }
 
-        shell.AddChild(SectionLabel("Sahadaki XI"));
-        _lineupHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        shell.AddChild(_lineupHost);
+        content.AddChild(MatchScreenUi.SectionTitle("SAHADAKİ XI", "Mevcut kadro"));
+        _lineupHost = MatchScreenUi.VerticalStack(8);
+        content.AddChild(_lineupHost);
         RefreshLineupStrip();
 
-        shell.AddChild(SectionLabel("İkinci yarı kararı"));
-        var decisionRow = ActionRow();
-        shell.AddChild(decisionRow);
-        decisionRow.AddChild(DecisionButton(
-            "Aynı plan",
+        content.AddChild(MatchScreenUi.SectionTitle("İKİNCİ YARI", "Oyun planını seç"));
+        var decisionPanel = MatchScreenUi.Card(emphasized: true);
+        content.AddChild(decisionPanel);
+        var decisionStack = MatchScreenUi.VerticalStack(8);
+        decisionPanel.AddChild(decisionStack);
+
+        decisionStack.AddChild(DecisionButton(
+            "Aynı Planla Devam Et",
             MatchHalfTimeDigest.DecisionContinue));
-        decisionRow.AddChild(DecisionButton(
-            "Hücuma geç",
+        decisionStack.AddChild(DecisionButton(
+            "Hücuma Geç",
             MatchHalfTimeDigest.DecisionAttack));
-        decisionRow.AddChild(DecisionButton(
-            "Savunmaya çek",
+        decisionStack.AddChild(DecisionButton(
+            "Savunmaya Çek",
             MatchHalfTimeDigest.DecisionDefend));
 
-        shell.AddChild(SectionLabel("Değişiklik"));
-        var subRow = ActionRow();
-        shell.AddChild(subRow);
-        var subButton = SecondaryButton("Bir değişiklik (XI ↔ Yedek)");
+        content.AddChild(MatchScreenUi.SectionTitle("DEĞİŞİKLİK", "Kulübeye dokun"));
+        var substitutionPanel = MatchScreenUi.Card();
+        content.AddChild(substitutionPanel);
+        var substitutionStack = MatchScreenUi.VerticalStack(8);
+        substitutionPanel.AddChild(substitutionStack);
+
+        var substitutionHint = MatchScreenUi.BodyLine(
+            "Bir oyuncu değişikliği yapabilir ve güncel XI'i ikinci yarıya taşıyabilirsin.",
+            muted: true);
+        substitutionStack.AddChild(substitutionHint);
+
+        var subButton = SecondaryButton("Bir Değişiklik Yap  •  XI ↔ Yedek");
         subButton.Pressed += OnSubstitutionPressed;
-        subRow.AddChild(subButton);
+        substitutionStack.AddChild(subButton);
 
         _statusLabel = new Label
         {
@@ -136,14 +153,19 @@ public partial class MatchHalfTimeScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(_statusLabel, muted: true);
-        shell.AddChild(_statusLabel);
+        var statusPanel = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        statusPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel());
+        statusPanel.AddChild(_statusLabel);
+        content.AddChild(statusPanel);
 
-        var footer = ActionRow();
-        footer.Alignment = BoxContainer.AlignmentMode.Center;
-        shell.AddChild(footer);
-        var back = SecondaryButton("Maç gününe dön");
+        var back = SecondaryButton("Maç Gününe Dön");
         back.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
-        footer.AddChild(back);
+        shell.AddChild(back);
+
+        MatchScreenUi.FadeIn(content, this);
     }
 
     private void OnSubstitutionPressed()
@@ -158,6 +180,9 @@ public partial class MatchHalfTimeScreen : Control
         _statusLabel.Text = _subMade
             ? result.Message + "\nDeğişiklik ikinci yarıya yansır — XI şeridi güncellendi."
             : result.Message;
+        _statusLabel.AddThemeColorOverride(
+            "font_color",
+            result.Succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
         if (result.Succeeded)
         {
             RefreshLineupStrip();
@@ -166,22 +191,15 @@ public partial class MatchHalfTimeScreen : Control
 
     private void RefreshLineupStrip()
     {
-        foreach (var child in _lineupHost.GetChildren())
-        {
-            child.QueueFree();
-        }
+        MatchScreenUi.ClearChildren(_lineupHost);
 
         var strip = _controller.BuildMatchDayLineupStrip();
         if (!strip.HasMatch || strip.StartingXi.Count == 0)
         {
-            var empty = new Label
-            {
-                Text = strip.Caption,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(empty, muted: true);
-            _lineupHost.AddChild(empty);
+            _lineupHost.AddChild(MatchScreenUi.BodyLine(
+                strip.Caption,
+                muted: true,
+                alignment: HorizontalAlignment.Center));
             return;
         }
 
@@ -197,34 +215,24 @@ public partial class MatchHalfTimeScreen : Control
         return button;
     }
 
-    private static HBoxContainer ActionRow()
-    {
-        var row = new HBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
-        };
-        row.AddThemeConstantOverride("separation", 9);
-        return row;
-    }
-
-    private static Label SectionLabel(string text)
-    {
-        var label = new Label { Text = text };
-        CareerUiTheme.StyleSection(label);
-        return label;
-    }
-
     private static Button PrimaryButton(string text)
     {
-        var button = new Button { Text = text };
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
         CareerUiTheme.StylePrimaryButton(button);
         return button;
     }
 
     private static Button SecondaryButton(string text)
     {
-        var button = new Button { Text = text };
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
         CareerUiTheme.StyleSecondaryButton(button);
         return button;
     }

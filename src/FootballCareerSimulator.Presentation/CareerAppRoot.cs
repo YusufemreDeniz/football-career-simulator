@@ -8,6 +8,7 @@ namespace FootballCareerSimulator.Presentation;
 public partial class CareerAppRoot : Control
 {
     private Control? _currentScreen;
+    private Tween? _screenTransition;
 
     public override void _Ready()
     {
@@ -183,6 +184,7 @@ public partial class CareerAppRoot : Control
 
     private void ReplaceScreen(Control screen)
     {
+        _screenTransition?.Kill();
         if (_currentScreen is not null)
         {
             RemoveChild(_currentScreen);
@@ -194,7 +196,14 @@ public partial class CareerAppRoot : Control
         screen.AnchorBottom = 1f;
         screen.GrowHorizontal = GrowDirection.Both;
         screen.GrowVertical = GrowDirection.Both;
+        screen.Modulate = new Color(1f, 1f, 1f, 0f);
         AddChild(screen);
+
+        _screenTransition = CreateTween();
+        _screenTransition
+            .TweenProperty(screen, "modulate:a", 1f, 0.22f)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.Out);
     }
 
     internal static bool ShouldRunSmokeTest()

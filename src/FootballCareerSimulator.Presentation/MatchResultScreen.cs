@@ -17,60 +17,38 @@ public partial class MatchResultScreen : Control
     public override void _Ready()
     {
         CareerUiTheme.EnsureLoaded();
-        AddChild(CareerUiTheme.CreateAtmosphereBackground());
-
         var narrative = _results.Narrative
             ?? MatchNightNarrative.Failure(_results.Message);
 
-        var margin = new MarginContainer();
-        margin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        margin.GrowHorizontal = GrowDirection.Both;
-        margin.GrowVertical = GrowDirection.Both;
-        margin.AddThemeConstantOverride("margin_left", 40);
-        margin.AddThemeConstantOverride("margin_top", 40);
-        margin.AddThemeConstantOverride("margin_right", 40);
-        margin.AddThemeConstantOverride("margin_bottom", 36);
-        AddChild(margin);
+        var margin = MatchScreenUi.CreateStageRoot(
+            this,
+            new Color(CareerUiTheme.Accent.R, CareerUiTheme.Accent.G, CareerUiTheme.Accent.B, 0.045f));
 
-        var shell = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        shell.AddThemeConstantOverride("separation", 14);
+        var shell = MatchScreenUi.VerticalStack(12);
+        shell.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(shell);
 
-        var scroll = new ScrollContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-        };
+        shell.AddChild(MatchScreenUi.StageMarker("04  •  MAÇ SONU", "RAPOR", CareerUiTheme.Accent));
+
+        var scroll = MatchScreenUi.ScrollArea();
         shell.AddChild(scroll);
 
-        var layout = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
-        layout.AddThemeConstantOverride("separation", 10);
-        scroll.AddChild(layout);
+        var content = MatchScreenUi.VerticalStack(15);
+        scroll.AddChild(content);
+
+        var hero = MatchScreenUi.Card(emphasized: true);
+        content.AddChild(hero);
+        var heroContent = MatchScreenUi.VerticalStack(8);
+        hero.AddChild(heroContent);
 
         var brand = new Label
         {
-            Text = narrative.BrandTitle,
+            Text = narrative.BrandTitle.ToUpperInvariant(),
             HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        CareerUiTheme.StyleBrand(brand);
-        layout.AddChild(brand);
-
-        var brandLine = new ColorRect
-        {
-            Color = new Color(CareerUiTheme.Accent.R, CareerUiTheme.Accent.G, CareerUiTheme.Accent.B, 0.55f),
-            CustomMinimumSize = new Vector2(48, 3),
-            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
-            MouseFilter = MouseFilterEnum.Ignore,
-        };
-        layout.AddChild(brandLine);
+        CareerUiTheme.StyleEyebrow(brand, CareerUiTheme.Accent);
+        heroContent.AddChild(brand);
 
         var score = new Label
         {
@@ -80,7 +58,7 @@ public partial class MatchResultScreen : Control
         };
         StyleScore(score);
         score.Modulate = new Color(1f, 1f, 1f, 0f);
-        layout.AddChild(score);
+        heroContent.AddChild(score);
 
         var tone = new Label
         {
@@ -89,256 +67,229 @@ public partial class MatchResultScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(tone);
+        tone.AddThemeFontSizeOverride("font_size", 24);
         tone.Modulate = new Color(1f, 1f, 1f, 0f);
-        layout.AddChild(tone);
+        heroContent.AddChild(tone);
 
         if (!string.IsNullOrWhiteSpace(narrative.SupportingLine))
         {
-            var support = new Label
-            {
-                Text = narrative.SupportingLine,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            };
-            CareerUiTheme.StyleBody(support, muted: true);
-            layout.AddChild(support);
+            heroContent.AddChild(MatchScreenUi.BodyLine(
+                narrative.SupportingLine,
+                muted: true,
+                alignment: HorizontalAlignment.Center));
         }
 
         if (narrative.Atmosphere is { } stadium)
         {
-            layout.AddChild(SectionLabel(stadium.Headline));
-            var crowd = new Label
-            {
-                Text = stadium.CrowdLine,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            };
-            CareerUiTheme.StyleBody(crowd, muted: true);
-            layout.AddChild(crowd);
+            content.AddChild(MatchScreenUi.SectionTitle("STADYUM", stadium.Headline));
+            var atmospherePanel = MatchScreenUi.Card();
+            content.AddChild(atmospherePanel);
+            atmospherePanel.AddChild(MatchScreenUi.BodyLine(
+                stadium.CrowdLine,
+                muted: true,
+                alignment: HorizontalAlignment.Center));
         }
 
         if (narrative.KickoffLines.Count > 0)
         {
-            layout.AddChild(SectionLabel("Maça böyle girdin"));
+            content.AddChild(MatchScreenUi.SectionTitle("BAŞLAMA ANI", "Maça böyle girdin"));
+            var kickoffPanel = MatchScreenUi.Card();
+            content.AddChild(kickoffPanel);
+            var kickoffStack = MatchScreenUi.VerticalStack(8);
+            kickoffPanel.AddChild(kickoffStack);
             foreach (var kickoff in narrative.KickoffLines)
             {
-                var line = new Label
-                {
-                    Text = "· " + kickoff,
-                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                };
-                CareerUiTheme.StyleBody(line, muted: true);
-                layout.AddChild(line);
+                kickoffStack.AddChild(MatchScreenUi.BeatLine(kickoff, muted: true));
             }
         }
 
         if (narrative.LineupBridge is { StartingXi.Count: > 0 } lineup)
         {
-            layout.AddChild(SectionLabel("Böyle çıktın"));
-            layout.AddChild(LineupStripUi.BuildPanel(lineup, lineup.ResultBridgeCaption));
+            content.AddChild(MatchScreenUi.SectionTitle("KADRO", "Böyle çıktın"));
+            content.AddChild(LineupStripUi.BuildPanel(lineup, lineup.ResultBridgeCaption));
         }
 
         if (_results.Report is { } report)
         {
-            layout.AddChild(SectionLabel("Maç Raporu"));
-
-            var stats = new GridContainer
-            {
-                Columns = 3,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            };
-            stats.AddThemeConstantOverride("h_separation", 18);
-            stats.AddThemeConstantOverride("v_separation", 8);
-            stats.AddChild(ReportCell(report.HomeClubName, HorizontalAlignment.Left, emphasized: true));
-            stats.AddChild(ReportCell("", HorizontalAlignment.Center));
-            stats.AddChild(ReportCell(report.AwayClubName, HorizontalAlignment.Right, emphasized: true));
-            foreach (var stat in report.StatLines)
-            {
-                stats.AddChild(ReportCell(stat.HomeValue, HorizontalAlignment.Left, emphasized: true));
-                stats.AddChild(ReportCell(stat.Label, HorizontalAlignment.Center, muted: true));
-                stats.AddChild(ReportCell(stat.AwayValue, HorizontalAlignment.Right, emphasized: true));
-            }
-
-            layout.AddChild(stats);
-
-            if (!string.IsNullOrWhiteSpace(report.HalfTimeNoteLine))
-            {
-                var halfTimeNote = new Label
-                {
-                    Text = report.HalfTimeNoteLine,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                };
-                CareerUiTheme.StyleBody(halfTimeNote, muted: true);
-                layout.AddChild(halfTimeNote);
-            }
-
-            if (!string.IsNullOrWhiteSpace(report.StandoutLine))
-            {
-                var standout = new Label
-                {
-                    Text = report.StandoutLine,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                };
-                CareerUiTheme.StyleBody(standout);
-                standout.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-                layout.AddChild(standout);
-            }
-
-            if (!string.IsNullOrWhiteSpace(report.InjuryLine))
-            {
-                var injury = new Label
-                {
-                    Text = report.InjuryLine,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                };
-                CareerUiTheme.StyleBody(injury);
-                injury.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
-                layout.AddChild(injury);
-            }
+            content.AddChild(MatchScreenUi.SectionTitle("VERİ MERKEZİ", "Maç raporu"));
+            content.AddChild(BuildReportPanel(report));
         }
 
         if (_results.TechnicalArea is { } technicalArea)
         {
-            layout.AddChild(SectionLabel(technicalArea.BrandTitle));
+            content.AddChild(MatchScreenUi.SectionTitle("TEKNİK ALAN", technicalArea.BrandTitle));
+            var technicalPanel = MatchScreenUi.Card();
+            content.AddChild(technicalPanel);
+            var technicalStack = MatchScreenUi.VerticalStack(9);
+            technicalPanel.AddChild(technicalStack);
 
-            var decision = new Label
-            {
-                Text = technicalArea.DecisionLine,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(decision, muted: true);
-            layout.AddChild(decision);
+            technicalStack.AddChild(MatchScreenUi.BodyLine(
+                technicalArea.DecisionLine,
+                muted: true,
+                alignment: HorizontalAlignment.Center));
+            technicalStack.AddChild(MatchScreenUi.BodyLine(
+                technicalArea.ScoreFlowLine,
+                alignment: HorizontalAlignment.Center));
 
-            var scoreFlow = new Label
-            {
-                Text = technicalArea.ScoreFlowLine,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(scoreFlow);
-            layout.AddChild(scoreFlow);
-
-            var verdict = new Label
-            {
-                Text = technicalArea.VerdictLine,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            };
-            CareerUiTheme.StyleBody(verdict);
+            var verdict = MatchScreenUi.BodyLine(
+                technicalArea.VerdictLine,
+                alignment: HorizontalAlignment.Center);
             verdict.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-            layout.AddChild(verdict);
+            technicalStack.AddChild(verdict);
         }
 
         if (narrative.BeatLines.Count > 0)
         {
-            layout.AddChild(SectionLabel("Anlar"));
+            content.AddChild(MatchScreenUi.SectionTitle("MAÇ AKIŞI", "Kritik anlar"));
+            var momentsPanel = MatchScreenUi.Card();
+            content.AddChild(momentsPanel);
+            var moments = MatchScreenUi.VerticalStack(8);
+            momentsPanel.AddChild(moments);
             foreach (var beat in narrative.BeatLines)
             {
-                var line = new Label
-                {
-                    Text = beat,
-                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                };
-                CareerUiTheme.StyleBody(line);
-                layout.AddChild(line);
+                moments.AddChild(MatchScreenUi.BodyLine(beat));
             }
         }
 
         if (narrative.AfterWhistleLines.Count > 0)
         {
-            layout.AddChild(SectionLabel("Düdük sonrası"));
+            content.AddChild(MatchScreenUi.SectionTitle("DÜDÜK SONRASI", "Saha kenarından"));
+            var afterPanel = MatchScreenUi.Card();
+            content.AddChild(afterPanel);
+            var afterStack = MatchScreenUi.VerticalStack(8);
+            afterPanel.AddChild(afterStack);
             foreach (var lineText in narrative.AfterWhistleLines)
             {
-                var line = new Label
-                {
-                    Text = lineText,
-                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                };
-                CareerUiTheme.StyleBody(line);
-                layout.AddChild(line);
+                afterStack.AddChild(MatchScreenUi.BodyLine(lineText));
             }
         }
 
         if (_results.Roundup is { } roundup)
         {
-            layout.AddChild(SectionLabel(roundup.Headline));
+            content.AddChild(MatchScreenUi.SectionTitle("LİG NABZI", roundup.Headline));
+            var roundupPanel = MatchScreenUi.Card();
+            content.AddChild(roundupPanel);
+            var roundupStack = MatchScreenUi.VerticalStack(8);
+            roundupPanel.AddChild(roundupStack);
             foreach (var beat in roundup.BeatLines)
             {
-                var line = new Label
-                {
-                    Text = "· " + beat,
-                    AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                };
-                CareerUiTheme.StyleBody(line);
-                layout.AddChild(line);
+                roundupStack.AddChild(MatchScreenUi.BeatLine(beat));
             }
         }
 
         if (narrative.OtherScorelines.Count > 0)
         {
-            layout.AddChild(SectionLabel("Diğer sonuçlar"));
-            var list = new ItemList
-            {
-                CustomMinimumSize = new Vector2(0, Math.Min(88, 28 + narrative.OtherScorelines.Count * 22)),
-                SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            };
-            CareerUiTheme.StyleList(list);
+            content.AddChild(MatchScreenUi.SectionTitle("SKORBORD", "Diğer sonuçlar"));
+            var scorelinesPanel = MatchScreenUi.Card();
+            content.AddChild(scorelinesPanel);
+            var scorelines = MatchScreenUi.VerticalStack(7);
+            scorelinesPanel.AddChild(scorelines);
             foreach (var other in narrative.OtherScorelines)
             {
-                list.AddItem(other);
+                scorelines.AddChild(MatchScreenUi.BodyLine(other));
             }
-
-            layout.AddChild(list);
         }
 
         if (_results.DressingRoom is { } dressingRoom)
         {
-            layout.AddChild(SectionLabel(dressingRoom.BrandTitle));
-            var voice = new Label
-            {
-                Text = dressingRoom.VoiceLine,
-                AutowrapMode = TextServer.AutowrapMode.WordSmart,
-                HorizontalAlignment = HorizontalAlignment.Center,
-            };
-            CareerUiTheme.StyleBody(voice);
-            voice.Modulate = new Color(
-                CareerUiTheme.Accent.R,
-                CareerUiTheme.Accent.G,
-                CareerUiTheme.Accent.B,
-                1f);
-            layout.AddChild(voice);
+            content.AddChild(MatchScreenUi.SectionTitle("SOYUNMA ODASI", dressingRoom.BrandTitle));
+            var dressingPanel = MatchScreenUi.Card(emphasized: true);
+            content.AddChild(dressingPanel);
+            var voice = MatchScreenUi.BodyLine(
+                dressingRoom.VoiceLine,
+                alignment: HorizontalAlignment.Center);
+            voice.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+            dressingPanel.AddChild(voice);
         }
 
         var continueButton = new Button
         {
             Text = "Kariyere Dön",
-            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
-            CustomMinimumSize = new Vector2(220, 40),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StylePrimaryButton(continueButton);
         continueButton.Pressed += OnContinuePressed;
         shell.AddChild(continueButton);
 
+        MatchScreenUi.FadeIn(content, this);
         var tween = CreateTween();
         tween.SetParallel(true);
         tween.TweenProperty(score, "modulate:a", 1f, 0.4f).SetTrans(Tween.TransitionType.Cubic);
         tween.TweenProperty(tone, "modulate:a", 1f, 0.55f).SetDelay(0.12f);
     }
 
-    private void OnContinuePressed()
+    private static Control BuildReportPanel(MatchReportDigest report)
     {
-        // Ekranı sinyal ortasında QueueFree etmemek için bir kare ertele.
-        Callable.From(() => ContinueRequested?.Invoke()).CallDeferred();
+        var panel = MatchScreenUi.Card();
+        var reportStack = MatchScreenUi.VerticalStack(11);
+        panel.AddChild(reportStack);
+
+        var clubs = new GridContainer
+        {
+            Columns = 2,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        clubs.AddThemeConstantOverride("h_separation", 10);
+        reportStack.AddChild(clubs);
+        clubs.AddChild(ReportCell(report.HomeClubName, HorizontalAlignment.Left, emphasized: true));
+        clubs.AddChild(ReportCell(report.AwayClubName, HorizontalAlignment.Right, emphasized: true));
+
+        foreach (var stat in report.StatLines)
+        {
+            var statPanel = new PanelContainer
+            {
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            };
+            statPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.PillPanel());
+            reportStack.AddChild(statPanel);
+
+            var statStack = MatchScreenUi.VerticalStack(3);
+            statPanel.AddChild(statStack);
+            statStack.AddChild(ReportCell(stat.Label, HorizontalAlignment.Center, muted: true));
+
+            var values = new GridContainer
+            {
+                Columns = 2,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            };
+            values.AddThemeConstantOverride("h_separation", 10);
+            statStack.AddChild(values);
+            values.AddChild(ReportCell(stat.HomeValue, HorizontalAlignment.Left, emphasized: true));
+            values.AddChild(ReportCell(stat.AwayValue, HorizontalAlignment.Right, emphasized: true));
+        }
+
+        if (!string.IsNullOrWhiteSpace(report.HalfTimeNoteLine))
+        {
+            reportStack.AddChild(MatchScreenUi.BodyLine(
+                report.HalfTimeNoteLine,
+                muted: true,
+                alignment: HorizontalAlignment.Center));
+        }
+
+        if (!string.IsNullOrWhiteSpace(report.StandoutLine))
+        {
+            var standout = MatchScreenUi.BodyLine(
+                report.StandoutLine,
+                alignment: HorizontalAlignment.Center);
+            standout.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+            reportStack.AddChild(standout);
+        }
+
+        if (!string.IsNullOrWhiteSpace(report.InjuryLine))
+        {
+            var injury = MatchScreenUi.BodyLine(
+                report.InjuryLine,
+                alignment: HorizontalAlignment.Center);
+            injury.AddThemeColorOverride("font_color", CareerUiTheme.DangerSoft);
+            reportStack.AddChild(injury);
+        }
+
+        return panel;
     }
 
-    private static Label SectionLabel(string text)
+    private void OnContinuePressed()
     {
-        var label = new Label { Text = text };
-        CareerUiTheme.StyleSection(label);
-        return label;
+        Callable.From(() => ContinueRequested?.Invoke()).CallDeferred();
     }
 
     private static Label ReportCell(
@@ -357,7 +308,7 @@ public partial class MatchResultScreen : Control
         CareerUiTheme.StyleBody(label, muted);
         if (emphasized)
         {
-            label.AddThemeFontSizeOverride("font_size", 16);
+            label.AddThemeFontSizeOverride("font_size", 17);
             label.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
         }
 
@@ -367,8 +318,8 @@ public partial class MatchResultScreen : Control
     private static void StyleScore(Label label)
     {
         CareerUiTheme.EnsureLoaded();
-        CareerUiTheme.StyleHeadline(label);
-        label.AddThemeFontSizeOverride("font_size", 28);
+        CareerUiTheme.StyleBrand(label);
+        label.AddThemeFontSizeOverride("font_size", 42);
         label.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
     }
 }
