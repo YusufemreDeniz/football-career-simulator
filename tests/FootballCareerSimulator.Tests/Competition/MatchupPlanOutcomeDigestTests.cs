@@ -208,7 +208,8 @@ public sealed class MatchupPlanOutcomeDigestTests
             MatchupPlanDigest.Brand,
             "Seçim: 4-3-3 · Hücum",
             "Maç önü değerlendirmesi",
-            signal);
+            signal,
+            OpponentThreatKind.Neutral);
 
     private static PlayFixtureMatchResult Result(
         int homeGoals,

@@ -1,5 +1,7 @@
 using FootballCareerSimulator.Application.Career.Ports;
 using FootballCareerSimulator.Application.CareerHub.Queries;
+using FootballCareerSimulator.Application.Competition.Queries;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
@@ -152,6 +154,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertEventEffectProcessingKeys(connection, transaction, eventEffectProcessingKeys);
             InsertScheduledEvaluations(connection, transaction, scheduledEvaluations);
             InsertHubNarrativeUiState(connection, transaction, hubNarrativeUiState);
+            InsertMatchupPlanHistory(connection, transaction, hubNarrativeUiState.MatchupPlanHistory);
 
             transaction.Commit();
         }
@@ -456,6 +459,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV39ToV40InPlace(filePath);
             wasMigrated = true;
             version = 40;
+        }
+
+        if (version == 40 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 41)
+        {
+            WorldCalendarSqliteMigrator.MigrateV40ToV41InPlace(filePath);
+            wasMigrated = true;
+            version = 41;
         }
 
         if (wasMigrated)
@@ -881,6 +891,19 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 WeekStoryDismissOnNextAdvance INTEGER NOT NULL DEFAULT 0,
                 CleanXiNamesCsv TEXT NULL,
                 InjuryClearedNamesCsv TEXT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE MatchupPlanNotebookState (
+                SequenceIndex INTEGER PRIMARY KEY,
+                DayNumber INTEGER NOT NULL,
+                OpponentName TEXT NOT NULL,
+                SelectionLine TEXT NOT NULL,
+                ThreatKind INTEGER NOT NULL,
+                PlanSignal INTEGER NOT NULL,
+                OutcomeSignal INTEGER NOT NULL,
+                VerdictLine TEXT NOT NULL
             );
             """);
     }
@@ -1772,6 +1795,38 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ? DBNull.Value
                 : string.Join('|', state.InjuryClearedNames));
         command.ExecuteNonQuery();
+    }
+
+    private static void InsertMatchupPlanHistory(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<MatchupPlanNotebookEntry> history)
+    {
+        var ordered = history
+            .OrderBy(entry => entry.DayNumber)
+            .TakeLast(MatchupPlanNotebookEntry.HistoryLimit)
+            .ToArray();
+        for (var index = 0; index < ordered.Length; index++)
+        {
+            var entry = ordered[index];
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO MatchupPlanNotebookState (
+                    SequenceIndex, DayNumber, OpponentName, SelectionLine,
+                    ThreatKind, PlanSignal, OutcomeSignal, VerdictLine)
+                VALUES ($index, $day, $opponent, $selection, $threat, $plan, $outcome, $verdict);
+                """;
+            command.Parameters.AddWithValue("$index", index);
+            command.Parameters.AddWithValue("$day", entry.DayNumber);
+            command.Parameters.AddWithValue("$opponent", entry.OpponentName);
+            command.Parameters.AddWithValue("$selection", entry.SelectionLine);
+            command.Parameters.AddWithValue("$threat", (int)entry.ThreatKind);
+            command.Parameters.AddWithValue("$plan", (int)entry.PlanSignal);
+            command.Parameters.AddWithValue("$outcome", (int)entry.OutcomeSignal);
+            command.Parameters.AddWithValue("$verdict", entry.VerdictLine);
+            command.ExecuteNonQuery();
+        }
     }
 
     private static void InsertScheduledEvaluations(
@@ -3111,9 +3166,15 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
 
     private static HubNarrativeUiState ReadHubNarrativeUiState(SqliteConnection connection)
     {
+        var matchupPlanHistory = ReadMatchupPlanHistory(connection);
         if (!TableExists(connection, "HubNarrativeUiState"))
         {
-            return HubNarrativeUiState.Empty;
+            return HubNarrativeUiState.Compose(
+                null,
+                false,
+                null,
+                null,
+                matchupPlanHistory);
         }
 
         using var command = connection.CreateCommand();
@@ -3127,7 +3188,12 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         using var reader = command.ExecuteReader();
         if (!reader.Read())
         {
-            return HubNarrativeUiState.Empty;
+            return HubNarrativeUiState.Compose(
+                null,
+                false,
+                null,
+                null,
+                matchupPlanHistory);
         }
 
         var beat = reader.IsDBNull(0) ? null : reader.GetString(0);
@@ -3138,7 +3204,40 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             beat,
             dismiss,
             SplitCsv(cleanCsv),
-            SplitCsv(clearedCsv));
+            SplitCsv(clearedCsv),
+            matchupPlanHistory);
+    }
+
+    private static IReadOnlyList<MatchupPlanNotebookEntry> ReadMatchupPlanHistory(
+        SqliteConnection connection)
+    {
+        if (!TableExists(connection, "MatchupPlanNotebookState"))
+        {
+            return Array.Empty<MatchupPlanNotebookEntry>();
+        }
+
+        var history = new List<MatchupPlanNotebookEntry>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT DayNumber, OpponentName, SelectionLine, ThreatKind,
+                   PlanSignal, OutcomeSignal, VerdictLine
+            FROM MatchupPlanNotebookState
+            ORDER BY SequenceIndex;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            history.Add(MatchupPlanNotebookEntry.Compose(
+                reader.GetInt32(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                (OpponentThreatKind)reader.GetInt32(3),
+                (MatchupPlanSignal)reader.GetInt32(4),
+                (MatchupPlanOutcomeSignal)reader.GetInt32(5),
+                reader.GetString(6)));
+        }
+
+        return history;
     }
 
     private static string BuildHubNarrativeCanonicalText(HubNarrativeUiState state)
@@ -3153,7 +3252,26 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var dismiss = state.WeekStoryDismissOnNextAdvance ? "1" : "0";
         var clean = string.Join('|', state.CleanXiNames.OrderBy(n => n, StringComparer.Ordinal));
         var cleared = string.Join('|', state.InjuryClearedNames.OrderBy(n => n, StringComparer.Ordinal));
-        return $"hub|{beat}|{dismiss}|{clean}|{cleared}";
+        var baseText = $"hub|{beat}|{dismiss}|{clean}|{cleared}";
+        if (state.MatchupPlanHistory.Count == 0)
+        {
+            return baseText;
+        }
+
+        var notebook = string.Join(
+            "||",
+            state.MatchupPlanHistory
+                .OrderBy(entry => entry.DayNumber)
+                .Select(entry => string.Join(
+                    '|',
+                    entry.DayNumber,
+                    entry.OpponentName,
+                    entry.SelectionLine,
+                    (int)entry.ThreatKind,
+                    (int)entry.PlanSignal,
+                    (int)entry.OutcomeSignal,
+                    entry.VerdictLine)));
+        return $"{baseText}|notebook|{notebook}";
     }
 
     private static IReadOnlyList<string> SplitCsv(string? csv) =>

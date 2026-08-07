@@ -45,6 +45,7 @@ public sealed class CareerSessionController
     private IReadOnlyList<string>? _pendingCleanXiBridgeNames;
     private string? _pendingWeekStoryClosure;
     private bool _weekStoryClosureDismissOnNextAdvance;
+    private readonly List<MatchupPlanNotebookEntry> _matchupPlanHistory = [];
 
     public CareerSessionController(CareerPresentationHost host)
     {
@@ -782,6 +783,9 @@ public sealed class CareerSessionController
             .GetNextDueManagedFixture(currentDay);
         return ComposePreMatchBriefing(currentDay, pending);
     }
+
+    public TechnicalDirectorNotebookDigest BuildTechnicalDirectorNotebook() =>
+        TechnicalDirectorNotebookDigest.Compose(_matchupPlanHistory);
 
     public OpponentDossierDigest? BuildOpponentDossier()
     {
@@ -2197,6 +2201,11 @@ public sealed class CareerSessionController
                     if (matchupPlanOutcome is not null)
                     {
                         afterWhistle.Insert(0, matchupPlanOutcome.SummaryLine);
+                        RememberMatchupPlanOutcome(
+                            currentDay,
+                            heroManagedIsHome ? away : home,
+                            matchupPlan!,
+                            matchupPlanOutcome);
                     }
                 }
                 else
@@ -2599,7 +2608,7 @@ public sealed class CareerSessionController
             .GetForNextDueMatch(currentDayNumber);
         var tactic = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
         var training = GetTrainingSummary();
-        return PreMatchBriefing.Compose(
+        var briefing = PreMatchBriefing.Compose(
             pending,
             GetClubDisplayName(pending.OpponentClubId),
             currentDayNumber,
@@ -2612,6 +2621,42 @@ public sealed class CareerSessionController
             training.InjuredNames,
             BuildAutoSwapWarningLines(pending.ManagedClubId),
             cleanReturnNames: ResolveCleanXiBridgeNames(training.InjuredSlotCount));
+        var notebook = BuildTechnicalDirectorNotebook();
+        return !notebook.HasHistory
+            ? briefing
+            : briefing with
+            {
+                BeatLines = briefing.BeatLines.Concat(notebook.BeatLines).ToArray(),
+            };
+    }
+
+    private void RememberMatchupPlanOutcome(
+        int dayNumber,
+        string opponentName,
+        MatchupPlanDigest plan,
+        MatchupPlanOutcomeDigest outcome)
+    {
+        var entry = MatchupPlanNotebookEntry.Compose(
+            dayNumber,
+            opponentName,
+            plan.SelectionLine,
+            plan.ThreatKind,
+            plan.Signal,
+            outcome.Signal,
+            outcome.VerdictLine);
+        _matchupPlanHistory.RemoveAll(existing =>
+            existing.DayNumber == entry.DayNumber
+            && string.Equals(existing.OpponentName, entry.OpponentName, StringComparison.Ordinal)
+            && string.Equals(existing.SelectionLine, entry.SelectionLine, StringComparison.Ordinal));
+        _matchupPlanHistory.Add(entry);
+
+        var recent = _matchupPlanHistory
+            .OrderByDescending(existing => existing.DayNumber)
+            .Take(MatchupPlanNotebookEntry.HistoryLimit)
+            .OrderBy(existing => existing.DayNumber)
+            .ToArray();
+        _matchupPlanHistory.Clear();
+        _matchupPlanHistory.AddRange(recent);
     }
 
     private IReadOnlyList<string> BuildAutoSwapWarningLines(long managedClubId)
@@ -3014,7 +3059,8 @@ public sealed class CareerSessionController
             _pendingWeekStoryClosure,
             _weekStoryClosureDismissOnNextAdvance,
             _pendingCleanXiBridgeNames,
-            _pendingInjuryClearedNames);
+            _pendingInjuryClearedNames,
+            _matchupPlanHistory);
 
     public void ApplyHubNarrativeUiState(HubNarrativeUiState? state)
     {
@@ -3023,6 +3069,8 @@ public sealed class CareerSessionController
         _weekStoryClosureDismissOnNextAdvance = state.WeekStoryDismissOnNextAdvance;
         _pendingCleanXiBridgeNames = state.CleanXiNames.Count > 0 ? state.CleanXiNames : null;
         _pendingInjuryClearedNames = state.InjuryClearedNames.Count > 0 ? state.InjuryClearedNames : null;
+        _matchupPlanHistory.Clear();
+        _matchupPlanHistory.AddRange(state.MatchupPlanHistory);
     }
 
     public CareerResumeDigest BuildCareerResumeDigest(bool wasMigrated, int loadedFixtureCount)

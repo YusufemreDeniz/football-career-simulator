@@ -11,7 +11,8 @@ public sealed record MatchupPlanDigest(
     string BrandTitle,
     string SelectionLine,
     string VerdictLine,
-    MatchupPlanSignal Signal)
+    MatchupPlanSignal Signal,
+    OpponentThreatKind ThreatKind)
 {
     public const string Brand = "Eşleşme Planı";
 
@@ -43,7 +44,8 @@ public sealed record MatchupPlanDigest(
             Brand,
             $"Seçim: {FormatFormation(formation)} · {FormatApproach(approach)}",
             assessment.Line,
-            assessment.Signal);
+            assessment.Signal,
+            dossier.ThreatKind);
     }
 
     private static Assessment EvaluateAttacking(
