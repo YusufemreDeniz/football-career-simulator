@@ -199,6 +199,39 @@ public partial class MatchResultScreen : Control
             }
         }
 
+        if (_results.TechnicalArea is { } technicalArea)
+        {
+            layout.AddChild(SectionLabel(technicalArea.BrandTitle));
+
+            var decision = new Label
+            {
+                Text = technicalArea.DecisionLine,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            CareerUiTheme.StyleBody(decision, muted: true);
+            layout.AddChild(decision);
+
+            var scoreFlow = new Label
+            {
+                Text = technicalArea.ScoreFlowLine,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            CareerUiTheme.StyleBody(scoreFlow);
+            layout.AddChild(scoreFlow);
+
+            var verdict = new Label
+            {
+                Text = technicalArea.VerdictLine,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            CareerUiTheme.StyleBody(verdict);
+            verdict.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+            layout.AddChild(verdict);
+        }
+
         if (narrative.BeatLines.Count > 0)
         {
             layout.AddChild(SectionLabel("Anlar"));

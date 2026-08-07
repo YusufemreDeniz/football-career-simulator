@@ -2023,6 +2023,7 @@ public sealed class CareerSessionController
             var afterWhistle = new List<string>();
             var otherScores = new List<string>();
             MatchReportDigest? heroReport = null;
+            TechnicalAreaDigest? technicalArea = null;
 
             var managedClubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
 
@@ -2128,6 +2129,11 @@ public sealed class CareerSessionController
                         away,
                         halfTimeDecisionLabel,
                         halfTimeSubstitutionLabel);
+                    technicalArea = TechnicalAreaDigest.Compose(
+                        halfTime,
+                        result.HomeGoals,
+                        result.AwayGoals,
+                        managedSecondHalfDelta);
                 }
                 else
                 {
@@ -2230,7 +2236,8 @@ public sealed class CareerSessionController
                 narrative,
                 heroReport,
                 roundup,
-                dressingRoom);
+                dressingRoom,
+                technicalArea);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -3146,4 +3153,5 @@ public sealed record PlayMatchesUiResult(
     MatchNightNarrative? Narrative = null,
     MatchReportDigest? Report = null,
     LeagueRoundupDigest? Roundup = null,
-    CaptainReactionDigest? DressingRoom = null);
+    CaptainReactionDigest? DressingRoom = null,
+    TechnicalAreaDigest? TechnicalArea = null);
