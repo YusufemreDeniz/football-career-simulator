@@ -2090,7 +2090,10 @@ public sealed class CareerSessionController
                         keyMomentLines.Add($"{scoreline} · {halfTimeSubstitutionMoment}");
                     }
 
-                    beatLines.AddRange(FormatMatchMomentBeatsByHalf(result, secondHalfExtras));
+                    beatLines.AddRange(FormatMatchMomentBeatsByHalf(
+                        result,
+                        heroManagedIsHome,
+                        secondHalfExtras));
 
                     afterWhistle.AddRange(FormatMatchAfterWhistle(result));
                     if (kickoffBriefing.HasCleanReturn)
@@ -2249,28 +2252,25 @@ public sealed class CareerSessionController
 
     private static IEnumerable<string> FormatMatchMomentBeatsByHalf(
         PlayFixtureMatchResult result,
+        bool managedIsHome,
         IReadOnlyList<string>? secondHalfExtras = null)
     {
-        if (result.KeyMoments is null || result.KeyMoments.Count == 0)
-        {
-            yield break;
-        }
-
         var firstHalf = new List<string>();
         var secondHalf = new List<string>();
-        foreach (var moment in result.KeyMoments)
+        var crowd = CrowdReactionDigest.Compose(managedIsHome, result.KeyMoments);
+        var reactionsByMinute = crowd.MomentBeats.ToLookup(beat => beat.Minute);
+        foreach (var moment in result.KeyMoments ?? Array.Empty<MatchKeyMomentReadModel>())
         {
             var side = moment.IsHomeSide ? "Ev" : "Dep";
             var line = FormatKeyMomentLine(moment, side);
-            if (moment.Minute <= MvpFixtureMatchSimulator.HalfTimeMinute)
-            {
-                firstHalf.Add(line);
-            }
-            else
-            {
-                secondHalf.Add(line);
-            }
+            var half = moment.Minute <= MvpFixtureMatchSimulator.HalfTimeMinute
+                ? firstHalf
+                : secondHalf;
+            half.Add(line);
+            half.AddRange(reactionsByMinute[moment.Minute].Select(beat => beat.Line));
         }
+
+        firstHalf.Add(crowd.HalfTimeBeat);
 
         foreach (var beat in MatchNightNarrative.ComposeHalfSegmentedBeats(
             firstHalf,

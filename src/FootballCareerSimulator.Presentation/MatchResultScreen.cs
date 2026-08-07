@@ -202,7 +202,7 @@ public partial class MatchResultScreen : Control
         if (narrative.BeatLines.Count > 0)
         {
             layout.AddChild(SectionLabel("Anlar"));
-            foreach (var beat in narrative.BeatLines.Take(8))
+            foreach (var beat in narrative.BeatLines)
             {
                 var line = new Label
                 {
