@@ -811,6 +811,27 @@ public sealed class CareerSessionController
             Host.CompetitionModule.Queries.GetSeasonFixtures(season.SeasonId));
     }
 
+    public MatchupPlanDigest? BuildMatchupPlan()
+    {
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        if (pending is null)
+        {
+            return null;
+        }
+
+        var plan = Host.TeamPreparationModule.TacticPlanStore
+            .Get(new ClubId(pending.ManagedClubId));
+        var dossier = BuildOpponentDossier();
+        if (plan is null || dossier is null)
+        {
+            return null;
+        }
+
+        return MatchupPlanDigest.Compose(plan.Formation, plan.Approach, dossier);
+    }
+
     /// <summary>
     /// Maç gününe varış — ofisteki "kadro kilitli, düdük yakın" flash'ının maç ekranındaki karşılığı.
     /// </summary>

@@ -12,7 +12,10 @@ public sealed record OpponentDossierDigest(
     string StandingLine,
     string FormLine,
     string StrengthLine,
-    string ThreatLine)
+    string ThreatLine,
+    OpponentThreatKind ThreatKind,
+    bool ManagedIsHome,
+    int StrengthDifference)
 {
     public const string Brand = "Rakip Dosyası";
 
@@ -80,6 +83,14 @@ public sealed record OpponentDossierDigest(
             _ => $"Güç: dengeli eşleşme ({managedStrength} vs {opponentStrength}).",
         };
 
+        var threat = ResolveThreat(
+            managedIsHome,
+            strengthDifference,
+            standingIndex.Rank,
+            standings.Count,
+            standing,
+            recent);
+
         return new OpponentDossierDigest(
             Brand,
             managedIsHome
@@ -88,16 +99,13 @@ public sealed record OpponentDossierDigest(
             standingLine,
             formLine,
             strengthLine,
-            ResolveThreat(
-                managedIsHome,
-                strengthDifference,
-                standingIndex.Rank,
-                standings.Count,
-                standing,
-                recent));
+            threat.Line,
+            threat.Kind,
+            managedIsHome,
+            strengthDifference);
     }
 
-    private static string ResolveThreat(
+    private static ThreatAssessment ResolveThreat(
         bool managedIsHome,
         int strengthDifference,
         int rank,
@@ -108,24 +116,30 @@ public sealed record OpponentDossierDigest(
         var lastThree = recent.TakeLast(3).ToArray();
         if (lastThree.Length == 3 && lastThree.All(result => result > 0))
         {
-            return managedIsHome
-                ? "Tehdit: üç maçlık galibiyet serisi — evde ilk bölümde sabırlı kal."
-                : "Tehdit: üç maçlık galibiyet serisi — deplasmanda erken baskıya hazırlan.";
+            return new ThreatAssessment(
+                OpponentThreatKind.WinningStreak,
+                managedIsHome
+                    ? "Tehdit: üç maçlık galibiyet serisi — evde ilk bölümde sabırlı kal."
+                    : "Tehdit: üç maçlık galibiyet serisi — deplasmanda erken baskıya hazırlan.");
         }
 
         if (standing is { Played: >= 3 }
             && standing.GoalsFor * 2 >= standing.Played * 3)
         {
-            return managedIsHome
-                ? "Tehdit: üretken hücum — top kaybı sonrası merkezi kapat."
-                : "Tehdit: üretken hücum — deplasmanda geçiş savunmasını koru.";
+            return new ThreatAssessment(
+                OpponentThreatKind.ProductiveAttack,
+                managedIsHome
+                    ? "Tehdit: üretken hücum — top kaybı sonrası merkezi kapat."
+                    : "Tehdit: üretken hücum — deplasmanda geçiş savunmasını koru.");
         }
 
         if (strengthDifference >= 7)
         {
-            return managedIsHome
-                ? "Tehdit: kadro kalitesi — ev avantajını tempoyla kullan."
-                : "Tehdit: kadro kalitesi — deplasmanda alanı daralt.";
+            return new ThreatAssessment(
+                OpponentThreatKind.SquadQuality,
+                managedIsHome
+                    ? "Tehdit: kadro kalitesi — ev avantajını tempoyla kullan."
+                    : "Tehdit: kadro kalitesi — deplasmanda alanı daralt.");
         }
 
         var topZone = standing is { Played: > 0 }
@@ -134,16 +148,22 @@ public sealed record OpponentDossierDigest(
             && rank <= Math.Max(3, clubCount / 4);
         if (topZone)
         {
-            return "Tehdit: zirve temposu — ilk 20 dakikadaki baskıya hazır ol.";
+            return new ThreatAssessment(
+                OpponentThreatKind.TopZoneTempo,
+                "Tehdit: zirve temposu — ilk 20 dakikadaki baskıya hazır ol.");
         }
 
         if (standing is { Played: >= 3 }
             && standing.GoalsAgainst * 5 <= standing.Played * 4)
         {
-            return "Tehdit: savunma direnci — ilk golü ararken acele etme.";
+            return new ThreatAssessment(
+                OpponentThreatKind.DefensiveResistance,
+                "Tehdit: savunma direnci — ilk golü ararken acele etme.");
         }
 
-        return "Tehdit: belirgin bir uç yok — dengeyi sen bozabilirsin.";
+        return new ThreatAssessment(
+            OpponentThreatKind.Neutral,
+            "Tehdit: belirgin bir uç yok — dengeyi sen bozabilirsin.");
     }
 
     private static int ToFormResult(FixtureReadModel fixture, long opponentClubId)
@@ -165,4 +185,16 @@ public sealed record OpponentDossierDigest(
     };
 
     private static string FormatSigned(int value) => value > 0 ? $"+{value}" : value.ToString();
+
+    private readonly record struct ThreatAssessment(OpponentThreatKind Kind, string Line);
+}
+
+public enum OpponentThreatKind
+{
+    Neutral = 0,
+    WinningStreak = 1,
+    ProductiveAttack = 2,
+    SquadQuality = 3,
+    TopZoneTempo = 4,
+    DefensiveResistance = 5,
 }

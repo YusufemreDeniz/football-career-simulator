@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using Godot;
 
@@ -15,6 +16,7 @@ public partial class MatchDayScreen : Control
     private Label _fixtureLabel = null!;
     private VBoxContainer _briefingLines = null!;
     private VBoxContainer _opponentDossierLines = null!;
+    private VBoxContainer _matchupPlanLines = null!;
     private Control _lineupHost = null!;
     private Label _statusLabel = null!;
     private Button _approveButton = null!;
@@ -141,6 +143,14 @@ public partial class MatchDayScreen : Control
         approachRow.AddChild(ActionButton("Hücum", () => _controller.SetTacticApproach(TacticalApproach.Attacking)));
         approachRow.AddChild(ActionButton("Savunma", () => _controller.SetTacticApproach(TacticalApproach.Defensive)));
 
+        controls.AddChild(SectionLabel("Eşleşme Planı"));
+        var matchupPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        matchupPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
+        controls.AddChild(matchupPanel);
+        _matchupPlanLines = new VBoxContainer();
+        _matchupPlanLines.AddThemeConstantOverride("separation", 6);
+        matchupPanel.AddChild(_matchupPlanLines);
+
         _statusLabel = new Label
         {
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -214,6 +224,8 @@ public partial class MatchDayScreen : Control
 
         RefreshOpponentDossier();
 
+        RefreshMatchupPlan();
+
         RefreshLineupStrip();
 
         _approveButton.Disabled = !briefing.HasMatch || briefing.IsReadyToKickOff;
@@ -266,6 +278,51 @@ public partial class MatchDayScreen : Control
             CareerUiTheme.StyleBody(line, muted: true);
             _opponentDossierLines.AddChild(line);
         }
+    }
+
+    private void RefreshMatchupPlan()
+    {
+        foreach (var child in _matchupPlanLines.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        var plan = _controller.BuildMatchupPlan();
+        if (plan is null)
+        {
+            var empty = new Label
+            {
+                Text = "Eşleşme değerlendirmesi için maç ve taktik verisi bekleniyor.",
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            CareerUiTheme.StyleBody(empty, muted: true);
+            _matchupPlanLines.AddChild(empty);
+            return;
+        }
+
+        var selection = new Label
+        {
+            Text = plan.SelectionLine,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleBody(selection, muted: true);
+        _matchupPlanLines.AddChild(selection);
+
+        var verdict = new Label
+        {
+            Text = plan.VerdictLine,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleBody(verdict);
+        verdict.AddThemeColorOverride(
+            "font_color",
+            plan.Signal switch
+            {
+                MatchupPlanSignal.Risk => CareerUiTheme.DangerSoft,
+                MatchupPlanSignal.Opportunity => CareerUiTheme.Action,
+                _ => CareerUiTheme.Accent,
+            });
+        _matchupPlanLines.AddChild(verdict);
     }
 
     private void RefreshLineupStrip()

@@ -15,6 +15,7 @@ public sealed class OpponentDossierDigestTests
         Assert.Equal(OpponentDossierDigest.Brand, digest.BrandTitle);
         Assert.Contains("Rakip FK", digest.Headline, StringComparison.Ordinal);
         Assert.Contains(expected, digest.Headline, StringComparison.Ordinal);
+        Assert.Equal(managedIsHome, digest.ManagedIsHome);
         Assert.Equal(4, digest.DetailLines.Count);
     }
 
@@ -109,6 +110,7 @@ public sealed class OpponentDossierDigestTests
             opponentStrength: opponentStrength);
 
         Assert.Contains(expected, digest.StrengthLine, StringComparison.Ordinal);
+        Assert.Equal(opponentStrength - managedStrength, digest.StrengthDifference);
     }
 
     [Fact]
@@ -123,6 +125,7 @@ public sealed class OpponentDossierDigestTests
 
         var digest = Compose(fixtures: fixtures, managedIsHome: false);
 
+        Assert.Equal(OpponentThreatKind.WinningStreak, digest.ThreatKind);
         Assert.Contains("üç maçlık galibiyet serisi", digest.ThreatLine, StringComparison.Ordinal);
         Assert.Contains("deplasmanda erken baskı", digest.ThreatLine, StringComparison.Ordinal);
     }
@@ -137,6 +140,7 @@ public sealed class OpponentDossierDigestTests
                 Standing(OpponentId, played: 4, points: 7, goalsFor: 7, goalsAgainst: 4),
             ]);
 
+        Assert.Equal(OpponentThreatKind.ProductiveAttack, digest.ThreatKind);
         Assert.Contains("üretken hücum", digest.ThreatLine, StringComparison.Ordinal);
     }
 
@@ -148,6 +152,7 @@ public sealed class OpponentDossierDigestTests
             opponentStrength: 60,
             managedIsHome: false);
 
+        Assert.Equal(OpponentThreatKind.SquadQuality, digest.ThreatKind);
         Assert.Contains("kadro kalitesi", digest.ThreatLine, StringComparison.Ordinal);
         Assert.Contains("alanı daralt", digest.ThreatLine, StringComparison.Ordinal);
     }
@@ -164,6 +169,7 @@ public sealed class OpponentDossierDigestTests
                 Standing(ManagedId, played: 4, points: 5, goalsFor: 4, goalsAgainst: 4),
             ]);
 
+        Assert.Equal(OpponentThreatKind.TopZoneTempo, digest.ThreatKind);
         Assert.Contains("zirve temposu", digest.ThreatLine, StringComparison.Ordinal);
     }
 
@@ -180,6 +186,7 @@ public sealed class OpponentDossierDigestTests
                 Standing(ManagedId, played: 5, points: 6, goalsFor: 4, goalsAgainst: 5),
             ]);
 
+        Assert.Equal(OpponentThreatKind.DefensiveResistance, digest.ThreatKind);
         Assert.Contains("savunma direnci", digest.ThreatLine, StringComparison.Ordinal);
     }
 
@@ -188,6 +195,7 @@ public sealed class OpponentDossierDigestTests
     {
         var digest = Compose();
 
+        Assert.Equal(OpponentThreatKind.Neutral, digest.ThreatKind);
         Assert.Contains("belirgin bir uç yok", digest.ThreatLine, StringComparison.Ordinal);
     }
 
