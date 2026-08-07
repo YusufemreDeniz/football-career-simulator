@@ -1,0 +1,168 @@
+namespace FootballCareerSimulator.Application.Competition.Queries;
+
+using FootballCareerSimulator.Domain.Competition;
+
+/// <summary>
+/// Maç öncesi rakip okuması: lig konumu, yakın form, göreli kadro gücü ve
+/// mevcut veriden çıkarılabilen tek belirgin tehdit.
+/// </summary>
+public sealed record OpponentDossierDigest(
+    string BrandTitle,
+    string Headline,
+    string StandingLine,
+    string FormLine,
+    string StrengthLine,
+    string ThreatLine)
+{
+    public const string Brand = "Rakip Dosyası";
+
+    public IReadOnlyList<string> DetailLines =>
+        [StandingLine, FormLine, StrengthLine, ThreatLine];
+
+    public static OpponentDossierDigest Compose(
+        long opponentClubId,
+        string opponentName,
+        bool managedIsHome,
+        int managedStrength,
+        int opponentStrength,
+        IReadOnlyList<StandingEntryReadModel> standings,
+        IReadOnlyList<FixtureReadModel> fixtures)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(opponentName);
+        ArgumentNullException.ThrowIfNull(standings);
+        ArgumentNullException.ThrowIfNull(fixtures);
+
+        var standingIndex = standings
+            .Select((entry, index) => (Entry: entry, Rank: index + 1))
+            .FirstOrDefault(item => item.Entry.ClubId == opponentClubId);
+        var standing = standingIndex.Entry;
+        var hasLeagueData = standing is { Played: > 0 };
+        var standingLine = hasLeagueData
+            ? $"Lig: {standingIndex.Rank}/{standings.Count} · {standing!.Points} puan"
+                + $" · averaj {FormatSigned(standing.GoalDifference)}"
+            : "Lig: henüz sonuç verisi oluşmadı.";
+
+        var recent = fixtures
+            .Where(fixture =>
+                string.Equals(
+                    fixture.Status,
+                    nameof(FixtureStatus.ResultAccepted),
+                    StringComparison.Ordinal)
+                && fixture.HomeGoals is not null
+                && fixture.AwayGoals is not null
+                && (fixture.HomeClubId == opponentClubId
+                    || fixture.AwayClubId == opponentClubId))
+            .OrderByDescending(fixture => fixture.ScheduledDayNumber)
+            .ThenByDescending(fixture => fixture.FixtureId)
+            .Take(5)
+            .OrderBy(fixture => fixture.ScheduledDayNumber)
+            .ThenBy(fixture => fixture.FixtureId)
+            .Select(fixture => ToFormResult(fixture, opponentClubId))
+            .ToArray();
+        var formPoints = recent.Sum(result => result switch
+        {
+            > 0 => 3,
+            0 => 1,
+            _ => 0,
+        });
+        var formLine = recent.Length == 0
+            ? "Form: henüz tamamlanmış maç yok."
+            : $"Form (eski→yeni): {string.Join('-', recent.Select(FormCode))}"
+                + $" · {formPoints}/{recent.Length * 3} puan";
+
+        var strengthDifference = opponentStrength - managedStrength;
+        var strengthLine = strengthDifference switch
+        {
+            >= 7 => $"Güç: rakip belirgin üstün ({opponentStrength} vs {managedStrength}).",
+            >= 3 => $"Güç: rakip az farkla güçlü ({opponentStrength} vs {managedStrength}).",
+            <= -7 => $"Güç: kağıt üzerinde belirgin üstünlüğün var ({managedStrength} vs {opponentStrength}).",
+            <= -3 => $"Güç: kağıt üzerinde az farkla üstünsün ({managedStrength} vs {opponentStrength}).",
+            _ => $"Güç: dengeli eşleşme ({managedStrength} vs {opponentStrength}).",
+        };
+
+        return new OpponentDossierDigest(
+            Brand,
+            managedIsHome
+                ? $"{opponentName} evine geliyor."
+                : $"{opponentName} deplasmanındasın.",
+            standingLine,
+            formLine,
+            strengthLine,
+            ResolveThreat(
+                managedIsHome,
+                strengthDifference,
+                standingIndex.Rank,
+                standings.Count,
+                standing,
+                recent));
+    }
+
+    private static string ResolveThreat(
+        bool managedIsHome,
+        int strengthDifference,
+        int rank,
+        int clubCount,
+        StandingEntryReadModel? standing,
+        IReadOnlyList<int> recent)
+    {
+        var lastThree = recent.TakeLast(3).ToArray();
+        if (lastThree.Length == 3 && lastThree.All(result => result > 0))
+        {
+            return managedIsHome
+                ? "Tehdit: üç maçlık galibiyet serisi — evde ilk bölümde sabırlı kal."
+                : "Tehdit: üç maçlık galibiyet serisi — deplasmanda erken baskıya hazırlan.";
+        }
+
+        if (standing is { Played: >= 3 }
+            && standing.GoalsFor * 2 >= standing.Played * 3)
+        {
+            return managedIsHome
+                ? "Tehdit: üretken hücum — top kaybı sonrası merkezi kapat."
+                : "Tehdit: üretken hücum — deplasmanda geçiş savunmasını koru.";
+        }
+
+        if (strengthDifference >= 7)
+        {
+            return managedIsHome
+                ? "Tehdit: kadro kalitesi — ev avantajını tempoyla kullan."
+                : "Tehdit: kadro kalitesi — deplasmanda alanı daralt.";
+        }
+
+        var topZone = standing is { Played: > 0 }
+            && clubCount > 0
+            && rank > 0
+            && rank <= Math.Max(3, clubCount / 4);
+        if (topZone)
+        {
+            return "Tehdit: zirve temposu — ilk 20 dakikadaki baskıya hazır ol.";
+        }
+
+        if (standing is { Played: >= 3 }
+            && standing.GoalsAgainst * 5 <= standing.Played * 4)
+        {
+            return "Tehdit: savunma direnci — ilk golü ararken acele etme.";
+        }
+
+        return "Tehdit: belirgin bir uç yok — dengeyi sen bozabilirsin.";
+    }
+
+    private static int ToFormResult(FixtureReadModel fixture, long opponentClubId)
+    {
+        var opponentGoals = fixture.HomeClubId == opponentClubId
+            ? fixture.HomeGoals!.Value
+            : fixture.AwayGoals!.Value;
+        var otherGoals = fixture.HomeClubId == opponentClubId
+            ? fixture.AwayGoals!.Value
+            : fixture.HomeGoals!.Value;
+        return Math.Sign(opponentGoals - otherGoals);
+    }
+
+    private static string FormCode(int result) => result switch
+    {
+        > 0 => "G",
+        0 => "B",
+        _ => "M",
+    };
+
+    private static string FormatSigned(int value) => value > 0 ? $"+{value}" : value.ToString();
+}

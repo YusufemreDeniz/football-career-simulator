@@ -14,6 +14,7 @@ public partial class MatchDayScreen : Control
     private Label _tempoFlashLabel = null!;
     private Label _fixtureLabel = null!;
     private VBoxContainer _briefingLines = null!;
+    private VBoxContainer _opponentDossierLines = null!;
     private Control _lineupHost = null!;
     private Label _statusLabel = null!;
     private Button _approveButton = null!;
@@ -104,6 +105,14 @@ public partial class MatchDayScreen : Control
         _briefingLines = new VBoxContainer();
         _briefingLines.AddThemeConstantOverride("separation", 6);
         briefingPanel.AddChild(_briefingLines);
+
+        controls.AddChild(SectionLabel("Rakip Dosyası"));
+        var opponentPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        opponentPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
+        controls.AddChild(opponentPanel);
+        _opponentDossierLines = new VBoxContainer();
+        _opponentDossierLines.AddThemeConstantOverride("separation", 6);
+        opponentPanel.AddChild(_opponentDossierLines);
 
         controls.AddChild(SectionLabel("Kadro"));
         _lineupHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -203,6 +212,8 @@ public partial class MatchDayScreen : Control
             _briefingLines.AddChild(line);
         }
 
+        RefreshOpponentDossier();
+
         RefreshLineupStrip();
 
         _approveButton.Disabled = !briefing.HasMatch || briefing.IsReadyToKickOff;
@@ -214,6 +225,47 @@ public partial class MatchDayScreen : Control
         _kickoffButton.Text = briefing.IsReadyToKickOff
             ? "Düdüğü Çal"
             : "Düdüğü Çal (önce kadro)";
+    }
+
+    private void RefreshOpponentDossier()
+    {
+        foreach (var child in _opponentDossierLines.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        var dossier = _controller.BuildOpponentDossier();
+        if (dossier is null)
+        {
+            var empty = new Label
+            {
+                Text = "Rakip verisi henüz hazır değil.",
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            CareerUiTheme.StyleBody(empty, muted: true);
+            _opponentDossierLines.AddChild(empty);
+            return;
+        }
+
+        var headline = new Label
+        {
+            Text = dossier.Headline,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleBody(headline);
+        headline.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        _opponentDossierLines.AddChild(headline);
+
+        foreach (var detail in dossier.DetailLines)
+        {
+            var line = new Label
+            {
+                Text = "· " + detail,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            CareerUiTheme.StyleBody(line, muted: true);
+            _opponentDossierLines.AddChild(line);
+        }
     }
 
     private void RefreshLineupStrip()
