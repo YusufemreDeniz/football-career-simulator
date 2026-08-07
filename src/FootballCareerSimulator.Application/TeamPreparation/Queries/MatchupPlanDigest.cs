@@ -12,7 +12,9 @@ public sealed record MatchupPlanDigest(
     string SelectionLine,
     string VerdictLine,
     MatchupPlanSignal Signal,
-    OpponentThreatKind ThreatKind)
+    OpponentThreatKind ThreatKind,
+    Formation Formation,
+    TacticalApproach Approach)
 {
     public const string Brand = "Eşleşme Planı";
 
@@ -42,10 +44,12 @@ public sealed record MatchupPlanDigest(
 
         return new MatchupPlanDigest(
             Brand,
-            $"Seçim: {FormatFormation(formation)} · {FormatApproach(approach)}",
+            $"Seçim: {FormatFormationLabel(formation)} · {FormatApproachLabel(approach)}",
             assessment.Line,
             assessment.Signal,
-            dossier.ThreatKind);
+            dossier.ThreatKind,
+            formation,
+            approach);
     }
 
     private static Assessment EvaluateAttacking(
@@ -69,7 +73,7 @@ public sealed record MatchupPlanDigest(
             && (dossier.StrengthDifference >= 3 || transitionThreat))
         {
             return Risk(
-                $"Risk: {FormatFormation(formation)} + Hücum, deplasmanda rakibin "
+                $"Risk: {FormatFormationLabel(formation)} + Hücum, deplasmanda rakibin "
                 + "geçiş tehdidine alan bırakıyor; ilk baskı kırılırsa tempoyu düşür.");
         }
 
@@ -82,26 +86,26 @@ public sealed record MatchupPlanDigest(
                 _ => "iki forvetin ceza sahası varlığı",
             };
             return Opportunity(
-                $"Fırsat: {FormatFormation(formation)} + Hücum, savunma direncini "
+                $"Fırsat: {FormatFormationLabel(formation)} + Hücum, savunma direncini "
                 + $"{route} ile sınayabilir; sabırlı dolaşımı koru.");
         }
 
         if (dossier.StrengthDifference <= -7)
         {
             return Opportunity(
-                $"Fırsat: {FormatFormation(formation)} + Hücum, kalite üstünlüğünü "
+                $"Fırsat: {FormatFormationLabel(formation)} + Hücum, kalite üstünlüğünü "
                 + "öne taşıyor; top kaybı emniyetini kaybetme.");
         }
 
         if (dossier.ManagedIsHome)
         {
             return Opportunity(
-                $"Fırsat: {FormatFormation(formation)} + Hücum, evde inisiyatifi "
+                $"Fırsat: {FormatFormationLabel(formation)} + Hücum, evde inisiyatifi "
                 + "sana verir; ilk gol gelmezse yapıyı bozma.");
         }
 
         return Balance(
-            $"Denge: {FormatFormation(formation)} + Hücum cesur bir deplasman planı; "
+            $"Denge: {FormatFormationLabel(formation)} + Hücum cesur bir deplasman planı; "
             + "ilk 15 dakikada geçiş mesafelerini ölç.");
     }
 
@@ -115,7 +119,7 @@ public sealed record MatchupPlanDigest(
         if (tooPassive)
         {
             return Risk(
-                $"Risk: {FormatFormation(formation)} + Defans, bu eşleşmede inisiyatifi "
+                $"Risk: {FormatFormationLabel(formation)} + Defans, bu eşleşmede inisiyatifi "
                 + "gereksiz yere rakibe bırakabilir; baskı çizgisini çok geriye kurma.");
         }
 
@@ -133,19 +137,19 @@ public sealed record MatchupPlanDigest(
                 _ => "merkezdeki beşli yoğunluk",
             };
             return Opportunity(
-                $"Fırsat: {FormatFormation(formation)} + Defans, rakibin baskısına karşı "
+                $"Fırsat: {FormatFormationLabel(formation)} + Defans, rakibin baskısına karşı "
                 + $"{protection} sunuyor; çıkış pasını hazır tut.");
         }
 
         if (dossier.ManagedIsHome)
         {
             return Risk(
-                $"Risk: {FormatFormation(formation)} + Defans, dengeli rakibe karşı ev "
+                $"Risk: {FormatFormationLabel(formation)} + Defans, dengeli rakibe karşı ev "
                 + "inisiyatifini teslim edebilir; orta bloktan öne çıkış tetikle.");
         }
 
         return Balance(
-            $"Denge: {FormatFormation(formation)} + Defans deplasmanda oyunda kalmayı "
+            $"Denge: {FormatFormationLabel(formation)} + Defans deplasmanda oyunda kalmayı "
             + "hedefliyor; yalnızlaşan çıkış oyuncusuna destek ver.");
     }
 
@@ -157,7 +161,7 @@ public sealed record MatchupPlanDigest(
             or OpponentThreatKind.TopZoneTempo)
         {
             return Opportunity(
-                $"Fırsat: {FormatFormation(formation)} + Dengeli, rakibin erken temposuna "
+                $"Fırsat: {FormatFormationLabel(formation)} + Dengeli, rakibin erken temposuna "
                 + "kapılmadan oyunda kalmanı sağlar; ilk 20 dakikada acele etme.");
         }
 
@@ -174,19 +178,19 @@ public sealed record MatchupPlanDigest(
                 or OpponentThreatKind.SquadQuality)
         {
             return Balance(
-                $"Denge: {FormatFormation(formation)} + Dengeli, rakibin gücüne karşı "
+                $"Denge: {FormatFormationLabel(formation)} + Dengeli, rakibin gücüne karşı "
                 + "kontrollü başlangıç sunuyor; baskı kırılmadan risk artırma.");
         }
 
         if (dossier.ManagedIsHome && dossier.StrengthDifference <= -7)
         {
             return Opportunity(
-                $"Fırsat: {FormatFormation(formation)} + Dengeli, kalite üstünlüğünü "
+                $"Fırsat: {FormatFormationLabel(formation)} + Dengeli, kalite üstünlüğünü "
                 + "kontrolü kaybetmeden kullanmana izin veriyor.");
         }
 
         return Balance(
-            $"Denge: {FormatFormation(formation)} + Dengeli, dosyada belirgin bir ters "
+            $"Denge: {FormatFormationLabel(formation)} + Dengeli, dosyada belirgin bir ters "
             + "eşleşme üretmiyor; maçı okuyup ilk ayarı sahada yap.");
     }
 
@@ -197,7 +201,7 @@ public sealed record MatchupPlanDigest(
 
     private static Assessment Balance(string line) => new(MatchupPlanSignal.Balance, line);
 
-    private static string FormatFormation(Formation formation) => formation switch
+    public static string FormatFormationLabel(Formation formation) => formation switch
     {
         Formation.F442 => "4-4-2",
         Formation.F433 => "4-3-3",
@@ -205,7 +209,7 @@ public sealed record MatchupPlanDigest(
         _ => formation.ToString(),
     };
 
-    private static string FormatApproach(TacticalApproach approach) => approach switch
+    public static string FormatApproachLabel(TacticalApproach approach) => approach switch
     {
         TacticalApproach.Balanced => "Dengeli",
         TacticalApproach.Attacking => "Hücum",

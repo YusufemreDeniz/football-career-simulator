@@ -2,6 +2,7 @@ using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Domain.Match;
+using FootballCareerSimulator.Domain.TeamPreparation;
 
 namespace FootballCareerSimulator.Tests.Competition;
 
@@ -209,7 +210,9 @@ public sealed class MatchupPlanOutcomeDigestTests
             "Seçim: 4-3-3 · Hücum",
             "Maç önü değerlendirmesi",
             signal,
-            OpponentThreatKind.Neutral);
+            OpponentThreatKind.Neutral,
+            Formation.F433,
+            TacticalApproach.Attacking);
 
     private static PlayFixtureMatchResult Result(
         int homeGoals,

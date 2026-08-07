@@ -13,6 +13,8 @@ public sealed class MatchupPlanDigestTests
 
         Assert.Equal(MatchupPlanDigest.Brand, digest.BrandTitle);
         Assert.Equal("Seçim: 4-3-3 · Hücum", digest.SelectionLine);
+        Assert.Equal(Formation.F433, digest.Formation);
+        Assert.Equal(TacticalApproach.Attacking, digest.Approach);
     }
 
     [Fact]

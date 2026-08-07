@@ -790,6 +790,13 @@ public sealed class CareerSessionController
     public RepeatedPatternWarningDigest BuildRepeatedPatternWarning() =>
         RepeatedPatternWarningDigest.Compose(BuildMatchupPlan(), _matchupPlanHistory);
 
+    public AlternativePlanPrescriptionDigest BuildAlternativePlanPrescription()
+    {
+        var plan = BuildMatchupPlan();
+        var warning = RepeatedPatternWarningDigest.Compose(plan, _matchupPlanHistory);
+        return AlternativePlanPrescriptionDigest.Compose(plan, warning);
+    }
+
     public OpponentDossierDigest? BuildOpponentDossier()
     {
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
@@ -2628,10 +2635,21 @@ public sealed class CareerSessionController
         var beats = notebook.HasHistory
             ? briefing.BeatLines.Concat(notebook.BeatLines).ToList()
             : briefing.BeatLines.ToList();
-        var patternWarning = BuildRepeatedPatternWarning();
+        var matchupPlan = BuildMatchupPlan();
+        var patternWarning = RepeatedPatternWarningDigest.Compose(
+            matchupPlan,
+            _matchupPlanHistory);
         if (patternWarning.HasWarning)
         {
             beats.Add(patternWarning.WarningLine);
+        }
+
+        var prescription = AlternativePlanPrescriptionDigest.Compose(
+            matchupPlan,
+            patternWarning);
+        if (prescription.HasPrescription)
+        {
+            beats.Add(prescription.PrescriptionLine);
         }
 
         return briefing with { BeatLines = beats };

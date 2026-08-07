@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Domain.TeamPreparation;
 
 namespace FootballCareerSimulator.Tests.TeamPreparation;
 
@@ -88,7 +89,9 @@ public sealed class RepeatedPatternWarningDigestTests
             "Seçim: 4-3-3 · Hücum",
             "Risk değerlendirmesi.",
             MatchupPlanSignal.Risk,
-            OpponentThreatKind.ProductiveAttack);
+            OpponentThreatKind.ProductiveAttack,
+            Formation.F433,
+            TacticalApproach.Attacking);
 
     private static MatchupPlanNotebookEntry Entry(
         int day,
