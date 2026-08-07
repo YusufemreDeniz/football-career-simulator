@@ -2017,6 +2017,9 @@ public sealed class CareerSessionController
 
             var injuredBefore = SnapshotInjuredPlayerNames();
             var kickoffBriefing = CaptureKickoffBriefing(currentDay, pendingSelection);
+            var matchupPlan = pendingSelection is not null
+                ? BuildMatchupPlan()
+                : null;
             var kickoffLines = kickoffBriefing.ToKickoffBridgeLines().ToList();
             if (halfTime is { HasManagedMatch: true })
             {
@@ -2073,6 +2076,7 @@ public sealed class CareerSessionController
             var otherScores = new List<string>();
             MatchReportDigest? heroReport = null;
             TechnicalAreaDigest? technicalArea = null;
+            MatchupPlanOutcomeDigest? matchupPlanOutcome = null;
 
             var managedClubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
 
@@ -2183,6 +2187,17 @@ public sealed class CareerSessionController
                         result.HomeGoals,
                         result.AwayGoals,
                         managedSecondHalfDelta);
+                    matchupPlanOutcome = matchupPlan is not null
+                        ? MatchupPlanOutcomeDigest.Compose(
+                            matchupPlan,
+                            halfTime,
+                            result,
+                            heroManagedIsHome)
+                        : null;
+                    if (matchupPlanOutcome is not null)
+                    {
+                        afterWhistle.Insert(0, matchupPlanOutcome.SummaryLine);
+                    }
                 }
                 else
                 {
@@ -2286,7 +2301,8 @@ public sealed class CareerSessionController
                 heroReport,
                 roundup,
                 dressingRoom,
-                technicalArea);
+                technicalArea,
+                matchupPlanOutcome);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -3203,4 +3219,5 @@ public sealed record PlayMatchesUiResult(
     MatchReportDigest? Report = null,
     LeagueRoundupDigest? Roundup = null,
     CaptainReactionDigest? DressingRoom = null,
-    TechnicalAreaDigest? TechnicalArea = null);
+    TechnicalAreaDigest? TechnicalArea = null,
+    MatchupPlanOutcomeDigest? MatchupPlanOutcome = null);

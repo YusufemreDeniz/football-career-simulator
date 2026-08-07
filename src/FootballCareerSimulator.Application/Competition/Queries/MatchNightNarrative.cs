@@ -92,7 +92,8 @@ public sealed record MatchNightNarrative(
         static bool IsCritical(string line) =>
             line.Contains("işten çıkardı", StringComparison.OrdinalIgnoreCase)
             || line.Contains("basın", StringComparison.OrdinalIgnoreCase)
-            || line.Contains("Yönetim güveni", StringComparison.Ordinal);
+            || line.Contains("Yönetim güveni", StringComparison.Ordinal)
+            || line.Contains(MatchupPlanOutcomeDigest.Brand, StringComparison.Ordinal);
 
         return afterWhistleLines
             .Where(IsCritical)

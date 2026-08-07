@@ -260,6 +260,32 @@ public sealed class MatchNightNarrativeTests
     }
 
     [Fact]
+    public void Compose_WithCrowdedAfterWhistle_KeepsMatchupPlanOutcome()
+    {
+        var planOutcome = $"{MatchupPlanOutcomeDigest.Brand} · Seçim: 4-3-3 · Hücum";
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-1 B",
+            2,
+            1,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 20,
+            beatLines: [],
+            afterWhistleLines:
+            [
+                "Devre arasında hücuma geçtin.",
+                "Sakatlık: Tolga Kurt",
+                "Yönetim güveni +2 → 60 (Stabil)",
+                planOutcome,
+            ],
+            otherScorelines: []);
+
+        Assert.Contains(planOutcome, narrative.AfterWhistleLines);
+        Assert.Equal(3, narrative.AfterWhistleLines.Count);
+    }
+
+    [Fact]
     public void ComposeHalfSegmentedBeats_BothHalvesWithExtras_PlacesExtrasAtSecondHalfStart()
     {
         var beats = MatchNightNarrative.ComposeHalfSegmentedBeats(
