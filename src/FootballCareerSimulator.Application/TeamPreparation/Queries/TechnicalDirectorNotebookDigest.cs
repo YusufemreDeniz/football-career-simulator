@@ -41,11 +41,11 @@ public sealed record TechnicalDirectorNotebookDigest(
             ? entry.SelectionLine[7..]
             : entry.SelectionLine;
         return $"Defter · Gün {entry.DayNumber}, {entry.OpponentName}"
-            + $" · {selection} · {FormatThreat(entry.ThreatKind)}"
+            + $" · {selection} · {FormatThreatLabel(entry.ThreatKind)}"
             + $" · {FormatPlanSignal(entry.PlanSignal)}→{FormatOutcome(entry.OutcomeSignal)}";
     }
 
-    private static string FormatThreat(OpponentThreatKind kind) => kind switch
+    public static string FormatThreatLabel(OpponentThreatKind kind) => kind switch
     {
         OpponentThreatKind.WinningStreak => "galibiyet serisi",
         OpponentThreatKind.ProductiveAttack => "üretken hücum",

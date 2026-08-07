@@ -787,6 +787,9 @@ public sealed class CareerSessionController
     public TechnicalDirectorNotebookDigest BuildTechnicalDirectorNotebook() =>
         TechnicalDirectorNotebookDigest.Compose(_matchupPlanHistory);
 
+    public RepeatedPatternWarningDigest BuildRepeatedPatternWarning() =>
+        RepeatedPatternWarningDigest.Compose(BuildMatchupPlan(), _matchupPlanHistory);
+
     public OpponentDossierDigest? BuildOpponentDossier()
     {
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
@@ -2622,12 +2625,16 @@ public sealed class CareerSessionController
             BuildAutoSwapWarningLines(pending.ManagedClubId),
             cleanReturnNames: ResolveCleanXiBridgeNames(training.InjuredSlotCount));
         var notebook = BuildTechnicalDirectorNotebook();
-        return !notebook.HasHistory
-            ? briefing
-            : briefing with
-            {
-                BeatLines = briefing.BeatLines.Concat(notebook.BeatLines).ToArray(),
-            };
+        var beats = notebook.HasHistory
+            ? briefing.BeatLines.Concat(notebook.BeatLines).ToList()
+            : briefing.BeatLines.ToList();
+        var patternWarning = BuildRepeatedPatternWarning();
+        if (patternWarning.HasWarning)
+        {
+            beats.Add(patternWarning.WarningLine);
+        }
+
+        return briefing with { BeatLines = beats };
     }
 
     private void RememberMatchupPlanOutcome(
