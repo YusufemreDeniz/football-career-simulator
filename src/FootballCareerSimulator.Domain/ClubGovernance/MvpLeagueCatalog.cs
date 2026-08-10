@@ -3,32 +3,30 @@ namespace FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
 
 /// <summary>
-/// MVP 20 kulüplük sabit katalog (fictional isimler).
+/// 2026-2027 Türkiye Süper Ligi'nin TFF'de kayıtlı 18 kulübü.
 /// </summary>
 public static class MvpLeagueCatalog
 {
     private static readonly (string Name, string Code, int Strength)[] Clubs =
     [
-        ("Boğaziçi Spor", "BOS", 78),
-        ("Anadolu Yıldızı", "AYI", 74),
-        ("Ege Kartalı", "EGE", 71),
-        ("Karadeniz FK", "KAR", 69),
-        ("Akdeniz United", "AKD", 67),
-        ("Trakya Spor", "TRA", 65),
-        ("Kapadokya SK", "KAP", 63),
-        ("Marmara 1907", "MAR", 72),
-        ("Toros Spor", "TOR", 61),
-        ("Çukurova FK", "CUK", 59),
-        ("Kuzey Yıldızı", "KUZ", 57),
-        ("Güney Kartalı", "GUN", 55),
-        ("İpekyolu SK", "IPE", 53),
-        ("Yıldırım Spor", "YIL", 68),
-        ("Sahil United", "SAH", 51),
-        ("Dağlıca FK", "DAG", 49),
-        ("Ova Spor", "OVA", 47),
-        ("Vadi SK", "VAD", 45),
-        ("Kıyı Yıldızı", "KIY", 52),
-        ("Merkez FK", "MER", 50),
+        ("GALATASARAY A.Ş.", "GAL", 95),
+        ("FENERBAHÇE A.Ş.", "FEN", 93),
+        ("BEŞİKTAŞ A.Ş.", "BJK", 87),
+        ("TRABZONSPOR A.Ş.", "TRA", 85),
+        ("İSTANBUL BAŞAKŞEHİR FK", "IBF", 79),
+        ("GÖZTEPE A.Ş.", "GOZ", 78),
+        ("SAMSUNSPOR A.Ş.", "SAM", 77),
+        ("ÇAYKUR RİZESPOR A.Ş.", "RIZ", 73),
+        ("CORENDON ALANYASPOR", "ALA", 72),
+        ("KONYASPOR", "KON", 71),
+        ("KASIMPAŞA A.Ş.", "KAS", 69),
+        ("GAZİANTEP FUTBOL KULÜBÜ A.Ş.", "GFK", 70),
+        ("KOCAELİSPOR", "KOC", 68),
+        ("GENÇLERBİRLİĞİ", "GEN", 66),
+        ("EYÜPSPOR", "EYP", 67),
+        ("ERZURUMSPOR FK", "ERZ", 62),
+        ("AMED SPORTİF FAALİYETLER", "AME", 64),
+        ("ÇORUM FK", "COR", 61),
     ];
 
     public static IReadOnlyList<Club> CreateClubs()

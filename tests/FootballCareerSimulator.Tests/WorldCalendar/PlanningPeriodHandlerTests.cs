@@ -75,8 +75,9 @@ public class PlanningPeriodHandlerTests
     {
         var persistence = new Infrastructure.WorldCalendar.WorldCalendarSqlitePersistence();
         var module = WorldCalendarModule.CreateNewGame(persistence: persistence);
+        var currentDay = module.Queries.GetCurrentGameDate().DayNumber;
         module.OpenPlanningPeriod.Handle(
-            new OpenPlanningPeriodCommand(Guid.NewGuid(), 7, StartDate.DayNumber));
+            new OpenPlanningPeriodCommand(Guid.NewGuid(), 7, currentDay));
 
         var path = Path.Combine(Path.GetTempPath(), $"fcs-planning-{Guid.NewGuid():N}.db");
         try

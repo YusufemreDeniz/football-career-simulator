@@ -3258,7 +3258,7 @@ public sealed class CareerSessionController
         TimeAdvanceBlockerDigest.Describe(descriptionCode);
 
     public static int ComputeFirstMatchdayDayNumber(int currentDayNumber) =>
-        GameDate.FromDayNumber(currentDayNumber).AddDays(30).DayNumber;
+        GameDate.FromDayNumber(currentDayNumber).AddDays(4).DayNumber;
 
     /// <summary>
     /// Smoke test için lig kurulumunu uygular (TimeControlScreen self-check ile aynı sıra).

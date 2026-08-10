@@ -10,4 +10,9 @@ public sealed record ClubReadModel(
     int SpentTransferFunds,
     int AvailableTransferFunds,
     int WageBudgetLimit,
-    int ReservedWeeklyWage);
+    int ReservedWeeklyWage,
+    string CrestResourcePath,
+    string HomeKitResourcePath,
+    string AwayKitResourcePath,
+    string ThirdKitResourcePath,
+    string DataSnapshotDate);

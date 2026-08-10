@@ -5,9 +5,9 @@ namespace FootballCareerSimulator.Domain.Competition;
 /// </summary>
 public static class CompetitionMvpConstraints
 {
-    public const int LeagueTeamCount = 20;
+    public const int LeagueTeamCount = 18;
 
-    public const int LeagueMatchesPerTeam = 38;
+    public const int LeagueMatchesPerTeam = 34;
 
     public const int SingleLegRoundCount = LeagueTeamCount - 1;
 

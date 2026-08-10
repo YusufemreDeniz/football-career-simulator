@@ -4,6 +4,7 @@ using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ClubGovernance.Queries;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Simulation.DataPacks;
 
 public sealed class ClubQueryService
 {
@@ -32,8 +33,11 @@ public sealed class ClubQueryService
     public string GetDisplayName(ClubId clubId) =>
         _store.Registry.GetClubOrThrow(clubId).DisplayName;
 
-    private static ClubReadModel ToReadModel(Club club) =>
-        new(
+    private static ClubReadModel ToReadModel(Club club)
+    {
+        var data = TurkeySuperLig202627DataPack.GetClub(club.Id);
+
+        return new(
             club.Id.Value,
             club.DisplayName,
             club.Code.Value,
@@ -43,7 +47,13 @@ public sealed class ClubQueryService
             club.SpentTransferFunds,
             club.AvailableTransferFunds,
             club.WageBudgetLimit,
-            club.ReservedWeeklyWage);
+            club.ReservedWeeklyWage,
+            data.CrestResourcePath,
+            data.HomeKitResourcePath,
+            data.AwayKitResourcePath,
+            data.ThirdKitResourcePath,
+            TurkeySuperLig202627DataPack.SnapshotDate);
+    }
 }
 
 public sealed class ClubGovernanceQueryException : Exception

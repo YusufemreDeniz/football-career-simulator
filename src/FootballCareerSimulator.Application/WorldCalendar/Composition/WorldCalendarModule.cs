@@ -63,7 +63,7 @@ public sealed class WorldCalendarModule
 
     public static WorldCalendarModule CreateNewGame(int rootSeed = 42, IWorldCalendarPersistence? persistence = null) =>
         Create(
-            GameDate.FromCalendarDate(2026, 7, 1),
+            GameDate.FromCalendarDate(2026, 8, 10),
             rootSeed,
             SimulationRandomContext.Version,
             persistence: persistence);

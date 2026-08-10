@@ -7,7 +7,7 @@ namespace FootballCareerSimulator.Tests.ClubGovernance;
 public sealed class ClubRegistryTests
 {
     [Fact]
-    public void CreateMvpLeague_ContainsTwentyClubsWithUniqueIds()
+    public void CreateMvpLeague_ContainsConfiguredClubsWithUniqueIds()
     {
         var registry = LeagueClubRegistry.CreateMvpLeague();
 
@@ -24,8 +24,8 @@ public sealed class ClubRegistryTests
         var club = registry.GetClubOrThrow(new ClubId(5));
 
         Assert.Equal(5, club.Id.Value);
-        Assert.Equal("AKD", club.Code.Value);
-        Assert.Equal("Akdeniz United", club.DisplayName);
+        Assert.Equal("IBF", club.Code.Value);
+        Assert.Equal("İSTANBUL BAŞAKŞEHİR FK", club.DisplayName);
         Assert.Equal(Club.DefaultTransferBudgetLimit(club.SportiveStrength), club.TransferBudgetLimit);
         Assert.Equal(0, club.ReservedTransferFunds);
         Assert.Equal(club.TransferBudgetLimit, club.AvailableTransferFunds);

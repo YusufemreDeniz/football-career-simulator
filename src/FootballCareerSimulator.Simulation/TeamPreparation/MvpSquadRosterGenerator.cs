@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Simulation.DataPacks;
 
 namespace FootballCareerSimulator.Simulation.TeamPreparation;
 
@@ -23,6 +24,11 @@ public static class MvpSquadRosterGenerator
 
     public static IReadOnlyList<string> GeneratePlayerNames(ClubId clubId, int rootSeed)
     {
+        if (TurkeySuperLig202627DataPack.TryGetClub(clubId, out var realClub))
+        {
+            return realClub.PlayerNames;
+        }
+
         var rng = new SimulationRandomContext(unchecked(rootSeed * 911) ^ (int)clubId.Value);
         var names = new List<string>(SquadSize);
         var used = new HashSet<string>();

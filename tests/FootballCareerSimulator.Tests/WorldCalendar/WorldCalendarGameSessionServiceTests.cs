@@ -8,6 +8,7 @@ namespace FootballCareerSimulator.Tests.WorldCalendar;
 
 public sealed class WorldCalendarGameSessionServiceTests : IDisposable
 {
+    private static readonly GameDate NewGameStart = GameDate.FromCalendarDate(2026, 8, 10);
     private readonly string _tempDirectory;
     private readonly WorldCalendarSqlitePersistence _persistence = new();
 
@@ -18,6 +19,14 @@ public sealed class WorldCalendarGameSessionServiceTests : IDisposable
             "fcs-worldcalendar-session-tests",
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_tempDirectory);
+    }
+
+    [Fact]
+    public void CreateNewGame_StartsOnDataPackSnapshotDate()
+    {
+        var module = WorldCalendarModule.CreateNewGame(persistence: _persistence);
+
+        Assert.Equal(NewGameStart.DayNumber, module.Queries.GetCurrentGameDate().DayNumber);
     }
 
     public void Dispose()
@@ -37,25 +46,25 @@ public sealed class WorldCalendarGameSessionServiceTests : IDisposable
         module.AdvanceSimulationTime.Handle(
             new AdvanceSimulationTimeCommand(
                 Guid.NewGuid(),
-                GameDate.FromCalendarDate(2026, 7, 5).DayNumber));
+                NewGameStart.AddDays(4).DayNumber));
 
         var path = Path.Combine(_tempDirectory, "session.db");
         var saveResult = session.Save(path);
 
         Assert.True(saveResult.Succeeded);
-        Assert.Equal(GameDate.FromCalendarDate(2026, 7, 5).DayNumber, saveResult.SavedDayNumber);
+        Assert.Equal(NewGameStart.AddDays(4).DayNumber, saveResult.SavedDayNumber);
 
         module.AdvanceSimulationTime.Handle(
             new AdvanceSimulationTimeCommand(
                 Guid.NewGuid(),
-                GameDate.FromCalendarDate(2026, 7, 10).DayNumber));
+                NewGameStart.AddDays(9).DayNumber));
 
         var loadResult = session.Load(path);
 
         Assert.True(loadResult.Succeeded);
-        Assert.Equal(GameDate.FromCalendarDate(2026, 7, 5).DayNumber, loadResult.LoadedDayNumber);
+        Assert.Equal(NewGameStart.AddDays(4).DayNumber, loadResult.LoadedDayNumber);
         Assert.Equal(
-            GameDate.FromCalendarDate(2026, 7, 5).DayNumber,
+            NewGameStart.AddDays(4).DayNumber,
             module.Queries.GetCurrentGameDate().DayNumber);
     }
 
@@ -71,10 +80,10 @@ public sealed class WorldCalendarGameSessionServiceTests : IDisposable
         module.AdvanceSimulationTime.Handle(
             new AdvanceSimulationTimeCommand(
                 advanceToDayFiveId,
-                GameDate.FromCalendarDate(2026, 7, 5).DayNumber));
+                NewGameStart.AddDays(4).DayNumber));
 
         Assert.Equal(
-            GameDate.FromCalendarDate(2026, 7, 5).DayNumber,
+            NewGameStart.AddDays(4).DayNumber,
             module.Queries.GetCurrentGameDate().DayNumber);
 
         session.Load(Path.Combine(_tempDirectory, "checkpoint.db"));
@@ -82,11 +91,11 @@ public sealed class WorldCalendarGameSessionServiceTests : IDisposable
         var replay = module.AdvanceSimulationTime.Handle(
             new AdvanceSimulationTimeCommand(
                 advanceToDayFiveId,
-                GameDate.FromCalendarDate(2026, 7, 5).DayNumber));
+                NewGameStart.AddDays(4).DayNumber));
 
         Assert.True(replay.Succeeded);
         Assert.Equal(
-            GameDate.FromCalendarDate(2026, 7, 5).DayNumber,
+            NewGameStart.AddDays(4).DayNumber,
             module.Queries.GetCurrentGameDate().DayNumber);
     }
 }

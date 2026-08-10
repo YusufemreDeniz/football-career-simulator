@@ -17,7 +17,7 @@ public class LeagueFixtureGeneratorTests
             .ToArray();
 
     [Fact]
-    public void GenerateDoubleRoundRobin_ProducesThreeHundredEightyPlannedFixtures()
+    public void GenerateDoubleRoundRobin_ProducesThreeHundredSixPlannedFixtures()
     {
         var fixtures = LeagueFixtureGenerator.GenerateDoubleRoundRobin(
             Competition,
@@ -29,11 +29,11 @@ public class LeagueFixtureGeneratorTests
 
         Assert.Equal(CompetitionMvpConstraints.TotalLeagueFixtures, fixtures.Count);
         Assert.All(fixtures, fixture => Assert.Equal(FixtureStatus.Planned, fixture.Status));
-        Assert.Equal(new FixtureId(380), fixtures[^1].Id);
+        Assert.Equal(new FixtureId(306), fixtures[^1].Id);
     }
 
     [Fact]
-    public void GenerateDoubleRoundRobin_EachClubPlaysThirtyEightMatches()
+    public void GenerateDoubleRoundRobin_EachClubPlaysThirtyFourMatches()
     {
         var fixtures = LeagueFixtureGenerator.GenerateDoubleRoundRobin(
             Competition,
@@ -86,7 +86,7 @@ public class LeagueFixtureGeneratorTests
     }
 
     [Fact]
-    public void GenerateDoubleRoundRobin_AssignsTenMatchesPerRoundAcrossThirtyEightRounds()
+    public void GenerateDoubleRoundRobin_AssignsNineMatchesPerRoundAcrossThirtyFourRounds()
     {
         var fixtures = LeagueFixtureGenerator.GenerateDoubleRoundRobin(
             Competition,
@@ -126,9 +126,11 @@ public class LeagueFixtureGeneratorTests
             fixtures.Where(fixture => fixture.Round.Value == 1),
             fixture => Assert.Equal(FirstMatchday, fixture.ScheduledDate));
 
-        var roundTwenty = fixtures.First(fixture => fixture.Round.Value == 20);
-        var expectedSecondLegStart = FirstMatchday.AddDays(19 * 7);
-        Assert.Equal(expectedSecondLegStart, roundTwenty.ScheduledDate);
+        var secondLegStart = fixtures.First(
+            fixture => fixture.Round.Value == CompetitionMvpConstraints.LeagueTeamCount);
+        var expectedSecondLegStart = FirstMatchday.AddDays(
+            (CompetitionMvpConstraints.LeagueTeamCount - 1) * 7);
+        Assert.Equal(expectedSecondLegStart, secondLegStart.ScheduledDate);
     }
 
     [Fact]

@@ -175,6 +175,20 @@ internal static class CareerUiTheme
         list.AddThemeStyleboxOverride("selected_focus", SolidButton(ActionHover));
     }
 
+    public static void StyleTable(Tree table)
+    {
+        ApplyBodyFont(table);
+        table.AddThemeFontSizeOverride("font_size", 13);
+        table.AddThemeColorOverride("font_color", Ink);
+        table.AddThemeColorOverride("font_selected_color", BackgroundDeep);
+        table.AddThemeColorOverride("title_button_color", InkMuted);
+        table.AddThemeColorOverride("title_button_hover_color", Ink);
+        table.AddThemeStyleboxOverride("panel", SoftPanel());
+        table.AddThemeStyleboxOverride("focus", FocusRing(Data));
+        table.AddThemeStyleboxOverride("selected", SolidButton(Action));
+        table.AddThemeStyleboxOverride("selected_focus", SolidButton(ActionHover));
+    }
+
     public static StyleBoxFlat SoftPanel() =>
         PanelStyle(SurfaceSoft, Stroke, radius: 12, contentMargin: 12, shadowSize: 4);
 

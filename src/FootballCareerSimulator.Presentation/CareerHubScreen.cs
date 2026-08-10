@@ -56,7 +56,11 @@ public partial class CareerHubScreen : Control
     private Label _tacticLabel = null!;
     private Label _squadStatusLabel = null!;
     private Label _squadCapacityLabel = null!;
-    private Label _standingsLabel = null!;
+    private TextureRect _clubCrest = null!;
+    private TextureRect _homeKit = null!;
+    private TextureRect _awayKit = null!;
+    private TextureRect _thirdKit = null!;
+    private Tree _standingsTable = null!;
     private Label _leagueBriefingLabel = null!;
     private Label _statusLabel = null!;
     private Label _saveDeskLabel = null!;
@@ -277,6 +281,17 @@ public partial class CareerHubScreen : Control
         };
         topBar.AddThemeConstantOverride("separation", 10);
         shell.AddChild(topBar);
+
+        _clubCrest = new TextureRect
+        {
+            Name = "ClubCrest",
+            CustomMinimumSize = new Vector2(64, 64),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            TooltipText = "Kulüp arması",
+            Visible = false,
+        };
+        topBar.AddChild(_clubCrest);
 
         var brandLockup = new VBoxContainer
         {
@@ -596,6 +611,18 @@ public partial class CareerHubScreen : Control
         squadCard.AddChild(_developmentLabel);
         _contractLabel = BodyLabel("ContractLabel", autowrap: true);
         squadCard.AddChild(_contractLabel);
+
+        var kitStrip = new HBoxContainer
+        {
+            Name = "ClubKitStrip",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Alignment = BoxContainer.AlignmentMode.Center,
+        };
+        kitStrip.AddThemeConstantOverride("separation", 18);
+        squadCard.AddChild(kitStrip);
+        _homeKit = AddKitPreview(kitStrip, "İÇ SAHA", "Kulübün resmi iç saha forması");
+        _awayKit = AddKitPreview(kitStrip, "DEPLASMAN", "Kulübün resmi deplasman forması");
+        _thirdKit = AddKitPreview(kitStrip, "ÜÇÜNCÜ", "Kulübün resmi üçüncü forması");
 
         var teamDynamicsCard = AddCard(page, "SOYUNMA ODASI & SÖZLER");
         _memoryLabel = BodyLabel("MemoryLabel", autowrap: true);
@@ -949,8 +976,18 @@ public partial class CareerHubScreen : Control
         leagueCard.AddChild(_leagueBriefingLabel);
 
         var tableCard = AddCard(page, "PUAN DURUMU");
-        _standingsLabel = BodyLabel("StandingsLabel", autowrap: true);
-        tableCard.AddChild(_standingsLabel);
+        _standingsTable = new Tree
+        {
+            Name = "StandingsTable",
+            Columns = 10,
+            ColumnTitlesVisible = true,
+            HideRoot = true,
+            CustomMinimumSize = new Vector2(0, 500),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        ConfigureStandingsColumns(_standingsTable);
+        CareerUiTheme.StyleTable(_standingsTable);
+        tableCard.AddChild(_standingsTable);
 
         var fixtureCard = AddCard(page, "HAFTA FİKSTÜRÜ");
         var roundRow = ActionFlow();
@@ -1046,6 +1083,55 @@ public partial class CareerHubScreen : Control
         return label;
     }
 
+    private static TextureRect AddKitPreview(Container parent, string labelText, string tooltip)
+    {
+        var column = new VBoxContainer
+        {
+            CustomMinimumSize = new Vector2(94, 150),
+            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+            Alignment = BoxContainer.AlignmentMode.Center,
+        };
+        column.AddThemeConstantOverride("separation", 4);
+        parent.AddChild(column);
+
+        var texture = new TextureRect
+        {
+            CustomMinimumSize = new Vector2(90, 124),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            TooltipText = tooltip,
+            Visible = false,
+        };
+        column.AddChild(texture);
+
+        var label = BodyLabel($"{labelText}KitLabel", muted: true);
+        label.Text = labelText;
+        label.HorizontalAlignment = HorizontalAlignment.Center;
+        label.AddThemeFontSizeOverride("font_size", 11);
+        column.AddChild(label);
+        return texture;
+    }
+
+    private static void ConfigureStandingsColumns(Tree table)
+    {
+        var titles = new[] { "#", "TAKIM", "O", "G", "B", "M", "A", "Y", "AV", "P" };
+        for (var column = 0; column < titles.Length; column++)
+        {
+            table.SetColumnTitle(column, titles[column]);
+            table.SetColumnExpand(column, column == 1);
+            table.SetColumnCustomMinimumWidth(column, column == 1 ? 220 : column == 0 ? 38 : 46);
+        }
+    }
+
+    private void ShowEmptyStandings(string message)
+    {
+        _standingsTable.Clear();
+        var root = _standingsTable.CreateItem();
+        var row = _standingsTable.CreateItem(root);
+        row.SetText(1, message);
+        row.SetCustomColor(1, CareerUiTheme.InkMuted);
+    }
+
     private static Button PrimaryButton(string text)
     {
         var button = new Button { Text = text };
@@ -1126,6 +1212,7 @@ public partial class CareerHubScreen : Control
         var period = world.Queries.GetCurrentPlanningPeriod();
 
         _dateLabel.Text = current.IsoDate;
+        RefreshClubBranding();
 
         if (string.Equals(manager.EmploymentStatus, "Unemployed", StringComparison.Ordinal))
         {
@@ -1159,7 +1246,7 @@ public partial class CareerHubScreen : Control
         {
             _progressLabel.Text = $"Lig sezonu yok · {periodText}";
             _leagueBriefingLabel.Text = Application.Competition.Queries.LeagueWorldBriefing.NoSeason().ToDisplayText();
-            _standingsLabel.Text = "Puan durumu: —";
+            ShowEmptyStandings("Henüz aktif lig sezonu yok");
             _fixtureList.Clear();
             _blockerLabel.Text = _controller.FormatActiveBlockerSummary();
             RefreshTodayPulse();
@@ -1235,6 +1322,36 @@ public partial class CareerHubScreen : Control
         UpdateTrainingButtons(manager);
         UpdateTacticButtons(manager);
         UpdateSaveDeskButtons();
+    }
+
+    private void RefreshClubBranding()
+    {
+        var manager = _controller.Host.ManagerModule.Queries.GetCareer();
+        var club = manager.EmployedClubId is long clubId
+            ? _controller.Host.ClubModule.Queries.GetClub(clubId)
+            : null;
+
+        if (club is null)
+        {
+            SetClubTexture(_clubCrest, null);
+            SetClubTexture(_homeKit, null);
+            SetClubTexture(_awayKit, null);
+            SetClubTexture(_thirdKit, null);
+            return;
+        }
+
+        SetClubTexture(_clubCrest, club.CrestResourcePath);
+        SetClubTexture(_homeKit, club.HomeKitResourcePath);
+        SetClubTexture(_awayKit, club.AwayKitResourcePath);
+        SetClubTexture(_thirdKit, club.ThirdKitResourcePath);
+    }
+
+    private static void SetClubTexture(TextureRect target, string? resourcePath)
+    {
+        target.Texture = !string.IsNullOrWhiteSpace(resourcePath) && ResourceLoader.Exists(resourcePath)
+            ? GD.Load<Texture2D>(resourcePath)
+            : null;
+        target.Visible = target.Texture is not null;
     }
 
     private void RefreshSaveDesk()
@@ -2021,47 +2138,76 @@ public partial class CareerHubScreen : Control
     private void RefreshStandings()
     {
         _leagueBriefingLabel.Text = _controller.BuildLeagueWorldBriefing().ToDisplayText();
+        _standingsTable.Clear();
 
         var season = _controller.Host.CompetitionModule.Queries.GetCurrentSeason();
         if (season is null || season.FixtureCount == 0)
         {
-            _standingsLabel.Text = "Puan durumu: —";
+            ShowEmptyStandings("Henüz fikstür oluşturulmadı");
             return;
         }
 
         var managedClubId = _controller.Host.ManagerModule.Queries.GetCareer().EmployedClubId;
-        var strip = _controller.Host.CompetitionModule.Queries.GetStandingsStrip(
-            season.SeasonId,
-            managedClubId);
-        if (strip.Entries.Count == 0)
+        var standings = _controller.Host.CompetitionModule.Queries.GetStandings(season.SeasonId);
+        if (standings.Count == 0)
         {
-            _standingsLabel.Text = "Puan durumu: henüz maç yok";
+            ShowEmptyStandings("Henüz puan durumu oluşmadı");
             return;
         }
 
-        var parts = new List<string>();
-        var topLimit = strip.ManagedOutsideTop
-            ? strip.Entries.Count - 1
-            : strip.Entries.Count;
-        for (var i = 0; i < topLimit; i++)
+        var root = _standingsTable.CreateItem();
+        for (var index = 0; index < standings.Count; index++)
         {
-            parts.Add(FormatStripEntry(strip.Entries[i]));
+            var entry = standings[index];
+            var row = _standingsTable.CreateItem(root);
+            var values = new[]
+            {
+                (index + 1).ToString(),
+                _controller.GetClubDisplayName(entry.ClubId),
+                entry.Played.ToString(),
+                entry.Won.ToString(),
+                entry.Drawn.ToString(),
+                entry.Lost.ToString(),
+                entry.GoalsFor.ToString(),
+                entry.GoalsAgainst.ToString(),
+                entry.GoalDifference > 0 ? $"+{entry.GoalDifference}" : entry.GoalDifference.ToString(),
+                entry.Points.ToString(),
+            };
+
+            for (var column = 0; column < values.Length; column++)
+            {
+                row.SetText(column, values[column]);
+                if (column != 1)
+                {
+                    row.SetTextAlignment(column, HorizontalAlignment.Center);
+                }
+            }
+
+            var rankColor = index switch
+            {
+                0 => CareerUiTheme.Accent,
+                <= 3 => CareerUiTheme.Data,
+                >= 14 => CareerUiTheme.DangerSoft,
+                _ => CareerUiTheme.InkMuted,
+            };
+            row.SetCustomColor(0, rankColor);
+            row.SetCustomColor(9, CareerUiTheme.Ink);
+
+            if (managedClubId == entry.ClubId)
+            {
+                for (var column = 0; column < values.Length; column++)
+                {
+                    row.SetCustomBgColor(
+                        column,
+                        new Color(
+                            CareerUiTheme.Action.R,
+                            CareerUiTheme.Action.G,
+                            CareerUiTheme.Action.B,
+                            0.16f));
+                }
+                row.SetCustomColor(1, CareerUiTheme.ActionBright);
+            }
         }
-
-        if (strip.ManagedOutsideTop)
-        {
-            parts.Add("··");
-            parts.Add(FormatStripEntry(strip.Entries[^1]));
-        }
-
-        _standingsLabel.Text = $"Puan durumu: {string.Join(" · ", parts)}";
-    }
-
-    private string FormatStripEntry(Application.Competition.Queries.StandingStripEntryReadModel entry)
-    {
-        var name = _controller.GetClubDisplayName(entry.ClubId);
-        var mark = entry.IsManaged ? " (sen)" : string.Empty;
-        return $"{entry.Rank}. {name} {entry.Points}p ({entry.Played}M){mark}";
     }
 
     private static string TranslateExpectation(string? code) =>
