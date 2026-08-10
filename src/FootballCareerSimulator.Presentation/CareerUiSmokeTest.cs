@@ -124,6 +124,17 @@ public static class CareerUiSmokeTest
                 fixture.HomeClubId == managedClubId || fixture.AwayClubId == managedClubId);
             if (managedRoundOne is not null)
             {
+                var controller = new CareerSessionController(host);
+                var compatibility = controller.BuildLineupCompatibility();
+                passed &= LogCheck(
+                    "Kadro uyumu önizlemesi",
+                    compatibility is
+                    {
+                        HasLineup: true,
+                        Score: 100,
+                        NaturalFitCount: Domain.TeamPreparation.MatchSelection.StartingXiSize,
+                    });
+
                 host.TeamPreparationModule.ApproveDefaultSelection.Handle(
                     new ApproveDefaultMatchSelectionCommand(
                         Guid.NewGuid(),

@@ -35,7 +35,8 @@ public sealed record MatchDayLineupStrip(
         IReadOnlyList<int> displayStartingSlots,
         IReadOnlyList<MvpAvailabilityAwareSelection.AvailabilityAutoSwap> swaps,
         IReadOnlyList<string> playerNames,
-        IReadOnlyList<string>? cleanReturnNames = null)
+        IReadOnlyList<string>? cleanReturnNames = null,
+        IReadOnlyList<string>? positionCodes = null)
     {
         if (!hasMatch)
         {
@@ -54,14 +55,16 @@ public sealed record MatchDayLineupStrip(
             .Select(slot => new MatchDayLineupChip(
                 NameOf(playerNames, slot),
                 inSlots.Contains(slot) ? MarkerIn : MarkerNormal,
-                slot))
+                slot,
+                PositionOf(positionCodes, slot)))
             .ToArray();
 
         var outs = outSlots
             .Select(slot => new MatchDayLineupChip(
                 NameOf(playerNames, slot),
                 MarkerOut,
-                slot))
+                slot,
+                PositionOf(positionCodes, slot)))
             .ToArray();
 
         var returns = outs.Length == 0
@@ -147,6 +150,11 @@ public sealed record MatchDayLineupStrip(
             ? playerNames[slotIndex]
             : $"#{slotIndex + 1}";
 
+    private static string PositionOf(IReadOnlyList<string>? positionCodes, int slotIndex) =>
+        positionCodes is not null && slotIndex >= 0 && slotIndex < positionCodes.Count
+            ? positionCodes[slotIndex]
+            : string.Empty;
+
     private static string ShortLast(string full)
     {
         if (string.IsNullOrWhiteSpace(full))
@@ -162,15 +170,24 @@ public sealed record MatchDayLineupStrip(
 public sealed record MatchDayLineupChip(
     string DisplayName,
     string MarkerCode,
-    int SlotIndex)
+    int SlotIndex,
+    string PositionCode = "")
 {
     public bool IsIn => string.Equals(MarkerCode, MatchDayLineupStrip.MarkerIn, StringComparison.Ordinal);
     public bool IsOut => string.Equals(MarkerCode, MatchDayLineupStrip.MarkerOut, StringComparison.Ordinal);
 
-    public string ChipLabel =>
-        IsIn ? $"↑ {ShortName(DisplayName)}"
-        : IsOut ? $"× {ShortName(DisplayName)}"
-        : ShortName(DisplayName);
+    public string ChipLabel
+    {
+        get
+        {
+            var name = IsIn ? $"↑ {ShortName(DisplayName)}"
+                : IsOut ? $"× {ShortName(DisplayName)}"
+                : ShortName(DisplayName);
+            return string.IsNullOrWhiteSpace(PositionCode)
+                ? name
+                : $"{name} · {PositionCode}";
+        }
+    }
 
     private static string ShortName(string full)
     {

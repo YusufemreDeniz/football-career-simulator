@@ -30,6 +30,23 @@ $clubs = @(
     [pscustomobject]@{ Id = 18; Name = 'ÇORUM FK';                     Slug = 'corum-fk';                TffClubId = 3199; Supplements = @() }
 )
 
+$supplementPositions = @{
+    'Habil Ozbakir' = 'Defender'
+    'Da Mata' = 'Defender'
+    'Esat Tunahan Sahin' = 'Goalkeeper'
+    'Yagiz Arpaci' = 'Defender'
+    'Ata Yanik' = 'Defender'
+    'Ahmet Tirpanci' = 'Defender'
+    'Umut Can Aslan' = 'Defender'
+    'Arda Ozyar' = 'Forward'
+    'Umut Keseci' = 'Goalkeeper'
+    'Diabel Ndoye' = 'Defender'
+    'Berhan Kutlay Satli' = 'Defender'
+    'Arda Yavuz' = 'Defender'
+    'Mustafa Eren Damar' = 'Defender'
+    'David Costa' = 'Midfielder'
+}
+
 $corumRoster = @(
     'Arif Şimşir', 'Ibrahim Sehic', 'Hrvoje Smolcic', 'Serdar Saatçı', 'Arda Şengül',
     'Taha İbrahim Rençber', 'Sinan Osmanoğlu', 'Berkay Arı', 'Cemali Sertel', 'Erkan Kaş',
@@ -37,6 +54,12 @@ $corumRoster = @(
     'Ahmed Ildız', 'Pedrinho', 'Fredy', 'Danijel Aleksic', 'Kenan Fakılı',
     'Emircan Gürlük', 'Serdar Gürler', 'Braian Samudio', 'Geraldo', 'Mame Thiam'
 )
+
+$corumPositions = @{}
+foreach ($name in $corumRoster[0..1]) { $corumPositions[$name] = 'Goalkeeper' }
+foreach ($name in $corumRoster[2..10]) { $corumPositions[$name] = 'Defender' }
+foreach ($name in $corumRoster[11..19]) { $corumPositions[$name] = 'Midfielder' }
+foreach ($name in $corumRoster[20..24]) { $corumPositions[$name] = 'Forward' }
 
 function Get-CSharpString([string]$Value) {
     return $Value.Replace('\', '\\').Replace('"', '\"')
@@ -60,6 +83,63 @@ function Save-RemoteAsset([string]$Url, [string]$Path) {
     Invoke-WebRequest -Uri $Url -Headers $headers -UseBasicParsing -OutFile $Path -TimeoutSec 30
 }
 
+function ConvertTo-PositionGroup([string]$PositionLabel) {
+    if ($PositionLabel -match 'Torwart') { return 'Goalkeeper' }
+    if ($PositionLabel -match 'Verteid') { return 'Defender' }
+    if ($PositionLabel -match 'Mittelfeld') { return 'Midfielder' }
+    if ($PositionLabel -match 'Sturmer|Stürmer|Flugel|Flügel|Spitze') { return 'Forward' }
+
+    throw "Unsupported player position: $PositionLabel"
+}
+
+function Get-PositionKey([string]$Name) {
+    $normalized = $Name.Normalize([Text.NormalizationForm]::FormD)
+    $ascii = -join ($normalized.ToCharArray() | Where-Object {
+        [Globalization.CharUnicodeInfo]::GetUnicodeCategory($_) -ne
+            [Globalization.UnicodeCategory]::NonSpacingMark
+    })
+    return $ascii.Replace('ı', 'i').Replace('İ', 'I').Replace('ş', 's').Replace('Ş', 'S')
+}
+
+function Select-BalancedSquad([object[]]$Players, [string]$ClubName) {
+    $targets = [ordered]@{
+        Goalkeeper = 3
+        Defender = 8
+        Midfielder = 8
+        Forward = 6
+    }
+
+    $selected = @()
+    foreach ($role in $targets.Keys) {
+        $selected += @($Players | Where-Object Role -eq $role | Select-Object -First $targets[$role])
+    }
+
+    $selectedNames = @($selected | ForEach-Object Name)
+    if ($selected.Count -lt 25) {
+        $selected += @(
+            $Players |
+                Where-Object { $selectedNames -notcontains $_.Name } |
+                Select-Object -First (25 - $selected.Count)
+        )
+    }
+
+    if ($selected.Count -lt 25) {
+        throw "$ClubName has only $($selected.Count) usable player profiles."
+    }
+
+    $defaultXi = @()
+    $defaultXi += @($selected | Where-Object Role -eq 'Goalkeeper' | Select-Object -First 1)
+    $defaultXi += @($selected | Where-Object Role -eq 'Defender' | Select-Object -First 4)
+    $defaultXi += @($selected | Where-Object Role -eq 'Midfielder' | Select-Object -First 4)
+    $defaultXi += @($selected | Where-Object Role -eq 'Forward' | Select-Object -First 2)
+    if ($defaultXi.Count -ne 11) {
+        throw "$ClubName cannot provide a natural 4-4-2 starting XI."
+    }
+
+    $defaultNames = @($defaultXi | ForEach-Object Name)
+    return @($defaultXi + @($selected | Where-Object { $defaultNames -notcontains $_.Name }))
+}
+
 [System.IO.Directory]::CreateDirectory((Split-Path -Parent $generatedFile)) | Out-Null
 [System.IO.Directory]::CreateDirectory($seasonAssetRoot) | Out-Null
 
@@ -67,34 +147,55 @@ $generatedClubs = @()
 foreach ($club in $clubs) {
     $rosterSource = "https://www.fussballeuropa.com/team/$($club.Slug)/kader"
     if ($club.Id -eq 18) {
-        $names = @($corumRoster)
+        $players = @($corumRoster | ForEach-Object {
+            [pscustomobject]@{ Name = $_; Role = $corumPositions[$_] }
+        })
         $verifiedOn = '2026-08-10'
         $rosterSource = 'https://www.transfermarkt.co.uk/corum-fk/kader/verein/37951/saison_id/2026'
     }
     else {
         $rosterHtml = (Invoke-WebRequest -Uri $rosterSource -Headers $headers -UseBasicParsing -TimeoutSec 30).Content
-        $names = @(
+        $players = @(
             [regex]::Matches(
                 $rosterHtml,
-                '<a href="/spieler/[^"?]+" class="kader-row-link">(?:(?!</a>).)*?<div class="ts-name">(?<name>[^<]+)</div>',
+                '<a href="/spieler/[^"?]+" class="kader-row-link">(?<row>(?:(?!</a>).)*)</a>',
                 'IgnoreCase,Singleline') |
-                ForEach-Object { [System.Net.WebUtility]::HtmlDecode($_.Groups['name'].Value.Trim()) } |
-                Select-Object -Unique
+                ForEach-Object {
+                    $row = $_.Groups['row'].Value
+                    $nameMatch = [regex]::Match($row, '<div class="ts-name">(?<name>[^<]+)</div>', 'IgnoreCase')
+                    $metaMatch = [regex]::Match($row, '<div class="ts-teamname">(?<meta>[^<]+)</div>', 'IgnoreCase')
+                    if ($nameMatch.Success -and $metaMatch.Success) {
+                        $name = [System.Net.WebUtility]::HtmlDecode($nameMatch.Groups['name'].Value.Trim())
+                        $meta = [System.Net.WebUtility]::HtmlDecode($metaMatch.Groups['meta'].Value.Trim())
+                        $position = ($meta -split ',', 2)[-1].Trim()
+                        [pscustomobject]@{ Name = $name; Role = (ConvertTo-PositionGroup $position) }
+                    }
+                } |
+                Group-Object Name |
+                ForEach-Object { $_.Group[0] }
         )
         $verifiedOn = '2026-08-10'
     }
 
     foreach ($supplement in $club.Supplements) {
-        if ($names -notcontains $supplement) {
-            $names += $supplement
+        if ($players.Name -notcontains $supplement) {
+            $positionKey = Get-PositionKey $supplement
+            if (-not $supplementPositions.ContainsKey($positionKey)) {
+                throw "Missing position for supplement player $supplement."
+            }
+
+            $players += [pscustomobject]@{
+                Name = $supplement
+                Role = $supplementPositions[$positionKey]
+            }
         }
     }
 
-    if ($names.Count -lt 25) {
-        throw "$($club.Name) roster has only $($names.Count) unique players."
+    if ($players.Count -lt 25) {
+        throw "$($club.Name) roster has only $($players.Count) unique players."
     }
 
-    $names = @($names | Select-Object -First 25)
+    $players = @(Select-BalancedSquad $players $club.Name)
 
     $tffSource = "https://www.tff.org/Default.aspx?kulupId=$($club.TffClubId)&pageID=28"
     $tffHtml = (Invoke-WebRequest -Uri $tffSource -Headers $headers -UseBasicParsing -TimeoutSec 30).Content
@@ -118,7 +219,7 @@ foreach ($club in $clubs) {
     $resourceRoot = "res://assets/clubs/turkey/super-lig-2026-27/$($club.Slug)"
     $generatedClubs += [pscustomobject]@{
         Club = $club
-        Names = $names
+        Players = $players
         VerifiedOn = $verifiedOn
         RosterSource = $rosterSource
         TffSource = $tffSource
@@ -132,6 +233,7 @@ foreach ($club in $clubs) {
 $builder = [System.Text.StringBuilder]::new()
 [void]$builder.AppendLine('// <auto-generated />')
 [void]$builder.AppendLine('using FootballCareerSimulator.Domain.Shared;')
+[void]$builder.AppendLine('using FootballCareerSimulator.Simulation.TeamPreparation;')
 [void]$builder.AppendLine()
 [void]$builder.AppendLine('namespace FootballCareerSimulator.Simulation.DataPacks;')
 [void]$builder.AppendLine()
@@ -156,10 +258,10 @@ foreach ($entry in $generatedClubs) {
     [void]$builder.AppendLine("                HomeKitResourcePath: `"$($entry.HomeKitPath)`",")
     [void]$builder.AppendLine("                AwayKitResourcePath: `"$($entry.AwayKitPath)`",")
     [void]$builder.AppendLine("                ThirdKitResourcePath: `"$($entry.ThirdKitPath)`",")
-    [void]$builder.AppendLine('                PlayerNames:')
+    [void]$builder.AppendLine('                Players:')
     [void]$builder.AppendLine('                [')
-    foreach ($name in $entry.Names) {
-        [void]$builder.AppendLine("                    `"$(Get-CSharpString $name)`",")
+    foreach ($player in $entry.Players) {
+        [void]$builder.AppendLine("                    new(`"$(Get-CSharpString $player.Name)`", MvpSquadPositionGroup.$($player.Role)),")
     }
     [void]$builder.AppendLine('                ]),')
 }
@@ -186,7 +288,10 @@ foreach ($entry in $generatedClubs) {
 [void]$builder.AppendLine('    string HomeKitResourcePath,')
 [void]$builder.AppendLine('    string AwayKitResourcePath,')
 [void]$builder.AppendLine('    string ThirdKitResourcePath,')
-[void]$builder.AppendLine('    IReadOnlyList<string> PlayerNames);')
+[void]$builder.AppendLine('    IReadOnlyList<MvpSquadPlayerProfile> Players)')
+[void]$builder.AppendLine('{')
+[void]$builder.AppendLine('    public IReadOnlyList<string> PlayerNames => Players.Select(player => player.DisplayName).ToArray();')
+[void]$builder.AppendLine('}')
 
 [System.IO.File]::WriteAllText(
     $generatedFile,

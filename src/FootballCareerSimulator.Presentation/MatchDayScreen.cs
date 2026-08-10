@@ -17,6 +17,7 @@ public partial class MatchDayScreen : Control
     private VBoxContainer _briefingLines = null!;
     private VBoxContainer _opponentDossierLines = null!;
     private VBoxContainer _matchupPlanLines = null!;
+    private VBoxContainer _lineupCompatibilityLines = null!;
     private Button _applyPrescriptionButton = null!;
     private Control _lineupHost = null!;
     private Label _statusLabel = null!;
@@ -127,6 +128,12 @@ public partial class MatchDayScreen : Control
         formationStack.AddChild(ActionButton("4-3-3", () => _controller.SetTacticFormation(Formation.F433)));
         formationStack.AddChild(ActionButton("3-5-2", () => _controller.SetTacticFormation(Formation.F352)));
 
+        content.AddChild(MatchScreenUi.SectionTitle("KADRO UYUMU", "Formasyonun XI üzerindeki etkisi"));
+        var compatibilityPanel = MatchScreenUi.Card();
+        content.AddChild(compatibilityPanel);
+        _lineupCompatibilityLines = MatchScreenUi.VerticalStack(7);
+        compatibilityPanel.AddChild(_lineupCompatibilityLines);
+
         content.AddChild(MatchScreenUi.SectionTitle("OYUN PLANI", "Maç yaklaşımı"));
         var approachPanel = MatchScreenUi.Card();
         content.AddChild(approachPanel);
@@ -218,6 +225,7 @@ public partial class MatchDayScreen : Control
         RefreshOpponentDossier();
         RefreshMatchupPlan();
         RefreshLineupStrip();
+        RefreshLineupCompatibility();
 
         _approveButton.Disabled = !briefing.HasMatch || briefing.IsReadyToKickOff;
         _approveButton.Text = briefing is { HasMatch: true, HasInjuryPressure: true, IsReadyToKickOff: false }
@@ -301,6 +309,37 @@ public partial class MatchDayScreen : Control
         }
 
         _lineupHost.AddChild(LineupStripUi.BuildPanel(strip));
+    }
+
+    private void RefreshLineupCompatibility()
+    {
+        MatchScreenUi.ClearChildren(_lineupCompatibilityLines);
+
+        var compatibility = _controller.BuildLineupCompatibility();
+        if (!compatibility.HasLineup)
+        {
+            _lineupCompatibilityLines.AddChild(MatchScreenUi.BodyLine(
+                compatibility.Headline,
+                muted: true));
+            return;
+        }
+
+        var headline = MatchScreenUi.BodyLine(compatibility.Headline);
+        headline.AddThemeColorOverride(
+            "font_color",
+            compatibility.Signal switch
+            {
+                LineupCompatibilitySignal.Strong => CareerUiTheme.ActionBright,
+                LineupCompatibilitySignal.Watch => CareerUiTheme.Accent,
+                _ => CareerUiTheme.DangerSoft,
+            });
+        _lineupCompatibilityLines.AddChild(headline);
+        _lineupCompatibilityLines.AddChild(MatchScreenUi.BodyLine(
+            compatibility.BalanceLine,
+            muted: true));
+        _lineupCompatibilityLines.AddChild(MatchScreenUi.BeatLine(
+            compatibility.DetailLine,
+            muted: compatibility.Signal is LineupCompatibilitySignal.Strong));
     }
 
     private Button ActionButton(string text, Func<UiActionResult> action)

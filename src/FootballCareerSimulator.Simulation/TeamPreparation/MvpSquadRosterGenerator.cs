@@ -23,10 +23,15 @@ public static class MvpSquadRosterGenerator
     ];
 
     public static IReadOnlyList<string> GeneratePlayerNames(ClubId clubId, int rootSeed)
+        => GeneratePlayerProfiles(clubId, rootSeed)
+            .Select(player => player.DisplayName)
+            .ToArray();
+
+    public static IReadOnlyList<MvpSquadPlayerProfile> GeneratePlayerProfiles(ClubId clubId, int rootSeed)
     {
         if (TurkeySuperLig202627DataPack.TryGetClub(clubId, out var realClub))
         {
-            return realClub.PlayerNames;
+            return realClub.Players;
         }
 
         var rng = new SimulationRandomContext(unchecked(rootSeed * 911) ^ (int)clubId.Value);
@@ -44,6 +49,18 @@ public static class MvpSquadRosterGenerator
             }
         }
 
-        return names;
+        return names
+            .Select((name, slotIndex) => new MvpSquadPlayerProfile(
+                name,
+                FallbackPositionFor(slotIndex)))
+            .ToArray();
     }
+
+    private static MvpSquadPositionGroup FallbackPositionFor(int slotIndex) => slotIndex switch
+    {
+        0 or 11 or 12 => MvpSquadPositionGroup.Goalkeeper,
+        >= 1 and <= 4 or >= 13 and <= 16 => MvpSquadPositionGroup.Defender,
+        >= 5 and <= 8 or >= 17 and <= 20 => MvpSquadPositionGroup.Midfielder,
+        _ => MvpSquadPositionGroup.Forward,
+    };
 }

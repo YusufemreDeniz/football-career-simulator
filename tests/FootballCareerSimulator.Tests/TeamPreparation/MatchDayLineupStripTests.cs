@@ -90,4 +90,23 @@ public sealed class MatchDayLineupStripTests
         Assert.Contains("Temiz XI:", strip.ResultBridgeBeatLine(), StringComparison.Ordinal);
         Assert.Contains("Temiz XI", strip.HalfTimeBridgeCaption, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Compose_AddsRealPositionCodeToPlayerChip()
+    {
+        var names = Enumerable.Range(0, 25).Select(i => $"Oyuncu{i} Soyad{i}").ToArray();
+        var positions = Enumerable.Repeat("DEF", 25).ToArray();
+        positions[0] = "KL";
+
+        var strip = MatchDayLineupStrip.Compose(
+            hasMatch: true,
+            isApproved: false,
+            displayStartingSlots: Enumerable.Range(0, 11).ToArray(),
+            swaps: Array.Empty<MvpAvailabilityAwareSelection.AvailabilityAutoSwap>(),
+            playerNames: names,
+            positionCodes: positions);
+
+        Assert.EndsWith("· KL", strip.StartingXi[0].ChipLabel, StringComparison.Ordinal);
+        Assert.EndsWith("· DEF", strip.StartingXi[1].ChipLabel, StringComparison.Ordinal);
+    }
 }

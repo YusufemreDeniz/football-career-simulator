@@ -922,7 +922,9 @@ public sealed class CareerSessionController
         var timeline = Host.WorldModule.TimelineStore.Timeline;
         var clubId = new Domain.Shared.ClubId(pending.ManagedClubId);
         var squad = Host.TeamPreparationModule.SquadStore.Get(clubId);
-        var names = MvpSquadRosterGenerator.GeneratePlayerNames(clubId, timeline.RootSeed);
+        var playerProfiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(clubId, timeline.RootSeed);
+        var names = playerProfiles.Select(player => player.DisplayName).ToArray();
+        var positions = playerProfiles.Select(player => player.PositionCode).ToArray();
 
         if (!Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection
                 .TryPreviewPreferredStartingXi(
@@ -958,7 +960,34 @@ public sealed class CareerSessionController
             displayStartingSlots: displayStarting,
             swaps: swaps,
             playerNames: names,
-            cleanReturnNames: ResolveCleanXiBridgeNames());
+            cleanReturnNames: ResolveCleanXiBridgeNames(),
+            positionCodes: positions);
+    }
+
+    public LineupCompatibilityDigest BuildLineupCompatibility()
+    {
+        var strip = BuildMatchDayLineupStrip();
+        if (!strip.HasMatch || strip.StartingXi.Count != Domain.TeamPreparation.MatchSelection.StartingXiSize)
+        {
+            return LineupCompatibilityDigest.Clear();
+        }
+
+        var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
+        if (clubId is null)
+        {
+            return LineupCompatibilityDigest.Clear();
+        }
+
+        var id = new Domain.Shared.ClubId(clubId.Value);
+        var timeline = Host.WorldModule.TimelineStore.Timeline;
+        var plan = Host.TeamPreparationModule.TacticPlanStore.Get(id)
+            ?? Domain.TeamPreparation.TacticPlan.CreateDefault(id, timeline.CurrentDate);
+        var squad = MvpSquadRosterGenerator.GeneratePlayerProfiles(id, timeline.RootSeed);
+
+        return LineupCompatibilityDigest.Compose(
+            plan.Formation,
+            strip.StartingXi.Select(player => player.SlotIndex).ToArray(),
+            squad);
     }
 
     public bool IsSeasonArchivePhase()
