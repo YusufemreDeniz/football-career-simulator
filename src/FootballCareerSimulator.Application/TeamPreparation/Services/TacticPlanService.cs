@@ -49,7 +49,29 @@ public sealed class TacticPlanService
         TacticalApproach approach,
         GameDate day)
     {
-        var next = TacticPlan.Set(clubId, formation, approach, day);
+        var current = EnsureDefault(clubId, day);
+        var next = current.WithPlan(formation, approach, day);
+        _store.Upsert(next);
+        return next;
+    }
+
+    public TacticPlan SetPressing(ClubId clubId, PressingIntensity pressing, GameDate day)
+    {
+        var next = EnsureDefault(clubId, day).WithPressing(pressing, day);
+        _store.Upsert(next);
+        return next;
+    }
+
+    public TacticPlan SetDefensiveLine(ClubId clubId, DefensiveLine defensiveLine, GameDate day)
+    {
+        var next = EnsureDefault(clubId, day).WithDefensiveLine(defensiveLine, day);
+        _store.Upsert(next);
+        return next;
+    }
+
+    public TacticPlan SetPassingStyle(ClubId clubId, PassingStyle passingStyle, GameDate day)
+    {
+        var next = EnsureDefault(clubId, day).WithPassingStyle(passingStyle, day);
         _store.Upsert(next);
         return next;
     }

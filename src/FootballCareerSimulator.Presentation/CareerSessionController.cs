@@ -2825,6 +2825,57 @@ public sealed class CareerSessionController
         return briefing with { BeatLines = beats };
     }
 
+    public TacticPlanReadModel GetManagedTacticPlan() =>
+        Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+
+    public UiActionResult SetTacticPressing(PressingIntensity pressing) =>
+        UpdateTeamInstruction(
+            (clubId, day) => Host.TeamPreparationModule.TacticPlans.SetPressing(clubId, pressing, day),
+            "Pres");
+
+    public UiActionResult SetTacticDefensiveLine(DefensiveLine defensiveLine) =>
+        UpdateTeamInstruction(
+            (clubId, day) => Host.TeamPreparationModule.TacticPlans.SetDefensiveLine(
+                clubId,
+                defensiveLine,
+                day),
+            "Savunma hattı");
+
+    public UiActionResult SetTacticPassingStyle(PassingStyle passingStyle) =>
+        UpdateTeamInstruction(
+            (clubId, day) => Host.TeamPreparationModule.TacticPlans.SetPassingStyle(
+                clubId,
+                passingStyle,
+                day),
+            "Pas stili");
+
+    private UiActionResult UpdateTeamInstruction(
+        Action<Domain.Shared.ClubId, Domain.WorldCalendar.GameDate> update,
+        string label)
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            update(new Domain.Shared.ClubId(clubId), day);
+            var view = GetManagedTacticPlan();
+            var plan = Host.TeamPreparationModule.TacticPlanStore.Get(new Domain.Shared.ClubId(clubId));
+            var tacticMod = MvpTacticMatchModifier.ComputeTacticModifier(plan);
+            return UiActionResult.Ok(
+                $"{label}: {view.PressingName} · {view.DefensiveLineName} · {view.PassingStyleName}"
+                + $" · maç {FormatSigned(tacticMod)}.");
+        }
+        catch (TeamPreparationInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Takım talimatı ayarlanamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Taktik hatası: {ex.Message}");
+        }
+    }
+
     private void RememberMatchupPlanOutcome(
         int dayNumber,
         string opponentName,

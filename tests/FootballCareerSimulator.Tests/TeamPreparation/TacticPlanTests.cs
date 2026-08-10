@@ -47,6 +47,9 @@ public sealed class TacticPlanTests : IDisposable
 
         Assert.Equal(Formation.F442, plan.Formation);
         Assert.Equal(TacticalApproach.Balanced, plan.Approach);
+        Assert.Equal(PressingIntensity.Balanced, plan.Pressing);
+        Assert.Equal(DefensiveLine.Standard, plan.DefensiveLine);
+        Assert.Equal(PassingStyle.Balanced, plan.PassingStyle);
         Assert.Equal("4-4-2", teamPrep.TacticQueries.GetManagedClubPlan().FormationName);
         Assert.Equal("Dengeli", teamPrep.TacticQueries.GetManagedClubPlan().ApproachName);
     }
@@ -129,7 +132,21 @@ public sealed class TacticPlanTests : IDisposable
     }
 
     [Fact]
-    public void SaveLoad_PreservesTacticPlanAtSchemaV18()
+    public void TeamInstructions_CreateTacticalSynergy()
+    {
+        var plan = TacticPlan.CreateDefault(new ClubId(1), Day)
+            .WithFormation(Formation.F433, Day)
+            .WithApproach(TacticalApproach.Attacking, Day)
+            .WithPressing(PressingIntensity.HighPress, Day)
+            .WithDefensiveLine(DefensiveLine.High, Day)
+            .WithPassingStyle(PassingStyle.Short, Day);
+
+        Assert.Equal(2, MvpTacticMatchModifier.ComputeInstructionModifier(plan));
+        Assert.Equal(5, MvpTacticMatchModifier.ComputeTacticModifier(plan));
+    }
+
+    [Fact]
+    public void SaveLoad_PreservesTacticPlanAtSchemaV42()
     {
         var world = WorldCalendarModule.Create(Day, rootSeed: 3);
         var clubs = ClubGovernanceModule.CreateMvpLeague();
@@ -139,6 +156,9 @@ public sealed class TacticPlanTests : IDisposable
 
         teamPrep.TacticPlans.SetFormation(new ClubId(1), Formation.F433, Day);
         teamPrep.TacticPlans.SetApproach(new ClubId(1), TacticalApproach.Attacking, Day);
+        teamPrep.TacticPlans.SetPressing(new ClubId(1), PressingIntensity.HighPress, Day);
+        teamPrep.TacticPlans.SetDefensiveLine(new ClubId(1), DefensiveLine.High, Day);
+        teamPrep.TacticPlans.SetPassingStyle(new ClubId(1), PassingStyle.Short, Day);
 
         var persistence = new CareerSqlitePersistence();
         var path = Path.Combine(_tempDirectory, "tactics.db");
@@ -166,9 +186,12 @@ public sealed class TacticPlanTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(41, loaded.SchemaVersion);
+        Assert.Equal(42, loaded.SchemaVersion);
         Assert.Single(loaded.TacticPlans);
         Assert.Equal(Formation.F433, loaded.TacticPlans[0].Formation);
         Assert.Equal(TacticalApproach.Attacking, loaded.TacticPlans[0].Approach);
+        Assert.Equal(PressingIntensity.HighPress, loaded.TacticPlans[0].Pressing);
+        Assert.Equal(DefensiveLine.High, loaded.TacticPlans[0].DefensiveLine);
+        Assert.Equal(PassingStyle.Short, loaded.TacticPlans[0].PassingStyle);
     }
 }

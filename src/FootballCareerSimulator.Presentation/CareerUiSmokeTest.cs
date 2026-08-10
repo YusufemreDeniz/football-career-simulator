@@ -125,6 +125,15 @@ public static class CareerUiSmokeTest
             if (managedRoundOne is not null)
             {
                 var controller = new CareerSessionController(host);
+                controller.SetTacticPressing(Domain.TeamPreparation.PressingIntensity.HighPress);
+                controller.SetTacticDefensiveLine(Domain.TeamPreparation.DefensiveLine.High);
+                controller.SetTacticPassingStyle(Domain.TeamPreparation.PassingStyle.Short);
+                var advancedTactic = controller.GetManagedTacticPlan();
+                passed &= LogCheck(
+                    "Gelişmiş taktik tahtası",
+                    advancedTactic.Pressing == Domain.TeamPreparation.PressingIntensity.HighPress
+                    && advancedTactic.DefensiveLine == Domain.TeamPreparation.DefensiveLine.High
+                    && advancedTactic.PassingStyle == Domain.TeamPreparation.PassingStyle.Short);
                 var compatibility = controller.BuildLineupCompatibility();
                 passed &= LogCheck(
                     "Kadro uyumu önizlemesi",

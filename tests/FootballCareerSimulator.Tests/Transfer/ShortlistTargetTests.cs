@@ -129,7 +129,7 @@ public sealed class ShortlistTargetTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(41, loaded.SchemaVersion);
+        Assert.Equal(42, loaded.SchemaVersion);
         Assert.Single(loaded.ShortlistEntries);
         Assert.Single(loaded.TransferTargets);
         Assert.Equal(TransferTargetStatus.Listed, loaded.TransferTargets[0].Status);

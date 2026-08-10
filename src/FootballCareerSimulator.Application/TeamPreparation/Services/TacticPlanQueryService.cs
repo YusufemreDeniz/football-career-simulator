@@ -21,20 +21,28 @@ public sealed class TacticPlanQueryService
     {
         if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId })
         {
-            return new TacticPlanReadModel(null, "—", "—", 0);
+            return new TacticPlanReadModel(null, "—", "—", 0, "—", "—", "—");
         }
 
         var plan = _store.Get(clubId);
         if (plan is null)
         {
-            return new TacticPlanReadModel(clubId.Value, "yok", "yok", 0);
+            return new TacticPlanReadModel(clubId.Value, "yok", "yok", 0, "yok", "yok", "yok");
         }
 
         return new TacticPlanReadModel(
             clubId.Value,
             FormatFormation(plan.Formation),
             FormatApproach(plan.Approach),
-            plan.LastUpdatedOn.DayNumber);
+            plan.LastUpdatedOn.DayNumber,
+            FormatPressing(plan.Pressing),
+            FormatDefensiveLine(plan.DefensiveLine),
+            FormatPassingStyle(plan.PassingStyle),
+            plan.Formation,
+            plan.Approach,
+            plan.Pressing,
+            plan.DefensiveLine,
+            plan.PassingStyle);
     }
 
     private static string FormatFormation(Formation formation) => formation switch
@@ -51,5 +59,29 @@ public sealed class TacticPlanQueryService
         TacticalApproach.Attacking => "Hücum",
         TacticalApproach.Defensive => "Defans",
         _ => approach.ToString(),
+    };
+
+    private static string FormatPressing(PressingIntensity pressing) => pressing switch
+    {
+        PressingIntensity.LowBlock => "Geri çekil",
+        PressingIntensity.Balanced => "Dengeli pres",
+        PressingIntensity.HighPress => "Önde bas",
+        _ => pressing.ToString(),
+    };
+
+    private static string FormatDefensiveLine(DefensiveLine defensiveLine) => defensiveLine switch
+    {
+        DefensiveLine.Deep => "Derin hat",
+        DefensiveLine.Standard => "Standart hat",
+        DefensiveLine.High => "Yüksek hat",
+        _ => defensiveLine.ToString(),
+    };
+
+    private static string FormatPassingStyle(PassingStyle passingStyle) => passingStyle switch
+    {
+        PassingStyle.Direct => "Direkt pas",
+        PassingStyle.Balanced => "Dengeli pas",
+        PassingStyle.Short => "Kısa pas",
+        _ => passingStyle.ToString(),
     };
 }

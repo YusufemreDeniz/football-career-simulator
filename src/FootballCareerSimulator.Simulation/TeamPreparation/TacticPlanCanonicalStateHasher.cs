@@ -15,6 +15,9 @@ public static class TacticPlanCanonicalStateHasher
             builder.Append("C=").Append(plan.ClubId.Value)
                 .Append(";F=").Append((int)plan.Formation)
                 .Append(";A=").Append((int)plan.Approach)
+                .Append(";P=").Append((int)plan.Pressing)
+                .Append(";D=").Append((int)plan.DefensiveLine)
+                .Append(";S=").Append((int)plan.PassingStyle)
                 .Append(";U=").Append(plan.LastUpdatedOn.DayNumber)
                 .Append('|');
         }

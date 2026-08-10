@@ -2498,6 +2498,80 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV41ToV42InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+        try
+        {
+            MigrateV41ToV42(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V41 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV41ToV42(string workingCopyPath)
+    {
+        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            if (TableExists(connection, "ClubTacticPlanState"))
+            {
+                if (!ColumnExists(connection, "ClubTacticPlanState", "Pressing"))
+                {
+                    ProductionSqliteCommands.ExecuteNonQuery(
+                        connection,
+                        alterTransaction,
+                        "ALTER TABLE ClubTacticPlanState ADD COLUMN Pressing INTEGER NOT NULL DEFAULT 2;");
+                }
+
+                if (!ColumnExists(connection, "ClubTacticPlanState", "DefensiveLine"))
+                {
+                    ProductionSqliteCommands.ExecuteNonQuery(
+                        connection,
+                        alterTransaction,
+                        "ALTER TABLE ClubTacticPlanState ADD COLUMN DefensiveLine INTEGER NOT NULL DEFAULT 2;");
+                }
+
+                if (!ColumnExists(connection, "ClubTacticPlanState", "PassingStyle"))
+                {
+                    ProductionSqliteCommands.ExecuteNonQuery(
+                        connection,
+                        alterTransaction,
+                        "ALTER TABLE ClubTacticPlanState ADD COLUMN PassingStyle INTEGER NOT NULL DEFAULT 2;");
+                }
+            }
+
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 42);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

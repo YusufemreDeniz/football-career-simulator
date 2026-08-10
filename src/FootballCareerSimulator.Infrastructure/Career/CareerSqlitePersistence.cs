@@ -468,6 +468,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 41;
         }
 
+        if (version == 41 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 42)
+        {
+            WorldCalendarSqliteMigrator.MigrateV41ToV42InPlace(filePath);
+            wasMigrated = true;
+            version = 42;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -681,6 +688,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ClubId INTEGER PRIMARY KEY,
                 Formation INTEGER NOT NULL,
                 Approach INTEGER NOT NULL,
+                Pressing INTEGER NOT NULL,
+                DefensiveLine INTEGER NOT NULL,
+                PassingStyle INTEGER NOT NULL,
                 LastUpdatedDayNumber INTEGER NOT NULL
             );
             """);
@@ -1353,12 +1363,16 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             command.Transaction = transaction;
             command.CommandText = """
                 INSERT INTO ClubTacticPlanState (
-                    ClubId, Formation, Approach, LastUpdatedDayNumber)
-                VALUES ($clubId, $formation, $approach, $lastUpdated);
+                    ClubId, Formation, Approach, Pressing, DefensiveLine, PassingStyle, LastUpdatedDayNumber)
+                VALUES (
+                    $clubId, $formation, $approach, $pressing, $defensiveLine, $passingStyle, $lastUpdated);
                 """;
             command.Parameters.AddWithValue("$clubId", plan.ClubId.Value);
             command.Parameters.AddWithValue("$formation", (int)plan.Formation);
             command.Parameters.AddWithValue("$approach", (int)plan.Approach);
+            command.Parameters.AddWithValue("$pressing", (int)plan.Pressing);
+            command.Parameters.AddWithValue("$defensiveLine", (int)plan.DefensiveLine);
+            command.Parameters.AddWithValue("$passingStyle", (int)plan.PassingStyle);
             command.Parameters.AddWithValue("$lastUpdated", plan.LastUpdatedOn.DayNumber);
             command.ExecuteNonQuery();
         }
@@ -2674,7 +2688,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var plans = new List<TacticPlan>();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT ClubId, Formation, Approach, LastUpdatedDayNumber
+            SELECT ClubId, Formation, Approach, Pressing, DefensiveLine, PassingStyle, LastUpdatedDayNumber
             FROM ClubTacticPlanState
             ORDER BY ClubId;
             """;
@@ -2685,7 +2699,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 new ClubId(reader.GetInt64(0)),
                 (Formation)reader.GetInt32(1),
                 (TacticalApproach)reader.GetInt32(2),
-                GameDate.FromDayNumber(reader.GetInt32(3))));
+                (PressingIntensity)reader.GetInt32(3),
+                (DefensiveLine)reader.GetInt32(4),
+                (PassingStyle)reader.GetInt32(5),
+                GameDate.FromDayNumber(reader.GetInt32(6))));
         }
 
         return plans;

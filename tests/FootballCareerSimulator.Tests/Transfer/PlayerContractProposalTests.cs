@@ -151,7 +151,7 @@ public sealed class PlayerContractProposalTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(41, loaded.SchemaVersion);
+        Assert.Equal(42, loaded.SchemaVersion);
         Assert.Single(loaded.ContractProposals);
         Assert.Equal(30_000, loaded.ContractProposals[0].WeeklyWage);
         Assert.Equal(4, loaded.ContractProposals[0].ContractYears);

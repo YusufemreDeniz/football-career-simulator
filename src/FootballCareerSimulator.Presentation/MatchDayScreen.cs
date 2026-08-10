@@ -18,6 +18,7 @@ public partial class MatchDayScreen : Control
     private VBoxContainer _opponentDossierLines = null!;
     private VBoxContainer _matchupPlanLines = null!;
     private VBoxContainer _lineupCompatibilityLines = null!;
+    private Control _teamInstructionsHost = null!;
     private Button _applyPrescriptionButton = null!;
     private Control _lineupHost = null!;
     private Control _selectionBoardHost = null!;
@@ -145,6 +146,10 @@ public partial class MatchDayScreen : Control
         approachStack.AddChild(ActionButton("Hücum", () => _controller.SetTacticApproach(TacticalApproach.Attacking)));
         approachStack.AddChild(ActionButton("Savunma", () => _controller.SetTacticApproach(TacticalApproach.Defensive)));
 
+        content.AddChild(MatchScreenUi.SectionTitle("TAKIM TALİMATLARI", "Pres · hat · pas"));
+        _teamInstructionsHost = MatchScreenUi.VerticalStack(8);
+        content.AddChild(_teamInstructionsHost);
+
         content.AddChild(MatchScreenUi.SectionTitle("EŞLEŞME", "Saha içi avantajlar"));
         var matchupPanel = MatchScreenUi.Card();
         content.AddChild(matchupPanel);
@@ -229,6 +234,7 @@ public partial class MatchDayScreen : Control
         RefreshLineupStrip();
         RefreshSquadSelectionBoard();
         RefreshLineupCompatibility();
+        RefreshTeamInstructions();
 
         _approveButton.Disabled = !briefing.HasMatch || briefing.IsReadyToKickOff;
         _approveButton.Text = briefing is { HasMatch: true, HasInjuryPressure: true, IsReadyToKickOff: false }
@@ -345,6 +351,86 @@ public partial class MatchDayScreen : Control
         _lineupCompatibilityLines.AddChild(MatchScreenUi.BeatLine(
             compatibility.DetailLine,
             muted: compatibility.Signal is LineupCompatibilitySignal.Strong));
+    }
+
+    private void RefreshTeamInstructions()
+    {
+        MatchScreenUi.ClearChildren(_teamInstructionsHost);
+        var plan = _controller.GetManagedTacticPlan();
+        var panel = MatchScreenUi.Card();
+        var stack = MatchScreenUi.VerticalStack(9);
+        panel.AddChild(stack);
+
+        stack.AddChild(BuildInstructionRow(
+            "PRES",
+            [
+                ("Geri", plan.Pressing == PressingIntensity.LowBlock,
+                    () => _controller.SetTacticPressing(PressingIntensity.LowBlock)),
+                ("Dengeli", plan.Pressing == PressingIntensity.Balanced,
+                    () => _controller.SetTacticPressing(PressingIntensity.Balanced)),
+                ("Önde", plan.Pressing == PressingIntensity.HighPress,
+                    () => _controller.SetTacticPressing(PressingIntensity.HighPress)),
+            ]));
+        stack.AddChild(BuildInstructionRow(
+            "SAVUNMA HATTI",
+            [
+                ("Derin", plan.DefensiveLine == DefensiveLine.Deep,
+                    () => _controller.SetTacticDefensiveLine(DefensiveLine.Deep)),
+                ("Standart", plan.DefensiveLine == DefensiveLine.Standard,
+                    () => _controller.SetTacticDefensiveLine(DefensiveLine.Standard)),
+                ("Yüksek", plan.DefensiveLine == DefensiveLine.High,
+                    () => _controller.SetTacticDefensiveLine(DefensiveLine.High)),
+            ]));
+        stack.AddChild(BuildInstructionRow(
+            "PAS",
+            [
+                ("Direkt", plan.PassingStyle == PassingStyle.Direct,
+                    () => _controller.SetTacticPassingStyle(PassingStyle.Direct)),
+                ("Dengeli", plan.PassingStyle == PassingStyle.Balanced,
+                    () => _controller.SetTacticPassingStyle(PassingStyle.Balanced)),
+                ("Kısa", plan.PassingStyle == PassingStyle.Short,
+                    () => _controller.SetTacticPassingStyle(PassingStyle.Short)),
+            ]));
+        _teamInstructionsHost.AddChild(panel);
+    }
+
+    private Control BuildInstructionRow(
+        string title,
+        IReadOnlyList<(string Label, bool Selected, Func<UiActionResult> Action)> options)
+    {
+        var stack = MatchScreenUi.VerticalStack(5);
+        var label = new Label { Text = title };
+        CareerUiTheme.StyleEyebrow(label);
+        stack.AddChild(label);
+
+        var row = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        row.AddThemeConstantOverride("separation", 6);
+        foreach (var option in options)
+        {
+            var button = new Button
+            {
+                Text = option.Label,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                CustomMinimumSize = new Vector2(0, 42),
+            };
+            if (option.Selected)
+            {
+                CareerUiTheme.StylePrimaryButton(button);
+            }
+            else
+            {
+                CareerUiTheme.StyleSecondaryButton(button);
+            }
+
+            button.Pressed += () => Apply(option.Action());
+            row.AddChild(button);
+        }
+
+        stack.AddChild(row);
+        return stack;
     }
 
     private static string FormatSigned(int value) => value >= 0 ? $"+{value}" : value.ToString();
