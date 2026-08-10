@@ -190,6 +190,21 @@ public sealed class CareerSessionController
 
     public UiActionResult SwapLastStarterWithFirstBenchForNextDueMatch()
     {
+        var board = BuildSquadSelectionBoard();
+        if (!board.HasMatch || board.StartingXi.Count == 0 || board.Bench.Count == 0)
+        {
+            return UiActionResult.Fail("Değiştirilebilir ilk 11 ve yedek bulunamadı.");
+        }
+
+        return SwapStarterWithBenchForNextDueMatch(
+            board.StartingXi[^1].SlotIndex,
+            board.Bench[0].SlotIndex);
+    }
+
+    public UiActionResult SwapStarterWithBenchForNextDueMatch(
+        int starterSlotIndex,
+        int benchSlotIndex)
+    {
         try
         {
             var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
@@ -199,13 +214,31 @@ public sealed class CareerSessionController
             var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
                 ?? throw new InvalidOperationException("Menajer kulübü yok.");
 
+            var board = BuildSquadSelectionBoard();
+            var startingIndex = board.StartingXi
+                .Select((player, index) => (player.SlotIndex, Index: index))
+                .FirstOrDefault(item => item.SlotIndex == starterSlotIndex)
+                .Index;
+            var benchIndex = board.Bench
+                .Select((player, index) => (player.SlotIndex, Index: index))
+                .FirstOrDefault(item => item.SlotIndex == benchSlotIndex)
+                .Index;
+            if (startingIndex < 0
+                || benchIndex < 0
+                || board.StartingXi.ElementAtOrDefault(startingIndex)?.SlotIndex != starterSlotIndex
+                || board.Bench.ElementAtOrDefault(benchIndex)?.SlotIndex != benchSlotIndex)
+            {
+                throw new TeamPreparationInvariantViolationException(
+                    "Seçilen oyuncular güncel ilk 11 ve yedek listesinde bulunamadı.");
+            }
+
             var result = Host.TeamPreparationModule.SwapStarterWithBench.Handle(
                 new SwapStarterWithBenchCommand(
                     Guid.NewGuid(),
                     pending.FixtureId,
                     clubId,
-                    StartingIndex: MatchSelection.StartingXiSize - 1,
-                    BenchIndex: 0));
+                    StartingIndex: startingIndex,
+                    BenchIndex: benchIndex));
 
             var summary = string.IsNullOrWhiteSpace(result.SwapSummary)
                 ? $"slot {result.OutSlotIndex} ↔ {result.InSlotIndex}"
@@ -988,6 +1021,74 @@ public sealed class CareerSessionController
             plan.Formation,
             strip.StartingXi.Select(player => player.SlotIndex).ToArray(),
             squad);
+    }
+
+    public SquadSelectionBoardDigest BuildSquadSelectionBoard()
+    {
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        if (pending is null)
+        {
+            return SquadSelectionBoardDigest.Clear();
+        }
+
+        var timeline = Host.WorldModule.TimelineStore.Timeline;
+        var clubId = new Domain.Shared.ClubId(pending.ManagedClubId);
+        var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(clubId, timeline.RootSeed);
+        var ratings = Host.TeamPreparationModule.SquadQueries
+            .GetClubSquad(clubId.Value, timeline.RootSeed)
+            .ToDictionary(player => player.SlotIndex, player => player.Rating);
+        var squad = Host.TeamPreparationModule.SquadStore.Get(clubId);
+        var physical = Host.TrainingModule.Store.PhysicalBySlot;
+
+        IReadOnlyList<int> starting;
+        IReadOnlyList<int> bench;
+        var approved = Host.TeamPreparationModule.SelectionQueries
+            .Get(pending.FixtureId, pending.ManagedClubId);
+        if (approved is not null)
+        {
+            starting = approved.StartingSlotIndices;
+            bench = approved.BenchSlotIndices;
+        }
+        else
+        {
+            if (!Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection
+                    .TryPreviewPreferredStartingXi(
+                        clubId,
+                        timeline.CurrentDate,
+                        physical,
+                        squad,
+                        out starting,
+                        out _))
+            {
+                return SquadSelectionBoardDigest.Clear();
+            }
+
+            var candidates = squad is not null && squad.Members.Count > 0
+                ? squad.Members.Select(member => member.SlotIndex).OrderBy(slot => slot).ToArray()
+                : Enumerable.Range(
+                    Domain.TeamPreparation.MatchSelection.MinSquadSlot,
+                    Domain.TeamPreparation.MatchSelection.MaxSquadSlot
+                    - Domain.TeamPreparation.MatchSelection.MinSquadSlot + 1).ToArray();
+            bench = candidates
+                .Where(slot => !starting.Contains(slot))
+                .OrderBy(slot => physical.TryGetValue((clubId.Value, slot), out var state)
+                    && !state.IsAvailableOn(timeline.CurrentDate))
+                .ThenBy(slot => slot)
+                .Take(Domain.TeamPreparation.MatchSelection.MaxBenchSize)
+                .ToArray();
+        }
+
+        return SquadSelectionBoardDigest.Compose(
+            clubId,
+            timeline.CurrentDate,
+            approved is not null,
+            starting,
+            bench,
+            profiles,
+            ratings,
+            physical);
     }
 
     public bool IsSeasonArchivePhase()

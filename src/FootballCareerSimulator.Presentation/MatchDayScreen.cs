@@ -20,10 +20,12 @@ public partial class MatchDayScreen : Control
     private VBoxContainer _lineupCompatibilityLines = null!;
     private Button _applyPrescriptionButton = null!;
     private Control _lineupHost = null!;
+    private Control _selectionBoardHost = null!;
     private Label _statusLabel = null!;
     private Button _approveButton = null!;
-    private Button _swapButton = null!;
     private Button _kickoffButton = null!;
+    private int? _selectedSquadSlotIndex;
+    private bool? _selectedSquadPlayerIsStarter;
 
     public event Action? BackRequested;
 
@@ -108,6 +110,9 @@ public partial class MatchDayScreen : Control
         _lineupHost = MatchScreenUi.VerticalStack(8);
         content.AddChild(_lineupHost);
 
+        _selectionBoardHost = MatchScreenUi.VerticalStack(8);
+        content.AddChild(_selectionBoardHost);
+
         var selectionPanel = MatchScreenUi.Card();
         content.AddChild(selectionPanel);
         var selectionStack = MatchScreenUi.VerticalStack(8);
@@ -115,9 +120,6 @@ public partial class MatchDayScreen : Control
         _approveButton = PrimaryButton("Kadro Onayla");
         _approveButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
         selectionStack.AddChild(_approveButton);
-        _swapButton = SecondaryButton("XI ↔ Yedek");
-        _swapButton.Pressed += () => Apply(_controller.SwapLastStarterWithFirstBenchForNextDueMatch());
-        selectionStack.AddChild(_swapButton);
 
         content.AddChild(MatchScreenUi.SectionTitle("TAKTİK TAHTASI", "Formasyon"));
         var formationPanel = MatchScreenUi.Card();
@@ -225,13 +227,13 @@ public partial class MatchDayScreen : Control
         RefreshOpponentDossier();
         RefreshMatchupPlan();
         RefreshLineupStrip();
+        RefreshSquadSelectionBoard();
         RefreshLineupCompatibility();
 
         _approveButton.Disabled = !briefing.HasMatch || briefing.IsReadyToKickOff;
         _approveButton.Text = briefing is { HasMatch: true, HasInjuryPressure: true, IsReadyToKickOff: false }
             ? "Sakatsız Kadro Onayla"
             : "Kadro Onayla";
-        _swapButton.Disabled = !briefing.HasMatch;
         _kickoffButton.Disabled = !briefing.IsReadyToKickOff;
         _kickoffButton.Text = briefing.IsReadyToKickOff
             ? "Düdüğü Çal"
@@ -340,6 +342,67 @@ public partial class MatchDayScreen : Control
         _lineupCompatibilityLines.AddChild(MatchScreenUi.BeatLine(
             compatibility.DetailLine,
             muted: compatibility.Signal is LineupCompatibilitySignal.Strong));
+    }
+
+    private void RefreshSquadSelectionBoard()
+    {
+        MatchScreenUi.ClearChildren(_selectionBoardHost);
+        var board = _controller.BuildSquadSelectionBoard();
+        if (!board.HasMatch)
+        {
+            _selectedSquadSlotIndex = null;
+            _selectedSquadPlayerIsStarter = null;
+            _selectionBoardHost.AddChild(MatchScreenUi.BodyLine(
+                "Kadro seçim panosu için yeterli uygun oyuncu yok.",
+                muted: true));
+            return;
+        }
+
+        var selectedStillExists = board.StartingXi
+            .Concat(board.Bench)
+            .Any(player => player.SlotIndex == _selectedSquadSlotIndex);
+        if (!selectedStillExists)
+        {
+            _selectedSquadSlotIndex = null;
+            _selectedSquadPlayerIsStarter = null;
+        }
+
+        _selectionBoardHost.AddChild(SquadSelectionBoardUi.Build(
+            board,
+            _selectedSquadSlotIndex,
+            SelectSquadPlayer,
+            SwapSquadPlayers));
+    }
+
+    private void SelectSquadPlayer(SquadSelectionPlayerDigest player)
+    {
+        if (_selectedSquadSlotIndex == player.SlotIndex)
+        {
+            _selectedSquadSlotIndex = null;
+            _selectedSquadPlayerIsStarter = null;
+            RefreshSquadSelectionBoard();
+            return;
+        }
+
+        if (_selectedSquadSlotIndex is null
+            || _selectedSquadPlayerIsStarter == player.IsStarter)
+        {
+            _selectedSquadSlotIndex = player.SlotIndex;
+            _selectedSquadPlayerIsStarter = player.IsStarter;
+            RefreshSquadSelectionBoard();
+            return;
+        }
+
+        var starterSlot = player.IsStarter ? player.SlotIndex : _selectedSquadSlotIndex.Value;
+        var benchSlot = player.IsStarter ? _selectedSquadSlotIndex.Value : player.SlotIndex;
+        SwapSquadPlayers(starterSlot, benchSlot);
+    }
+
+    private void SwapSquadPlayers(int starterSlotIndex, int benchSlotIndex)
+    {
+        _selectedSquadSlotIndex = null;
+        _selectedSquadPlayerIsStarter = null;
+        Apply(_controller.SwapStarterWithBenchForNextDueMatch(starterSlotIndex, benchSlotIndex));
     }
 
     private Button ActionButton(string text, Func<UiActionResult> action)

@@ -134,6 +134,14 @@ public static class CareerUiSmokeTest
                         Score: 100,
                         NaturalFitCount: Domain.TeamPreparation.MatchSelection.StartingXiSize,
                     });
+                var selectionBoard = controller.BuildSquadSelectionBoard();
+                passed &= LogCheck(
+                    "Gerçek kadro seçim panosu",
+                    selectionBoard.HasMatch
+                    && selectionBoard.StartingXi.Count
+                        == Domain.TeamPreparation.MatchSelection.StartingXiSize
+                    && selectionBoard.Bench.Count
+                        == Domain.TeamPreparation.MatchSelection.MaxBenchSize);
 
                 host.TeamPreparationModule.ApproveDefaultSelection.Handle(
                     new ApproveDefaultMatchSelectionCommand(
