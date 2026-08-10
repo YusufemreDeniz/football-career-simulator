@@ -339,10 +339,15 @@ public partial class MatchDayScreen : Control
         _lineupCompatibilityLines.AddChild(MatchScreenUi.BodyLine(
             compatibility.BalanceLine,
             muted: true));
+        _lineupCompatibilityLines.AddChild(MatchScreenUi.BodyLine(
+            $"Maç gücü etkisi: {FormatSigned(compatibility.MatchStrengthModifier)}",
+            muted: compatibility.MatchStrengthModifier == 0));
         _lineupCompatibilityLines.AddChild(MatchScreenUi.BeatLine(
             compatibility.DetailLine,
             muted: compatibility.Signal is LineupCompatibilitySignal.Strong));
     }
+
+    private static string FormatSigned(int value) => value >= 0 ? $"+{value}" : value.ToString();
 
     private void RefreshSquadSelectionBoard()
     {

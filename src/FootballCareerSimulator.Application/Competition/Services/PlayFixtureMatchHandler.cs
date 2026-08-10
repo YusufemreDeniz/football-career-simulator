@@ -125,19 +125,26 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         var homeTactic = ResolveTacticModifier(fixture.HomeClubId);
         var awayTactic = ResolveTacticModifier(fixture.AwayClubId);
+        var homeLineupRole = ResolveLineupRoleModifier(fixture.Id, fixture.HomeClubId, rootSeed);
+        var awayLineupRole = ResolveLineupRoleModifier(fixture.Id, fixture.AwayClubId, rootSeed);
         var managedClubBefore = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
         var isManagedMatch = managedClubBefore is ClubId managedPre
             && (fixture.HomeClubId == managedPre || fixture.AwayClubId == managedPre);
         var managedTacticModifier = isManagedMatch && managedClubBefore is ClubId managedClub
             ? fixture.HomeClubId == managedClub ? homeTactic : awayTactic
             : (int?)null;
+        var managedLineupRoleModifier = isManagedMatch && managedClubBefore is ClubId managedRoleClub
+            ? fixture.HomeClubId == managedRoleClub ? homeLineupRole : awayLineupRole
+            : (int?)null;
 
         var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
-            + homeTactic;
+            + homeTactic
+            + homeLineupRole;
         var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
-            + awayTactic;
+            + awayTactic
+            + awayLineupRole;
 
         var homeSecondHalfDelta = 0;
         var awaySecondHalfDelta = 0;
@@ -278,7 +285,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             managedTacticModifier,
             consequences,
             keyMomentArray,
-            statistics);
+            statistics,
+            managedLineupRoleModifier);
 
         _completedCommands[command.CommandId] = result;
         return result;
@@ -494,6 +502,18 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
     private int ResolveTacticModifier(ClubId clubId) =>
         MvpTacticMatchModifier.ComputeTacticModifier(_tacticPlanStore?.Get(clubId));
+
+    private int ResolveLineupRoleModifier(FixtureId fixtureId, ClubId clubId, int rootSeed)
+    {
+        var startingSlots = ResolveStartingSlots(fixtureId, clubId);
+        var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(clubId, rootSeed);
+        var selected = startingSlots
+            .Where(slot => slot >= 0 && slot < profiles.Count)
+            .Select(slot => profiles[slot])
+            .ToArray();
+        var formation = _tacticPlanStore?.Get(clubId)?.Formation ?? Formation.F442;
+        return MvpLineupRoleFitCalculator.Evaluate(formation, selected).MatchStrengthModifier;
+    }
 
     private void RecoverInjuriesToDate(GameDate day)
     {
@@ -917,10 +937,12 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
-            + ResolveTacticModifier(fixture.HomeClubId);
+            + ResolveTacticModifier(fixture.HomeClubId)
+            + ResolveLineupRoleModifier(fixture.Id, fixture.HomeClubId, rootSeed);
         var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
-            + ResolveTacticModifier(fixture.AwayClubId);
+            + ResolveTacticModifier(fixture.AwayClubId)
+            + ResolveLineupRoleModifier(fixture.Id, fixture.AwayClubId, rootSeed);
 
         var simulation = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
             rootSeed,

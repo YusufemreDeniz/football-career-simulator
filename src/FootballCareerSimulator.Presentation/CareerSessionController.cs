@@ -2287,10 +2287,20 @@ public sealed class CareerSessionController
                 var home = GetClubDisplayName(fixture.HomeClubId);
                 var away = GetClubDisplayName(fixture.AwayClubId);
                 var scoreline = $"{home} {result.HomeGoals}-{result.AwayGoals} {away}";
-                var tacticNote = result.ManagedTacticModifier is int tacticMod
-                    ? $"taktik {FormatSigned(tacticMod)}"
-                    : null;
-                lines.Add(tacticNote is null ? scoreline : $"{scoreline} · {tacticNote}");
+                var matchImpact = new[]
+                    {
+                        result.ManagedTacticModifier is int tacticMod
+                            ? $"taktik {FormatSigned(tacticMod)}"
+                            : null,
+                        result.ManagedLineupRoleModifier is int lineupMod
+                            ? $"kadro {FormatSigned(lineupMod)}"
+                            : null,
+                    }
+                    .Where(note => note is not null)
+                    .ToArray();
+                lines.Add(matchImpact.Length == 0
+                    ? scoreline
+                    : $"{scoreline} · {string.Join(" · ", matchImpact)}");
                 invalidatedTotal += result.InvalidatedSelectionCount;
                 consequenceLines.AddRange(FormatMatchConsequences(result, home, away));
                 keyMomentLines.AddRange(FormatMatchKeyMoments(result, home, away));
@@ -2306,7 +2316,9 @@ public sealed class CareerSessionController
                     heroHomeGoals = result.HomeGoals;
                     heroAwayGoals = result.AwayGoals;
                     heroManagedIsHome = fixture.HomeClubId == managedClubId;
-                    heroTacticNote = tacticNote;
+                    heroTacticNote = matchImpact.Length == 0
+                        ? null
+                        : string.Join(" · ", matchImpact);
                     var halfTimeDecisionMoment = MatchHalfTimeDigest
                         .FormatDecisionKeyMoment(halfTimeDecisionLabel);
                     var halfTimeSubstitutionMoment = SelectionAutoSwapWarning

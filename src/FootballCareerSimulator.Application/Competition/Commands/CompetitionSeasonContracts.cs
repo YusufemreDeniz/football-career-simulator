@@ -84,7 +84,8 @@ public sealed record PlayFixtureMatchResult(
     int? ManagedTacticModifier = null,
     ManagedMatchConsequenceSummary? Consequences = null,
     IReadOnlyList<MatchKeyMomentReadModel>? KeyMoments = null,
-    MatchStatisticsReadModel? Statistics = null);
+    MatchStatisticsReadModel? Statistics = null,
+    int? ManagedLineupRoleModifier = null);
 
 public sealed record MatchStatisticsReadModel(
     int HomePossessionPercent,

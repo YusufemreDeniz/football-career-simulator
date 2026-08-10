@@ -9,7 +9,10 @@ using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Match;
+using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.TeamPreparation;
 
 namespace FootballCareerSimulator.Tests.Match;
 
@@ -58,6 +61,12 @@ public sealed class ManagedMatchConsequenceTests
 
         teamPrep.ApproveDefaultSelection.Handle(
             new ApproveDefaultMatchSelectionCommand(Guid.NewGuid(), fixtureId, ClubId: 1));
+        var selection = selectionStore.Get(new FixtureId(fixtureId), new ClubId(1));
+        var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(new ClubId(1), rootSeed: 21);
+        var selectedProfiles = selection!.StartingSlotIndices.Select(slot => profiles[slot]).ToArray();
+        var expectedLineupModifier = MvpLineupRoleFitCalculator
+            .Evaluate(Formation.F442, selectedProfiles)
+            .MatchStrengthModifier;
 
         var commandId = Guid.NewGuid();
         var command = new PlayFixtureMatchCommand(commandId, 1, fixtureId, Day.DayNumber);
@@ -67,6 +76,7 @@ public sealed class ManagedMatchConsequenceTests
         Assert.True(first.Succeeded);
         Assert.NotNull(first.Consequences);
         Assert.True(first.Consequences!.IsManagedMatch);
+        Assert.Equal(expectedLineupModifier, first.ManagedLineupRoleModifier);
         Assert.NotNull(first.Consequences.BoardConfidenceDelta);
         Assert.NotNull(first.Consequences.BoardConfidenceAfter);
         Assert.False(string.IsNullOrWhiteSpace(first.Consequences.BoardRiskBand));
