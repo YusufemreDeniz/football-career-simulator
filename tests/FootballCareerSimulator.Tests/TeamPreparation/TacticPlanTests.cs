@@ -107,6 +107,28 @@ public sealed class TacticPlanTests : IDisposable
     }
 
     [Fact]
+    public void SetPlan_UpdatesFormationAndApproachTogether()
+    {
+        var world = WorldCalendarModule.Create(Day, rootSeed: 5);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var competition = CompetitionModule.CreateForCareer(world.TimelineStore, clubs.Store);
+        var teamPrep = TeamPreparationModule.Create(competition.Store, manager.Store);
+
+        var plan = teamPrep.TacticPlans.SetPlan(
+            new ClubId(1),
+            Formation.F433,
+            TacticalApproach.Defensive,
+            Day.AddDays(1));
+
+        Assert.Equal(Formation.F433, plan.Formation);
+        Assert.Equal(TacticalApproach.Defensive, plan.Approach);
+        Assert.Equal(Day.AddDays(1), plan.LastUpdatedOn);
+        Assert.Equal("4-3-3", teamPrep.TacticQueries.GetManagedClubPlan().FormationName);
+        Assert.Equal("Defans", teamPrep.TacticQueries.GetManagedClubPlan().ApproachName);
+    }
+
+    [Fact]
     public void SaveLoad_PreservesTacticPlanAtSchemaV18()
     {
         var world = WorldCalendarModule.Create(Day, rootSeed: 3);

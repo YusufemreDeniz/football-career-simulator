@@ -797,6 +797,42 @@ public sealed class CareerSessionController
         return AlternativePlanPrescriptionDigest.Compose(plan, warning);
     }
 
+    public UiActionResult ApplyAlternativePlanPrescription()
+    {
+        try
+        {
+            var prescription = BuildAlternativePlanPrescription();
+            if (!prescription.HasPrescription
+                || prescription.SuggestedFormation is not Formation formation
+                || prescription.SuggestedApproach is not TacticalApproach approach)
+            {
+                return UiActionResult.Fail("Uygulanabilir alternatif plan yok.");
+            }
+
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            Host.TeamPreparationModule.TacticPlans.SetPlan(
+                new ClubId(clubId),
+                formation,
+                approach,
+                day);
+
+            return UiActionResult.Ok(
+                $"Alternatif plan uygulandı: {MatchupPlanDigest.FormatFormationLabel(formation)}"
+                + $" · {MatchupPlanDigest.FormatApproachLabel(approach)}."
+                + " Eşleşme değerlendirmesi yenilendi.");
+        }
+        catch (TeamPreparationInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Alternatif plan uygulanamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Alternatif plan hatası: {ex.Message}");
+        }
+    }
+
     public OpponentDossierDigest? BuildOpponentDossier()
     {
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
@@ -2642,14 +2678,6 @@ public sealed class CareerSessionController
         if (patternWarning.HasWarning)
         {
             beats.Add(patternWarning.WarningLine);
-        }
-
-        var prescription = AlternativePlanPrescriptionDigest.Compose(
-            matchupPlan,
-            patternWarning);
-        if (prescription.HasPrescription)
-        {
-            beats.Add(prescription.PrescriptionLine);
         }
 
         return briefing with { BeatLines = beats };

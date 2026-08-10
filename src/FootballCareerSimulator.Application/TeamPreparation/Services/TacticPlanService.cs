@@ -42,4 +42,15 @@ public sealed class TacticPlanService
         _store.Upsert(next);
         return next;
     }
+
+    public TacticPlan SetPlan(
+        ClubId clubId,
+        Formation formation,
+        TacticalApproach approach,
+        GameDate day)
+    {
+        var next = TacticPlan.Set(clubId, formation, approach, day);
+        _store.Upsert(next);
+        return next;
+    }
 }

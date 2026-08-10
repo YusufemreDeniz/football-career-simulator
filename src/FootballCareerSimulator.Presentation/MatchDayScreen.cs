@@ -17,6 +17,7 @@ public partial class MatchDayScreen : Control
     private VBoxContainer _briefingLines = null!;
     private VBoxContainer _opponentDossierLines = null!;
     private VBoxContainer _matchupPlanLines = null!;
+    private Button _applyPrescriptionButton = null!;
     private Control _lineupHost = null!;
     private Label _statusLabel = null!;
     private Button _approveButton = null!;
@@ -138,8 +139,16 @@ public partial class MatchDayScreen : Control
         content.AddChild(MatchScreenUi.SectionTitle("EŞLEŞME", "Saha içi avantajlar"));
         var matchupPanel = MatchScreenUi.Card();
         content.AddChild(matchupPanel);
+        var matchupStack = MatchScreenUi.VerticalStack(9);
+        matchupPanel.AddChild(matchupStack);
         _matchupPlanLines = MatchScreenUi.VerticalStack(7);
-        matchupPanel.AddChild(_matchupPlanLines);
+        matchupStack.AddChild(_matchupPlanLines);
+        _applyPrescriptionButton = PrimaryButton("Öneriyi Uygula");
+        _applyPrescriptionButton.TooltipText = "Koç reçetesindeki formasyon ve yaklaşımı uygula";
+        _applyPrescriptionButton.Visible = false;
+        _applyPrescriptionButton.Pressed += () =>
+            Apply(_controller.ApplyAlternativePlanPrescription());
+        matchupStack.AddChild(_applyPrescriptionButton);
 
         _statusLabel = new Label
         {
@@ -246,6 +255,9 @@ public partial class MatchDayScreen : Control
     private void RefreshMatchupPlan()
     {
         MatchScreenUi.ClearChildren(_matchupPlanLines);
+        var prescription = _controller.BuildAlternativePlanPrescription();
+        _applyPrescriptionButton.Visible = prescription.HasPrescription;
+        _applyPrescriptionButton.Disabled = !prescription.HasPrescription;
 
         var plan = _controller.BuildMatchupPlan();
         if (plan is null)
@@ -268,6 +280,13 @@ public partial class MatchDayScreen : Control
                 _ => CareerUiTheme.Accent,
             });
         _matchupPlanLines.AddChild(verdict);
+
+        if (prescription.HasPrescription)
+        {
+            var recommendation = MatchScreenUi.BodyLine(prescription.PrescriptionLine);
+            recommendation.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+            _matchupPlanLines.AddChild(recommendation);
+        }
     }
 
     private void RefreshLineupStrip()
