@@ -9,7 +9,8 @@ internal static class SquadSelectionBoardUi
         SquadSelectionBoardDigest board,
         int? selectedSlotIndex,
         Action<SquadSelectionPlayerDigest> selectPlayer,
-        Action<int, int> swapPlayers)
+        Action<int, int> swapPlayers,
+        bool interactionEnabled = true)
     {
         ArgumentNullException.ThrowIfNull(board);
         ArgumentNullException.ThrowIfNull(selectPlayer);
@@ -21,13 +22,15 @@ internal static class SquadSelectionBoardUi
             board.StartingXi,
             selectedSlotIndex,
             selectPlayer,
-            swapPlayers));
+            swapPlayers,
+            interactionEnabled));
         stack.AddChild(BuildGroup(
             "YEDEKLER",
             board.Bench,
             selectedSlotIndex,
             selectPlayer,
-            swapPlayers));
+            swapPlayers,
+            interactionEnabled));
         return stack;
     }
 
@@ -36,7 +39,8 @@ internal static class SquadSelectionBoardUi
         IReadOnlyList<SquadSelectionPlayerDigest> players,
         int? selectedSlotIndex,
         Action<SquadSelectionPlayerDigest> selectPlayer,
-        Action<int, int> swapPlayers)
+        Action<int, int> swapPlayers,
+        bool interactionEnabled)
     {
         var panel = MatchScreenUi.Card();
         var stack = MatchScreenUi.VerticalStack(6);
@@ -53,7 +57,7 @@ internal static class SquadSelectionBoardUi
                 Text = player.ButtonLabel,
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                 CustomMinimumSize = new Vector2(0, 46),
-                Disabled = !player.IsAvailable && !player.IsStarter,
+                Disabled = !interactionEnabled || (!player.IsAvailable && !player.IsStarter),
                 TooltipText = $"{player.PositionName} · Yorgunluk %{player.Fatigue} · Fitness %{player.Fitness}",
                 Alignment = HorizontalAlignment.Left,
             };

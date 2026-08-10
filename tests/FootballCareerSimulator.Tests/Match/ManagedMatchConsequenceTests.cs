@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.ClubGovernance.Composition;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
@@ -27,6 +28,7 @@ public sealed class ManagedMatchConsequenceTests
         var clubs = ClubGovernanceModule.CreateMvpLeague();
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var selectionStore = new InMemoryMatchSelectionStore();
+        var tacticStore = new InMemoryTacticPlanStore();
         var training = TrainingPhysicalStateModule.Create(
             manager.Store,
             world.TimelineStore,
@@ -36,13 +38,15 @@ public sealed class ManagedMatchConsequenceTests
             clubs.Store,
             manager.Store,
             selectionStore,
-            training.Store);
+            training.Store,
+            tacticPlanStore: tacticStore);
         var teamPrep = TeamPreparationModule.Create(
             competition.Store,
             manager.Store,
             selectionStore,
             training.Store,
-            world.TimelineStore);
+            world.TimelineStore,
+            tacticPlanStore: tacticStore);
 
         competition.CreateSeason.Handle(new CreateSeasonCommand(Guid.NewGuid(), 1, Day.DayNumber));
         for (var club = 1L; club <= CompetitionMvpConstraints.LeagueTeamCount; club++)
@@ -61,6 +65,18 @@ public sealed class ManagedMatchConsequenceTests
 
         teamPrep.ApproveDefaultSelection.Handle(
             new ApproveDefaultMatchSelectionCommand(Guid.NewGuid(), fixtureId, ClubId: 1));
+        var halfTime = competition.PlayFixtureMatch!.PreviewHalfTime(1, fixtureId, Day.DayNumber);
+        var substitution = teamPrep.SwapStarterWithBench.Handle(
+            new SwapStarterWithBenchCommand(
+                Guid.NewGuid(),
+                fixtureId,
+                ClubId: 1,
+                StartingIndex: 1,
+                BenchIndex: 2));
+        teamPrep.TacticPlans.SetApproach(
+            new ClubId(1),
+            TacticalApproach.Attacking,
+            Day);
         var selection = selectionStore.Get(new FixtureId(fixtureId), new ClubId(1));
         var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(new ClubId(1), rootSeed: 21);
         var selectedProfiles = selection!.StartingSlotIndices.Select(slot => profiles[slot]).ToArray();
@@ -69,13 +85,23 @@ public sealed class ManagedMatchConsequenceTests
             .MatchStrengthModifier;
 
         var commandId = Guid.NewGuid();
-        var command = new PlayFixtureMatchCommand(commandId, 1, fixtureId, Day.DayNumber);
+        var command = new PlayFixtureMatchCommand(
+            commandId,
+            1,
+            fixtureId,
+            Day.DayNumber,
+            ManagedSecondHalfDelta: MatchHalfTimeDigest.DecisionAttack,
+            ForcedHalfTimeHomeGoals: halfTime.HomeGoals,
+            ForcedHalfTimeAwayGoals: halfTime.AwayGoals);
         var first = competition.PlayFixtureMatch!.Handle(command);
         var second = competition.PlayFixtureMatch.Handle(command);
 
         Assert.True(first.Succeeded);
         Assert.NotNull(first.Consequences);
         Assert.True(first.Consequences!.IsManagedMatch);
+        Assert.True(substitution.Succeeded);
+        Assert.False(string.IsNullOrWhiteSpace(substitution.HalfTimeBridgeLine));
+        Assert.Equal(2, first.ManagedTacticModifier);
         Assert.Equal(expectedLineupModifier, first.ManagedLineupRoleModifier);
         Assert.NotNull(first.Consequences.BoardConfidenceDelta);
         Assert.NotNull(first.Consequences.BoardConfidenceAfter);

@@ -1,4 +1,6 @@
 using FootballCareerSimulator.Application.Competition.Queries;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using Godot;
 
 namespace FootballCareerSimulator.Presentation;
@@ -11,9 +13,13 @@ public partial class MatchHalfTimeScreen : Control
     private readonly CareerSessionController _controller;
     private readonly MatchHalfTimeDigest _digest;
     private Control _lineupHost = null!;
+    private Control _substitutionBoardHost = null!;
+    private Control _liveTacticHost = null!;
     private Label _statusLabel = null!;
     private bool _subMade;
     private string? _substitutionBridgeLine;
+    private int? _selectedSquadSlotIndex;
+    private bool? _selectedSquadPlayerIsStarter;
 
     public event Action? BackRequested;
 
@@ -116,6 +122,11 @@ public partial class MatchHalfTimeScreen : Control
         content.AddChild(_lineupHost);
         RefreshLineupStrip();
 
+        content.AddChild(MatchScreenUi.SectionTitle("CANLI TAKTİK", "Formasyon · pres"));
+        _liveTacticHost = MatchScreenUi.VerticalStack(8);
+        content.AddChild(_liveTacticHost);
+        RefreshLiveTactics();
+
         content.AddChild(MatchScreenUi.SectionTitle("İKİNCİ YARI", "Oyun planını seç"));
         var decisionPanel = MatchScreenUi.Card(emphasized: true);
         content.AddChild(decisionPanel);
@@ -133,19 +144,9 @@ public partial class MatchHalfTimeScreen : Control
             MatchHalfTimeDigest.DecisionDefend));
 
         content.AddChild(MatchScreenUi.SectionTitle("DEĞİŞİKLİK", "Kulübeye dokun"));
-        var substitutionPanel = MatchScreenUi.Card();
-        content.AddChild(substitutionPanel);
-        var substitutionStack = MatchScreenUi.VerticalStack(8);
-        substitutionPanel.AddChild(substitutionStack);
-
-        var substitutionHint = MatchScreenUi.BodyLine(
-            "Bir oyuncu değişikliği yapabilir ve güncel XI'i ikinci yarıya taşıyabilirsin.",
-            muted: true);
-        substitutionStack.AddChild(substitutionHint);
-
-        var subButton = SecondaryButton("Bir Değişiklik Yap  •  XI ↔ Yedek");
-        subButton.Pressed += OnSubstitutionPressed;
-        substitutionStack.AddChild(subButton);
+        _substitutionBoardHost = MatchScreenUi.VerticalStack(8);
+        content.AddChild(_substitutionBoardHost);
+        RefreshSubstitutionBoard();
 
         _statusLabel = new Label
         {
@@ -168,25 +169,80 @@ public partial class MatchHalfTimeScreen : Control
         MatchScreenUi.FadeIn(content, this);
     }
 
-    private void OnSubstitutionPressed()
+    private void RefreshSubstitutionBoard()
     {
-        var result = _controller.SwapLastStarterWithFirstBenchForNextDueMatch();
-        _subMade = result.Succeeded || _subMade;
+        MatchScreenUi.ClearChildren(_substitutionBoardHost);
+        var board = _controller.BuildSquadSelectionBoard();
+        if (!board.HasMatch)
+        {
+            _substitutionBoardHost.AddChild(MatchScreenUi.BodyLine(
+                "Değişiklik için güncel maç kadrosu bulunamadı.",
+                muted: true));
+            return;
+        }
+
+        _substitutionBoardHost.AddChild(SquadSelectionBoardUi.Build(
+            board,
+            _selectedSquadSlotIndex,
+            SelectSquadPlayer,
+            SwapSquadPlayers,
+            interactionEnabled: !_subMade));
+    }
+
+    private void SelectSquadPlayer(SquadSelectionPlayerDigest player)
+    {
+        if (_subMade)
+        {
+            return;
+        }
+
+        if (_selectedSquadSlotIndex == player.SlotIndex)
+        {
+            _selectedSquadSlotIndex = null;
+            _selectedSquadPlayerIsStarter = null;
+            RefreshSubstitutionBoard();
+            return;
+        }
+
+        if (_selectedSquadSlotIndex is null
+            || _selectedSquadPlayerIsStarter == player.IsStarter)
+        {
+            _selectedSquadSlotIndex = player.SlotIndex;
+            _selectedSquadPlayerIsStarter = player.IsStarter;
+            RefreshSubstitutionBoard();
+            return;
+        }
+
+        var starterSlot = player.IsStarter ? player.SlotIndex : _selectedSquadSlotIndex.Value;
+        var benchSlot = player.IsStarter ? _selectedSquadSlotIndex.Value : player.SlotIndex;
+        SwapSquadPlayers(starterSlot, benchSlot);
+    }
+
+    private void SwapSquadPlayers(int starterSlotIndex, int benchSlotIndex)
+    {
+        if (_subMade)
+        {
+            return;
+        }
+
+        var result = _controller.SwapStarterWithBenchForNextDueMatch(
+            starterSlotIndex,
+            benchSlotIndex);
+        _subMade = result.Succeeded;
+        _selectedSquadSlotIndex = null;
+        _selectedSquadPlayerIsStarter = null;
         if (result.Succeeded && !string.IsNullOrWhiteSpace(result.NarrativeBridgeLine))
         {
             _substitutionBridgeLine = result.NarrativeBridgeLine;
         }
 
-        _statusLabel.Text = _subMade
-            ? result.Message + "\nDeğişiklik ikinci yarıya yansır — XI şeridi güncellendi."
-            : result.Message;
-        _statusLabel.AddThemeColorOverride(
-            "font_color",
-            result.Succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
-        if (result.Succeeded)
-        {
-            RefreshLineupStrip();
-        }
+        SetStatus(
+            result.Succeeded
+                ? result.Message + "\nDeğişiklik ikinci yarıya yansır."
+                : result.Message,
+            result.Succeeded);
+        RefreshLineupStrip();
+        RefreshSubstitutionBoard();
     }
 
     private void RefreshLineupStrip()
@@ -210,9 +266,100 @@ public partial class MatchHalfTimeScreen : Control
     {
         var button = PrimaryButton(text);
         button.Pressed += () =>
+        {
+            if (delta == MatchHalfTimeDigest.DecisionAttack)
+            {
+                _controller.SetTacticApproach(TacticalApproach.Attacking);
+            }
+            else if (delta == MatchHalfTimeDigest.DecisionDefend)
+            {
+                _controller.SetTacticApproach(TacticalApproach.Defensive);
+            }
+
             Callable.From(() => SecondHalfRequested?.Invoke(delta, _substitutionBridgeLine))
                 .CallDeferred();
+        };
         return button;
+    }
+
+    private void RefreshLiveTactics()
+    {
+        MatchScreenUi.ClearChildren(_liveTacticHost);
+        var plan = _controller.GetManagedTacticPlan();
+        var panel = MatchScreenUi.Card();
+        var stack = MatchScreenUi.VerticalStack(8);
+        panel.AddChild(stack);
+        stack.AddChild(BuildOptionRow(
+            "FORMASYON",
+            [
+                ("4-4-2", plan.Formation == Formation.F442,
+                    () => _controller.SetTacticFormation(Formation.F442)),
+                ("4-3-3", plan.Formation == Formation.F433,
+                    () => _controller.SetTacticFormation(Formation.F433)),
+                ("3-5-2", plan.Formation == Formation.F352,
+                    () => _controller.SetTacticFormation(Formation.F352)),
+            ]));
+        stack.AddChild(BuildOptionRow(
+            "PRES",
+            [
+                ("Geri", plan.Pressing == PressingIntensity.LowBlock,
+                    () => _controller.SetTacticPressing(PressingIntensity.LowBlock)),
+                ("Dengeli", plan.Pressing == PressingIntensity.Balanced,
+                    () => _controller.SetTacticPressing(PressingIntensity.Balanced)),
+                ("Önde", plan.Pressing == PressingIntensity.HighPress,
+                    () => _controller.SetTacticPressing(PressingIntensity.HighPress)),
+            ]));
+        _liveTacticHost.AddChild(panel);
+    }
+
+    private Control BuildOptionRow(
+        string title,
+        IReadOnlyList<(string Label, bool Selected, Func<UiActionResult> Action)> options)
+    {
+        var stack = MatchScreenUi.VerticalStack(5);
+        var label = new Label { Text = title };
+        CareerUiTheme.StyleEyebrow(label);
+        stack.AddChild(label);
+
+        var row = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        row.AddThemeConstantOverride("separation", 6);
+        foreach (var option in options)
+        {
+            var button = new Button
+            {
+                Text = option.Label,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                CustomMinimumSize = new Vector2(0, 42),
+            };
+            if (option.Selected)
+            {
+                CareerUiTheme.StylePrimaryButton(button);
+            }
+            else
+            {
+                CareerUiTheme.StyleSecondaryButton(button);
+            }
+
+            button.Pressed += () =>
+            {
+                var result = option.Action();
+                SetStatus(result.Message, result.Succeeded);
+                RefreshLiveTactics();
+                RefreshLineupStrip();
+            };
+            row.AddChild(button);
+        }
+
+        stack.AddChild(row);
+        return stack;
+    }
+
+    private void SetStatus(string message, bool succeeded)
+    {
+        _statusLabel.Text = message;
+        _statusLabel.AddThemeColorOverride(
+            "font_color",
+            succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
     }
 
     private static Button PrimaryButton(string text)
