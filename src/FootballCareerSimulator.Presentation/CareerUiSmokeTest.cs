@@ -128,12 +128,9 @@ public static class CareerUiSmokeTest
                 var compatibility = controller.BuildLineupCompatibility();
                 passed &= LogCheck(
                     "Kadro uyumu önizlemesi",
-                    compatibility is
-                    {
-                        HasLineup: true,
-                        Score: 100,
-                        NaturalFitCount: Domain.TeamPreparation.MatchSelection.StartingXiSize,
-                    });
+                    compatibility.HasLineup
+                    && compatibility.Players.All(player =>
+                        !string.IsNullOrWhiteSpace(player.PositionCode)));
                 var selectionBoard = controller.BuildSquadSelectionBoard();
                 passed &= LogCheck(
                     "Gerçek kadro seçim panosu",

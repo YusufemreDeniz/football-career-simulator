@@ -54,7 +54,7 @@ internal static class SquadSelectionBoardUi
                 SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
                 CustomMinimumSize = new Vector2(0, 46),
                 Disabled = !player.IsAvailable && !player.IsStarter,
-                TooltipText = $"Yorgunluk %{player.Fatigue} · Fitness %{player.Fitness}",
+                TooltipText = $"{player.PositionName} · Yorgunluk %{player.Fatigue} · Fitness %{player.Fitness}",
                 Alignment = HorizontalAlignment.Left,
             };
             if (selectedSlotIndex == player.SlotIndex)

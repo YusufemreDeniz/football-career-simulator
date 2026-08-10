@@ -67,6 +67,35 @@ public sealed class LineupCompatibilityDigestTests
         Assert.False(digest.HasLineup);
     }
 
+    [Fact]
+    public void Compose_DetailedFourThreeThree_UsesRealFormationRoles()
+    {
+        var squad = new[]
+        {
+            Detailed("Kaleci", MvpSquadPositionRole.Goalkeeper),
+            Detailed("Sağ Bek", MvpSquadPositionRole.RightBack),
+            Detailed("Stoper 1", MvpSquadPositionRole.CentreBack),
+            Detailed("Stoper 2", MvpSquadPositionRole.CentreBack),
+            Detailed("Sol Bek", MvpSquadPositionRole.LeftBack),
+            Detailed("Ön Libero", MvpSquadPositionRole.DefensiveMidfielder),
+            Detailed("Merkez", MvpSquadPositionRole.CentralMidfielder),
+            Detailed("On Numara", MvpSquadPositionRole.AttackingMidfielder),
+            Detailed("Sağ Kanat", MvpSquadPositionRole.RightWinger),
+            Detailed("Sol Kanat", MvpSquadPositionRole.LeftWinger),
+            Detailed("Santrfor", MvpSquadPositionRole.Striker),
+        };
+
+        var digest = LineupCompatibilityDigest.Compose(
+            Formation.F433,
+            Enumerable.Range(0, 11).ToArray(),
+            squad);
+
+        Assert.Equal(100, digest.Score);
+        Assert.Contains(digest.Players, player => player.PositionCode == "SĞB");
+        Assert.Contains(digest.Players, player => player.PositionCode == "DOS");
+        Assert.Contains(digest.Players, player => player.PositionCode == "SNT");
+    }
+
     private static IReadOnlyList<MvpSquadPlayerProfile> BalancedFourFourTwo() =>
     [
         Profile("Kaleci", MvpSquadPositionGroup.Goalkeeper),
@@ -86,4 +115,9 @@ public sealed class LineupCompatibilityDigestTests
         string name,
         MvpSquadPositionGroup position) =>
         new(name, position);
+
+    private static MvpSquadPlayerProfile Detailed(
+        string name,
+        MvpSquadPositionRole role) =>
+        new(name, role);
 }

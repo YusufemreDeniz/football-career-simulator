@@ -1,6 +1,7 @@
 ﻿[CmdletBinding()]
 param(
-    [string]$WorkspaceRoot = (Split-Path -Parent $PSScriptRoot)
+    [string]$WorkspaceRoot = (Split-Path -Parent $PSScriptRoot),
+    [switch]$SkipAssets
 )
 
 $ErrorActionPreference = 'Stop'
@@ -83,13 +84,32 @@ function Save-RemoteAsset([string]$Url, [string]$Path) {
     Invoke-WebRequest -Uri $Url -Headers $headers -UseBasicParsing -OutFile $Path -TimeoutSec 30
 }
 
-function ConvertTo-PositionGroup([string]$PositionLabel) {
-    if ($PositionLabel -match 'Torwart') { return 'Goalkeeper' }
-    if ($PositionLabel -match 'Verteid') { return 'Defender' }
-    if ($PositionLabel -match 'Mittelfeld') { return 'Midfielder' }
-    if ($PositionLabel -match 'Sturmer|Stürmer|Flugel|Flügel|Spitze') { return 'Forward' }
+function ConvertTo-PositionRole([string]$PositionLabel) {
+    switch ($PositionLabel) {
+        'Torwart' { return 'Goalkeeper' }
+        'Innenverteidigung' { return 'CentreBack' }
+        'Rechter Verteidiger' { return 'RightBack' }
+        'Linker Verteidiger' { return 'LeftBack' }
+        'Defensives Mittelfeld' { return 'DefensiveMidfielder' }
+        'Zentrales Mittelfeld' { return 'CentralMidfielder' }
+        'Offensives Mittelfeld' { return 'AttackingMidfielder' }
+        'Rechtes Mittelfeld' { return 'RightMidfielder' }
+        'Linkes Mittelfeld' { return 'LeftMidfielder' }
+        'Rechter Flügel' { return 'RightWinger' }
+        'Linker Flügel' { return 'LeftWinger' }
+        'Mittelstürmer' { return 'Striker' }
+        default { throw "Unsupported player position: $PositionLabel" }
+    }
+}
 
-    throw "Unsupported player position: $PositionLabel"
+function ConvertTo-PositionGroup([string]$PositionRole) {
+    switch ($PositionRole) {
+        'Goalkeeper' { return 'Goalkeeper' }
+        { $_ -in @('CentreBack', 'RightBack', 'LeftBack') } { return 'Defender' }
+        { $_ -in @('DefensiveMidfielder', 'CentralMidfielder', 'AttackingMidfielder', 'RightMidfielder', 'LeftMidfielder') } { return 'Midfielder' }
+        { $_ -in @('RightWinger', 'LeftWinger', 'Striker') } { return 'Forward' }
+        default { throw "Unsupported player role: $PositionRole" }
+    }
 }
 
 function Get-PositionKey([string]$Name) {
@@ -109,9 +129,56 @@ function Select-BalancedSquad([object[]]$Players, [string]$ClubName) {
         Forward = 6
     }
 
-    $selected = @()
-    foreach ($role in $targets.Keys) {
-        $selected += @($Players | Where-Object Role -eq $role | Select-Object -First $targets[$role])
+    $slotSpecs = @(
+        [pscustomobject]@{ Roles = @('Goalkeeper'); Group = 'Goalkeeper' },
+        [pscustomobject]@{ Roles = @('RightBack'); Group = 'Defender' },
+        [pscustomobject]@{ Roles = @('CentreBack'); Group = 'Defender' },
+        [pscustomobject]@{ Roles = @('CentreBack'); Group = 'Defender' },
+        [pscustomobject]@{ Roles = @('LeftBack', 'RightBack'); Group = 'Defender' },
+        [pscustomobject]@{ Roles = @('RightMidfielder'); Group = 'Midfielder' },
+        [pscustomobject]@{ Roles = @('DefensiveMidfielder', 'CentralMidfielder', 'AttackingMidfielder'); Group = 'Midfielder' },
+        [pscustomobject]@{ Roles = @('CentralMidfielder', 'DefensiveMidfielder', 'AttackingMidfielder'); Group = 'Midfielder' },
+        [pscustomobject]@{ Roles = @('LeftMidfielder'); Group = 'Midfielder' },
+        [pscustomobject]@{ Roles = @('Striker'); Group = 'Forward' },
+        [pscustomobject]@{ Roles = @('Striker'); Group = 'Forward' }
+    )
+
+    $defaultXi = @()
+    foreach ($slot in $slotSpecs) {
+        $usedNames = @($defaultXi | ForEach-Object Name)
+        $candidate = @(
+            $Players |
+                Where-Object { $usedNames -notcontains $_.Name -and $_.Role -in $slot.Roles } |
+                Select-Object -First 1
+        )
+        if ($candidate.Count -eq 0) {
+            $candidate = @(
+                $Players |
+                    Where-Object { $usedNames -notcontains $_.Name -and $_.Group -eq $slot.Group } |
+                    Select-Object -First 1
+            )
+        }
+        if ($candidate.Count -eq 0) {
+            throw "$ClubName cannot fill the $($slot.Group) starting slot."
+        }
+
+        $defaultXi += $candidate[0]
+    }
+
+    $selected = @($defaultXi)
+    foreach ($group in $targets.Keys) {
+        $groupCount = @($selected | Where-Object Group -eq $group).Count
+        $required = $targets[$group] - $groupCount
+        if ($required -le 0) {
+            continue
+        }
+
+        $selectedNames = @($selected | ForEach-Object Name)
+        $selected += @(
+            $Players |
+                Where-Object { $selectedNames -notcontains $_.Name -and $_.Group -eq $group } |
+                Select-Object -First $required
+        )
     }
 
     $selectedNames = @($selected | ForEach-Object Name)
@@ -127,17 +194,12 @@ function Select-BalancedSquad([object[]]$Players, [string]$ClubName) {
         throw "$ClubName has only $($selected.Count) usable player profiles."
     }
 
-    $defaultXi = @()
-    $defaultXi += @($selected | Where-Object Role -eq 'Goalkeeper' | Select-Object -First 1)
-    $defaultXi += @($selected | Where-Object Role -eq 'Defender' | Select-Object -First 4)
-    $defaultXi += @($selected | Where-Object Role -eq 'Midfielder' | Select-Object -First 4)
-    $defaultXi += @($selected | Where-Object Role -eq 'Forward' | Select-Object -First 2)
     if ($defaultXi.Count -ne 11) {
         throw "$ClubName cannot provide a natural 4-4-2 starting XI."
     }
 
     $defaultNames = @($defaultXi | ForEach-Object Name)
-    return @($defaultXi + @($selected | Where-Object { $defaultNames -notcontains $_.Name }))
+    return @($defaultXi + @($selected | Where-Object { $defaultNames -notcontains $_.Name } | Select-Object -First 14))
 }
 
 [System.IO.Directory]::CreateDirectory((Split-Path -Parent $generatedFile)) | Out-Null
@@ -148,7 +210,7 @@ foreach ($club in $clubs) {
     $rosterSource = "https://www.fussballeuropa.com/team/$($club.Slug)/kader"
     if ($club.Id -eq 18) {
         $players = @($corumRoster | ForEach-Object {
-            [pscustomobject]@{ Name = $_; Role = $corumPositions[$_] }
+            [pscustomobject]@{ Name = $_; Group = $corumPositions[$_]; Role = $null }
         })
         $verifiedOn = '2026-08-10'
         $rosterSource = 'https://www.transfermarkt.co.uk/corum-fk/kader/verein/37951/saison_id/2026'
@@ -168,7 +230,12 @@ foreach ($club in $clubs) {
                         $name = [System.Net.WebUtility]::HtmlDecode($nameMatch.Groups['name'].Value.Trim())
                         $meta = [System.Net.WebUtility]::HtmlDecode($metaMatch.Groups['meta'].Value.Trim())
                         $position = ($meta -split ',', 2)[-1].Trim()
-                        [pscustomobject]@{ Name = $name; Role = (ConvertTo-PositionGroup $position) }
+                        $role = ConvertTo-PositionRole $position
+                        [pscustomobject]@{
+                            Name = $name
+                            Group = ConvertTo-PositionGroup $role
+                            Role = $role
+                        }
                     }
                 } |
                 Group-Object Name |
@@ -186,7 +253,8 @@ foreach ($club in $clubs) {
 
             $players += [pscustomobject]@{
                 Name = $supplement
-                Role = $supplementPositions[$positionKey]
+                Group = $supplementPositions[$positionKey]
+                Role = $null
             }
         }
     }
@@ -211,10 +279,12 @@ foreach ($club in $clubs) {
     }
 
     $clubAssetDirectory = Join-Path $seasonAssetRoot $club.Slug
-    Save-RemoteAsset $crestUrl (Join-Path $clubAssetDirectory 'crest.png')
-    Save-RemoteAsset $homeKitUrl (Join-Path $clubAssetDirectory 'kit-home.png')
-    Save-RemoteAsset $awayKitUrl (Join-Path $clubAssetDirectory 'kit-away.png')
-    Save-RemoteAsset $thirdKitUrl (Join-Path $clubAssetDirectory 'kit-third.png')
+    if (-not $SkipAssets) {
+        Save-RemoteAsset $crestUrl (Join-Path $clubAssetDirectory 'crest.png')
+        Save-RemoteAsset $homeKitUrl (Join-Path $clubAssetDirectory 'kit-home.png')
+        Save-RemoteAsset $awayKitUrl (Join-Path $clubAssetDirectory 'kit-away.png')
+        Save-RemoteAsset $thirdKitUrl (Join-Path $clubAssetDirectory 'kit-third.png')
+    }
 
     $resourceRoot = "res://assets/clubs/turkey/super-lig-2026-27/$($club.Slug)"
     $generatedClubs += [pscustomobject]@{
@@ -261,7 +331,12 @@ foreach ($entry in $generatedClubs) {
     [void]$builder.AppendLine('                Players:')
     [void]$builder.AppendLine('                [')
     foreach ($player in $entry.Players) {
-        [void]$builder.AppendLine("                    new(`"$(Get-CSharpString $player.Name)`", MvpSquadPositionGroup.$($player.Role)),")
+        if ($null -ne $player.Role) {
+            [void]$builder.AppendLine("                    new(`"$(Get-CSharpString $player.Name)`", MvpSquadPositionRole.$($player.Role)),")
+        }
+        else {
+            [void]$builder.AppendLine("                    new(`"$(Get-CSharpString $player.Name)`", MvpSquadPositionGroup.$($player.Group)),")
+        }
     }
     [void]$builder.AppendLine('                ]),')
 }
@@ -299,4 +374,9 @@ foreach ($entry in $generatedClubs) {
     [System.Text.UTF8Encoding]::new($false))
 
 Write-Output "Generated $generatedFile"
-Write-Output "Downloaded $($clubs.Count) crests and $($clubs.Count * 3) official kit images to $seasonAssetRoot"
+if ($SkipAssets) {
+    Write-Output 'Existing club assets were kept.'
+}
+else {
+    Write-Output "Downloaded $($clubs.Count) crests and $($clubs.Count * 3) official kit images to $seasonAssetRoot"
+}

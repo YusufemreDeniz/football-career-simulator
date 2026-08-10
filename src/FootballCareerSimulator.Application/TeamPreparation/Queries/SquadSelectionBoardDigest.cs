@@ -13,7 +13,8 @@ public sealed record SquadSelectionPlayerDigest(
     int Fitness,
     int Fatigue,
     bool IsAvailable,
-    bool IsStarter)
+    bool IsStarter,
+    string PositionName = "")
 {
     public string ButtonLabel =>
         $"{DisplayName} · {PositionCode} · GÜÇ {Rating} · FİT %{Fitness}"
@@ -104,6 +105,7 @@ public sealed record SquadSelectionBoardDigest(
             state.Fitness,
             state.Fatigue,
             state.IsAvailableOn(day),
-            isStarter);
+            isStarter,
+            profile.PositionName);
     }
 }

@@ -56,11 +56,18 @@ public static class MvpSquadRosterGenerator
             .ToArray();
     }
 
-    private static MvpSquadPositionGroup FallbackPositionFor(int slotIndex) => slotIndex switch
+    private static MvpSquadPositionRole FallbackPositionFor(int slotIndex) => slotIndex switch
     {
-        0 or 11 or 12 => MvpSquadPositionGroup.Goalkeeper,
-        >= 1 and <= 4 or >= 13 and <= 16 => MvpSquadPositionGroup.Defender,
-        >= 5 and <= 8 or >= 17 and <= 20 => MvpSquadPositionGroup.Midfielder,
-        _ => MvpSquadPositionGroup.Forward,
+        0 or 11 or 12 => MvpSquadPositionRole.Goalkeeper,
+        1 or 13 => MvpSquadPositionRole.RightBack,
+        2 or 3 or 14 or 15 => MvpSquadPositionRole.CentreBack,
+        4 or 16 => MvpSquadPositionRole.LeftBack,
+        5 or 17 => MvpSquadPositionRole.RightMidfielder,
+        6 or 18 => MvpSquadPositionRole.DefensiveMidfielder,
+        7 or 19 => MvpSquadPositionRole.CentralMidfielder,
+        8 or 20 => MvpSquadPositionRole.LeftMidfielder,
+        9 or 21 or 23 => MvpSquadPositionRole.Striker,
+        22 => MvpSquadPositionRole.RightWinger,
+        _ => MvpSquadPositionRole.LeftWinger,
     };
 }

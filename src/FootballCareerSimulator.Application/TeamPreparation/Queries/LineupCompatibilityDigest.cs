@@ -62,23 +62,15 @@ public sealed record LineupCompatibilityDigest(
         }
 
         var required = RequirementsFor(formation);
-        var usedByPosition = new Dictionary<MvpSquadPositionGroup, int>();
-        var players = new List<LineupCompatibilityPlayer>(selected.Length);
-
-        foreach (var player in selected)
-        {
-            usedByPosition.TryGetValue(player.PositionGroup, out var used);
-            var natural = used < required[player.PositionGroup];
-            if (natural)
-            {
-                usedByPosition[player.PositionGroup] = used + 1;
-            }
-
-            players.Add(new LineupCompatibilityPlayer(
+        var requiredRoles = RoleRequirementsFor(formation);
+        var playerByRoleIndex = MatchPlayersToRoles(selected, requiredRoles);
+        var matchedPlayerIndices = playerByRoleIndex.Where(index => index >= 0).ToHashSet();
+        var players = selected
+            .Select((player, index) => new LineupCompatibilityPlayer(
                 player.DisplayName,
                 player.PositionCode,
-                natural));
-        }
+                matchedPlayerIndices.Contains(index)))
+            .ToArray();
 
         var naturalFitCount = players.Count(player => player.IsNaturalFit);
         var score = (int)Math.Round(
@@ -98,11 +90,7 @@ public sealed record LineupCompatibilityDigest(
             Enum.GetValues<MvpSquadPositionGroup>().Select(position =>
                 $"{PositionCode(position)} {actual[position]}/{required[position]}"));
 
-        var missing = Enum.GetValues<MvpSquadPositionGroup>()
-            .Select(position => (Position: position, Count: Math.Max(0, required[position] - actual[position])))
-            .Where(item => item.Count > 0)
-            .Select(item => $"{item.Count} {PositionCode(item.Position)}")
-            .ToArray();
+        var missing = MissingRoleLabels(selected, requiredRoles, playerByRoleIndex);
         var outOfPosition = players
             .Where(player => !player.IsNaturalFit)
             .Select(player => $"{ShortName(player.DisplayName)} ({player.PositionCode})")
@@ -139,6 +127,148 @@ public sealed record LineupCompatibilityDigest(
             Formation.F352 => Requirements(goalkeepers: 1, defenders: 3, midfielders: 5, forwards: 2),
             _ => throw new ArgumentOutOfRangeException(nameof(formation), formation, "Unknown formation."),
         };
+
+    private static IReadOnlyList<MvpSquadPositionRole> RoleRequirementsFor(Formation formation) =>
+        formation switch
+        {
+            Formation.F442 =>
+            [
+                MvpSquadPositionRole.Goalkeeper,
+                MvpSquadPositionRole.RightBack,
+                MvpSquadPositionRole.CentreBack,
+                MvpSquadPositionRole.CentreBack,
+                MvpSquadPositionRole.LeftBack,
+                MvpSquadPositionRole.RightMidfielder,
+                MvpSquadPositionRole.CentralMidfielder,
+                MvpSquadPositionRole.CentralMidfielder,
+                MvpSquadPositionRole.LeftMidfielder,
+                MvpSquadPositionRole.Striker,
+                MvpSquadPositionRole.Striker,
+            ],
+            Formation.F433 =>
+            [
+                MvpSquadPositionRole.Goalkeeper,
+                MvpSquadPositionRole.RightBack,
+                MvpSquadPositionRole.CentreBack,
+                MvpSquadPositionRole.CentreBack,
+                MvpSquadPositionRole.LeftBack,
+                MvpSquadPositionRole.DefensiveMidfielder,
+                MvpSquadPositionRole.CentralMidfielder,
+                MvpSquadPositionRole.AttackingMidfielder,
+                MvpSquadPositionRole.RightWinger,
+                MvpSquadPositionRole.LeftWinger,
+                MvpSquadPositionRole.Striker,
+            ],
+            Formation.F352 =>
+            [
+                MvpSquadPositionRole.Goalkeeper,
+                MvpSquadPositionRole.CentreBack,
+                MvpSquadPositionRole.CentreBack,
+                MvpSquadPositionRole.CentreBack,
+                MvpSquadPositionRole.RightMidfielder,
+                MvpSquadPositionRole.DefensiveMidfielder,
+                MvpSquadPositionRole.CentralMidfielder,
+                MvpSquadPositionRole.AttackingMidfielder,
+                MvpSquadPositionRole.LeftMidfielder,
+                MvpSquadPositionRole.Striker,
+                MvpSquadPositionRole.Striker,
+            ],
+            _ => throw new ArgumentOutOfRangeException(nameof(formation), formation, "Unknown formation."),
+        };
+
+    private static int[] MatchPlayersToRoles(
+        IReadOnlyList<MvpSquadPlayerProfile> players,
+        IReadOnlyList<MvpSquadPositionRole> requiredRoles)
+    {
+        var playerByRoleIndex = Enumerable.Repeat(-1, requiredRoles.Count).ToArray();
+
+        bool TryAssign(int playerIndex, bool[] visited)
+        {
+            for (var roleIndex = 0; roleIndex < requiredRoles.Count; roleIndex++)
+            {
+                if (visited[roleIndex]
+                    || !CanPlay(players[playerIndex], requiredRoles[roleIndex]))
+                {
+                    continue;
+                }
+
+                visited[roleIndex] = true;
+                if (playerByRoleIndex[roleIndex] < 0
+                    || TryAssign(playerByRoleIndex[roleIndex], visited))
+                {
+                    playerByRoleIndex[roleIndex] = playerIndex;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        for (var playerIndex = 0; playerIndex < players.Count; playerIndex++)
+        {
+            TryAssign(playerIndex, new bool[requiredRoles.Count]);
+        }
+
+        return playerByRoleIndex;
+    }
+
+    private static string[] MissingRoleLabels(
+        IReadOnlyList<MvpSquadPlayerProfile> players,
+        IReadOnlyList<MvpSquadPositionRole> requiredRoles,
+        IReadOnlyList<int> playerByRoleIndex)
+    {
+        if (players.All(player => player.PositionRole is null))
+        {
+            var required = Requirements(
+                goalkeepers: requiredRoles.Count(role => role.ToPositionGroup() == MvpSquadPositionGroup.Goalkeeper),
+                defenders: requiredRoles.Count(role => role.ToPositionGroup() == MvpSquadPositionGroup.Defender),
+                midfielders: requiredRoles.Count(role => role.ToPositionGroup() == MvpSquadPositionGroup.Midfielder),
+                forwards: requiredRoles.Count(role => role.ToPositionGroup() == MvpSquadPositionGroup.Forward));
+            return Enum.GetValues<MvpSquadPositionGroup>()
+                .Select(position =>
+                    (
+                        Position: position,
+                        Count: Math.Max(0, required[position] - players.Count(player => player.PositionGroup == position))
+                    ))
+                .Where(item => item.Count > 0)
+                .Select(item => $"{item.Count} {PositionCode(item.Position)}")
+                .ToArray();
+        }
+
+        return requiredRoles
+            .Where((_, index) => playerByRoleIndex[index] < 0)
+            .GroupBy(role => role)
+            .Select(group => $"{group.Count()} {group.Key.ToPositionCode()}")
+            .ToArray();
+    }
+
+    private static bool CanPlay(MvpSquadPlayerProfile player, MvpSquadPositionRole requiredRole)
+    {
+        if (player.PositionRole is null)
+        {
+            return player.PositionGroup == requiredRole.ToPositionGroup();
+        }
+
+        var role = player.PositionRole.Value;
+        return role == requiredRole
+            || (requiredRole == MvpSquadPositionRole.CentralMidfielder
+                && role is MvpSquadPositionRole.DefensiveMidfielder
+                    or MvpSquadPositionRole.AttackingMidfielder)
+            || (requiredRole == MvpSquadPositionRole.DefensiveMidfielder
+                && role == MvpSquadPositionRole.CentralMidfielder)
+            || (requiredRole == MvpSquadPositionRole.AttackingMidfielder
+                && role == MvpSquadPositionRole.CentralMidfielder)
+            || (requiredRole == MvpSquadPositionRole.RightMidfielder
+                && role is MvpSquadPositionRole.RightWinger
+                    or MvpSquadPositionRole.RightBack)
+            || (requiredRole == MvpSquadPositionRole.LeftMidfielder
+                && role is MvpSquadPositionRole.LeftWinger
+                    or MvpSquadPositionRole.LeftBack)
+            || (requiredRole == MvpSquadPositionRole.RightWinger
+                && role == MvpSquadPositionRole.RightMidfielder)
+            || (requiredRole == MvpSquadPositionRole.LeftWinger
+                && role == MvpSquadPositionRole.LeftMidfielder);
+    }
 
     private static IReadOnlyDictionary<MvpSquadPositionGroup, int> Requirements(
         int goalkeepers,

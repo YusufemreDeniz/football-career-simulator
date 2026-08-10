@@ -44,4 +44,23 @@ public sealed class TurkeySuperLig202627DataPackTests
             Assert.EndsWith(".png", data.ThirdKitResourcePath);
         }
     }
+
+    [Fact]
+    public void GalatasarayRoster_PreservesVerifiedDetailedRoles()
+    {
+        var players = TurkeySuperLig202627DataPack.GetClub(new ClubId(1)).Players;
+
+        Assert.Equal(
+            MvpSquadPositionRole.Goalkeeper,
+            players.Single(player => player.DisplayName == "Uğurcan Çakır").PositionRole);
+        Assert.Equal(
+            MvpSquadPositionRole.RightBack,
+            players.Single(player => player.DisplayName == "Ali Turap Bülbül").PositionRole);
+        Assert.Equal(
+            MvpSquadPositionRole.DefensiveMidfielder,
+            players.Single(player => player.DisplayName == "Lucas Torreira").PositionRole);
+        Assert.Equal(
+            MvpSquadPositionRole.Striker,
+            players.Single(player => player.DisplayName == "Victor Osimhen").PositionRole);
+    }
 }
