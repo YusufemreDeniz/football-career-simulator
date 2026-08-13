@@ -12,10 +12,21 @@ public partial class CareerAppRoot : Control
 
     public override void _Ready()
     {
+        if (OS.HasFeature("android"))
+        {
+            DisplayServer.ScreenSetOrientation(DisplayServer.ScreenOrientation.Landscape);
+        }
+
         AnchorRight = 1f;
         AnchorBottom = 1f;
         GrowHorizontal = GrowDirection.Both;
         GrowVertical = GrowDirection.Both;
+
+        if (TryGetSnapshotPath(out var snapshotPath))
+        {
+            CaptureCareerSnapshot(snapshotPath);
+            return;
+        }
 
         if (ShouldRunSmokeTest())
         {
@@ -25,6 +36,49 @@ public partial class CareerAppRoot : Control
         }
 
         ShowMainMenu();
+    }
+
+    private async void CaptureCareerSnapshot(string snapshotPath)
+    {
+        try
+        {
+            var startConfiguration = CareerStartConfiguration.Create(
+                "UI Preview",
+                startingClubId: 2,
+                startingDate: Domain.WorldCalendar.GameDate.FromCalendarDate(2026, 8, 13),
+                rootSeed: 741852);
+            var host = CareerPresentationHost.CreateNewCareer(
+                startConfiguration,
+                Path.Combine(OS.GetUserDataDir(), "career_ui_snapshot.db"));
+            var controller = new CareerSessionController(host);
+            controller.EnsureLeagueReady();
+            ShowHub(controller);
+
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+            var absolutePath = Path.GetFullPath(snapshotPath);
+            DirAccess.MakeDirRecursiveAbsolute(Path.GetDirectoryName(absolutePath)!);
+            var result = GetViewport().GetTexture().GetImage().SavePng(absolutePath);
+            GD.Print($"CAREER_UI_SNAPSHOT_RESULT={result};PATH={absolutePath}");
+            GetTree().Quit(result == Error.Ok ? 0 : 1);
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"[CareerAppRoot] UI snapshot alınamadı: {ex}");
+            GetTree().Quit(1);
+        }
+    }
+
+    private static bool TryGetSnapshotPath(out string path)
+    {
+        const string prefix = "--career-snapshot=";
+        var argument = OS.GetCmdlineUserArgs()
+            .Concat(OS.GetCmdlineArgs())
+            .FirstOrDefault(arg => arg.StartsWith(prefix, StringComparison.Ordinal));
+        path = argument is null ? string.Empty : argument[prefix.Length..];
+        return !string.IsNullOrWhiteSpace(path);
     }
 
     public void ShowMainMenu()

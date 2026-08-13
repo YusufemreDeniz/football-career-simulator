@@ -200,7 +200,7 @@ public partial class CareerHubScreen : Control
         ArgumentNullException.ThrowIfNull(digest);
         ShowPage(HubPage.Today);
         RefreshUi();
-        _officeLabel.Text = digest.ToDisplayText();
+        _officeLabel.Text = CompactOfficeText(digest);
         // Sakatlık gecesi: nabız sakin kalsa bile Toparlanma birincil CTA kalsın.
         if (string.Equals(
                 digest.NextFocusCode,
@@ -225,7 +225,7 @@ public partial class CareerHubScreen : Control
         ArgumentNullException.ThrowIfNull(digest);
         ShowPage(HubPage.Today);
         RefreshUi();
-        _officeLabel.Text = digest.ToDisplayText();
+        _officeLabel.Text = CompactOfficeText(digest);
         // RefreshUi nabız CTA'sını kurar; hikâye varsa birincil düğmeyi kariyere dönüşle senkron tut.
         var resumeStep = _controller.BuildOfficeNextStep();
         if (resumeStep is not null)
@@ -334,7 +334,7 @@ public partial class CareerHubScreen : Control
         brandLockup.AddThemeConstantOverride("separation", 0);
         _topBar.AddChild(brandLockup);
 
-        _brandLabel = new Label { Text = "FCS  /  CAREER MODE" };
+        _brandLabel = new Label { Text = "FCS  /  KARİYER" };
         CareerUiTheme.StyleSection(_brandLabel);
         brandLockup.AddChild(_brandLabel);
 
@@ -366,6 +366,7 @@ public partial class CareerHubScreen : Control
         _progressLabel = BodyLabel("ProgressLabel", muted: true, autowrap: true);
         _progressLabel.AddThemeFontSizeOverride("font_size", 12);
         careerMeta.AddChild(_progressLabel);
+        careerMeta.Visible = false;
 
         var screenHeading = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         screenHeading.AddThemeConstantOverride("separation", 10);
@@ -379,6 +380,7 @@ public partial class CareerHubScreen : Control
         headingCopy.AddChild(_pageTitleLabel);
         _pageSubtitleLabel = BodyLabel("PageSubtitle", muted: true, autowrap: true);
         _pageSubtitleLabel.AddThemeFontSizeOverride("font_size", 12);
+        _pageSubtitleLabel.Visible = false;
         headingCopy.AddChild(_pageSubtitleLabel);
 
         _liveChip = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
@@ -388,6 +390,7 @@ public partial class CareerHubScreen : Control
         liveLabel.AddThemeFontSizeOverride("font_size", 11);
         liveLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _liveChip.AddChild(liveLabel);
+        _liveChip.Visible = false;
         screenHeading.AddChild(_liveChip);
 
         _workspace = new HBoxContainer
@@ -435,6 +438,7 @@ public partial class CareerHubScreen : Control
         _statusPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _statusPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel());
         _statusPanel.AddChild(_statusLabel);
+        _statusPanel.Visible = false;
         shell.AddChild(_statusPanel);
 
         _layoutBuilt = true;
@@ -537,7 +541,7 @@ public partial class CareerHubScreen : Control
         _clubCrest.CustomMinimumSize = new Vector2(profile.CrestSize, profile.CrestSize);
         _managerLabel.AddThemeFontSizeOverride("font_size", profile.IsCompact ? 18 : 22);
         _pageTitleLabel.AddThemeFontSizeOverride("font_size", profile.PageTitleFontSize);
-        _liveChip.Visible = !profile.IsCompact || Size.X >= 440;
+        _liveChip.Visible = false;
         _dateLabel.AddThemeFontSizeOverride("font_size", profile.IsCompact ? 11 : 12);
         _careerButton.CustomMinimumSize = new Vector2(profile.IsCompact ? 54 : 58, profile.TouchTargetHeight);
         _statusLabel.CustomMinimumSize = new Vector2(0, profile.IsCompact ? 46 : 42);
@@ -597,7 +601,62 @@ public partial class CareerHubScreen : Control
     private Control BuildTodayPage()
     {
         var page = PageRoot();
-        var priorityCard = AddCard(page, "GÜNÜN NABZI", emphasized: true);
+        var dashboard = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        dashboard.AddThemeConstantOverride("separation", 12);
+        page.AddChild(dashboard);
+
+        var matchColumn = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            SizeFlagsStretchRatio = 1.45f,
+        };
+        matchColumn.AddThemeConstantOverride("separation", 10);
+        dashboard.AddChild(matchColumn);
+
+        var sideColumn = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        sideColumn.AddThemeConstantOverride("separation", 10);
+        dashboard.AddChild(sideColumn);
+
+        var matchCard = AddCard(matchColumn, "SIRADAKİ MAÇ", emphasized: true);
+        _briefingLabel = BodyLabel("BriefingLabel", autowrap: true);
+        matchCard.AddChild(_briefingLabel);
+        _selectionLabel = BodyLabel("SelectionLabel", muted: true, autowrap: true);
+        matchCard.AddChild(_selectionLabel);
+
+        var primaryRow = ActionFlow();
+        matchCard.AddChild(primaryRow);
+        _approveSelectionButton = PrimaryButton("Kadro Onayla");
+        _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
+        primaryRow.AddChild(_approveSelectionButton);
+        _playButton = PrimaryButton("Maç Merkezine Git");
+        _playButton.Pressed += OnPlayMatches;
+        primaryRow.AddChild(_playButton);
+        _swapSelectionButton = SecondaryButton("XI↔Yedek");
+        _swapSelectionButton.Pressed += () => Apply(_controller.SwapLastStarterWithFirstBenchForNextDueMatch());
+        primaryRow.AddChild(_swapSelectionButton);
+
+        _seasonTransitionButton = PrimaryButton("Sezonu Bitir → Yeni Sezon");
+        _seasonTransitionButton.Pressed += () => Apply(_controller.TransitionToNextSeason());
+        matchColumn.AddChild(_seasonTransitionButton);
+        var timeRow = ActionFlow();
+        matchColumn.AddChild(timeRow);
+        _advanceDayButton = SecondaryButton("1 Gün İlerlet");
+        _advanceDayButton.Pressed += () => Apply(_controller.AdvanceDays(1));
+        timeRow.AddChild(_advanceDayButton);
+        _advanceWeekButton = SecondaryButton("7 Gün İlerlet");
+        _advanceWeekButton.Pressed += () => Apply(_controller.AdvanceDays(7));
+        timeRow.AddChild(_advanceWeekButton);
+
+        var priorityCard = AddCard(sideColumn, "BUGÜN", emphasized: true);
         _blockerLabel = BodyLabel("BlockerLabel", autowrap: true);
         priorityCard.AddChild(_blockerLabel);
         _pulseLabel = BodyLabel("PulseLabel", autowrap: true);
@@ -616,12 +675,12 @@ public partial class CareerHubScreen : Control
         _officeNextStepButton.Pressed += OnOfficeNextStepPressed;
         priorityCard.AddChild(_officeNextStepButton);
 
-        var officeCard = AddCard(page, "OFİSTEN NOTLAR");
+        var officeCard = AddCard(sideColumn, "SON GELİŞME");
         _officeLabel = BodyLabel("OfficeLabel", autowrap: true);
-        _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest.Quiet().ToDisplayText();
+        _officeLabel.Text = CompactOfficeText(Application.Competition.Queries.PostMatchOfficeDigest.Quiet());
         officeCard.AddChild(_officeLabel);
 
-        var decisionCard = AddCard(page, "KARAR MASASI");
+        var decisionCard = AddCard(sideColumn, "KARAR MASASI");
         _deskLabel = BodyLabel("DeskLabel", autowrap: true);
         decisionCard.AddChild(_deskLabel);
 
@@ -656,40 +715,6 @@ public partial class CareerHubScreen : Control
                 Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
         deskRow.AddChild(_pressCriticizeButton);
 
-        var matchCard = AddCard(page, "SIRADAKİ MAÇ", emphasized: true);
-        _briefingLabel = BodyLabel("BriefingLabel", autowrap: true);
-        matchCard.AddChild(_briefingLabel);
-
-        _selectionLabel = BodyLabel("SelectionLabel", autowrap: true);
-        matchCard.AddChild(_selectionLabel);
-
-        var primaryRow = ActionFlow();
-        matchCard.AddChild(primaryRow);
-
-        _approveSelectionButton = PrimaryButton("Kadro Onayla");
-        _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
-        primaryRow.AddChild(_approveSelectionButton);
-
-        _swapSelectionButton = SecondaryButton("XI↔Yedek");
-        _swapSelectionButton.Pressed += () =>
-            Apply(_controller.SwapLastStarterWithFirstBenchForNextDueMatch());
-        primaryRow.AddChild(_swapSelectionButton);
-
-        _playButton = PrimaryButton("Maç Gününe Git");
-        _playButton.Pressed += OnPlayMatches;
-        primaryRow.AddChild(_playButton);
-
-        _seasonTransitionButton = PrimaryButton("Sezonu Bitir → Yeni Sezon");
-        _seasonTransitionButton.Pressed += () => Apply(_controller.TransitionToNextSeason());
-        primaryRow.AddChild(_seasonTransitionButton);
-
-        _advanceDayButton = SecondaryButton("1 Gün İlerlet");
-        _advanceDayButton.Pressed += () => Apply(_controller.AdvanceDays(1));
-        primaryRow.AddChild(_advanceDayButton);
-
-        _advanceWeekButton = SecondaryButton("7 Gün İlerlet");
-        _advanceWeekButton.Pressed += () => Apply(_controller.AdvanceDays(7));
-        primaryRow.AddChild(_advanceWeekButton);
         return page;
     }
 
@@ -702,7 +727,7 @@ public partial class CareerHubScreen : Control
         _squadStatusLabel = BodyLabel("SquadStatusLabel", autowrap: true);
         squadCard.AddChild(_squadStatusLabel);
 
-        var pitchCard = AddCard(page, "SAHA YERLEÅÄ°MÄ°", emphasized: true);
+        var pitchCard = AddCard(page, "SAHA YERLEŞİMİ", emphasized: true);
         _clubPitchHost = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -1350,6 +1375,7 @@ public partial class CareerHubScreen : Control
 
     private void PulseStatus(string message, bool succeeded = true)
     {
+        _statusPanel.Visible = true;
         _statusLabel.Text = ToPlayerFacingText(message);
         var signal = succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft;
         _statusLabel.AddThemeColorOverride("font_color", signal);
@@ -1363,6 +1389,34 @@ public partial class CareerHubScreen : Control
 
     private static string ToPlayerFacingText(string text) =>
         Regex.Replace(InternalIdentifierPattern.Replace(text, string.Empty), @"[ ]{2,}", " ").Trim();
+
+    private static string CompactOfficeText(
+        Application.Competition.Queries.PostMatchOfficeDigest digest) =>
+        CompactSummary(digest.Headline, digest.AdviceLine);
+
+    private static string CompactOfficeText(
+        Application.CareerHub.Queries.CareerResumeDigest digest) =>
+        CompactSummary(digest.Headline, digest.AdviceLine);
+
+    private static string CompactSummary(string headline, string supportingLine) =>
+        CompactText(
+            string.IsNullOrWhiteSpace(supportingLine)
+                ? headline
+                : $"{headline}\n{supportingLine}",
+            maxLines: 2,
+            maxCharacters: 220);
+
+    private static string CompactText(string text, int maxLines, int maxCharacters = 180)
+    {
+        var compact = string.Join(
+            "\n",
+            text.Replace("\r", string.Empty, StringComparison.Ordinal)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Take(maxLines));
+        return compact.Length <= maxCharacters
+            ? compact
+            : compact[..(maxCharacters - 3)].TrimEnd() + "...";
+    }
 
     private void OnPlayMatches()
     {
@@ -1380,7 +1434,7 @@ public partial class CareerHubScreen : Control
         // Toparlanma onayı gibi ofis köprüleri nabız metninin üstüne yazılır.
         if (!string.IsNullOrWhiteSpace(result.NarrativeBridgeLine))
         {
-            _officeLabel.Text = result.NarrativeBridgeLine;
+            _officeLabel.Text = CompactText(result.NarrativeBridgeLine, 2);
         }
 
         if (!string.IsNullOrWhiteSpace(result.NextFocusCode))
@@ -1423,14 +1477,14 @@ public partial class CareerHubScreen : Control
                 player.Rating,
                 player.Fitness,
                 player.Fatigue,
-                string.Equals(player.Availability, "HazÄ±r", StringComparison.Ordinal),
+                !player.Availability.StartsWith("Sakat", StringComparison.OrdinalIgnoreCase),
                 true,
                 player.PositionName))
             .ToArray();
         if (startingXi.Length != Domain.TeamPreparation.MatchSelection.StartingXiSize)
         {
             var empty = BodyLabel("ClubPitchEmpty", muted: true, autowrap: true);
-            empty.Text = "Saha yerleÅŸimi iÃ§in 11 futbolcu bekleniyor.";
+            empty.Text = "Saha yerleşimi için 11 futbolcu bekleniyor.";
             _clubPitchHost.AddChild(empty);
             return;
         }
@@ -2180,7 +2234,7 @@ public partial class CareerHubScreen : Control
         var pending = _controller.Host.InteractionModule.Queries.GetPending(take: 5);
         var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         var desk = Application.Interaction.Queries.DecisionDeskDigest.Compose(pending, currentDay);
-        _deskLabel.Text = desk.ToDisplayText();
+        _deskLabel.Text = CompactSummary(desk.Headline, desk.SupportingLine ?? string.Empty);
 
         if (pending.OpenCount == 0)
         {
@@ -2194,6 +2248,13 @@ public partial class CareerHubScreen : Control
             _pressCriticizeButton.Disabled = true;
             _grantDecisionButton.Text = "Talebi Kabul Et";
             _refuseDecisionButton.Text = "Talebi Reddet";
+            _grantDecisionButton.Visible = false;
+            _refuseDecisionButton.Visible = false;
+            _disciplineWarningButton.Visible = false;
+            _disciplineFineButton.Visible = false;
+            _disciplineSupportButton.Visible = false;
+            _boardCounterButton.Visible = false;
+            _pressCriticizeButton.Visible = false;
             return;
         }
 
@@ -2223,24 +2284,33 @@ public partial class CareerHubScreen : Control
 
         if (grant is not null)
         {
+            _grantDecisionButton.Visible = true;
             _grantDecisionButton.Text = grant.DisplayText;
             _grantDecisionButton.Disabled = !grant.IsEligible;
         }
         else
         {
+            _grantDecisionButton.Visible = false;
             _grantDecisionButton.Disabled = true;
         }
 
         if (refuse is not null)
         {
+            _refuseDecisionButton.Visible = true;
             _refuseDecisionButton.Text = refuse.DisplayText;
             _refuseDecisionButton.Disabled = !refuse.IsEligible;
         }
         else
         {
+            _refuseDecisionButton.Visible = false;
             _refuseDecisionButton.Disabled = true;
         }
 
+        _disciplineWarningButton.Visible = warning is not null;
+        _disciplineFineButton.Visible = fine is not null;
+        _disciplineSupportButton.Visible = support is not null;
+        _boardCounterButton.Visible = counter is not null;
+        _pressCriticizeButton.Visible = criticize is not null;
         _disciplineWarningButton.Disabled = warning is null || !warning.IsEligible;
         _disciplineFineButton.Disabled = fine is null || !fine.IsEligible;
         _disciplineSupportButton.Disabled = support is null || !support.IsEligible;
@@ -2306,27 +2376,15 @@ public partial class CareerHubScreen : Control
     private void RefreshTodayPulse()
     {
         var pulse = _controller.BuildTodayPulse();
-        _pulseLabel.Text = pulse.ToDisplayText();
+        var pulseDetail = pulse.PulseLines.FirstOrDefault();
+        _pulseLabel.Text = CompactSummary(pulse.Headline, pulseDetail ?? string.Empty);
         var weekStory = _controller.BuildWeekStory();
         var weekMood = _controller.BuildWeekMood(weekStoryActive: weekStory.IsActive);
-        if (weekStory.IsActive)
-        {
-            _weekStoryLabel.Visible = true;
-            _weekStoryLabel.Text = weekStory.ToDisplayText();
-        }
-        else if (weekMood.IsActive)
-        {
-            _weekStoryLabel.Visible = true;
-            _weekStoryLabel.Text = weekMood.ToDisplayText();
-        }
-        else
-        {
-            _weekStoryLabel.Visible = false;
-            _weekStoryLabel.Text = string.Empty;
-        }
+        _weekStoryLabel.Visible = false;
+        _weekStoryLabel.Text = string.Empty;
         var recoveryPath = _controller.BuildInjuryRecoveryPath();
-        _recoveryPathLabel.Visible = recoveryPath.IsActive;
-        _recoveryPathLabel.Text = recoveryPath.IsActive ? recoveryPath.ToDisplayText() : string.Empty;
+        _recoveryPathLabel.Visible = false;
+        _recoveryPathLabel.Text = string.Empty;
 
         var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         var pending = _controller.Host.TeamPreparationModule.SelectionQueries
@@ -2353,9 +2411,9 @@ public partial class CareerHubScreen : Control
             hasInjuryPressure: prepBriefing.HasInjuryPressure,
             recoveryPath: recoveryPath,
             weekStory: weekStory);
-        _officeLabel.Text = Application.Competition.Queries.PostMatchOfficeDigest
-            .FromTodayPulse(pulse, weekMood, weekStory, nextStep?.ButtonLabel, currentDay)
-            .ToDisplayText();
+        var officeDigest = Application.Competition.Queries.PostMatchOfficeDigest
+            .FromTodayPulse(pulse, weekMood, weekStory, nextStep?.ButtonLabel, currentDay);
+        _officeLabel.Text = CompactOfficeText(officeDigest);
         BindOfficeNextStep(nextStep);
     }
 
@@ -2366,7 +2424,11 @@ public partial class CareerHubScreen : Control
             .GetNextDueManagedFixture(currentDay);
 
         var briefing = _controller.BuildNextMatchBriefing();
-        _briefingLabel.Text = briefing.ToDisplayText();
+        _briefingLabel.Text = CompactSummary(
+            briefing.HasMatch && !string.IsNullOrWhiteSpace(briefing.FixtureLine)
+                ? briefing.FixtureLine
+                : briefing.Headline,
+            briefing.HasMatch ? briefing.Headline : string.Empty);
         RefreshTodayPulse();
 
         if (pending is null)
