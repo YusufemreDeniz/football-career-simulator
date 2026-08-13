@@ -69,7 +69,7 @@ public partial class CareerAppRoot : Control
 
     public void ShowMatchDay(CareerSessionController controller)
     {
-        var panel = new MatchDayScreen(controller);
+        var panel = new LandscapeMatchDayScreen(controller);
         panel.BackRequested += () => ShowHub(controller);
         panel.KickoffRequested += () => ShowKickoffMoment(controller);
         ReplaceScreen(panel);
@@ -115,7 +115,7 @@ public partial class CareerAppRoot : Control
 
     public void ShowHalfTime(CareerSessionController controller, Application.Competition.Queries.MatchHalfTimeDigest digest)
     {
-        var panel = new MatchHalfTimeScreen(controller, digest);
+        var panel = new LandscapeHalfTimeScreen(controller, digest);
         panel.BackRequested += () => ShowMatchDay(controller);
         panel.SecondHalfRequested += (delta, substitutionBridge) =>
         {

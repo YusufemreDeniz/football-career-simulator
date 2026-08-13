@@ -81,6 +81,7 @@ public partial class CareerHubScreen : Control
     private SpinBox _roundSelector = null!;
     private ItemList _fixtureList = null!;
     private ItemList _squadList = null!;
+    private Control _clubPitchHost = null!;
     private Label _playerManagementHeadlineLabel = null!;
     private Label _playerDetailLabel = null!;
     private IReadOnlyList<PlayerManagementLine> _playerManagementPlayers = Array.Empty<PlayerManagementLine>();
@@ -147,6 +148,7 @@ public partial class CareerHubScreen : Control
     private HubPage _currentPage = HubPage.Today;
     private MarginContainer _shellMargin = null!;
     private HBoxContainer _topBar = null!;
+    private HBoxContainer _workspace = null!;
     private GridContainer _navGrid = null!;
     private PanelContainer _statusPanel = null!;
     private PanelContainer _datePanel = null!;
@@ -388,13 +390,22 @@ public partial class CareerHubScreen : Control
         _liveChip.AddChild(liveLabel);
         screenHeading.AddChild(_liveChip);
 
+        _workspace = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        _workspace.AddThemeConstantOverride("separation", 10);
+        shell.AddChild(_workspace);
+        BuildNavBar(_workspace);
+
         _pageScroll = new MobileScrollContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
         };
-        shell.AddChild(_pageScroll);
+        _workspace.AddChild(_pageScroll);
 
         var pageHost = new VBoxContainer
         {
@@ -426,8 +437,6 @@ public partial class CareerHubScreen : Control
         _statusPanel.AddChild(_statusLabel);
         shell.AddChild(_statusPanel);
 
-        BuildNavBar(shell);
-
         _layoutBuilt = true;
 
         ShowPage(HubPage.Today);
@@ -441,14 +450,19 @@ public partial class CareerHubScreen : Control
 
     private void BuildNavBar(Control parent)
     {
-        var navPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var navPanel = new PanelContainer
+        {
+            CustomMinimumSize = new Vector2(112, 0),
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
         navPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NavigationPanel());
         parent.AddChild(navPanel);
 
         _navGrid = new GridContainer
         {
-            Columns = 5,
+            Columns = 1,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
         };
         _navGrid.AddThemeConstantOverride("h_separation", 4);
         _navGrid.AddThemeConstantOverride("v_separation", 4);
@@ -527,7 +541,7 @@ public partial class CareerHubScreen : Control
         _dateLabel.AddThemeFontSizeOverride("font_size", profile.IsCompact ? 11 : 12);
         _careerButton.CustomMinimumSize = new Vector2(profile.IsCompact ? 54 : 58, profile.TouchTargetHeight);
         _statusLabel.CustomMinimumSize = new Vector2(0, profile.IsCompact ? 46 : 42);
-        _navGrid.Columns = profile.NavigationColumns;
+        _navGrid.Columns = Size.X > Size.Y ? 1 : profile.NavigationColumns;
         foreach (var button in _navButtons.Where(button => button is not null).Distinct())
         {
             button.CustomMinimumSize = new Vector2(0, profile.TouchTargetHeight);
@@ -687,6 +701,14 @@ public partial class CareerHubScreen : Control
         squadCard.AddChild(_squadCapacityLabel);
         _squadStatusLabel = BodyLabel("SquadStatusLabel", autowrap: true);
         squadCard.AddChild(_squadStatusLabel);
+
+        var pitchCard = AddCard(page, "SAHA YERLEÅÄ°MÄ°", emphasized: true);
+        _clubPitchHost = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 300),
+        };
+        pitchCard.AddChild(_clubPitchHost);
         _developmentLabel = BodyLabel("DevelopmentLabel", autowrap: true);
         _developmentLabel.Visible = false;
         squadCard.AddChild(_developmentLabel);
@@ -1133,7 +1155,7 @@ public partial class CareerHubScreen : Control
         _standingsTable = new Tree
         {
             Name = "StandingsTable",
-            Columns = 4,
+            Columns = 11,
             ColumnTitlesVisible = true,
             HideRoot = true,
             CustomMinimumSize = new Vector2(0, 500),
@@ -1285,14 +1307,14 @@ public partial class CareerHubScreen : Control
 
     private static void ConfigureStandingsColumns(Tree table)
     {
-        var titles = new[] { "SIRA", "TAKIM", "O", "P" };
+        var titles = new[] { "#", "TAKIM", "O", "G", "B", "M", "A", "Y", "AV", "FORM", "P" };
         for (var column = 0; column < titles.Length; column++)
         {
             table.SetColumnTitle(column, titles[column]);
             table.SetColumnExpand(column, column == 1);
             table.SetColumnCustomMinimumWidth(
                 column,
-                column == 1 ? 180 : column == 0 ? 46 : 42);
+                column == 1 ? 160 : column == 9 ? 68 : column == 0 ? 36 : 33);
         }
     }
 
@@ -1387,6 +1409,33 @@ public partial class CareerHubScreen : Control
 
         _selectedPlayerId = _playerManagementPlayers[(int)index].PlayerId;
         RefreshPlayerDetail();
+    }
+
+    private void RefreshClubPitch(IReadOnlyList<PlayerManagementLine> players)
+    {
+        MatchScreenUi.ClearChildren(_clubPitchHost);
+        var startingXi = players
+            .Take(Domain.TeamPreparation.MatchSelection.StartingXiSize)
+            .Select(player => new Application.TeamPreparation.Queries.SquadSelectionPlayerDigest(
+                player.SlotIndex,
+                player.DisplayName,
+                player.PositionCode,
+                player.Rating,
+                player.Fitness,
+                player.Fatigue,
+                string.Equals(player.Availability, "HazÄ±r", StringComparison.Ordinal),
+                true,
+                player.PositionName))
+            .ToArray();
+        if (startingXi.Length != Domain.TeamPreparation.MatchSelection.StartingXiSize)
+        {
+            var empty = BodyLabel("ClubPitchEmpty", muted: true, autowrap: true);
+            empty.Text = "Saha yerleÅŸimi iÃ§in 11 futbolcu bekleniyor.";
+            _clubPitchHost.AddChild(empty);
+            return;
+        }
+
+        _clubPitchHost.AddChild(TacticalPitchBoardUi.BuildReadOnly(startingXi));
     }
 
     private void OnScoutCandidateSelected(long index)
@@ -2427,6 +2476,7 @@ public partial class CareerHubScreen : Control
         }
 
         RefreshPlayerDetail();
+        RefreshClubPitch(management.Players);
 
         if (capacity.IsOverCapacity)
         {
@@ -2491,9 +2541,16 @@ public partial class CareerHubScreen : Control
             var row = _standingsTable.CreateItem(root);
             var values = new[]
             {
-                $"{index + 1}.",
+                (index + 1).ToString(),
                 _controller.GetClubDisplayName(entry.ClubId),
                 entry.Played.ToString(),
+                entry.Won.ToString(),
+                entry.Drawn.ToString(),
+                entry.Lost.ToString(),
+                entry.GoalsFor.ToString(),
+                entry.GoalsAgainst.ToString(),
+                entry.GoalDifference > 0 ? $"+{entry.GoalDifference}" : entry.GoalDifference.ToString(),
+                statistics.GetForm(entry.ClubId),
                 entry.Points.ToString(),
             };
 
@@ -2514,7 +2571,8 @@ public partial class CareerHubScreen : Control
                 _ => CareerUiTheme.InkMuted,
             };
             row.SetCustomColor(0, rankColor);
-            row.SetCustomColor(3, CareerUiTheme.Ink);
+            row.SetCustomColor(9, CareerUiTheme.Data);
+            row.SetCustomColor(10, CareerUiTheme.Ink);
 
             if (managedClubId == entry.ClubId)
             {
