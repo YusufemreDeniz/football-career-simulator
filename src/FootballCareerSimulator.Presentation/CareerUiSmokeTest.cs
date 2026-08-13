@@ -15,6 +15,21 @@ public static class CareerUiSmokeTest
     public static bool Run()
     {
         var passed = true;
+        var mobileLayout = Application.CareerHub.Queries.MobileUiLayoutProfile.Resolve(360, 800, 24);
+        passed &= LogCheck(
+            "Mobil güvenli alan ve dokunma profili",
+            mobileLayout.IsCompact
+            && mobileLayout.NavigationColumns == 3
+            && mobileLayout.TouchTargetHeight >= 48
+            && mobileLayout.BottomMargin >= 24);
+        passed &= LogCheck(
+            "Yatay ve dikey dokunma kaydırması",
+            MobileScrollContainer.ResolveDragAxis(new Vector2(20, 2), true, false)
+                == MobileScrollContainer.DragAxis.Horizontal
+            && MobileScrollContainer.ResolveDragAxis(new Vector2(2, 20), false, true)
+                == MobileScrollContainer.DragAxis.Vertical
+            && MobileScrollContainer.ResolveDragAxis(new Vector2(20, 2), false, true)
+                == MobileScrollContainer.DragAxis.None);
         var host = CareerPresentationHost.CreateDefault(
             Path.Combine(OS.GetUserDataDir(), "career_ui_selfcheck.db"));
         var world = host.WorldModule;

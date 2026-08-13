@@ -237,13 +237,17 @@ internal static class CareerUiTheme
             contentMargin: 8,
             shadowSize: 8);
 
-    public static StyleBoxFlat StatusPanel() =>
+    public static StyleBoxFlat StatusPanel(Color? signal = null)
+    {
+        var color = signal ?? Data;
+        return
         PanelStyle(
-            new Color(Data.R, Data.G, Data.B, 0.07f),
-            new Color(Data.R, Data.G, Data.B, 0.24f),
+            new Color(color.R, color.G, color.B, 0.08f),
+            new Color(color.R, color.G, color.B, 0.36f),
             radius: 10,
             contentMargin: 10,
             shadowSize: 0);
+    }
 
     public static StyleBoxFlat BadgePanel(Color color) =>
         PanelStyle(

@@ -144,6 +144,15 @@ public partial class CareerHubScreen : Control
     private Control[] _pages = null!;
     private Button[] _navButtons = null!;
     private HubPage _currentPage = HubPage.Today;
+    private MarginContainer _shellMargin = null!;
+    private HBoxContainer _topBar = null!;
+    private GridContainer _navGrid = null!;
+    private PanelContainer _statusPanel = null!;
+    private PanelContainer _datePanel = null!;
+    private PanelContainer _liveChip = null!;
+    private Label _brandLabel = null!;
+    private MobileScrollContainer _standingsScroll = null!;
+    private bool _layoutBuilt;
 
     private enum HubPage
     {
@@ -168,6 +177,16 @@ public partial class CareerHubScreen : Control
     {
         BuildLayout();
         RefreshUi();
+        ApplyResponsiveLayout();
+        Callable.From(ApplyResponsiveLayout).CallDeferred();
+    }
+
+    public override void _Notification(int what)
+    {
+        if (what == NotificationResized && _layoutBuilt)
+        {
+            ApplyResponsiveLayout();
+        }
     }
 
     public void SetStatus(string message) => PulseStatus(message);
@@ -270,15 +289,11 @@ public partial class CareerHubScreen : Control
         CareerUiTheme.EnsureLoaded();
         AddChild(CareerUiTheme.CreateAtmosphereBackground());
 
-        var margin = new MarginContainer();
-        margin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        margin.GrowHorizontal = GrowDirection.Both;
-        margin.GrowVertical = GrowDirection.Both;
-        margin.AddThemeConstantOverride("margin_left", 16);
-        margin.AddThemeConstantOverride("margin_top", 14);
-        margin.AddThemeConstantOverride("margin_right", 16);
-        margin.AddThemeConstantOverride("margin_bottom", 10);
-        AddChild(margin);
+        _shellMargin = new MarginContainer();
+        _shellMargin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _shellMargin.GrowHorizontal = GrowDirection.Both;
+        _shellMargin.GrowVertical = GrowDirection.Both;
+        AddChild(_shellMargin);
 
         var shell = new VBoxContainer
         {
@@ -286,16 +301,16 @@ public partial class CareerHubScreen : Control
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
         shell.AddThemeConstantOverride("separation", 10);
-        margin.AddChild(shell);
+        _shellMargin.AddChild(shell);
 
         // Sabit kariyer kabuğu: kulüp kimliği + tarih, ardından aktif ekran başlığı.
-        var topBar = new HBoxContainer
+        _topBar = new HBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Alignment = BoxContainer.AlignmentMode.Center,
         };
-        topBar.AddThemeConstantOverride("separation", 10);
-        shell.AddChild(topBar);
+        _topBar.AddThemeConstantOverride("separation", 10);
+        shell.AddChild(_topBar);
 
         _clubCrest = new TextureRect
         {
@@ -306,38 +321,38 @@ public partial class CareerHubScreen : Control
             TooltipText = "Kulüp arması",
             Visible = false,
         };
-        topBar.AddChild(_clubCrest);
+        _topBar.AddChild(_clubCrest);
 
         var brandLockup = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         brandLockup.AddThemeConstantOverride("separation", 0);
-        topBar.AddChild(brandLockup);
+        _topBar.AddChild(brandLockup);
 
-        var brand = new Label { Text = "FCS  /  CAREER MODE" };
-        CareerUiTheme.StyleSection(brand);
-        brandLockup.AddChild(brand);
+        _brandLabel = new Label { Text = "FCS  /  CAREER MODE" };
+        CareerUiTheme.StyleSection(_brandLabel);
+        brandLockup.AddChild(_brandLabel);
 
         _managerLabel = BodyLabel("ManagerLabel", autowrap: true);
         CareerUiTheme.StyleHeadline(_managerLabel);
         _managerLabel.AddThemeFontSizeOverride("font_size", 22);
         brandLockup.AddChild(_managerLabel);
 
-        var datePanel = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
-        datePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.PillPanel());
-        topBar.AddChild(datePanel);
+        _datePanel = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        _datePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.PillPanel());
+        _topBar.AddChild(_datePanel);
         _dateLabel = BodyLabel("DateLabel");
         _dateLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _dateLabel.AddThemeFontSizeOverride("font_size", 12);
-        datePanel.AddChild(_dateLabel);
+        _datePanel.AddChild(_dateLabel);
 
         _careerButton = SecondaryButton("DOSYA");
         _careerButton.CustomMinimumSize = new Vector2(58, 48);
         _careerButton.AddThemeFontSizeOverride("font_size", 11);
         _careerButton.TooltipText = "Kariyer dosyası, kayıt ve ana menü";
         _careerButton.Pressed += () => ShowPage(HubPage.File);
-        topBar.AddChild(_careerButton);
+        _topBar.AddChild(_careerButton);
 
         var careerMeta = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         careerMeta.AddThemeConstantOverride("separation", 2);
@@ -362,14 +377,14 @@ public partial class CareerHubScreen : Control
         _pageSubtitleLabel.AddThemeFontSizeOverride("font_size", 12);
         headingCopy.AddChild(_pageSubtitleLabel);
 
-        var liveChip = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
-        liveChip.AddThemeStyleboxOverride("panel", CareerUiTheme.LivePillPanel());
+        _liveChip = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        _liveChip.AddThemeStyleboxOverride("panel", CareerUiTheme.LivePillPanel());
         var liveLabel = new Label { Text = "●  CANLI" };
         CareerUiTheme.StyleBody(liveLabel);
         liveLabel.AddThemeFontSizeOverride("font_size", 11);
         liveLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
-        liveChip.AddChild(liveLabel);
-        screenHeading.AddChild(liveChip);
+        _liveChip.AddChild(liveLabel);
+        screenHeading.AddChild(_liveChip);
 
         _pageScroll = new MobileScrollContainer
         {
@@ -404,12 +419,14 @@ public partial class CareerHubScreen : Control
         _statusLabel = BodyLabel("StatusLabel", autowrap: true);
         _statusLabel.CustomMinimumSize = new Vector2(0, 42);
         _statusLabel.VerticalAlignment = VerticalAlignment.Center;
-        var statusPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        statusPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel());
-        statusPanel.AddChild(_statusLabel);
-        shell.AddChild(statusPanel);
+        _statusPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _statusPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel());
+        _statusPanel.AddChild(_statusLabel);
+        shell.AddChild(_statusPanel);
 
         BuildNavBar(shell);
+
+        _layoutBuilt = true;
 
         ShowPage(HubPage.Today);
 
@@ -426,13 +443,14 @@ public partial class CareerHubScreen : Control
         navPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NavigationPanel());
         parent.AddChild(navPanel);
 
-        var nav = new GridContainer
+        _navGrid = new GridContainer
         {
             Columns = 5,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        nav.AddThemeConstantOverride("h_separation", 4);
-        navPanel.AddChild(nav);
+        _navGrid.AddThemeConstantOverride("h_separation", 4);
+        _navGrid.AddThemeConstantOverride("v_separation", 4);
+        navPanel.AddChild(_navGrid);
 
         var labels = new[] { "MERKEZ", "KADRO", "TRANSFER", "TAKTİK", "LİG" };
         _navButtons = new Button[6];
@@ -446,7 +464,7 @@ public partial class CareerHubScreen : Control
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
             };
             button.Pressed += () => ShowPage(page);
-            nav.AddChild(button);
+            _navGrid.AddChild(button);
             _navButtons[i] = button;
         }
 
@@ -481,6 +499,51 @@ public partial class CareerHubScreen : Control
             .SetTrans(Tween.TransitionType.Cubic)
             .SetEase(Tween.EaseType.Out);
         Callable.From(() => _pageScroll.ScrollVertical = 0).CallDeferred();
+    }
+
+    private void ApplyResponsiveLayout()
+    {
+        if (!_layoutBuilt)
+        {
+            return;
+        }
+
+        var profile = MobileUiLayoutProfile.Resolve(
+            Mathf.RoundToInt(Size.X),
+            Mathf.RoundToInt(Size.Y),
+            GetSafeBottomInset());
+        _shellMargin.AddThemeConstantOverride("margin_left", profile.HorizontalMargin);
+        _shellMargin.AddThemeConstantOverride("margin_right", profile.HorizontalMargin);
+        _shellMargin.AddThemeConstantOverride("margin_top", profile.TopMargin);
+        _shellMargin.AddThemeConstantOverride("margin_bottom", profile.BottomMargin);
+        _topBar.AddThemeConstantOverride("separation", profile.IsCompact ? 6 : 10);
+        _brandLabel.Visible = !profile.IsCompact;
+        _clubCrest.CustomMinimumSize = new Vector2(profile.CrestSize, profile.CrestSize);
+        _managerLabel.AddThemeFontSizeOverride("font_size", profile.IsCompact ? 18 : 22);
+        _pageTitleLabel.AddThemeFontSizeOverride("font_size", profile.PageTitleFontSize);
+        _liveChip.Visible = !profile.IsCompact || Size.X >= 440;
+        _dateLabel.AddThemeFontSizeOverride("font_size", profile.IsCompact ? 11 : 12);
+        _careerButton.CustomMinimumSize = new Vector2(profile.IsCompact ? 54 : 58, profile.TouchTargetHeight);
+        _statusLabel.CustomMinimumSize = new Vector2(0, profile.IsCompact ? 46 : 42);
+        _navGrid.Columns = profile.NavigationColumns;
+        foreach (var button in _navButtons.Where(button => button is not null).Distinct())
+        {
+            button.CustomMinimumSize = new Vector2(0, profile.TouchTargetHeight);
+        }
+
+        _standingsTable.CustomMinimumSize = new Vector2(profile.StandingsMinimumWidth, 500);
+    }
+
+    private static int GetSafeBottomInset()
+    {
+        if (!OS.HasFeature("mobile"))
+        {
+            return 0;
+        }
+
+        var safe = DisplayServer.GetDisplaySafeArea();
+        var display = DisplayServer.ScreenGetSize();
+        return Math.Max(0, display.Y - (safe.Position.Y + safe.Size.Y));
     }
 
     private VBoxContainer PageRoot()
@@ -1018,6 +1081,15 @@ public partial class CareerHubScreen : Control
         statisticsCard.AddChild(_managedLeagueStatisticsLabel);
 
         var tableCard = AddCard(page, "PUAN DURUMU");
+        _standingsScroll = new MobileScrollContainer
+        {
+            Name = "StandingsHorizontalScroll",
+            CustomMinimumSize = new Vector2(0, 500),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        tableCard.AddChild(_standingsScroll);
         _standingsTable = new Tree
         {
             Name = "StandingsTable",
@@ -1029,7 +1101,7 @@ public partial class CareerHubScreen : Control
         };
         ConfigureStandingsColumns(_standingsTable);
         CareerUiTheme.StyleTable(_standingsTable);
-        tableCard.AddChild(_standingsTable);
+        _standingsScroll.AddChild(_standingsTable);
 
         var fixtureCard = AddCard(page, "HAFTA FİKSTÜRÜ");
         var roundRow = ActionFlow();
@@ -1214,9 +1286,12 @@ public partial class CareerHubScreen : Control
         row.AddChild(button);
     }
 
-    private void PulseStatus(string message)
+    private void PulseStatus(string message, bool succeeded = true)
     {
         _statusLabel.Text = message;
+        var signal = succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft;
+        _statusLabel.AddThemeColorOverride("font_color", signal);
+        _statusPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel(signal));
         _statusLabel.Modulate = new Color(1f, 1f, 1f, 0.35f);
         var tween = CreateTween();
         tween.TweenProperty(_statusLabel, "modulate:a", 1f, 0.28f)
@@ -1231,7 +1306,11 @@ public partial class CareerHubScreen : Control
 
     private void Apply(UiActionResult result)
     {
-        PulseStatus(result.Message);
+        PulseStatus(result.Message, result.Succeeded);
+        if (OS.HasFeature("mobile"))
+        {
+            Input.VibrateHandheld(result.Succeeded ? 18 : 34);
+        }
         RefreshUi();
         // Toparlanma onayı gibi ofis köprüleri nabız metninin üstüne yazılır.
         if (!string.IsNullOrWhiteSpace(result.NarrativeBridgeLine))
