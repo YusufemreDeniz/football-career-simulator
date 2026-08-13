@@ -80,21 +80,32 @@ public sealed class CareerPresentationHost
     public CareerGameSessionService GameSession { get; }
     public string DefaultSavePath { get; }
 
-    public static CareerPresentationHost CreateDefault(string? defaultSavePath = null)
+    public static IReadOnlyList<Application.ClubGovernance.Queries.ClubReadModel> GetNewCareerClubs() =>
+        ClubGovernanceModule.CreateMvpLeague().Queries.GetAllClubs();
+
+    public static CareerPresentationHost CreateDefault(string? defaultSavePath = null) =>
+        CreateNewCareer(
+            CareerStartConfiguration.Create("Teknik Direktor", startingClubId: 1),
+            defaultSavePath);
+
+    public static CareerPresentationHost CreateNewCareer(
+        CareerStartConfiguration configuration,
+        string? defaultSavePath = null)
     {
-        var startDate = GameDate.FromCalendarDate(2026, 7, 1);
+        ArgumentNullException.ThrowIfNull(configuration);
+        var startDate = configuration.StartingDate;
         var timelineStore = new InMemoryWorldTimelineStore(
-            WorldTimeline.Create(startDate, rootSeed: 42, SimulationRandomContext.Version));
+            WorldTimeline.Create(startDate, configuration.RootSeed, SimulationRandomContext.Version));
         var competitionStore = new InMemoryLeagueCompetitionStore(
             new LeagueCompetition(new CompetitionId(MvpLeagueIdentity.DefaultCompetitionId)));
         var clubModule = ClubGovernanceModule.CreateMvpLeague();
-        const long startingClubId = 1;
+        var startingClubId = configuration.StartingClubId;
         var startingStrength = clubModule.Queries.GetClub(startingClubId)?.SportiveStrength ?? 50;
         var decisionStore = new InMemoryDecisionRequestStore();
         var dialogueSessionStore = new InMemoryDialogueSessionStore();
         var worldModule = WorldCalendarModule.Create(
             startDate,
-            rootSeed: 42,
+            rootSeed: configuration.RootSeed,
             blockerSources:
             [
                 new UnplayedFixturesTimeAdvanceBlockerSource(competitionStore, timelineStore),
@@ -106,6 +117,7 @@ public sealed class CareerPresentationHost
             startDate,
             clubModule.Store,
             worldModule.TimelineStore,
+            displayName: configuration.ManagerName,
             startingClubId: startingClubId,
             clubSportiveStrength: startingStrength);
 

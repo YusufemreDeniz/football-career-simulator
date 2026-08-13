@@ -35,6 +35,14 @@ public partial class CareerAppRoot : Control
         ReplaceScreen(menu);
     }
 
+    private void ShowNewCareerSetup()
+    {
+        var setup = new CareerSetupScreen(CareerPresentationHost.GetNewCareerClubs());
+        setup.CancelRequested += ShowMainMenu;
+        setup.CareerConfirmed += StartNewCareer;
+        ReplaceScreen(setup);
+    }
+
     public void ShowHub(
         CareerSessionController controller,
         string? statusMessage = null,
@@ -158,10 +166,38 @@ public partial class CareerAppRoot : Control
 
     private void OnNewCareer()
     {
-        var host = CareerPresentationHost.CreateDefault();
+        ShowNewCareerSetup();
+    }
+
+    private void StartNewCareer(CareerStartConfiguration configuration)
+    {
+        try
+        {
+            ClearPreviousCareerSave();
+        }
+        catch (Exception ex)
+        {
+            GD.PushError($"[CareerAppRoot] Onceki kayit temizlenemedi: {ex}");
+            ShowMainMenu();
+            return;
+        }
+
+        var host = CareerPresentationHost.CreateNewCareer(configuration);
         var controller = new CareerSessionController(host);
         var setup = controller.EnsureLeagueReady();
         ShowHub(controller, setup.Message);
+    }
+
+    private static void ClearPreviousCareerSave()
+    {
+        var savePath = Path.Combine(OS.GetUserDataDir(), "career_save.db");
+        foreach (var path in new[] { savePath, savePath + ".bak", savePath + ".migrating.tmp" })
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
     }
 
     private void OnContinueCareer()

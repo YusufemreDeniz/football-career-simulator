@@ -138,6 +138,30 @@ internal static class CareerUiTheme
         button.CustomMinimumSize = new Vector2(0, 48);
     }
 
+    public static void StyleTextInput(LineEdit input)
+    {
+        ApplyBodyFont(input);
+        input.AddThemeFontSizeOverride("font_size", 16);
+        input.AddThemeColorOverride("font_color", Ink);
+        input.AddThemeColorOverride("font_placeholder_color", InkMuted);
+        input.AddThemeStyleboxOverride("normal", InputField(Stroke));
+        input.AddThemeStyleboxOverride("focus", InputField(Data));
+        input.AddThemeStyleboxOverride("read_only", InputField(Stroke));
+    }
+
+    public static void StyleOptionSelector(OptionButton selector)
+    {
+        ApplyBodyFont(selector);
+        selector.AddThemeFontSizeOverride("font_size", 15);
+        selector.AddThemeColorOverride("font_color", Ink);
+        selector.AddThemeColorOverride("font_hover_color", Ink);
+        selector.AddThemeColorOverride("font_pressed_color", Ink);
+        selector.AddThemeStyleboxOverride("normal", InputField(Stroke));
+        selector.AddThemeStyleboxOverride("hover", InputField(Action));
+        selector.AddThemeStyleboxOverride("pressed", InputField(Data));
+        selector.AddThemeStyleboxOverride("focus", FocusRing(Data));
+    }
+
     public static void StyleNavButton(Button button, bool selected)
     {
         ApplyBodyFont(button);
@@ -326,6 +350,25 @@ internal static class CareerUiTheme
             ContentMarginRight = 15,
             ContentMarginTop = 11,
             ContentMarginBottom = 11,
+        };
+
+    private static StyleBoxFlat InputField(Color border) =>
+        new()
+        {
+            BgColor = new Color(Surface.R, Surface.G, Surface.B, 0.94f),
+            BorderColor = border,
+            BorderWidthLeft = 1,
+            BorderWidthTop = 1,
+            BorderWidthRight = 1,
+            BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomRight = 6,
+            CornerRadiusBottomLeft = 6,
+            ContentMarginLeft = 14,
+            ContentMarginTop = 8,
+            ContentMarginRight = 14,
+            ContentMarginBottom = 8,
         };
 
     private static StyleBoxFlat NavButtonSurface() =>

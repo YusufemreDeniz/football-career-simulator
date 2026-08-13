@@ -30,13 +30,32 @@ public static class CareerUiSmokeTest
                 == MobileScrollContainer.DragAxis.Vertical
             && MobileScrollContainer.ResolveDragAxis(new Vector2(20, 2), false, true)
                 == MobileScrollContainer.DragAxis.None);
-        var host = CareerPresentationHost.CreateDefault(
+        var startDate = Domain.WorldCalendar.GameDate.FromCalendarDate(2026, 8, 13);
+        var startConfiguration = CareerStartConfiguration.Create(
+            "Smoke Manager",
+            startingClubId: 2,
+            startingDate: startDate,
+            rootSeed: 741852);
+        var host = CareerPresentationHost.CreateNewCareer(
+            startConfiguration,
             Path.Combine(OS.GetUserDataDir(), "career_ui_selfcheck.db"));
         var world = host.WorldModule;
         var competition = host.CompetitionModule;
 
         var before = world.Queries.GetCurrentGameDate();
         passed &= LogCheck("Başlangıç tarihi", before.DayNumber > 0);
+
+        var manager = host.ManagerModule.Queries.GetCareer();
+        passed &= LogCheck(
+            "Yeni kariyer secimi",
+            before.DayNumber == startDate.DayNumber
+            && manager.DisplayName == "Smoke Manager"
+            && manager.EmployedClubId == 2
+            && host.WorldModule.TimelineStore.Timeline.RootSeed == 741852);
+        passed &= LogCheck(
+            "Kulup secim listesi",
+            CareerPresentationHost.GetNewCareerClubs().Count
+            == CompetitionMvpConstraints.LeagueTeamCount);
 
         var result = world.AdvanceSimulationTime.Handle(
             new AdvanceSimulationTimeCommand(Guid.NewGuid(), before.DayNumber + 1));

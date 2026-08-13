@@ -4,6 +4,9 @@ namespace FootballCareerSimulator.Infrastructure.WorldCalendar;
 
 internal static class WorldCalendarSqliteMigrator
 {
+    private static SqliteConnection OpenMigrationConnection(string workingCopyPath) =>
+        new($"Data Source={workingCopyPath};Pooling=False");
+
     public static void MigrateInPlace(string filePath, int fromVersion)
     {
         if (fromVersion != 1)
@@ -41,7 +44,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV1ToV2(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -94,7 +97,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV2ToV3(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -186,7 +189,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV3ToV4(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -260,7 +263,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV4ToV5(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -315,7 +318,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV5ToV6(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         int currentDayNumber = 1;
@@ -395,7 +398,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV6ToV7(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -454,7 +457,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV7ToV8(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -518,7 +521,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV8ToV9(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -609,7 +612,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV9ToV10(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -670,7 +673,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV10ToV11(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -737,7 +740,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV11ToV12(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -792,7 +795,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV12ToV13(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -852,7 +855,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV13ToV14(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -911,7 +914,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV14ToV15(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -971,7 +974,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV15ToV16(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1029,7 +1032,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV16ToV17(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1085,7 +1088,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV17ToV18(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1142,7 +1145,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV18ToV19(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1203,7 +1206,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV19ToV20(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1276,7 +1279,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV20ToV21(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1341,7 +1344,7 @@ internal static class WorldCalendarSqliteMigrator
     private static void MigrateV21ToV22(string workingCopyPath)
     {
         // Sporting Approval yalnızca Process Status enum genişlemesi; tablo değişikliği yok.
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using var updateTransaction = connection.BeginTransaction();
@@ -1385,7 +1388,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV22ToV23(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1444,7 +1447,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV23ToV24(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1505,7 +1508,7 @@ internal static class WorldCalendarSqliteMigrator
     private static void MigrateV24ToV25(string workingCopyPath)
     {
         // Financial Approval yalnızca Process Status enum genişlemesi; tablo değişikliği yok.
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using var updateTransaction = connection.BeginTransaction();
@@ -1550,7 +1553,7 @@ internal static class WorldCalendarSqliteMigrator
     private static void MigrateV25ToV26(string workingCopyPath)
     {
         // Transfer Completion yalnızca Process Status enum genişlemesi; tablo değişikliği yok.
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using var updateTransaction = connection.BeginTransaction();
@@ -1594,7 +1597,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV26ToV27(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1660,7 +1663,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV27ToV28(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1729,7 +1732,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV28ToV29(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1794,7 +1797,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV29ToV30(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1861,7 +1864,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV30ToV31(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1932,7 +1935,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV31ToV32(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -1998,7 +2001,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV32ToV33(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -2056,7 +2059,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV33ToV34(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -2120,7 +2123,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV34ToV35(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -2184,7 +2187,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV35ToV36(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -2244,7 +2247,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV36ToV37(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -2301,7 +2304,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV37ToV38(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -2355,7 +2358,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV38ToV39(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -2413,7 +2416,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV39ToV40(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -2469,7 +2472,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV40ToV41(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
@@ -2528,7 +2531,7 @@ internal static class WorldCalendarSqliteMigrator
 
     private static void MigrateV41ToV42(string workingCopyPath)
     {
-        using var connection = new SqliteConnection($"Data Source={workingCopyPath}");
+        using var connection = OpenMigrationConnection(workingCopyPath);
         connection.Open();
 
         using (var alterTransaction = connection.BeginTransaction())
