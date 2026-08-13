@@ -10,14 +10,15 @@ namespace FootballCareerSimulator.Presentation;
 /// </summary>
 public partial class MatchHalfTimeScreen : Control
 {
+    private const int MaxSecondHalfSubstitutions = 5;
     private readonly CareerSessionController _controller;
     private readonly MatchHalfTimeDigest _digest;
     private Control _lineupHost = null!;
     private Control _substitutionBoardHost = null!;
     private Control _liveTacticHost = null!;
     private Label _statusLabel = null!;
-    private bool _subMade;
-    private string? _substitutionBridgeLine;
+    private int _substitutionCount;
+    private readonly List<string> _substitutionBridgeLines = [];
     private int? _selectedSquadSlotIndex;
     private bool? _selectedSquadPlayerIsStarter;
 
@@ -186,12 +187,12 @@ public partial class MatchHalfTimeScreen : Control
             _selectedSquadSlotIndex,
             SelectSquadPlayer,
             SwapSquadPlayers,
-            interactionEnabled: !_subMade));
+            interactionEnabled: _substitutionCount < MaxSecondHalfSubstitutions));
     }
 
     private void SelectSquadPlayer(SquadSelectionPlayerDigest player)
     {
-        if (_subMade)
+        if (_substitutionCount >= MaxSecondHalfSubstitutions)
         {
             return;
         }
@@ -220,7 +221,7 @@ public partial class MatchHalfTimeScreen : Control
 
     private void SwapSquadPlayers(int starterSlotIndex, int benchSlotIndex)
     {
-        if (_subMade)
+        if (_substitutionCount >= MaxSecondHalfSubstitutions)
         {
             return;
         }
@@ -228,12 +229,12 @@ public partial class MatchHalfTimeScreen : Control
         var result = _controller.SwapStarterWithBenchForNextDueMatch(
             starterSlotIndex,
             benchSlotIndex);
-        _subMade = result.Succeeded;
         _selectedSquadSlotIndex = null;
         _selectedSquadPlayerIsStarter = null;
         if (result.Succeeded && !string.IsNullOrWhiteSpace(result.NarrativeBridgeLine))
         {
-            _substitutionBridgeLine = result.NarrativeBridgeLine;
+            _substitutionCount++;
+            _substitutionBridgeLines.Add(result.NarrativeBridgeLine);
         }
 
         SetStatus(
@@ -276,7 +277,11 @@ public partial class MatchHalfTimeScreen : Control
                 _controller.SetTacticApproach(TacticalApproach.Defensive);
             }
 
-            Callable.From(() => SecondHalfRequested?.Invoke(delta, _substitutionBridgeLine))
+            Callable.From(() => SecondHalfRequested?.Invoke(
+                    delta,
+                    _substitutionBridgeLines.Count == 0
+                        ? null
+                        : string.Join(" Â· ", _substitutionBridgeLines)))
                 .CallDeferred();
         };
         return button;

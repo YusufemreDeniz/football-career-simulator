@@ -13,6 +13,7 @@ using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
+using FootballCareerSimulator.Simulation.TeamPreparation;
 
 namespace FootballCareerSimulator.Tests.TeamPreparation;
 
@@ -157,5 +158,29 @@ public sealed class CustomMatchSelectionTests
                 clubId,
                 Day,
                 physical));
+    }
+
+    [Fact]
+    public void DefaultSelection_PrefersOneGoalkeeperWhenOutfieldStarterIsUnavailable()
+    {
+        var clubId = new ClubId(1);
+        var physical = Enumerable.Range(0, MatchSelection.MaxSquadSlot + 1)
+            .ToDictionary(
+                slot => (clubId.Value, slot),
+                slot => PlayerPhysicalState.CreateRested(clubId, slot));
+        physical[(clubId.Value, 1)] = PlayerPhysicalState.CreateRested(clubId, 1)
+            .WithInjury(InjurySeverity.Minor, Day.AddDays(5));
+
+        var selection = MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+            new FixtureId(3),
+            clubId,
+            Day,
+            physical);
+        var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(clubId, rootSeed: 0);
+        var goalkeeperCount = selection.StartingSlotIndices
+            .Count(slot => profiles[slot].PositionGroup == MvpSquadPositionGroup.Goalkeeper);
+
+        Assert.Equal(MatchSelection.StartingXiSize, selection.StartingSlotIndices.Count);
+        Assert.Equal(1, goalkeeperCount);
     }
 }

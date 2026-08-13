@@ -3,6 +3,7 @@ using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using Godot;
+using System.Text.RegularExpressions;
 
 namespace FootballCareerSimulator.Presentation;
 
@@ -151,8 +152,9 @@ public partial class CareerHubScreen : Control
     private PanelContainer _datePanel = null!;
     private PanelContainer _liveChip = null!;
     private Label _brandLabel = null!;
-    private MobileScrollContainer _standingsScroll = null!;
     private bool _layoutBuilt;
+
+    private static readonly Regex InternalIdentifierPattern = new(@"\b[A-Za-z]*#\d+", RegexOptions.Compiled);
 
     private enum HubPage
     {
@@ -531,7 +533,7 @@ public partial class CareerHubScreen : Control
             button.CustomMinimumSize = new Vector2(0, profile.TouchTargetHeight);
         }
 
-        _standingsTable.CustomMinimumSize = new Vector2(profile.StandingsMinimumWidth, 500);
+        _standingsTable.CustomMinimumSize = new Vector2(0, 500);
     }
 
     private static int GetSafeBottomInset()
@@ -686,8 +688,10 @@ public partial class CareerHubScreen : Control
         _squadStatusLabel = BodyLabel("SquadStatusLabel", autowrap: true);
         squadCard.AddChild(_squadStatusLabel);
         _developmentLabel = BodyLabel("DevelopmentLabel", autowrap: true);
+        _developmentLabel.Visible = false;
         squadCard.AddChild(_developmentLabel);
         _contractLabel = BodyLabel("ContractLabel", autowrap: true);
+        _contractLabel.Visible = false;
         squadCard.AddChild(_contractLabel);
 
         var kitStrip = new HBoxContainer
@@ -697,6 +701,7 @@ public partial class CareerHubScreen : Control
             Alignment = BoxContainer.AlignmentMode.Center,
         };
         kitStrip.AddThemeConstantOverride("separation", 18);
+        kitStrip.Visible = false;
         squadCard.AddChild(kitStrip);
         _homeKit = AddKitPreview(kitStrip, "İÇ SAHA", "Kulübün resmi iç saha forması");
         _awayKit = AddKitPreview(kitStrip, "DEPLASMAN", "Kulübün resmi deplasman forması");
@@ -718,14 +723,14 @@ public partial class CareerHubScreen : Control
         _squadList = new ItemList
         {
             Name = "SquadList",
-            CustomMinimumSize = new Vector2(0, 340),
+            CustomMinimumSize = new Vector2(0, 620),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StyleList(_squadList);
         _squadList.ItemSelected += OnSquadPlayerSelected;
         playerManagementCard.AddChild(_squadList);
         _playerDetailLabel = BodyLabel("PlayerDetailLabel", autowrap: true);
-        _playerDetailLabel.CustomMinimumSize = new Vector2(0, 146);
+        _playerDetailLabel.CustomMinimumSize = new Vector2(0, 92);
         playerManagementCard.AddChild(_playerDetailLabel);
 
         var actionCard = AddCard(page, "KADRO & KARİYER AKSİYONLARI");
@@ -791,6 +796,27 @@ public partial class CareerHubScreen : Control
         _openPressQuestionDecisionButton.Pressed += () =>
             Apply(_controller.OpenPressQuestionDecisionForOldestSquadPlayer());
         decisionRow.AddChild(_openPressQuestionDecisionButton);
+
+        var clubDetailsToggle = SecondaryButton("Kadro ayrintilari");
+        squadCard.AddChild(clubDetailsToggle);
+        var optionalClubCards = new[]
+        {
+            teamDynamicsCard.GetParent<Control>(),
+            actionCard.GetParent<Control>(),
+        };
+        foreach (var card in optionalClubCards)
+        {
+            card.Visible = false;
+        }
+        clubDetailsToggle.Pressed += () =>
+        {
+            var visible = !optionalClubCards[0].Visible;
+            foreach (var card in optionalClubCards)
+            {
+                card.Visible = visible;
+            }
+            clubDetailsToggle.Text = visible ? "Kadro ayrintilarini gizle" : "Kadro ayrintilari";
+        };
         return page;
     }
 
@@ -966,6 +992,29 @@ public partial class CareerHubScreen : Control
         _completeTransferButton.Pressed += () =>
             Apply(_controller.CompleteOldestFinanciallyApprovedProcess());
         financialRow.AddChild(_completeTransferButton);
+
+        var negotiationToggle = SecondaryButton("Muzakere adimlari");
+        overviewCard.AddChild(negotiationToggle);
+        var negotiationCards = new[]
+        {
+            processCard.GetParent<Control>(),
+            offerCard.GetParent<Control>(),
+            contractCard.GetParent<Control>(),
+            financeCard.GetParent<Control>(),
+        };
+        foreach (var card in negotiationCards)
+        {
+            card.Visible = false;
+        }
+        negotiationToggle.Pressed += () =>
+        {
+            var visible = !negotiationCards[0].Visible;
+            foreach (var card in negotiationCards)
+            {
+                card.Visible = visible;
+            }
+            negotiationToggle.Text = visible ? "Muzakere adimlarini gizle" : "Muzakere adimlari";
+        };
         return page;
     }
 
@@ -1081,19 +1130,10 @@ public partial class CareerHubScreen : Control
         statisticsCard.AddChild(_managedLeagueStatisticsLabel);
 
         var tableCard = AddCard(page, "PUAN DURUMU");
-        _standingsScroll = new MobileScrollContainer
-        {
-            Name = "StandingsHorizontalScroll",
-            CustomMinimumSize = new Vector2(0, 500),
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
-            VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
-        };
-        tableCard.AddChild(_standingsScroll);
         _standingsTable = new Tree
         {
             Name = "StandingsTable",
-            Columns = 11,
+            Columns = 4,
             ColumnTitlesVisible = true,
             HideRoot = true,
             CustomMinimumSize = new Vector2(0, 500),
@@ -1101,7 +1141,7 @@ public partial class CareerHubScreen : Control
         };
         ConfigureStandingsColumns(_standingsTable);
         CareerUiTheme.StyleTable(_standingsTable);
-        _standingsScroll.AddChild(_standingsTable);
+        tableCard.AddChild(_standingsTable);
 
         var fixtureCard = AddCard(page, "HAFTA FİKSTÜRÜ");
         var roundRow = ActionFlow();
@@ -1245,14 +1285,14 @@ public partial class CareerHubScreen : Control
 
     private static void ConfigureStandingsColumns(Tree table)
     {
-        var titles = new[] { "#", "TAKIM", "O", "G", "B", "M", "A", "Y", "AV", "FORM", "P" };
+        var titles = new[] { "SIRA", "TAKIM", "O", "P" };
         for (var column = 0; column < titles.Length; column++)
         {
             table.SetColumnTitle(column, titles[column]);
             table.SetColumnExpand(column, column == 1);
             table.SetColumnCustomMinimumWidth(
                 column,
-                column == 1 ? 210 : column == 9 ? 110 : column == 0 ? 38 : 44);
+                column == 1 ? 180 : column == 0 ? 46 : 42);
         }
     }
 
@@ -1288,7 +1328,7 @@ public partial class CareerHubScreen : Control
 
     private void PulseStatus(string message, bool succeeded = true)
     {
-        _statusLabel.Text = message;
+        _statusLabel.Text = ToPlayerFacingText(message);
         var signal = succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft;
         _statusLabel.AddThemeColorOverride("font_color", signal);
         _statusPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel(signal));
@@ -1298,6 +1338,9 @@ public partial class CareerHubScreen : Control
             .SetTrans(Tween.TransitionType.Sine)
             .SetEase(Tween.EaseType.Out);
     }
+
+    private static string ToPlayerFacingText(string text) =>
+        Regex.Replace(InternalIdentifierPattern.Replace(text, string.Empty), @"[ ]{2,}", " ").Trim();
 
     private void OnPlayMatches()
     {
@@ -1475,6 +1518,7 @@ public partial class CareerHubScreen : Control
             UpdateTransferNeedButtons(manager);
             UpdateTrainingButtons(manager);
             UpdateTacticButtons(manager);
+            SanitizeScreenText(this);
             return;
         }
 
@@ -1523,6 +1567,31 @@ public partial class CareerHubScreen : Control
         UpdateTrainingButtons(manager);
         UpdateTacticButtons(manager);
         UpdateSaveDeskButtons();
+        SanitizeScreenText(this);
+    }
+
+    private static void SanitizeScreenText(Node node)
+    {
+        if (node is Label label)
+        {
+            label.Text = ToPlayerFacingText(label.Text);
+        }
+        else if (node is Button button)
+        {
+            button.Text = ToPlayerFacingText(button.Text);
+        }
+        else if (node is ItemList list)
+        {
+            for (var index = 0; index < list.ItemCount; index++)
+            {
+                list.SetItemText(index, ToPlayerFacingText(list.GetItemText(index)));
+            }
+        }
+
+        foreach (var child in node.GetChildren())
+        {
+            SanitizeScreenText(child);
+        }
     }
 
     private void RefreshClubBranding()
@@ -2422,16 +2491,9 @@ public partial class CareerHubScreen : Control
             var row = _standingsTable.CreateItem(root);
             var values = new[]
             {
-                (index + 1).ToString(),
+                $"{index + 1}.",
                 _controller.GetClubDisplayName(entry.ClubId),
                 entry.Played.ToString(),
-                entry.Won.ToString(),
-                entry.Drawn.ToString(),
-                entry.Lost.ToString(),
-                entry.GoalsFor.ToString(),
-                entry.GoalsAgainst.ToString(),
-                entry.GoalDifference > 0 ? $"+{entry.GoalDifference}" : entry.GoalDifference.ToString(),
-                statistics.GetForm(entry.ClubId),
                 entry.Points.ToString(),
             };
 
@@ -2452,8 +2514,7 @@ public partial class CareerHubScreen : Control
                 _ => CareerUiTheme.InkMuted,
             };
             row.SetCustomColor(0, rankColor);
-            row.SetCustomColor(9, CareerUiTheme.Data);
-            row.SetCustomColor(10, CareerUiTheme.Ink);
+            row.SetCustomColor(3, CareerUiTheme.Ink);
 
             if (managedClubId == entry.ClubId)
             {

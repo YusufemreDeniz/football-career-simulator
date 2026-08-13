@@ -3,6 +3,7 @@ using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.TeamPreparation;
 
 namespace FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
@@ -53,10 +54,7 @@ public static class MvpAvailabilityAwareSelection
             return false;
         }
 
-        var preferredStarting = available
-            .Concat(unavailable)
-            .Take(MatchSelection.StartingXiSize)
-            .ToArray();
+        var preferredStarting = SelectBalancedStartingSlots(clubId, available);
         startingSlotIndices = preferredStarting;
 
         if (unavailable.Count == 0)
@@ -146,10 +144,10 @@ public static class MvpAvailabilityAwareSelection
                 $"Not enough available players for starting XI ({available.Count}/{MatchSelection.StartingXiSize}).");
         }
 
-        var ordered = available.Concat(unavailable).ToArray();
-        var starting = ordered.Take(MatchSelection.StartingXiSize).ToArray();
-        var bench = ordered
-            .Skip(MatchSelection.StartingXiSize)
+        var starting = SelectBalancedStartingSlots(clubId, available);
+        var bench = available
+            .Where(slot => !starting.Contains(slot))
+            .Concat(unavailable)
             .Take(MatchSelection.MaxBenchSize)
             .ToArray();
 
@@ -185,6 +183,28 @@ public static class MvpAvailabilityAwareSelection
                 available.Add(slot);
             }
         }
+    }
+
+    private static int[] SelectBalancedStartingSlots(ClubId clubId, IReadOnlyList<int> available)
+    {
+        var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(clubId, rootSeed: 0);
+        var eligible = available
+            .Where(slot => slot >= 0 && slot < profiles.Count)
+            .Select(slot => (Slot: slot, Profile: profiles[slot]))
+            .ToArray();
+        var roleFit = MvpLineupRoleFitCalculator.Evaluate(
+            Formation.F442,
+            eligible.Select(item => item.Profile).ToArray());
+        var naturalSlots = roleFit.PlayerByRoleIndex
+            .Where(index => index >= 0 && index < eligible.Length)
+            .Select(index => eligible[index].Slot)
+            .Distinct()
+            .ToArray();
+
+        return naturalSlots
+            .Concat(available.Where(slot => !naturalSlots.Contains(slot)))
+            .Take(MatchSelection.StartingXiSize)
+            .ToArray();
     }
 
     public static MatchSelection SwapStarterWithBench(
