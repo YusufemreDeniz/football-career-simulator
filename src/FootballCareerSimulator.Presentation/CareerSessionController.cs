@@ -3042,6 +3042,82 @@ public sealed class CareerSessionController
             Host.SocialContinuityModule.PromiseStore.Promises);
     }
 
+    public CareerLegacyDigest BuildCareerLegacyDigest()
+    {
+        var career = Host.ManagerModule.Store.Career;
+        if (career.ActiveEmployment is not { } employment)
+        {
+            return CareerLegacyDigest.Empty();
+        }
+
+        var timeline = Host.WorldModule.TimelineStore.Timeline;
+        var clubId = employment.ClubId;
+        var seasons = Host.CompetitionModule.Store.League.Seasons
+            .Where(season =>
+                season.PreseasonStartDate.DayNumber >= employment.StartedAt.DayNumber
+                || season.Fixtures.Any(fixture =>
+                    fixture.ScheduledDate.DayNumber >= employment.StartedAt.DayNumber
+                    && (fixture.HomeClubId == clubId || fixture.AwayClubId == clubId)))
+            .Select(season =>
+            {
+                var standings = season.Standings.Entries.ToArray();
+                var standing = standings.FirstOrDefault(entry => entry.ClubId == clubId);
+                var rank = standing is null
+                    ? 0
+                    : Array.FindIndex(standings, entry => entry.ClubId == clubId) + 1;
+                var fixtures = season.Fixtures.Where(fixture =>
+                    fixture.Status == FixtureStatus.ResultAccepted
+                    && fixture.ScheduledDate.DayNumber >= employment.StartedAt.DayNumber
+                    && (fixture.HomeClubId == clubId || fixture.AwayClubId == clubId))
+                    .ToArray();
+                var results = fixtures.Select(fixture =>
+                {
+                    var goalsFor = fixture.HomeClubId == clubId
+                        ? fixture.HomeGoals!.Value
+                        : fixture.AwayGoals!.Value;
+                    var goalsAgainst = fixture.HomeClubId == clubId
+                        ? fixture.AwayGoals!.Value
+                        : fixture.HomeGoals!.Value;
+                    return (GoalsFor: goalsFor, GoalsAgainst: goalsAgainst);
+                }).ToArray();
+                var won = results.Count(result => result.GoalsFor > result.GoalsAgainst);
+                var drawn = results.Count(result => result.GoalsFor == result.GoalsAgainst);
+                var lost = results.Length - won - drawn;
+                return new CareerSeasonLegacySource(
+                    season.SeasonId.Value,
+                    season.Status.ToString(),
+                    rank,
+                    standings.Length,
+                    results.Length,
+                    won,
+                    drawn,
+                    lost,
+                    won * 3 + drawn,
+                    results.Sum(result => result.GoalsFor),
+                    results.Sum(result => result.GoalsAgainst));
+            }).ToArray();
+        var squadCareers = Host.PlayerCareerModule.Store.Careers
+            .Where(player => player.OriginClubId == clubId)
+            .ToArray();
+        var expiringLimit = timeline.CurrentDate.AddDays(365).DayNumber;
+        var expiring = Host.ContractModule.Store.GetForClub(clubId).Count(contract =>
+            contract.IsActiveOn(timeline.CurrentDate)
+            && contract.EndDate.DayNumber <= expiringLimit);
+
+        return CareerLegacyDigest.Compose(
+            career.DisplayName,
+            GetClubDisplayName(clubId.Value),
+            Math.Max(0, timeline.CurrentDate.DayNumber - employment.StartedAt.DayNumber),
+            career.Reputation.Value,
+            employment.BoardConfidence.Value,
+            squadCareers.Count(player => player.LastDevelopedOn is not null || player.DevelopmentPoints > 0),
+            squadCareers.Length == 0
+                ? 0
+                : (int)Math.Round(squadCareers.Average(player => player.AgeYears(timeline.CurrentDate))),
+            expiring,
+            seasons);
+    }
+
     public TacticPlanReadModel GetManagedTacticPlan() =>
         Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
 

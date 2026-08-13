@@ -193,6 +193,12 @@ public static class CareerUiSmokeTest
                 leagueStatistics.HasData
                 && leagueStatistics.Teams.Count == CompetitionMvpConstraints.LeagueTeamCount
                 && leagueStatistics.Teams.Count(team => team.LastFiveForm != "—") == 2);
+            var careerLegacy = new CareerSessionController(host).BuildCareerLegacyDigest();
+            passed &= LogCheck(
+                "Uzun süreli kariyer döngüsü",
+                careerLegacy.HasCareer
+                && careerLegacy.Seasons.Count == 1
+                && careerLegacy.Seasons[0].Record.Contains("1 maç", StringComparison.Ordinal));
         }
         catch (Exception ex)
         {

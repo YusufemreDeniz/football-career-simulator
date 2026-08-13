@@ -71,6 +71,10 @@ public partial class CareerHubScreen : Control
     private Label _managedLeagueStatisticsLabel = null!;
     private Label _statusLabel = null!;
     private Label _saveDeskLabel = null!;
+    private Label _careerLegacyHeadlineLabel = null!;
+    private Label _careerLegacyRecordLabel = null!;
+    private Label _careerLegacyDevelopmentLabel = null!;
+    private ItemList _careerSeasonList = null!;
     private Button _saveGameButton = null!;
     private Button _loadGameButton = null!;
     private SpinBox _roundSelector = null!;
@@ -1082,6 +1086,23 @@ public partial class CareerHubScreen : Control
     private Control BuildFilePage()
     {
         var page = PageRoot();
+        var legacyCard = AddCard(page, "TEKNİK DİREKTÖR KARİYERİ", emphasized: true);
+        _careerLegacyHeadlineLabel = BodyLabel("CareerLegacyHeadlineLabel", autowrap: true);
+        legacyCard.AddChild(_careerLegacyHeadlineLabel);
+        _careerLegacyRecordLabel = BodyLabel("CareerLegacyRecordLabel", autowrap: true);
+        legacyCard.AddChild(_careerLegacyRecordLabel);
+        _careerLegacyDevelopmentLabel = BodyLabel("CareerLegacyDevelopmentLabel", autowrap: true);
+        legacyCard.AddChild(_careerLegacyDevelopmentLabel);
+        _careerSeasonList = new ItemList
+        {
+            Name = "CareerSeasonList",
+            CustomMinimumSize = new Vector2(0, 260),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        CareerUiTheme.StyleList(_careerSeasonList);
+        legacyCard.AddChild(_careerSeasonList);
+
         var saveCard = AddCard(page, "KARİYER DOSYASI", emphasized: true);
         _saveDeskLabel = BodyLabel("SaveDeskLabel", autowrap: true);
         saveCard.AddChild(_saveDeskLabel);
@@ -1457,6 +1478,16 @@ public partial class CareerHubScreen : Control
 
     private void RefreshSaveDesk()
     {
+        var legacy = _controller.BuildCareerLegacyDigest();
+        _careerLegacyHeadlineLabel.Text = legacy.Headline;
+        _careerLegacyRecordLabel.Text = $"{legacy.RecordLine}\n{legacy.NextMilestoneLine}";
+        _careerLegacyDevelopmentLabel.Text = legacy.DevelopmentLine;
+        _careerSeasonList.Clear();
+        foreach (var season in legacy.Seasons)
+        {
+            _careerSeasonList.AddItem(season.ToDisplayText());
+        }
+
         var desk = _controller.BuildSaveDeskDigest();
         _saveDeskLabel.Text = desk.ToDisplayText();
         UpdateSaveDeskButtons();
