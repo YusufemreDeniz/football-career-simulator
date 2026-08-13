@@ -15,9 +15,11 @@ public partial class LandscapeMatchDayScreen : Control
     private Label _statusLabel = null!;
     private Label _selectionHintLabel = null!;
     private Control _pitchHost = null!;
+    private VBoxContainer _benchHost = null!;
     private VBoxContainer _tacticHost = null!;
     private Button _approveButton = null!;
     private Button _kickoffButton = null!;
+    private LandscapeMatchLayoutProfile _layout = null!;
     private int? _selectedSquadSlotIndex;
     private bool? _selectedSquadPlayerIsStarter;
 
@@ -32,11 +34,17 @@ public partial class LandscapeMatchDayScreen : Control
     public override void _Ready()
     {
         CareerUiTheme.EnsureLoaded();
+        var viewport = GetViewportRect().Size;
+        _layout = LandscapeMatchLayoutProfile.Resolve(
+            Mathf.RoundToInt(viewport.X),
+            Mathf.RoundToInt(viewport.Y));
         var margin = MatchScreenUi.CreateStageRoot(
             this,
-            new Color(CareerUiTheme.Data.R, CareerUiTheme.Data.G, CareerUiTheme.Data.B, 0.07f));
+            new Color(CareerUiTheme.Data.R, CareerUiTheme.Data.G, CareerUiTheme.Data.B, 0.07f),
+            _layout.HorizontalMargin,
+            _layout.VerticalMargin);
 
-        var shell = MatchScreenUi.VerticalStack(10);
+        var shell = MatchScreenUi.VerticalStack(_layout.SectionSeparation);
         shell.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(shell);
 
@@ -44,7 +52,7 @@ public partial class LandscapeMatchDayScreen : Control
         header.AddThemeConstantOverride("separation", 10);
         shell.AddChild(header);
         var back = SecondaryButton("Geri");
-        back.CustomMinimumSize = new Vector2(74, 42);
+        back.CustomMinimumSize = new Vector2(74, _layout.ActionButtonHeight);
         back.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
         header.AddChild(back);
 
@@ -63,7 +71,7 @@ public partial class LandscapeMatchDayScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        body.AddThemeConstantOverride("separation", 12);
+        body.AddThemeConstantOverride("separation", _layout.SectionSeparation);
         shell.AddChild(body);
 
         var pitchPanel = MatchScreenUi.Card(emphasized: true);
@@ -84,11 +92,13 @@ public partial class LandscapeMatchDayScreen : Control
         pitchStack.AddChild(_pitchHost);
 
         var commandPanel = MatchScreenUi.Card();
-        commandPanel.CustomMinimumSize = new Vector2(310, 0);
+        commandPanel.CustomMinimumSize = new Vector2(_layout.CommandPanelWidth, 0);
         commandPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
         body.AddChild(commandPanel);
+        var commandScroll = MatchScreenUi.ScrollArea();
+        commandPanel.AddChild(commandScroll);
         var commandStack = MatchScreenUi.VerticalStack(9);
-        commandPanel.AddChild(commandStack);
+        commandScroll.AddChild(commandStack);
 
         _headlineLabel = MatchScreenUi.BodyLine(string.Empty);
         _headlineLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
@@ -96,6 +106,9 @@ public partial class LandscapeMatchDayScreen : Control
 
         _selectionHintLabel = MatchScreenUi.BodyLine(string.Empty, muted: true);
         commandStack.AddChild(_selectionHintLabel);
+
+        _benchHost = MatchScreenUi.VerticalStack(0);
+        commandStack.AddChild(_benchHost);
 
         var tacticsTitle = new Label { Text = "MAC PLANI" };
         CareerUiTheme.StyleEyebrow(tacticsTitle, CareerUiTheme.Data);
@@ -120,10 +133,12 @@ public partial class LandscapeMatchDayScreen : Control
         shell.AddChild(footer);
         _approveButton = PrimaryButton("Kadro Onayla");
         _approveButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        _approveButton.CustomMinimumSize = new Vector2(0, _layout.ActionButtonHeight);
         _approveButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
         footer.AddChild(_approveButton);
         _kickoffButton = PrimaryButton("Dudugu Cal");
         _kickoffButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        _kickoffButton.CustomMinimumSize = new Vector2(0, _layout.ActionButtonHeight);
         _kickoffButton.Pressed += () => Callable.From(() => KickoffRequested?.Invoke()).CallDeferred();
         footer.AddChild(_kickoffButton);
 
@@ -154,6 +169,7 @@ public partial class LandscapeMatchDayScreen : Control
     private void RefreshPitch()
     {
         MatchScreenUi.ClearChildren(_pitchHost);
+        MatchScreenUi.ClearChildren(_benchHost);
         var board = _controller.BuildSquadSelectionBoard();
         if (!board.HasMatch)
         {
@@ -172,11 +188,19 @@ public partial class LandscapeMatchDayScreen : Control
         _selectionHintLabel.Text = _selectedSquadSlotIndex is null
             ? "Bir oyuncuya, sonra karsisindaki gruptan degisecek oyuncuya dokun."
             : "Degisiklik icin karsisindaki gruptan bir oyuncu sec.";
-        _pitchHost.AddChild(TacticalPitchBoardUi.Build(
+        _benchHost.AddChild(TacticalPitchBoardUi.BuildBench(
             board,
             _selectedSquadSlotIndex,
             SelectSquadPlayer,
-            SwapSquadPlayers));
+            true,
+            new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight)));
+        _pitchHost.AddChild(TacticalPitchBoardUi.BuildPitch(
+            board,
+            _selectedSquadSlotIndex,
+            SelectSquadPlayer,
+            true,
+            new Vector2(_layout.PitchMinimumWidth, _layout.PitchMinimumHeight),
+            new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight)));
     }
 
     private void RefreshTactics()

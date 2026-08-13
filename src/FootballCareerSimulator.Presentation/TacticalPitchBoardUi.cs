@@ -48,25 +48,75 @@ internal static class TacticalPitchBoardUi
         };
         root.AddThemeConstantOverride("separation", 8);
 
-        var pitch = new TacticalPitchBoard(board.StartingXi, selectedSlotIndex, selectPlayer, interactionEnabled)
+        root.AddChild(BuildPitch(
+            board,
+            selectedSlotIndex,
+            selectPlayer,
+            interactionEnabled,
+            new Vector2(480, 300),
+            new Vector2(76, 48)));
+
+        root.AddChild(BuildBench(
+            board,
+            selectedSlotIndex,
+            selectPlayer,
+            interactionEnabled,
+            new Vector2(76, 48)));
+
+        return root;
+    }
+
+    public static Control BuildPitch(
+        SquadSelectionBoardDigest board,
+        int? selectedSlotIndex,
+        Action<SquadSelectionPlayerDigest> selectPlayer,
+        bool interactionEnabled,
+        Vector2 minimumSize,
+        Vector2 playerButtonMinimumSize)
+    {
+        return new TacticalPitchBoard(
+            board.StartingXi,
+            selectedSlotIndex,
+            selectPlayer,
+            interactionEnabled,
+            playerButtonMinimumSize)
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(480, 300),
+            CustomMinimumSize = minimumSize,
         };
-        root.AddChild(pitch);
+    }
 
+    public static Control BuildBench(
+        SquadSelectionBoardDigest board,
+        int? selectedSlotIndex,
+        Action<SquadSelectionPlayerDigest> selectPlayer,
+        bool interactionEnabled,
+        Vector2 playerButtonMinimumSize)
+    {
+        var root = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        root.AddThemeConstantOverride("separation", 5);
         var benchTitle = new Label { Text = "YEDEK KULUBESI" };
         CareerUiTheme.StyleEyebrow(benchTitle, CareerUiTheme.Data);
         root.AddChild(benchTitle);
 
-        var bench = new HFlowContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        bench.AddThemeConstantOverride("h_separation", 6);
-        bench.AddThemeConstantOverride("v_separation", 6);
-        root.AddChild(bench);
+        var scroll = new MobileScrollContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        root.AddChild(scroll);
+        var bench = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        bench.AddThemeConstantOverride("separation", 6);
+        scroll.AddChild(bench);
         foreach (var player in board.Bench)
         {
-            var button = PlayerButton(player, selectedSlotIndex == player.SlotIndex, interactionEnabled);
+            var button = PlayerButton(
+                player,
+                selectedSlotIndex == player.SlotIndex,
+                interactionEnabled,
+                playerButtonMinimumSize);
             button.Pressed += () => selectPlayer(player);
             bench.AddChild(button);
         }
@@ -77,13 +127,13 @@ internal static class TacticalPitchBoardUi
     internal static Button PlayerButton(
         SquadSelectionPlayerDigest player,
         bool selected,
-        bool interactionEnabled)
+        bool interactionEnabled,
+        Vector2? minimumSize = null)
     {
         var button = new Button
         {
             Text = $"{ShortName(player.DisplayName)}\n{player.PositionCode}  {player.Rating}",
             TooltipText = $"{player.DisplayName} · {player.PositionName} · Güç {player.Rating} · Fitness %{player.Fitness}",
-            CustomMinimumSize = new Vector2(76, 48),
             Disabled = !interactionEnabled || (!player.IsAvailable && !player.IsStarter),
         };
         if (selected)
@@ -96,6 +146,7 @@ internal static class TacticalPitchBoardUi
         }
 
         button.AddThemeFontSizeOverride("font_size", 11);
+        button.CustomMinimumSize = minimumSize ?? new Vector2(76, 48);
         return button;
     }
 
@@ -120,18 +171,21 @@ internal sealed partial class TacticalPitchBoard : Control
     private readonly int? _selectedSlotIndex;
     private readonly Action<SquadSelectionPlayerDigest> _selectPlayer;
     private readonly bool _interactionEnabled;
+    private readonly Vector2 _playerButtonMinimumSize;
     private readonly List<(Button Button, Vector2 Position)> _buttons = [];
 
     public TacticalPitchBoard(
         IReadOnlyList<SquadSelectionPlayerDigest> players,
         int? selectedSlotIndex,
         Action<SquadSelectionPlayerDigest> selectPlayer,
-        bool interactionEnabled)
+        bool interactionEnabled,
+        Vector2? playerButtonMinimumSize = null)
     {
         _players = players;
         _selectedSlotIndex = selectedSlotIndex;
         _selectPlayer = selectPlayer;
         _interactionEnabled = interactionEnabled;
+        _playerButtonMinimumSize = playerButtonMinimumSize ?? new Vector2(76, 48);
         ClipContents = true;
     }
 
@@ -142,7 +196,8 @@ internal sealed partial class TacticalPitchBoard : Control
             var button = TacticalPitchBoardUi.PlayerButton(
                 player,
                 _selectedSlotIndex == player.SlotIndex,
-                _interactionEnabled);
+                _interactionEnabled,
+                _playerButtonMinimumSize);
             button.Pressed += () => _selectPlayer(player);
             AddChild(button);
             _buttons.Add((button, Positions[index]));

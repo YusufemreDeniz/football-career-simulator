@@ -529,7 +529,11 @@ public partial class MatchDayScreen : Control
 /// <summary>Maç gecesi ekranlarının küçük, kod-tabanlı mobil yerleşim yapı taşları.</summary>
 internal static class MatchScreenUi
 {
-    public static MarginContainer CreateStageRoot(Control owner, Color stageWash)
+    public static MarginContainer CreateStageRoot(
+        Control owner,
+        Color stageWash,
+        int horizontalMargin = 16,
+        int verticalMargin = 16)
     {
         owner.AddChild(CareerUiTheme.CreateAtmosphereBackground());
 
@@ -545,10 +549,10 @@ internal static class MatchScreenUi
         margin.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         margin.GrowHorizontal = Control.GrowDirection.Both;
         margin.GrowVertical = Control.GrowDirection.Both;
-        margin.AddThemeConstantOverride("margin_left", 16);
-        margin.AddThemeConstantOverride("margin_top", 16);
-        margin.AddThemeConstantOverride("margin_right", 16);
-        margin.AddThemeConstantOverride("margin_bottom", 16);
+        margin.AddThemeConstantOverride("margin_left", horizontalMargin);
+        margin.AddThemeConstantOverride("margin_top", verticalMargin);
+        margin.AddThemeConstantOverride("margin_right", horizontalMargin);
+        margin.AddThemeConstantOverride("margin_bottom", verticalMargin);
         owner.AddChild(margin);
         return margin;
     }

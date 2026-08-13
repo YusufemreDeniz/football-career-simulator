@@ -30,6 +30,13 @@ public static class CareerUiSmokeTest
                 == MobileScrollContainer.DragAxis.Vertical
             && MobileScrollContainer.ResolveDragAxis(new Vector2(20, 2), false, true)
                 == MobileScrollContainer.DragAxis.None);
+        var landscapeMatchLayout = Application.TeamPreparation.Queries.LandscapeMatchLayoutProfile.Resolve(844, 390);
+        passed &= LogCheck(
+            "Kompakt yatay maç yerleşimi",
+            landscapeMatchLayout.IsCompact
+            && landscapeMatchLayout.CommandPanelWidth <= 240
+            && landscapeMatchLayout.PitchMinimumHeight <= 190
+            && landscapeMatchLayout.ActionButtonHeight >= 44);
         var startDate = Domain.WorldCalendar.GameDate.FromCalendarDate(2026, 8, 13);
         var startConfiguration = CareerStartConfiguration.Create(
             "Smoke Manager",

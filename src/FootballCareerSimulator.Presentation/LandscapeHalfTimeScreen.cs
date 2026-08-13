@@ -14,12 +14,14 @@ public partial class LandscapeHalfTimeScreen : Control
     private readonly CareerSessionController _controller;
     private readonly MatchHalfTimeDigest _digest;
     private Control _pitchHost = null!;
+    private VBoxContainer _benchHost = null!;
     private Label _substitutionLabel = null!;
     private Label _statusLabel = null!;
     private int _substitutionCount;
     private int? _selectedSquadSlotIndex;
     private bool? _selectedSquadPlayerIsStarter;
     private readonly List<string> _substitutionBridgeLines = [];
+    private LandscapeMatchLayoutProfile _layout = null!;
 
     public event Action? BackRequested;
     public event Action<int, string?>? SecondHalfRequested;
@@ -33,10 +35,16 @@ public partial class LandscapeHalfTimeScreen : Control
     public override void _Ready()
     {
         CareerUiTheme.EnsureLoaded();
+        var viewport = GetViewportRect().Size;
+        _layout = LandscapeMatchLayoutProfile.Resolve(
+            Mathf.RoundToInt(viewport.X),
+            Mathf.RoundToInt(viewport.Y));
         var margin = MatchScreenUi.CreateStageRoot(
             this,
-            new Color(CareerUiTheme.Accent.R, CareerUiTheme.Accent.G, CareerUiTheme.Accent.B, 0.08f));
-        var shell = MatchScreenUi.VerticalStack(10);
+            new Color(CareerUiTheme.Accent.R, CareerUiTheme.Accent.G, CareerUiTheme.Accent.B, 0.08f),
+            _layout.HorizontalMargin,
+            _layout.VerticalMargin);
+        var shell = MatchScreenUi.VerticalStack(_layout.SectionSeparation);
         shell.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(shell);
 
@@ -44,7 +52,7 @@ public partial class LandscapeHalfTimeScreen : Control
         header.AddThemeConstantOverride("separation", 10);
         shell.AddChild(header);
         var back = SecondaryButton("Geri");
-        back.CustomMinimumSize = new Vector2(74, 42);
+        back.CustomMinimumSize = new Vector2(74, _layout.ActionButtonHeight);
         back.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
         header.AddChild(back);
         var scoreBlock = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -65,7 +73,7 @@ public partial class LandscapeHalfTimeScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        body.AddThemeConstantOverride("separation", 12);
+        body.AddThemeConstantOverride("separation", _layout.SectionSeparation);
         shell.AddChild(body);
 
         var pitchPanel = MatchScreenUi.Card(emphasized: true);
@@ -86,11 +94,13 @@ public partial class LandscapeHalfTimeScreen : Control
         pitchStack.AddChild(_pitchHost);
 
         var desk = MatchScreenUi.Card();
-        desk.CustomMinimumSize = new Vector2(310, 0);
+        desk.CustomMinimumSize = new Vector2(_layout.CommandPanelWidth, 0);
         desk.SizeFlagsVertical = SizeFlags.ExpandFill;
         body.AddChild(desk);
+        var deskScroll = MatchScreenUi.ScrollArea();
+        desk.AddChild(deskScroll);
         var deskStack = MatchScreenUi.VerticalStack(10);
-        desk.AddChild(deskStack);
+        deskScroll.AddChild(deskStack);
         var headline = MatchScreenUi.BodyLine(_digest.Headline);
         headline.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         deskStack.AddChild(headline);
@@ -99,6 +109,9 @@ public partial class LandscapeHalfTimeScreen : Control
         {
             deskStack.AddChild(MatchScreenUi.BeatLine(beat, muted: true));
         }
+
+        _benchHost = MatchScreenUi.VerticalStack(0);
+        deskStack.AddChild(_benchHost);
 
         var tacticTitle = new Label { Text = "IKINCI YARI PLANI" };
         CareerUiTheme.StyleEyebrow(tacticTitle, CareerUiTheme.Data);
@@ -120,6 +133,7 @@ public partial class LandscapeHalfTimeScreen : Control
     private void RefreshPitch()
     {
         MatchScreenUi.ClearChildren(_pitchHost);
+        MatchScreenUi.ClearChildren(_benchHost);
         var board = _controller.BuildSquadSelectionBoard();
         if (!board.HasMatch)
         {
@@ -130,12 +144,19 @@ public partial class LandscapeHalfTimeScreen : Control
         _substitutionLabel.Text = _substitutionCount >= MaxSecondHalfSubstitutions
             ? "DEGISIKLIK HAKKI KALMADI  /  5-5"
             : $"DEGISIKLIK HAKKI  /  {_substitutionCount}-{MaxSecondHalfSubstitutions}";
-        _pitchHost.AddChild(TacticalPitchBoardUi.Build(
+        _benchHost.AddChild(TacticalPitchBoardUi.BuildBench(
             board,
             _selectedSquadSlotIndex,
             SelectSquadPlayer,
-            SwapSquadPlayers,
-            interactionEnabled: _substitutionCount < MaxSecondHalfSubstitutions));
+            _substitutionCount < MaxSecondHalfSubstitutions,
+            new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight)));
+        _pitchHost.AddChild(TacticalPitchBoardUi.BuildPitch(
+            board,
+            _selectedSquadSlotIndex,
+            SelectSquadPlayer,
+            _substitutionCount < MaxSecondHalfSubstitutions,
+            new Vector2(_layout.PitchMinimumWidth, _layout.PitchMinimumHeight),
+            new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight)));
     }
 
     private void SelectSquadPlayer(SquadSelectionPlayerDigest player)
