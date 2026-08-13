@@ -1,0 +1,201 @@
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Domain.ContractRegistration;
+using FootballCareerSimulator.Domain.PlayerCareer;
+using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.SocialContinuity;
+using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.TeamPreparation;
+using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
+
+namespace FootballCareerSimulator.Application.CareerHub.Queries;
+
+public sealed record PlayerManagementLine(
+    long PlayerId,
+    int SlotIndex,
+    int SquadNumber,
+    string DisplayName,
+    string PositionCode,
+    string PositionName,
+    int Rating,
+    int Age,
+    int CurrentAbility,
+    int PotentialAbility,
+    string CareerPhase,
+    int Fitness,
+    int Fatigue,
+    string Availability,
+    int? WeeklyWage,
+    string ContractEnd,
+    int? Trust,
+    int? Respect,
+    int? Compatibility,
+    string RelationshipState,
+    string PromiseSummary)
+{
+    public string ToListLabel() =>
+        $"{SquadNumber}. {DisplayName} · {PositionCode} · GÜÇ {Rating} · FİT %{Fitness}"
+        + (Availability == "Hazır" ? string.Empty : $" · {Availability.ToUpperInvariant()}");
+
+    public string ToDetailText()
+    {
+        var contract = WeeklyWage is int wage
+            ? $"Haftalık ücret {wage:N0} · bitiş {ContractEnd}"
+            : "Aktif sözleşme yok";
+        var relationship = Trust is int trust && Respect is int respect && Compatibility is int compatibility
+            ? $"Güven {trust} · saygı {respect} · uyum {compatibility}"
+            : "Henüz bireysel ilişki kaydı yok";
+
+        return $"{DisplayName} · {PositionName} ({PositionCode})\n"
+            + $"Yaş {Age} · CA {CurrentAbility} / PA {PotentialAbility} · {CareerPhase}\n"
+            + $"Fitness %{Fitness} · yorgunluk %{Fatigue} · {Availability}\n"
+            + $"{contract}\n"
+            + $"İlişki: {RelationshipState} · {relationship}\n"
+            + $"Sözler: {PromiseSummary}";
+    }
+}
+
+public sealed record PlayerManagementDigest(
+    bool HasClub,
+    string Headline,
+    IReadOnlyList<PlayerManagementLine> Players)
+{
+    public static PlayerManagementDigest Clear() =>
+        new(false, "Futbolcu yönetimi: kulüp görevi yok.", Array.Empty<PlayerManagementLine>());
+
+    public static PlayerManagementDigest Compose(
+        ClubId clubId,
+        long managerId,
+        GameDate day,
+        IReadOnlyList<MvpSquadPlayerProfile> profiles,
+        IReadOnlyList<SquadPlayerReadModel> squadPlayers,
+        ClubSquad? membership,
+        IReadOnlyList<PlayerCareerAggregate> careers,
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot,
+        IReadOnlyList<PlayerContract> contracts,
+        IReadOnlyList<RelationshipRecord> relationships,
+        IReadOnlyList<Promise> promises)
+    {
+        ArgumentNullException.ThrowIfNull(profiles);
+        ArgumentNullException.ThrowIfNull(squadPlayers);
+        ArgumentNullException.ThrowIfNull(careers);
+        ArgumentNullException.ThrowIfNull(physicalBySlot);
+        ArgumentNullException.ThrowIfNull(contracts);
+        ArgumentNullException.ThrowIfNull(relationships);
+        ArgumentNullException.ThrowIfNull(promises);
+
+        var memberBySlot = membership?.Members.ToDictionary(member => member.SlotIndex)
+            ?? new Dictionary<int, SquadMember>();
+        var players = squadPlayers
+            .OrderBy(player => player.SlotIndex)
+            .Select(player =>
+            {
+                var slot = player.SlotIndex;
+                var playerId = memberBySlot.TryGetValue(slot, out var member)
+                    ? member.PlayerId
+                    : PlayerId.FromClubSlot(clubId.Value, slot);
+                var profile = slot >= 0 && slot < profiles.Count
+                    ? profiles[slot]
+                    : new MvpSquadPlayerProfile(player.DisplayName, MvpSquadPositionGroup.Midfielder);
+                var career = careers.FirstOrDefault(candidate => candidate.Id == playerId)
+                    ?? careers.FirstOrDefault(candidate =>
+                        candidate.OriginClubId == clubId && candidate.SlotIndex == slot);
+                var physical = physicalBySlot.TryGetValue((clubId.Value, slot), out var state)
+                    ? state
+                    : PlayerPhysicalState.CreateRested(clubId, slot);
+                var contract = contracts.FirstOrDefault(candidate =>
+                    candidate.PlayerId == playerId && candidate.IsActiveOn(day));
+                var relationship = relationships.FirstOrDefault(candidate =>
+                    candidate.Status == RelationshipStatus.Active
+                    && candidate.Observer.Kind == ActorKind.Player
+                    && candidate.Observer.Id == playerId.Value
+                    && candidate.Subject.Kind == ActorKind.Manager
+                    && candidate.Subject.Id == managerId);
+                var activePromises = promises
+                    .Where(candidate =>
+                        candidate.IsActive
+                        && candidate.Promisee.Kind == ActorKind.Player
+                        && candidate.Promisee.Id == playerId.Value)
+                    .OrderBy(candidate => candidate.DeadlineOn.DayNumber)
+                    .ToArray();
+
+                return new PlayerManagementLine(
+                    playerId.Value,
+                    slot,
+                    player.SquadNumber,
+                    profile.DisplayName,
+                    profile.PositionCode,
+                    profile.PositionName,
+                    player.Rating,
+                    career?.AgeYears(day) ?? 18,
+                    career?.CurrentAbility ?? player.Rating,
+                    career?.PotentialAbility ?? player.Rating,
+                    CareerPhaseLabel(career?.GetPhase(day)),
+                    physical.Fitness,
+                    physical.Fatigue,
+                    AvailabilityLabel(physical, day),
+                    contract?.WeeklyWage,
+                    contract is null ? "—" : $"{contract.EndDate.Year:D4}-{contract.EndDate.Month:D2}-{contract.EndDate.Day:D2}",
+                    relationship?.Trust,
+                    relationship?.Respect,
+                    relationship?.ProfessionalCompatibility,
+                    RelationshipLabel(relationship),
+                    PromiseLabel(activePromises));
+            })
+            .ToArray();
+
+        return new PlayerManagementDigest(
+            true,
+            $"Futbolcu yönetim merkezi · {players.Length} oyuncu",
+            players);
+    }
+
+    private static string CareerPhaseLabel(CareerPhase? phase) => phase switch
+    {
+        CareerPhase.Developing => "Gelişim çağında",
+        CareerPhase.Peak => "Zirve döneminde",
+        CareerPhase.Declining => "Tecrübe döneminde",
+        _ => "Kariyer profili bekleniyor",
+    };
+
+    private static string AvailabilityLabel(PlayerPhysicalState physical, GameDate day)
+    {
+        if (!physical.IsAvailableOn(day))
+        {
+            return $"Sakat · dönüş gün {physical.InjuredUntilDayNumber}";
+        }
+
+        return physical.Fitness < 60 || physical.Fatigue >= 70 ? "Riskli" : "Hazır";
+    }
+
+    private static string RelationshipLabel(RelationshipRecord? relationship)
+    {
+        if (relationship is null)
+        {
+            return "Yeni";
+        }
+
+        var average = (relationship.Trust + relationship.Respect + relationship.ProfessionalCompatibility) / 3;
+        return average switch
+        {
+            >= 65 => "Güçlü",
+            <= 35 => "Kırılgan",
+            _ => "Dengeli",
+        };
+    }
+
+    private static string PromiseLabel(IReadOnlyList<Promise> promises)
+    {
+        if (promises.Count == 0)
+        {
+            return "aktif söz yok";
+        }
+
+        return string.Join(
+            " · ",
+            promises.Select(promise =>
+                $"{(promise.Kind == PromiseKind.StartingOpportunity ? "İlk 11" : "Oyun süresi")} "
+                + $"{promise.StartsGiven}/{promise.TargetStarts}, son gün {promise.DeadlineOn.DayNumber}"));
+    }
+}

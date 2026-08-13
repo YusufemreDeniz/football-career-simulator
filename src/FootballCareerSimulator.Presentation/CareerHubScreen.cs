@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using Godot;
@@ -69,6 +70,10 @@ public partial class CareerHubScreen : Control
     private SpinBox _roundSelector = null!;
     private ItemList _fixtureList = null!;
     private ItemList _squadList = null!;
+    private Label _playerManagementHeadlineLabel = null!;
+    private Label _playerDetailLabel = null!;
+    private IReadOnlyList<PlayerManagementLine> _playerManagementPlayers = Array.Empty<PlayerManagementLine>();
+    private long? _selectedPlayerId;
     private Button _approveSelectionButton = null!;
     private Button _swapSelectionButton = null!;
     private Button _generateOfferButton = null!;
@@ -634,14 +639,21 @@ public partial class CareerHubScreen : Control
         _decisionLabel = BodyLabel("DecisionLabel", autowrap: true);
         teamDynamicsCard.AddChild(_decisionLabel);
 
+        var playerManagementCard = AddCard(page, "FUTBOLCU YÖNETİMİ", emphasized: true);
+        _playerManagementHeadlineLabel = BodyLabel("PlayerManagementHeadlineLabel", autowrap: true);
+        playerManagementCard.AddChild(_playerManagementHeadlineLabel);
         _squadList = new ItemList
         {
             Name = "SquadList",
-            CustomMinimumSize = new Vector2(0, 180),
+            CustomMinimumSize = new Vector2(0, 340),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StyleList(_squadList);
-        squadCard.AddChild(_squadList);
+        _squadList.ItemSelected += OnSquadPlayerSelected;
+        playerManagementCard.AddChild(_squadList);
+        _playerDetailLabel = BodyLabel("PlayerDetailLabel", autowrap: true);
+        _playerDetailLabel.CustomMinimumSize = new Vector2(0, 146);
+        playerManagementCard.AddChild(_playerDetailLabel);
 
         var actionCard = AddCard(page, "KADRO & KARİYER AKSİYONLARI");
         var jobRow = ActionFlow();
@@ -672,29 +684,32 @@ public partial class CareerHubScreen : Control
         jobRow.AddChild(_sellFringeButton);
 
         _promiseStartButton = SecondaryButton("İlk 11 Sözü Ver");
-        _promiseStartButton.Pressed += () => Apply(_controller.PromiseStartingOpportunityToOldestSquadPlayer());
+        _promiseStartButton.Pressed += () =>
+            ApplySelectedPlayer(_controller.PromiseStartingOpportunityToPlayer);
         jobRow.AddChild(_promiseStartButton);
 
         _promisePlayingTimeButton = SecondaryButton("Oyun Süresi Sözü");
-        _promisePlayingTimeButton.Pressed += () => Apply(_controller.PromisePlayingTimeToOldestSquadPlayer());
+        _promisePlayingTimeButton.Pressed += () =>
+            ApplySelectedPlayer(_controller.PromisePlayingTimeToPlayer);
         jobRow.AddChild(_promisePlayingTimeButton);
 
         var decisionRow = ActionFlow();
         teamDynamicsCard.AddChild(decisionRow);
         _openDecisionButton = SecondaryButton("Süre Talebi Aç");
-        _openDecisionButton.Pressed += () => Apply(_controller.OpenPlayingTimeDecisionForOldestSquadPlayer());
+        _openDecisionButton.Pressed += () =>
+            ApplySelectedPlayer(_controller.OpenPlayingTimeDecisionForPlayer);
         decisionRow.AddChild(_openDecisionButton);
         _openStartingDecisionButton = SecondaryButton("İlk 11 Talebi Aç");
         _openStartingDecisionButton.Pressed += () =>
-            Apply(_controller.OpenStartingOpportunityDecisionForOldestSquadPlayer());
+            ApplySelectedPlayer(_controller.OpenStartingOpportunityDecisionForPlayer);
         decisionRow.AddChild(_openStartingDecisionButton);
         _openTransferDecisionButton = SecondaryButton("Transfer Talebi Aç");
         _openTransferDecisionButton.Pressed += () =>
-            Apply(_controller.OpenTransferDecisionForOldestSquadPlayer());
+            ApplySelectedPlayer(_controller.OpenTransferDecisionForPlayer);
         decisionRow.AddChild(_openTransferDecisionButton);
         _openDisciplineDecisionButton = SecondaryButton("Disiplin Aç");
         _openDisciplineDecisionButton.Pressed += () =>
-            Apply(_controller.OpenDisciplineDecisionForOldestSquadPlayer());
+            ApplySelectedPlayer(_controller.OpenDisciplineDecisionForPlayer);
         decisionRow.AddChild(_openDisciplineDecisionButton);
         _openBoardDemandDecisionButton = SecondaryButton("Yönetim Talebi Aç");
         _openBoardDemandDecisionButton.Pressed += () => Apply(_controller.OpenBoardDemandDecision());
@@ -1182,6 +1197,45 @@ public partial class CareerHubScreen : Control
         {
             BindOfficeNextStepForFocus(result.NextFocusCode);
         }
+    }
+
+    private void ApplySelectedPlayer(Func<long, UiActionResult> action)
+    {
+        if (_selectedPlayerId is not long playerId)
+        {
+            Apply(UiActionResult.Fail("Önce kadrodan bir futbolcu seç."));
+            return;
+        }
+
+        Apply(action(playerId));
+    }
+
+    private void OnSquadPlayerSelected(long index)
+    {
+        if (index < 0 || index >= _playerManagementPlayers.Count)
+        {
+            return;
+        }
+
+        _selectedPlayerId = _playerManagementPlayers[(int)index].PlayerId;
+        RefreshPlayerDetail();
+    }
+
+    private void RefreshPlayerDetail()
+    {
+        var selected = _selectedPlayerId is long playerId
+            ? _playerManagementPlayers.FirstOrDefault(player => player.PlayerId == playerId)
+            : null;
+        _playerDetailLabel.Text = selected?.ToDetailText()
+            ?? "Kariyer, fizik, sözleşme ve ilişki ayrıntıları için kadrodan bir futbolcu seç.";
+
+        var disabled = selected is null;
+        _promiseStartButton.Disabled = disabled;
+        _promisePlayingTimeButton.Disabled = disabled;
+        _openDecisionButton.Disabled = disabled;
+        _openStartingDecisionButton.Disabled = disabled;
+        _openTransferDecisionButton.Disabled = disabled;
+        _openDisciplineDecisionButton.Disabled = disabled;
     }
 
     private void BindOfficeNextStepForFocus(string focusCode)
@@ -2080,11 +2134,13 @@ public partial class CareerHubScreen : Control
         if (manager.EmployedClubId is not long clubId)
         {
             _squadStatusLabel.Text = "A takım: işsiz — kayıt yok.";
+            _playerManagementPlayers = Array.Empty<PlayerManagementLine>();
+            _playerManagementHeadlineLabel.Text = "Futbolcu yönetimi: kulüp görevi yok.";
+            _selectedPlayerId = null;
+            RefreshPlayerDetail();
             return;
         }
 
-        var rootSeed = _controller.Host.WorldModule.TimelineStore.Timeline.RootSeed;
-        var squad = _controller.Host.TeamPreparationModule.SquadQueries.GetClubSquad(clubId, rootSeed);
         var persisted = _controller.Host.TeamPreparationModule.SquadStore.Get(
             new Domain.Shared.ClubId(clubId));
         var clubName = _controller.GetClubDisplayName(clubId);
@@ -2092,15 +2148,30 @@ public partial class CareerHubScreen : Control
             ? "A takım: henüz yok — lig kur / gün ilerle / antrenman ile oluşur."
             : $"A takım: {persisted.Members.Count} üye · {clubName}";
 
-        foreach (var player in squad.Take(11))
+        var management = _controller.BuildPlayerManagementDigest();
+        _playerManagementPlayers = management.Players;
+        _playerManagementHeadlineLabel.Text = management.Headline;
+
+        foreach (var player in management.Players)
         {
-            _squadList.AddItem($"{player.SquadNumber}. {player.DisplayName} ({player.Rating})");
+            _squadList.AddItem(player.ToListLabel());
         }
 
-        if (squad.Count > 11)
+        if (_selectedPlayerId is not long selectedId
+            || !management.Players.Any(player => player.PlayerId == selectedId))
         {
-            _squadList.AddItem($"... +{squad.Count - 11} yedek/oyuncu ({clubName})");
+            _selectedPlayerId = management.Players.FirstOrDefault()?.PlayerId;
         }
+
+        if (_selectedPlayerId is long activePlayerId)
+        {
+            var selectedIndex = management.Players
+                .Select((player, index) => (player, index))
+                .FirstOrDefault(item => item.player.PlayerId == activePlayerId).index;
+            _squadList.Select(selectedIndex);
+        }
+
+        RefreshPlayerDetail();
 
         if (capacity.IsOverCapacity)
         {

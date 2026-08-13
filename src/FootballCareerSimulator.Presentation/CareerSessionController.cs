@@ -475,21 +475,29 @@ public sealed class CareerSessionController
 
     public UiActionResult PromiseStartingOpportunityToOldestSquadPlayer()
     {
+        var candidateId = GetManagedSquadMembers()
+            .Where(member => member.SlotIndex >= Domain.TeamPreparation.MatchSelection.StartingXiSize)
+            .OrderBy(member => member.SlotIndex)
+            .Select(member => (long?)member.PlayerId.Value)
+            .FirstOrDefault()
+            ?? GetManagedSquadMembers()
+                .OrderByDescending(member => member.SlotIndex)
+                .Select(member => (long?)member.PlayerId.Value)
+                .FirstOrDefault();
+        return candidateId is long playerId
+            ? PromiseStartingOpportunityToPlayer(playerId)
+            : UiActionResult.Fail("Söz verilemedi: kadroda oyuncu yok.");
+    }
+
+    public UiActionResult PromiseStartingOpportunityToPlayer(long playerId)
+    {
         try
         {
             var career = Host.ManagerModule.Store.Career;
             var clubId = career.ActiveEmployment?.ClubId
                 ?? throw new InvalidOperationException("Menajer kulübü yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(clubId, day);
-            var squad = Host.TeamPreparationModule.SquadStore.Get(clubId)
-                ?? throw new InvalidOperationException("Kadro yok.");
-            var member = squad.Members
-                    .Where(m => m.SlotIndex >= Domain.TeamPreparation.MatchSelection.StartingXiSize)
-                    .OrderBy(m => m.SlotIndex)
-                    .FirstOrDefault()
-                ?? squad.Members.OrderByDescending(m => m.SlotIndex).FirstOrDefault()
-                ?? throw new InvalidOperationException("Kadroda oyuncu yok.");
+            var member = GetManagedSquadMember(playerId);
 
             var promise = Host.SocialContinuityModule.StartingOpportunity.Create(
                 career.ManagerId,
@@ -504,7 +512,7 @@ public sealed class CareerSessionController
                 : string.Empty;
 
             return UiActionResult.Ok(
-                $"İlk 11 sözü verildi: oyuncu #{member.PlayerId.Value}"
+                $"İlk 11 sözü verildi: {GetPlayerDisplayName(member.PlayerId.Value)}"
                 + $" · slot {member.SlotIndex}"
                 + $" · hedef {promise.TargetStarts}"
                 + $" · son gün {promise.DeadlineOn.DayNumber}"
@@ -522,17 +530,24 @@ public sealed class CareerSessionController
 
     public UiActionResult PromisePlayingTimeToOldestSquadPlayer()
     {
+        var candidateId = GetManagedSquadMembers()
+            .OrderBy(member => member.SlotIndex)
+            .Select(member => (long?)member.PlayerId.Value)
+            .FirstOrDefault();
+        return candidateId is long playerId
+            ? PromisePlayingTimeToPlayer(playerId)
+            : UiActionResult.Fail("Söz verilemedi: kadroda oyuncu yok.");
+    }
+
+    public UiActionResult PromisePlayingTimeToPlayer(long playerId)
+    {
         try
         {
             var career = Host.ManagerModule.Store.Career;
             var clubId = career.ActiveEmployment?.ClubId
                 ?? throw new InvalidOperationException("Menajer kulübü yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-            Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(clubId, day);
-            var squad = Host.TeamPreparationModule.SquadStore.Get(clubId)
-                ?? throw new InvalidOperationException("Kadro yok.");
-            var member = squad.Members.OrderBy(m => m.SlotIndex).FirstOrDefault()
-                ?? throw new InvalidOperationException("Kadroda oyuncu yok.");
+            var member = GetManagedSquadMember(playerId);
 
             var promise = Host.SocialContinuityModule.PlayingTime.Create(
                 career.ManagerId,
@@ -543,7 +558,7 @@ public sealed class CareerSessionController
                 createdOn: day);
 
             return UiActionResult.Ok(
-                $"Oyun süresi sözü verildi: oyuncu #{member.PlayerId.Value}"
+                $"Oyun süresi sözü verildi: {GetPlayerDisplayName(member.PlayerId.Value)}"
                 + $" · hedef {promise.TargetStarts} maç günü"
                 + $" · son gün {promise.DeadlineOn.DayNumber}"
                 + $" · söz #{promise.PromiseId.Value}.");
@@ -563,9 +578,21 @@ public sealed class CareerSessionController
             (playerId, day) => Host.InteractionModule.Decisions.OpenPlayingTimeRequest(playerId, day),
             "forma süresi talebi");
 
+    public UiActionResult OpenPlayingTimeDecisionForPlayer(long playerId) =>
+        OpenDecisionForPlayer(
+            playerId,
+            (id, day) => Host.InteractionModule.Decisions.OpenPlayingTimeRequest(id, day),
+            "forma süresi talebi");
+
     public UiActionResult OpenStartingOpportunityDecisionForOldestSquadPlayer() =>
         OpenDecisionForOldestSquadPlayer(
             (playerId, day) => Host.InteractionModule.Decisions.OpenStartingOpportunityRequest(playerId, day),
+            "ilk 11 fırsatı talebi");
+
+    public UiActionResult OpenStartingOpportunityDecisionForPlayer(long playerId) =>
+        OpenDecisionForPlayer(
+            playerId,
+            (id, day) => Host.InteractionModule.Decisions.OpenStartingOpportunityRequest(id, day),
             "ilk 11 fırsatı talebi");
 
     public UiActionResult OpenTransferDecisionForOldestSquadPlayer() =>
@@ -573,9 +600,21 @@ public sealed class CareerSessionController
             (playerId, day) => Host.InteractionModule.Decisions.OpenTransferRequest(playerId, day),
             "transfer isteği");
 
+    public UiActionResult OpenTransferDecisionForPlayer(long playerId) =>
+        OpenDecisionForPlayer(
+            playerId,
+            (id, day) => Host.InteractionModule.Decisions.OpenTransferRequest(id, day),
+            "transfer isteği");
+
     public UiActionResult OpenDisciplineDecisionForOldestSquadPlayer() =>
         OpenDecisionForOldestSquadPlayer(
             (playerId, day) => Host.InteractionModule.Decisions.OpenDisciplineRequest(playerId, day),
+            "disiplin görüşmesi");
+
+    public UiActionResult OpenDisciplineDecisionForPlayer(long playerId) =>
+        OpenDecisionForPlayer(
+            playerId,
+            (id, day) => Host.InteractionModule.Decisions.OpenDisciplineRequest(id, day),
             "disiplin görüşmesi");
 
     public UiActionResult OpenBoardDemandDecision()
@@ -816,6 +855,54 @@ public sealed class CareerSessionController
             .GetNextDueManagedFixture(currentDay);
         return ComposePreMatchBriefing(currentDay, pending);
     }
+
+    private UiActionResult OpenDecisionForPlayer(
+        long playerId,
+        Func<PlayerId, GameDate, DecisionRequest> open,
+        string kindLabel)
+    {
+        try
+        {
+            var member = GetManagedSquadMember(playerId);
+            var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var request = open(member.PlayerId, day);
+            return UiActionResult.Ok(
+                $"Karar açıldı: {kindLabel} · {GetPlayerDisplayName(member.PlayerId.Value)}"
+                + $" · karar #{request.DecisionRequestId.Value}"
+                + $" · son gün {request.DeadlineOn.DayNumber}.");
+        }
+        catch (InteractionInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Karar açılamadı: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Karar hatası: {ex.Message}");
+        }
+    }
+
+    private IReadOnlyList<SquadMember> GetManagedSquadMembers()
+    {
+        var clubId = Host.ManagerModule.Store.Career.ActiveEmployment?.ClubId;
+        if (clubId is null)
+        {
+            return Array.Empty<SquadMember>();
+        }
+
+        var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+        Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(clubId.Value, day);
+        return Host.TeamPreparationModule.SquadStore.Get(clubId.Value)?.Members
+            ?? Array.Empty<SquadMember>();
+    }
+
+    private SquadMember GetManagedSquadMember(long playerId) =>
+        GetManagedSquadMembers().FirstOrDefault(member => member.PlayerId.Value == playerId)
+        ?? throw new InvalidOperationException("Seçili oyuncu yönetilen kulübün A takımında değil.");
+
+    private string GetPlayerDisplayName(long playerId) =>
+        BuildPlayerManagementDigest().Players
+            .FirstOrDefault(player => player.PlayerId == playerId)?.DisplayName
+        ?? $"oyuncu #{playerId}";
 
     public TechnicalDirectorNotebookDigest BuildTechnicalDirectorNotebook() =>
         TechnicalDirectorNotebookDigest.Compose(_matchupPlanHistory);
@@ -2823,6 +2910,32 @@ public sealed class CareerSessionController
         }
 
         return briefing with { BeatLines = beats };
+    }
+
+    public PlayerManagementDigest BuildPlayerManagementDigest()
+    {
+        var manager = Host.ManagerModule.Queries.GetCareer();
+        if (manager.EmployedClubId is not long clubId)
+        {
+            return PlayerManagementDigest.Clear();
+        }
+
+        var timeline = Host.WorldModule.TimelineStore.Timeline;
+        var id = new Domain.Shared.ClubId(clubId);
+        Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, timeline.CurrentDate);
+
+        return PlayerManagementDigest.Compose(
+            id,
+            manager.ManagerId,
+            timeline.CurrentDate,
+            MvpSquadRosterGenerator.GeneratePlayerProfiles(id, timeline.RootSeed),
+            Host.TeamPreparationModule.SquadQueries.GetClubSquad(clubId, timeline.RootSeed),
+            Host.TeamPreparationModule.SquadStore.Get(id),
+            Host.PlayerCareerModule.Store.Careers,
+            Host.TrainingModule.Store.PhysicalBySlot,
+            Host.ContractModule.Store.Contracts,
+            Host.SocialContinuityModule.RelationshipStore.Relationships,
+            Host.SocialContinuityModule.PromiseStore.Promises);
     }
 
     public TacticPlanReadModel GetManagedTacticPlan() =>

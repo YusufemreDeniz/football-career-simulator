@@ -148,6 +148,15 @@ public static class CareerUiSmokeTest
                         == Domain.TeamPreparation.MatchSelection.StartingXiSize
                     && selectionBoard.Bench.Count
                         == Domain.TeamPreparation.MatchSelection.MaxBenchSize);
+                var playerManagement = controller.BuildPlayerManagementDigest();
+                passed &= LogCheck(
+                    "Futbolcu yönetim merkezi",
+                    playerManagement.HasClub
+                    && playerManagement.Players.Count == Domain.TeamPreparation.ClubSquad.MaxMembers
+                    && playerManagement.Players.All(player =>
+                        player.PlayerId > 0
+                        && !string.IsNullOrWhiteSpace(player.DisplayName)
+                        && !string.IsNullOrWhiteSpace(player.PositionCode)));
 
                 host.TeamPreparationModule.ApproveDefaultSelection.Handle(
                     new ApproveDefaultMatchSelectionCommand(
