@@ -1366,6 +1366,65 @@ public sealed class CareerSessionController
             currentDay);
     }
 
+    public ScoutTransferDigest BuildScoutTransferDigest()
+    {
+        var manager = Host.ManagerModule.Queries.GetCareer();
+        if (manager.EmployedClubId is not long clubId)
+        {
+            return ScoutTransferDigest.Clear();
+        }
+
+        var timeline = Host.WorldModule.TimelineStore.Timeline;
+        var managedId = new Domain.Shared.ClubId(clubId);
+        var managedProfiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(managedId, timeline.RootSeed);
+        var managedRatings = Host.TeamPreparationModule.SquadQueries
+            .GetClubSquad(clubId, timeline.RootSeed)
+            .ToDictionary(player => player.SlotIndex, player => player.Rating);
+        var shortlist = Host.TransferModule.ShortlistStore.GetForClub(managedId)
+            .Where(entry => entry.IsActive)
+            .GroupBy(entry => entry.PlayerId.Value)
+            .ToDictionary(group => group.Key, group => group.Min(entry => entry.AddedOn.DayNumber));
+        var listedIds = Host.TransferModule.TargetStore.GetForClub(managedId)
+            .Where(target => target.IsListed)
+            .Select(target => target.PlayerId.Value)
+            .ToHashSet();
+        var candidates = new List<ScoutCandidateSource>();
+
+        foreach (var club in Host.ClubModule.Queries.GetAllClubs().Where(club => club.ClubId != clubId))
+        {
+            var sourceId = new Domain.Shared.ClubId(club.ClubId);
+            var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(sourceId, timeline.RootSeed);
+            var ratings = Host.TeamPreparationModule.SquadQueries
+                .GetClubSquad(club.ClubId, timeline.RootSeed)
+                .ToDictionary(player => player.SlotIndex, player => player.Rating);
+            for (var slot = 0; slot < profiles.Count; slot++)
+            {
+                var playerId = PlayerId.FromClubSlot(club.ClubId, slot);
+                var career = Host.PlayerCareerModule.Store.Get(sourceId, slot);
+                var rating = ratings.GetValueOrDefault(slot, career?.CurrentAbility ?? 60);
+                candidates.Add(new ScoutCandidateSource(
+                    playerId.Value,
+                    club.ClubId,
+                    club.DisplayName,
+                    profiles[slot].DisplayName,
+                    profiles[slot].PositionGroup,
+                    profiles[slot].PositionCode,
+                    rating,
+                    career?.AgeYears(timeline.CurrentDate) ?? 20 + slot % 10,
+                    career?.PotentialAbility ?? Math.Min(99, rating + 5),
+                    shortlist.GetValueOrDefault(playerId.Value),
+                    listedIds.Contains(playerId.Value)));
+            }
+        }
+
+        return ScoutTransferDigest.Compose(
+            GetClubDisplayName(clubId),
+            timeline.CurrentDate.DayNumber,
+            managedProfiles,
+            managedRatings,
+            candidates);
+    }
+
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>
         Host.TrainingModule.Queries.GetManagedClubSummary();
 
@@ -1517,26 +1576,54 @@ public sealed class CareerSessionController
 
     public UiActionResult SuggestTransferTarget()
     {
+        var candidate = BuildScoutTransferDigest().Candidates
+            .FirstOrDefault(player => !player.IsListedTarget);
+        return candidate is null
+            ? UiActionResult.Fail("Scout listesinde eklenecek yeni aday yok.")
+            : AddScoutCandidateToShortlist(candidate.PlayerId);
+    }
+
+    public UiActionResult AddScoutCandidateToShortlist(long playerId)
+    {
         try
         {
             var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
                 ?? throw new InvalidOperationException("Menajer kulübü yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
             var id = new Domain.Shared.ClubId(clubId);
+            var scout = BuildScoutTransferDigest();
+            var candidate = scout.Candidates.FirstOrDefault(player => player.PlayerId == playerId)
+                ?? throw new InvalidOperationException("Seçili futbolcu güncel scout adayları arasında değil.");
             if (Host.TransferModule.Queries.GetManagedClubNeeds().OpenCount == 0)
             {
                 Host.TransferModule.Needs.Declare(
                     id,
                     TransferNeedKind.PositionGap,
-                    priority: 3,
-                    "AutoForTarget",
+                    priority: 4,
+                    $"ScoutPosition:{scout.NeedPositionCode}",
                     day);
             }
 
-            var target = Host.TransferModule.ShortlistTargets.SuggestAndListTargetForOldestOpenNeed(id, day);
+            var need = Host.TransferModule.Queries.GetManagedClubNeeds().OpenNeeds
+                .OrderByDescending(item => item.Priority)
+                .ThenBy(item => item.NeedId)
+                .First();
+            var player = new PlayerId(playerId);
+            var entry = Host.TransferModule.ShortlistTargets.AddToShortlist(
+                id,
+                player,
+                new TransferNeedId(need.NeedId),
+                priority: 4,
+                day);
+            var target = Host.TransferModule.ShortlistTargets.AddTransferTarget(
+                new TransferNeedId(need.NeedId),
+                player,
+                entry.EntryId,
+                day);
             return UiActionResult.Ok(
-                $"Hedef listelendi: #{target.TargetId.Value} oyuncu {target.PlayerId.Value}"
-                + $" · ihtiyaç #{target.NeedId.Value}.");
+                $"Scout hedefi listelendi: {candidate.DisplayName} · {candidate.PositionCode}"
+                + $" · {candidate.ClubName} · bilgi %{candidate.KnowledgePercent}"
+                + $" · hedef #{target.TargetId.Value} · ihtiyaç #{target.NeedId.Value}.");
         }
         catch (TransferInvariantViolationException ex)
         {

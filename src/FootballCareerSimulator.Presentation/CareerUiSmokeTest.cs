@@ -157,6 +157,15 @@ public static class CareerUiSmokeTest
                         player.PlayerId > 0
                         && !string.IsNullOrWhiteSpace(player.DisplayName)
                         && !string.IsNullOrWhiteSpace(player.PositionCode)));
+                var scout = controller.BuildScoutTransferDigest();
+                passed &= LogCheck(
+                    "Scout ve transfer merkezi",
+                    scout.HasClub
+                    && scout.Candidates.Count > 0
+                    && scout.Candidates.All(candidate =>
+                        candidate.PlayerId > 0
+                        && !string.IsNullOrWhiteSpace(candidate.DisplayName)
+                        && candidate.EstimatedAbilityLow <= candidate.EstimatedAbilityHigh));
 
                 host.TeamPreparationModule.ApproveDefaultSelection.Handle(
                     new ApproveDefaultMatchSelectionCommand(

@@ -52,6 +52,10 @@ public partial class CareerHubScreen : Control
     private Button _openTransferWindowButton = null!;
     private Button _closeTransferWindowButton = null!;
     private Label _transferNeedLabel = null!;
+    private Label _scoutReportLabel = null!;
+    private ItemList _scoutCandidateList = null!;
+    private IReadOnlyList<ScoutCandidateLine> _scoutCandidates = Array.Empty<ScoutCandidateLine>();
+    private long? _selectedScoutPlayerId;
     private Label _shortlistTargetLabel = null!;
     private Label _transferProcessLabel = null!;
     private Label _tacticLabel = null!;
@@ -744,6 +748,17 @@ public partial class CareerHubScreen : Control
         windowRow.AddChild(_closeTransferWindowButton);
 
         var scoutingCard = AddCard(page, "1  İHTİYAÇ & HEDEF");
+        _scoutReportLabel = BodyLabel("ScoutReportLabel", autowrap: true);
+        scoutingCard.AddChild(_scoutReportLabel);
+        _scoutCandidateList = new ItemList
+        {
+            Name = "ScoutCandidateList",
+            CustomMinimumSize = new Vector2(0, 300),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StyleList(_scoutCandidateList);
+        _scoutCandidateList.ItemSelected += OnScoutCandidateSelected;
+        scoutingCard.AddChild(_scoutCandidateList);
         _transferNeedLabel = BodyLabel("TransferNeedLabel", autowrap: true);
         scoutingCard.AddChild(_transferNeedLabel);
 
@@ -768,8 +783,8 @@ public partial class CareerHubScreen : Control
         var targetRow = ActionFlow();
         scoutingCard.AddChild(targetRow);
 
-        _suggestTargetButton = SecondaryButton("Hedef Öner");
-        _suggestTargetButton.Pressed += () => Apply(_controller.SuggestTransferTarget());
+        _suggestTargetButton = SecondaryButton("Seçileni Kısa Listeye Al");
+        _suggestTargetButton.Pressed += AddSelectedScoutCandidate;
         targetRow.AddChild(_suggestTargetButton);
 
         _dropTargetButton = SecondaryButton("Hedefi Düşür");
@@ -1221,6 +1236,28 @@ public partial class CareerHubScreen : Control
         RefreshPlayerDetail();
     }
 
+    private void OnScoutCandidateSelected(long index)
+    {
+        if (index < 0 || index >= _scoutCandidates.Count)
+        {
+            return;
+        }
+
+        _selectedScoutPlayerId = _scoutCandidates[(int)index].PlayerId;
+        _suggestTargetButton.Disabled = _scoutCandidates[(int)index].IsListedTarget;
+    }
+
+    private void AddSelectedScoutCandidate()
+    {
+        if (_selectedScoutPlayerId is not long playerId)
+        {
+            Apply(UiActionResult.Fail("Önce scout listesinden bir futbolcu seç."));
+            return;
+        }
+
+        Apply(_controller.AddScoutCandidateToShortlist(playerId));
+    }
+
     private void RefreshPlayerDetail()
     {
         var selected = _selectedPlayerId is long playerId
@@ -1526,6 +1563,32 @@ public partial class CareerHubScreen : Control
 
     private void RefreshShortlistTargetStatus()
     {
+        var scout = _controller.BuildScoutTransferDigest();
+        _scoutCandidates = scout.Candidates;
+        _scoutReportLabel.Text = scout.HasClub
+            ? $"{scout.Headline}\n{scout.NeedLine}"
+            : scout.Headline;
+        _scoutCandidateList.Clear();
+        foreach (var candidate in scout.Candidates)
+        {
+            _scoutCandidateList.AddItem(candidate.ToListLabel());
+        }
+
+        if (_selectedScoutPlayerId is not long selectedId
+            || !scout.Candidates.Any(candidate => candidate.PlayerId == selectedId))
+        {
+            _selectedScoutPlayerId = scout.Candidates.FirstOrDefault()?.PlayerId;
+        }
+
+        if (_selectedScoutPlayerId is long activeId)
+        {
+            var selected = scout.Candidates
+                .Select((candidate, index) => (candidate, index))
+                .FirstOrDefault(item => item.candidate.PlayerId == activeId);
+            _scoutCandidateList.Select(selected.index);
+            _suggestTargetButton.Disabled = selected.candidate?.IsListedTarget ?? true;
+        }
+
         var view = _controller.Host.TransferModule.Queries.GetManagedClubShortlistTargets();
         if (view.ClubId is null)
         {
@@ -1587,7 +1650,10 @@ public partial class CareerHubScreen : Control
             ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveCount
             : 0;
         var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
-        _suggestTargetButton.Disabled = !employed;
+        var selectedScout = _selectedScoutPlayerId is long selectedScoutId
+            ? _scoutCandidates.FirstOrDefault(candidate => candidate.PlayerId == selectedScoutId)
+            : null;
+        _suggestTargetButton.Disabled = !employed || selectedScout is null || selectedScout.IsListedTarget;
         _dropTargetButton.Disabled = !employed || listedCount == 0;
         var processes = employed
             ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
