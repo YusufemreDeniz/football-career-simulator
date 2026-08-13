@@ -67,6 +67,8 @@ public partial class CareerHubScreen : Control
     private TextureRect _thirdKit = null!;
     private Tree _standingsTable = null!;
     private Label _leagueBriefingLabel = null!;
+    private Label _leagueStatisticsLabel = null!;
+    private Label _managedLeagueStatisticsLabel = null!;
     private Label _statusLabel = null!;
     private Label _saveDeskLabel = null!;
     private Button _saveGameButton = null!;
@@ -1005,11 +1007,17 @@ public partial class CareerHubScreen : Control
         _leagueBriefingLabel = BodyLabel("LeagueBriefingLabel", autowrap: true);
         leagueCard.AddChild(_leagueBriefingLabel);
 
+        var statisticsCard = AddCard(page, "İSTATİSTİK MERKEZİ");
+        _leagueStatisticsLabel = BodyLabel("LeagueStatisticsLabel", autowrap: true);
+        statisticsCard.AddChild(_leagueStatisticsLabel);
+        _managedLeagueStatisticsLabel = BodyLabel("ManagedLeagueStatisticsLabel", autowrap: true);
+        statisticsCard.AddChild(_managedLeagueStatisticsLabel);
+
         var tableCard = AddCard(page, "PUAN DURUMU");
         _standingsTable = new Tree
         {
             Name = "StandingsTable",
-            Columns = 10,
+            Columns = 11,
             ColumnTitlesVisible = true,
             HideRoot = true,
             CustomMinimumSize = new Vector2(0, 500),
@@ -1144,12 +1152,14 @@ public partial class CareerHubScreen : Control
 
     private static void ConfigureStandingsColumns(Tree table)
     {
-        var titles = new[] { "#", "TAKIM", "O", "G", "B", "M", "A", "Y", "AV", "P" };
+        var titles = new[] { "#", "TAKIM", "O", "G", "B", "M", "A", "Y", "AV", "FORM", "P" };
         for (var column = 0; column < titles.Length; column++)
         {
             table.SetColumnTitle(column, titles[column]);
             table.SetColumnExpand(column, column == 1);
-            table.SetColumnCustomMinimumWidth(column, column == 1 ? 220 : column == 0 ? 38 : 46);
+            table.SetColumnCustomMinimumWidth(
+                column,
+                column == 1 ? 210 : column == 9 ? 110 : column == 0 ? 38 : 44);
         }
     }
 
@@ -2275,6 +2285,9 @@ public partial class CareerHubScreen : Control
     private void RefreshStandings()
     {
         _leagueBriefingLabel.Text = _controller.BuildLeagueWorldBriefing().ToDisplayText();
+        var statistics = _controller.BuildLeagueStatisticsDigest();
+        _leagueStatisticsLabel.Text = $"{statistics.Headline}\n{statistics.LeadersLine}";
+        _managedLeagueStatisticsLabel.Text = statistics.ManagedClubLine;
         _standingsTable.Clear();
 
         var season = _controller.Host.CompetitionModule.Queries.GetCurrentSeason();
@@ -2308,6 +2321,7 @@ public partial class CareerHubScreen : Control
                 entry.GoalsFor.ToString(),
                 entry.GoalsAgainst.ToString(),
                 entry.GoalDifference > 0 ? $"+{entry.GoalDifference}" : entry.GoalDifference.ToString(),
+                statistics.GetForm(entry.ClubId),
                 entry.Points.ToString(),
             };
 
@@ -2328,7 +2342,8 @@ public partial class CareerHubScreen : Control
                 _ => CareerUiTheme.InkMuted,
             };
             row.SetCustomColor(0, rankColor);
-            row.SetCustomColor(9, CareerUiTheme.Ink);
+            row.SetCustomColor(9, CareerUiTheme.Data);
+            row.SetCustomColor(10, CareerUiTheme.Ink);
 
             if (managedClubId == entry.ClubId)
             {

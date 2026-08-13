@@ -1366,6 +1366,23 @@ public sealed class CareerSessionController
             currentDay);
     }
 
+    public LeagueStatisticsDigest BuildLeagueStatisticsDigest()
+    {
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        if (season is null)
+        {
+            return LeagueStatisticsDigest.Empty();
+        }
+
+        var clubNames = Host.ClubModule.Queries.GetAllClubs()
+            .ToDictionary(club => club.ClubId, club => club.DisplayName);
+        return LeagueStatisticsDigest.Compose(
+            Host.CompetitionModule.Queries.GetStandings(season.SeasonId),
+            Host.CompetitionModule.Queries.GetSeasonFixtures(season.SeasonId),
+            clubNames,
+            Host.ManagerModule.Queries.GetCareer().EmployedClubId);
+    }
+
     public ScoutTransferDigest BuildScoutTransferDigest()
     {
         var manager = Host.ManagerModule.Queries.GetCareer();

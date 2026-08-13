@@ -187,6 +187,12 @@ public static class CareerUiSmokeTest
                 "Puan durumu güncellendi",
                 competition.Queries.GetStandings(CareerSessionController.DefaultSeasonId)
                     .Count(entry => entry.Played > 0) == 2);
+            var leagueStatistics = new CareerSessionController(host).BuildLeagueStatisticsDigest();
+            passed &= LogCheck(
+                "Lig ve istatistik merkezi",
+                leagueStatistics.HasData
+                && leagueStatistics.Teams.Count == CompetitionMvpConstraints.LeagueTeamCount
+                && leagueStatistics.Teams.Count(team => team.LastFiveForm != "—") == 2);
         }
         catch (Exception ex)
         {
