@@ -11,7 +11,8 @@ public sealed record DecisionDeskDigest(
     string SupportingLine,
     long? DecisionRequestId,
     string? KindName,
-    int OpenCount)
+    int OpenCount,
+    string? CausalityLine = null)
 {
     /// <summary>Yönetim talebi sentinel oyuncusu — UI'da göstermeyiz.</summary>
     private const long BoardDemandSentinelPlayerId = 9_000_000_001L;
@@ -27,7 +28,10 @@ public sealed record DecisionDeskDigest(
             KindName: null,
             OpenCount: 0);
 
-    public static DecisionDeskDigest Compose(PendingDecisionsReadModel pending, int currentDayNumber)
+    public static DecisionDeskDigest Compose(
+        PendingDecisionsReadModel pending,
+        int currentDayNumber,
+        string? causalityLine = null)
     {
         ArgumentNullException.ThrowIfNull(pending);
         if (pending.OpenCount == 0 || pending.OpenRequests.Count == 0)
@@ -45,7 +49,7 @@ public sealed record DecisionDeskDigest(
                     ? "Yarın son."
                     : $"{daysLeft} gün kaldı.";
 
-        var headline = HeadlineFor(first.KindName, first.IsHardBlocker);
+        var headline = HeadlineFor(first.KindName, first.IsHardBlocker, causalityLine);
         var support = ShowSubjectPlayer(first.SubjectPlayerId)
             ? $"{first.KindName} · oyuncu#{first.SubjectPlayerId} · {urgency}"
             : $"{first.KindName} · {urgency}";
@@ -53,6 +57,11 @@ public sealed record DecisionDeskDigest(
         if (pending.OpenCount > 1)
         {
             support += $" · +{pending.OpenCount - 1} kuyrukta";
+        }
+
+        if (!string.IsNullOrWhiteSpace(causalityLine))
+        {
+            support += $" · {causalityLine.Trim()}";
         }
 
         return new DecisionDeskDigest(
@@ -63,14 +72,22 @@ public sealed record DecisionDeskDigest(
             support,
             first.DecisionRequestId,
             first.KindName,
-            pending.OpenCount);
+            pending.OpenCount,
+            string.IsNullOrWhiteSpace(causalityLine) ? null : causalityLine.Trim());
     }
 
     private static bool ShowSubjectPlayer(long subjectPlayerId) =>
         subjectPlayerId > 0 && subjectPlayerId != BoardDemandSentinelPlayerId;
 
-    private static string HeadlineFor(string kindName, bool hard)
+    private static string HeadlineFor(string kindName, bool hard, string? causalityLine)
     {
+        if (!string.IsNullOrWhiteSpace(causalityLine)
+            && kindName.Contains("Transfer", StringComparison.OrdinalIgnoreCase)
+            && causalityLine.Contains("Söz", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Söz kırıldı — oyuncu ayrılmak istiyor.";
+        }
+
         if (kindName.Contains("basın", StringComparison.OrdinalIgnoreCase))
         {
             return hard
@@ -95,13 +112,17 @@ public sealed record DecisionDeskDigest(
 
         if (kindName.Contains("İlk 11", StringComparison.OrdinalIgnoreCase))
         {
-            return "İlk 11 sözü/talebi masada.";
+            return causalityLine is not null && causalityLine.Contains("bozuldu", StringComparison.OrdinalIgnoreCase)
+                ? "İlk 11 sözü bozuldu — kriz masada."
+                : "İlk 11 sözü/talebi masada.";
         }
 
         if (kindName.Contains("süre", StringComparison.OrdinalIgnoreCase)
             || kindName.Contains("Forma", StringComparison.OrdinalIgnoreCase))
         {
-            return "Forma süresi talebi bekliyor.";
+            return causalityLine is not null && causalityLine.Contains("bozuldu", StringComparison.OrdinalIgnoreCase)
+                ? "Forma sözü bozuldu — yeni talep masada."
+                : "Forma süresi talebi bekliyor.";
         }
 
         return hard

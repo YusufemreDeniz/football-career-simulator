@@ -195,7 +195,8 @@ public sealed class CareerPresentationHost
             dialogueSessionStore,
             socialContinuity.StartingOpportunity,
             transferModule.Needs,
-            relationshipStore: socialContinuity.RelationshipStore);
+            relationshipStore: socialContinuity.RelationshipStore,
+            memoryStore: socialContinuity.MemoryStore);
         worldModule.AdvanceSimulationTime.BindPromiseDeadlineConsequences(
             new PromiseDeadlineDayBoundaryApplier(
                 socialContinuity.StartingOpportunity,

@@ -781,9 +781,7 @@ public sealed class CareerSessionController
     public TodayPulseDigest BuildTodayPulse()
     {
         var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
-        var desk = DecisionDeskDigest.Compose(
-            Host.InteractionModule.Queries.GetPending(take: 5),
-            day);
+        var desk = BuildDecisionDeskDigest();
         var match = BuildNextMatchBriefing();
         var prep = BuildPreparationBriefing();
         var league = BuildLeagueWorldBriefing();
@@ -837,15 +835,27 @@ public sealed class CareerSessionController
         bool? weekStoryActive = null)
     {
         var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
-        desk ??= DecisionDeskDigest.Compose(
-            Host.InteractionModule.Queries.GetPending(take: 5),
-            day);
+        desk ??= BuildDecisionDeskDigest();
         match ??= BuildNextMatchBriefing();
         prep ??= BuildPreparationBriefing();
         league ??= BuildLeagueWorldBriefing();
         transfer ??= BuildTransferDeskBriefing();
         var storyActive = weekStoryActive ?? BuildWeekStory(match).IsActive;
         return WeekMoodDigest.Compose(desk, match, prep, league, transfer, storyActive);
+    }
+
+    public DecisionDeskDigest BuildDecisionDeskDigest()
+    {
+        var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.InteractionModule.Queries.GetPending(take: 5);
+        string? causality = null;
+        if (pending.OpenRequests.Count > 0)
+        {
+            causality = Host.InteractionModule.Queries.ExplainCausality(
+                new Domain.Interaction.DecisionRequestId(pending.OpenRequests[0].DecisionRequestId));
+        }
+
+        return DecisionDeskDigest.Compose(pending, day, causality);
     }
 
     public PreMatchBriefing BuildNextMatchBriefing()
@@ -3237,10 +3247,7 @@ public sealed class CareerSessionController
     public PostMatchOfficeDigest BuildPostMatchOfficeReturn(PlayMatchesUiResult results)
     {
         ArgumentNullException.ThrowIfNull(results);
-        var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
-        var desk = DecisionDeskDigest.Compose(
-            Host.InteractionModule.Queries.GetPending(take: 5),
-            day);
+        var desk = BuildDecisionDeskDigest();
         var hasManaged = results.Narrative is not null
             && string.Equals(results.Narrative.BrandTitle, "Maç Gecesi", StringComparison.Ordinal);
         return PostMatchOfficeDigest.Compose(

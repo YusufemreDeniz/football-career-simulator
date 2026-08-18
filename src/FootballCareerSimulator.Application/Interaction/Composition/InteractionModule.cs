@@ -72,7 +72,8 @@ public sealed class InteractionModule
         StartingOpportunityPromiseService? startingOpportunity = null,
         TransferNeedService? transferNeeds = null,
         IDisciplinaryActionStore? disciplinaryActionStore = null,
-        IRelationshipStore? relationshipStore = null)
+        IRelationshipStore? relationshipStore = null,
+        IMemoryStore? memoryStore = null)
     {
         ArgumentNullException.ThrowIfNull(managerCareerStore);
         var store = decisionRequestStore ?? new InMemoryDecisionRequestStore();
@@ -97,7 +98,11 @@ public sealed class InteractionModule
             startingOpportunity,
             transferNeeds,
             discipline);
-        var queries = new DecisionRequestQueryService(store);
+        var queries = new DecisionRequestQueryService(
+            store,
+            relationshipStore,
+            promiseStore,
+            memoryStore);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
         var postMatchPress = new PostMatchPressDecisionTrigger(decisions);
         var promiseBroken = new PromiseBrokenDecisionTrigger(decisions, relationshipStore);

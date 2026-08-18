@@ -2232,8 +2232,7 @@ public partial class CareerHubScreen : Control
     private void RefreshDecisionStatus()
     {
         var pending = _controller.Host.InteractionModule.Queries.GetPending(take: 5);
-        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
-        var desk = Application.Interaction.Queries.DecisionDeskDigest.Compose(pending, currentDay);
+        var desk = _controller.BuildDecisionDeskDigest();
         _deskLabel.Text = CompactSummary(desk.Headline, desk.SupportingLine ?? string.Empty);
 
         if (pending.OpenCount == 0)
