@@ -82,7 +82,9 @@ public sealed record TransferDeskBriefing(
         int? budgetSpent,
         bool squadFull,
         long? saleCandidatePlayerId,
-        int? currentDayNumber = null)
+        int? currentDayNumber = null,
+        long? promiseExitPressurePlayerId = null,
+        string? promiseExitPressureHint = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(windowStatusName);
 
@@ -106,6 +108,14 @@ public sealed record TransferDeskBriefing(
         {
             ResolveWindowBeat(windowOpen, windowStatusName, windowClosesOnDayNumber, daysUntilClose),
         };
+
+        if (promiseExitPressurePlayerId is long exitPlayerId)
+        {
+            beats.Add(
+                string.IsNullOrWhiteSpace(promiseExitPressureHint)
+                    ? $"Söz baskısı: #{exitPlayerId} ayrılma kararı masada"
+                    : $"Söz baskısı: #{exitPlayerId} — {promiseExitPressureHint.Trim()}");
+        }
 
         if (budgetAvailable is int available)
         {
@@ -144,7 +154,8 @@ public sealed record TransferDeskBriefing(
             pendingOfferCount,
             squadFull,
             saleCandidatePlayerId,
-            daysUntilClose);
+            daysUntilClose,
+            promiseExitPressurePlayerId);
 
         var (headline, advice) = ResolveFocus(
             windowOpen,
@@ -156,12 +167,15 @@ public sealed record TransferDeskBriefing(
             squadFull,
             saleCandidatePlayerId,
             daysUntilClose,
-            nextStep);
+            nextStep,
+            promiseExitPressurePlayerId,
+            promiseExitPressureHint);
 
         var unfinished =
             pendingOfferCount > 0
             || activeProcessCount > 0
             || openExitNeedCount > 0
+            || promiseExitPressurePlayerId is not null
             || (listedTargetCount > 0 && activeProcessCount == 0)
             || (squadFull && saleCandidatePlayerId is not null)
             || (!windowOpen && (squadFull || saleCandidatePlayerId is not null));
@@ -259,8 +273,20 @@ public sealed record TransferDeskBriefing(
         bool squadFull,
         long? saleCandidatePlayerId,
         int? daysUntilClose,
-        TransferNextStep? nextStep)
+        TransferNextStep? nextStep,
+        long? promiseExitPressurePlayerId,
+        string? promiseExitPressureHint)
     {
+        if (promiseExitPressurePlayerId is long exitId
+            && nextStep is { ReasonCode: TransferNextStep.ReasonPromiseExit })
+        {
+            return (
+                string.IsNullOrWhiteSpace(promiseExitPressureHint)
+                    ? $"Söz kırılması — #{exitId} ayrılma kararı masada."
+                    : $"Söz kırılması — #{exitId} ayrılmak istiyor.",
+                "Masada Cevapla; kabul ayrılma ihtiyacı açar.");
+        }
+
         if (nextStep is not null
             && daysUntilClose is int left
             && left >= 0
@@ -297,10 +323,10 @@ public sealed record TransferDeskBriefing(
                 "Sportif / mali onay veya teklif adımlarını tamamla.");
         }
 
-        if (openExitNeedCount > 0 && saleCandidatePlayerId is long exitId)
+        if (openExitNeedCount > 0 && saleCandidatePlayerId is long listedExitId)
         {
             return (
-                $"Ayrılma listesi açık — #{exitId} satılabilir.",
+                $"Ayrılma listesi açık — #{listedExitId} satılabilir.",
                 "Satışa Çıkar ile AI alıcıya tamamla.");
         }
 
@@ -346,7 +372,8 @@ public sealed record TransferDeskBriefing(
         int pendingOfferCount,
         bool squadFull,
         long? saleCandidatePlayerId,
-        int? daysUntilClose)
+        int? daysUntilClose,
+        long? promiseExitPressurePlayerId)
     {
         var closingSoon = daysUntilClose is int d
             && d >= 0
@@ -368,6 +395,11 @@ public sealed record TransferDeskBriefing(
         if (activeProcessCount > 0)
         {
             return TransferNextStep.AdvanceProcess(closingCritical);
+        }
+
+        if (promiseExitPressurePlayerId is long exitPlayerId)
+        {
+            return TransferNextStep.AnswerPromiseExit(exitPlayerId);
         }
 
         if (windowOpen
@@ -407,9 +439,11 @@ public sealed record TransferNextStep(
     public const string ReasonAdvanceProcess = "AdvanceProcess";
     public const string ReasonStartProcess = "StartProcess";
     public const string ReasonClosingCheck = "ClosingCheck";
+    public const string ReasonPromiseExit = "PromiseExitPressure";
 
     public const string TargetTransfer = "Transfer";
     public const string TargetClub = "Club";
+    public const string TargetToday = "Today";
 
     public const string ActionNavigate = "Navigate";
     public const string ActionSellFringe = "SellFringe";
@@ -470,4 +504,12 @@ public sealed record TransferNextStep(
             TargetTransfer,
             ActionNavigate,
             "Pencere kapanmak üzere — ihtiyaçları bitir.");
+
+    public static TransferNextStep AnswerPromiseExit(long playerId) =>
+        new(
+            ReasonPromiseExit,
+            "Masada Cevapla",
+            TargetToday,
+            ActionNavigate,
+            $"Söz kırılması — #{playerId} ayrılma kararı masada.");
 }

@@ -227,4 +227,59 @@ public sealed class TransferDeskBriefingTests
 
         Assert.Null(desk.WindowRhythmLine);
     }
+
+    [Fact]
+    public void PromiseExitPressure_DemandsAttention_AndPointsToDesk()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: 60,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: 1_000_000,
+            budgetSpent: 0,
+            squadFull: false,
+            saleCandidatePlayerId: null,
+            currentDayNumber: 40,
+            promiseExitPressurePlayerId: 77,
+            promiseExitPressureHint: "Söz #2 bozuldu · güven düşük");
+
+        Assert.True(desk.DemandsAttention);
+        Assert.Contains("Söz kırılması", desk.Headline, StringComparison.Ordinal);
+        Assert.Contains("#77", desk.Headline, StringComparison.Ordinal);
+        Assert.Contains("Masada Cevapla", desk.AdviceLine, StringComparison.Ordinal);
+        Assert.Equal(TransferNextStep.ReasonPromiseExit, desk.NextStep!.ReasonCode);
+        Assert.Equal(TransferNextStep.TargetToday, desk.NextStep.TargetPageCode);
+        Assert.Equal("Masada Cevapla", desk.NextStep.ButtonLabel);
+        Assert.Contains(desk.BeatLines, b => b.Contains("Söz baskısı", StringComparison.Ordinal));
+        Assert.Contains(desk.BeatLines, b => b.Contains("güven düşük", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void PromiseExitPressure_YieldsToPendingOffers()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            60,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 1,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null,
+            currentDayNumber: 40,
+            promiseExitPressurePlayerId: 77,
+            promiseExitPressureHint: "Söz #2 bozuldu");
+
+        Assert.Equal(TransferNextStep.ReasonAnswerOffers, desk.NextStep!.ReasonCode);
+        Assert.Contains(desk.BeatLines, b => b.Contains("Söz baskısı", StringComparison.Ordinal));
+    }
 }

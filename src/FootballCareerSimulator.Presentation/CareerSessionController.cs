@@ -1359,6 +1359,7 @@ public sealed class CareerSessionController
         var budget = Host.ClubModule.TransferBudget.Get(new Domain.Shared.ClubId(clubId));
         var capacity = BuildSquadCapacityDigest();
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var (promiseExitPlayerId, promiseExitHint) = ResolvePromiseExitPressure();
 
         return TransferDeskBriefing.Compose(
             window.IsOpen,
@@ -1373,7 +1374,25 @@ public sealed class CareerSessionController
             budget.Spent,
             capacity.IsFull || capacity.IsOverCapacity,
             SuggestSaleCandidatePlayerId(),
-            currentDay);
+            currentDay,
+            promiseExitPlayerId,
+            promiseExitHint);
+    }
+
+    private (long? PlayerId, string? Hint) ResolvePromiseExitPressure()
+    {
+        var openTransfer = Host.InteractionModule.DecisionRequestStore.Requests
+            .Where(r => r.IsOpen && r.Kind == Domain.Interaction.DecisionRequestKind.TransferRequest)
+            .OrderBy(r => r.DeadlineOn.DayNumber)
+            .ThenBy(r => r.DecisionRequestId.Value)
+            .FirstOrDefault();
+        if (openTransfer is null)
+        {
+            return (null, null);
+        }
+
+        var hint = Host.InteractionModule.Queries.ExplainCausality(openTransfer.DecisionRequestId);
+        return (openTransfer.SubjectPlayerId.Value, hint);
     }
 
     public LeagueStatisticsDigest BuildLeagueStatisticsDigest()
