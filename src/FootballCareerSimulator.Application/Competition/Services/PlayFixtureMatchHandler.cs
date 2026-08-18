@@ -44,6 +44,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly MatchPerformanceMemoryService? _matchPerformanceMemory;
     private readonly RelationshipEvaluationService? _relationships;
     private readonly PostMatchPressDecisionTrigger? _postMatchPress;
+    private readonly PostMatchPlayingTimeDemandTrigger? _postMatchPlayingTimeDemand;
     private readonly MatchSelectionAvailabilityRevalidationService? _selectionRevalidation;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
@@ -67,7 +68,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         MatchPerformanceMemoryService? matchPerformanceMemory = null,
         RelationshipEvaluationService? relationships = null,
         PostMatchPressDecisionTrigger? postMatchPress = null,
-        MatchSelectionAvailabilityRevalidationService? selectionRevalidation = null)
+        MatchSelectionAvailabilityRevalidationService? selectionRevalidation = null,
+        PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -88,6 +90,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _matchPerformanceMemory = matchPerformanceMemory;
         _relationships = relationships;
         _postMatchPress = postMatchPress;
+        _postMatchPlayingTimeDemand = postMatchPlayingTimeDemand;
         _selectionRevalidation = selectionRevalidation;
     }
 
@@ -205,6 +208,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         ApplySocialContinuityAfterMatch(fixture, occurredAt);
         ApplyMatchPerformanceMemory(fixture, score, occurredAt);
         var pressOpened = TryOpenPressQuestionAfterBlowoutLoss(fixture, score, occurredAt);
+        var playingTimeDemand = TryOpenPlayingTimeDemandAfterSittingOut(fixture, occurredAt);
         ApplyRelationshipSelectionEffects(fixture, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
@@ -237,7 +241,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 board?.ReasonCode,
                 board?.ManagerDismissed ?? false,
                 newlyInjured,
-                pressOpened);
+                pressOpened,
+                playingTimeDemand is not null,
+                playingTimeDemand?.SubjectPlayerId.Value);
         }
 
         var keyMoments = simulation.KeyMoments
@@ -750,6 +756,44 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             opponentGoals,
             startingIds,
             day) is not null;
+    }
+
+    private Domain.Interaction.DecisionRequest? TryOpenPlayingTimeDemandAfterSittingOut(
+        Fixture fixture,
+        GameDate day)
+    {
+        if (_postMatchPlayingTimeDemand is null || _managerCareerStore is null)
+        {
+            return null;
+        }
+
+        var employment = _managerCareerStore.Career.ActiveEmployment;
+        if (employment is null)
+        {
+            return null;
+        }
+
+        var managedClubId = employment.ClubId;
+        if (fixture.HomeClubId != managedClubId && fixture.AwayClubId != managedClubId)
+        {
+            return null;
+        }
+
+        var startingSlots = ResolveStartingSlots(fixture.Id, managedClubId);
+        var matchdaySlots = ResolveMatchdaySlots(fixture.Id, managedClubId);
+        var benchSlots = matchdaySlots.Except(startingSlots).ToArray();
+        var benchedIds = ResolvePlayerIdsForSlots(fixture.Id, managedClubId, benchSlots);
+        var matchdayIds = ResolvePlayerIdsForSlots(fixture.Id, managedClubId, matchdaySlots)
+            .ToHashSet();
+        var omittedIds = _clubSquadStore?.Get(managedClubId)?.Members
+            .Select(m => m.PlayerId)
+            .Where(id => !matchdayIds.Contains(id))
+            .ToArray()
+            ?? Array.Empty<PlayerId>();
+
+        return _postMatchPlayingTimeDemand.TryOpenAfterManagedSittingOut(
+            benchedIds.Concat(omittedIds).ToArray(),
+            day);
     }
 
     private int[] SnapshotInjuredSlots(ClubId clubId)

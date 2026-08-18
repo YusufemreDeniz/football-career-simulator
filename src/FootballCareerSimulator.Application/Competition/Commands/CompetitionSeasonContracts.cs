@@ -118,4 +118,6 @@ public sealed record ManagedMatchConsequenceSummary(
     string? BoardReasonCode,
     bool ManagerDismissed,
     IReadOnlyList<int> NewlyInjuredSlots,
-    bool PressQuestionOpened);
+    bool PressQuestionOpened,
+    bool PlayingTimeDemandOpened = false,
+    long? PlayingTimeDemandPlayerId = null);

@@ -2844,6 +2844,13 @@ public sealed class CareerSessionController
         {
             yield return "Basın sorusu açıldı.";
         }
+
+        if (c.PlayingTimeDemandOpened)
+        {
+            yield return c.PlayingTimeDemandPlayerId is long pid
+                ? $"Forma süresi talebi açıldı (#{pid})."
+                : "Forma süresi talebi açıldı.";
+        }
     }
 
     private static IEnumerable<string> FormatMatchKeyMoments(
@@ -2936,6 +2943,13 @@ public sealed class CareerSessionController
         if (c.PressQuestionOpened)
         {
             yield return $"{header} · basın sorusu açıldı.";
+        }
+
+        if (c.PlayingTimeDemandOpened)
+        {
+            yield return c.PlayingTimeDemandPlayerId is long pid
+                ? $"{header} · forma süresi talebi açıldı (#{pid})."
+                : $"{header} · forma süresi talebi açıldı.";
         }
     }
 

@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.Interaction.Infrastructure;
 using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.Interaction.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.SocialContinuity.Infrastructure;
 using FootballCareerSimulator.Application.SocialContinuity.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.Transfer.Services;
@@ -24,6 +25,7 @@ public sealed class InteractionModule
         DisciplinaryActionService discipline,
         DecisionRequestTimeAdvanceBlockerSource timeAdvanceBlocker,
         PostMatchPressDecisionTrigger postMatchPress,
+        PostMatchPlayingTimeDemandTrigger postMatchPlayingTimeDemand,
         PromiseBrokenDecisionTrigger promiseBroken)
     {
         DecisionRequestStore = decisionRequestStore;
@@ -36,6 +38,7 @@ public sealed class InteractionModule
         Discipline = discipline;
         TimeAdvanceBlocker = timeAdvanceBlocker;
         PostMatchPress = postMatchPress;
+        PostMatchPlayingTimeDemand = postMatchPlayingTimeDemand;
         PromiseBroken = promiseBroken;
     }
 
@@ -58,6 +61,8 @@ public sealed class InteractionModule
     public DecisionRequestTimeAdvanceBlockerSource TimeAdvanceBlocker { get; }
 
     public PostMatchPressDecisionTrigger PostMatchPress { get; }
+
+    public PostMatchPlayingTimeDemandTrigger PostMatchPlayingTimeDemand { get; }
 
     public PromiseBrokenDecisionTrigger PromiseBroken { get; }
 
@@ -105,6 +110,10 @@ public sealed class InteractionModule
             memoryStore);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
         var postMatchPress = new PostMatchPressDecisionTrigger(decisions);
+        var postMatchPlayingTimeDemand = new PostMatchPlayingTimeDemandTrigger(
+            decisions,
+            memoryStore ?? new InMemoryMemoryStore(),
+            promiseStore);
         var promiseBroken = new PromiseBrokenDecisionTrigger(decisions, relationshipStore);
         return new InteractionModule(
             store,
@@ -117,6 +126,7 @@ public sealed class InteractionModule
             discipline,
             blocker,
             postMatchPress,
+            postMatchPlayingTimeDemand,
             promiseBroken);
     }
 }

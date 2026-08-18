@@ -234,7 +234,8 @@ public sealed class CareerPresentationHost
             socialContinuity.ClubHistoryMemory,
             socialContinuity.MatchPerformanceMemory,
             socialContinuity.RelationshipEvaluation,
-            interactionModule.PostMatchPress);
+            interactionModule.PostMatchPress,
+            interactionModule.PostMatchPlayingTimeDemand);
         var persistence = new CareerSqlitePersistence();
 
         var eventRule = worldModule.EventRuleEvaluation

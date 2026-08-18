@@ -140,6 +140,29 @@ public sealed class DecisionRequestService
             && r.ClubId == clubId);
     }
 
+    public bool HasOpenPlayerRequest(PlayerId subjectPlayerId, params DecisionRequestKind[] kinds)
+    {
+        ArgumentNullException.ThrowIfNull(kinds);
+        if (kinds.Length == 0)
+        {
+            return false;
+        }
+
+        var career = _managerCareerStore.Career;
+        if (!career.IsEmployed || career.ActiveEmployment is null)
+        {
+            return false;
+        }
+
+        var clubId = career.ActiveEmployment.ClubId;
+        var kindSet = kinds.ToHashSet();
+        return _store.Requests.Any(r =>
+            r.IsOpen
+            && kindSet.Contains(r.Kind)
+            && r.SubjectPlayerId == subjectPlayerId
+            && r.ClubId == clubId);
+    }
+
     public DecisionRequest OpenBoardDemandRequest(
         GameDate day,
         int? deadlineDays = null,
