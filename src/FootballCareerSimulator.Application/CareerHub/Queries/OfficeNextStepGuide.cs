@@ -95,7 +95,9 @@ public static class OfficeNextStepGuide
         TransferNextStep? transferNextStep = null,
         bool hasInjuryPressure = false,
         InjuryRecoveryPathDigest? recoveryPath = null,
-        WeekStoryDigest? weekStory = null)
+        WeekStoryDigest? weekStory = null,
+        bool hasPromiseRisk = false,
+        string? promiseGuideName = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(focusCode);
 
@@ -192,8 +194,29 @@ public static class OfficeNextStepGuide
         {
             if (hasDueUnapprovedMatch)
             {
+                if (hasInjuryPressure)
+                {
+                    return new OfficeNextStep(
+                        "Sakatsız Kadro Onayla",
+                        TargetToday,
+                        TodayPulseDigest.FocusMatch,
+                        ActionApproveSelection);
+                }
+
+                if (hasPromiseRisk)
+                {
+                    var approveLabel = string.IsNullOrWhiteSpace(promiseGuideName)
+                        ? "Kadro Onayla — söz yerleşir"
+                        : $"Kadro Onayla — {promiseGuideName.Trim()} yerleşir";
+                    return new OfficeNextStep(
+                        approveLabel,
+                        TargetToday,
+                        TodayPulseDigest.FocusMatch,
+                        ActionApproveSelection);
+                }
+
                 return new OfficeNextStep(
-                    hasInjuryPressure ? "Sakatsız Kadro Onayla" : "Kadro Onayla",
+                    "Kadro Onayla",
                     TargetToday,
                     TodayPulseDigest.FocusMatch,
                     ActionApproveSelection);
@@ -201,6 +224,18 @@ public static class OfficeNextStepGuide
 
             if (hasDuePlayableMatch)
             {
+                if (hasPromiseRisk)
+                {
+                    var playLabel = string.IsNullOrWhiteSpace(promiseGuideName)
+                        ? "Maç Günü — sözü tut"
+                        : $"Maç Günü — {promiseGuideName.Trim()} tut";
+                    return new OfficeNextStep(
+                        playLabel,
+                        TargetToday,
+                        TodayPulseDigest.FocusMatch,
+                        ActionOpenMatchDay);
+                }
+
                 return new OfficeNextStep(
                     hasInjuryPressure ? "Maç Günü — XI Kontrol" : "Maç Gününe Git",
                     TargetToday,

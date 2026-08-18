@@ -22,6 +22,45 @@ public sealed record PreMatchBriefing(
 
     public bool HasCleanReturn => !HasInjuryPressure && ReturnedNames.Count > 0;
 
+    /// <summary>Nabız/CTA: onay öncesi veya sonrası söz gerilim satırından ilk oyuncu adı.</summary>
+    public string? FirstAtRiskPromisePlayerName
+    {
+        get
+        {
+            var beat = BeatLines.FirstOrDefault(line =>
+                line.StartsWith("Söz riski:", StringComparison.Ordinal));
+            if (beat is null)
+            {
+                return null;
+            }
+
+            var body = beat["Söz riski:".Length..].Trim();
+            var dash = body.IndexOf(" — ", StringComparison.Ordinal);
+            var left = dash > 0 ? body[..dash].Trim() : body;
+            string[] suffixes =
+            [
+                " YEDEKTE",
+                " XI'da",
+                " maç günü kadrosunda değil",
+                " kadroda değil",
+            ];
+            foreach (var suffix in suffixes)
+            {
+                if (left.EndsWith(suffix, StringComparison.Ordinal))
+                {
+                    return left[..^suffix.Length].Trim();
+                }
+            }
+
+            return string.IsNullOrWhiteSpace(left) ? null : left;
+        }
+    }
+
+    public string? FirstPromisePulseLine =>
+        BeatLines.FirstOrDefault(line =>
+            line.StartsWith("Söz riski:", StringComparison.Ordinal)
+            || line.StartsWith("Söz:", StringComparison.Ordinal));
+
     public static PreMatchBriefing Clear() =>
         new(
             HasMatch: false,

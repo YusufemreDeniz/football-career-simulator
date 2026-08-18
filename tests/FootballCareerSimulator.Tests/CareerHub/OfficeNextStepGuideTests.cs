@@ -409,4 +409,34 @@ public sealed class OfficeNextStepGuideTests
         Assert.Equal(OfficeNextStepGuide.ActionAdvanceProcess, step!.ActionCode);
         Assert.Equal("Süreci İlerlet", step.ButtonLabel);
     }
+
+    [Fact]
+    public void MatchPulse_UnapprovedWithPromiseRisk_LabelsHonorOnApprove()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusMatch,
+            hasDueUnapprovedMatch: true,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            hasPromiseRisk: true,
+            promiseGuideName: "Can Demir");
+
+        Assert.Equal(OfficeNextStepGuide.ActionApproveSelection, step!.ActionCode);
+        Assert.Equal("Kadro Onayla — Can Demir yerleşir", step.ButtonLabel);
+    }
+
+    [Fact]
+    public void MatchPulse_PlayableWithPromiseRisk_LabelsKeepPlayer()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusMatch,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: true,
+            canAdvanceDay: true,
+            hasPromiseRisk: true,
+            promiseGuideName: "Ali Yılmaz");
+
+        Assert.Equal(OfficeNextStepGuide.ActionOpenMatchDay, step!.ActionCode);
+        Assert.Equal("Maç Günü — Ali Yılmaz tut", step.ButtonLabel);
+    }
 }

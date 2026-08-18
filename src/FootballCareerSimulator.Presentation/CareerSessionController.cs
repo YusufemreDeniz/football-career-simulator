@@ -3830,6 +3830,7 @@ public sealed class CareerSessionController
             .GetNextDueManagedFixture(currentDay);
         var blocker = BuildTimeAdvanceBlockerDigest();
         var prepBriefing = BuildPreparationBriefing();
+        var matchBriefing = BuildNextMatchBriefing();
         return OfficeNextStepGuide.ResolveFromPulse(
             pulseFocus,
             hasDueUnapprovedMatch: pending is { IsApproved: false },
@@ -3841,9 +3842,11 @@ public sealed class CareerSessionController
             prepSuggestion: prepBriefing.Suggestion,
             leagueNextStep: BuildLeagueWorldBriefing().NextStep,
             transferNextStep: BuildTransferDeskBriefing().NextStep,
-            hasInjuryPressure: prepBriefing.HasInjuryPressure,
+            hasInjuryPressure: prepBriefing.HasInjuryPressure || matchBriefing.HasInjuryPressure,
             recoveryPath: BuildInjuryRecoveryPath(),
-            weekStory: story);
+            weekStory: story,
+            hasPromiseRisk: matchBriefing.HasPromiseRisk,
+            promiseGuideName: matchBriefing.FirstAtRiskPromisePlayerName);
     }
 
     public UiActionResult OpenPlanningPeriod()

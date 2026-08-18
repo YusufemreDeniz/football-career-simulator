@@ -2,6 +2,7 @@ using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.Interaction.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
 using FootballCareerSimulator.Application.Transfer.Queries;
 
@@ -557,4 +558,84 @@ public sealed class TodayPulseDigestTests
             leaderClubName: "Leaders",
             leaderPoints: 18,
             nextMatchLine: null);
+
+    [Fact]
+    public void UnapprovedMatch_WithPromiseRisk_GuidesApproveHonor()
+    {
+        var tension = new PreMatchPromiseTensionReadModel(
+            FixtureId: 1,
+            ClubId: 1,
+            SelectionApproved: false,
+            HasTension: true,
+            PreMatchPromiseTensionQueryService.ToneAtRisk,
+            "YEDEKTE",
+            [
+                new PreMatchPromiseTensionLine(
+                    9,
+                    5,
+                    12,
+                    "İlk 11",
+                    PreMatchPromiseTensionQueryService.PlacementBench,
+                    "Can Demir YEDEKTE — İlk 11 sözü risk altında."),
+            ]);
+
+        var match = PreMatchBriefing.Compose(
+            new ManagedFixtureSelectionStatusReadModel(
+                1, 1, 1, 2, true, 10, "2026-08-15", IsApproved: false),
+            "Rival",
+            10,
+            tension: tension);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            match,
+            PrepOk(),
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, pulse.PrimaryFocusCode);
+        Assert.Contains("Kadro Onayla ile yerleşir", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains("Can Demir", pulse.Headline, StringComparison.Ordinal);
+        Assert.DoesNotContain("XI↔Yedek", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains(pulse.PulseLines, l => l.StartsWith("Söz riski:", StringComparison.Ordinal)
+            && l.Contains("Can Demir", StringComparison.Ordinal));
+        Assert.Equal("Can Demir", match.FirstAtRiskPromisePlayerName);
+    }
+
+    [Fact]
+    public void ApprovedMatch_WithPromiseRisk_NamesPlayerOnHeadline()
+    {
+        var tension = new PreMatchPromiseTensionReadModel(
+            FixtureId: 1,
+            ClubId: 1,
+            SelectionApproved: true,
+            HasTension: true,
+            PreMatchPromiseTensionQueryService.ToneAtRisk,
+            "YEDEKTE",
+            [
+                new PreMatchPromiseTensionLine(
+                    9,
+                    5,
+                    12,
+                    "İlk 11",
+                    PreMatchPromiseTensionQueryService.PlacementBench,
+                    "Ali Yılmaz YEDEKTE — İlk 11 sözü risk altında."),
+            ]);
+
+        var match = PreMatchBriefing.Compose(
+            new ManagedFixtureSelectionStatusReadModel(
+                1, 1, 1, 2, true, 10, "2026-08-15", IsApproved: true),
+            "Rival",
+            10,
+            tension: tension);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            match,
+            PrepOk(),
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, pulse.PrimaryFocusCode);
+        Assert.Contains("Ali Yılmaz", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains("XI↔Yedek", pulse.Headline, StringComparison.Ordinal);
+    }
 }

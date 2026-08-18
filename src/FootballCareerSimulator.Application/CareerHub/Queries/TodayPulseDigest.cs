@@ -116,6 +116,10 @@ public sealed record TodayPulseDigest(
         if (match.HasMatch)
         {
             lines.Add($"Maç: {match.Headline}");
+            if (match.FirstPromisePulseLine is { } promiseLine)
+            {
+                lines.Add(promiseLine);
+            }
         }
 
         if (prep.IsEmployed)
@@ -177,13 +181,27 @@ public sealed record TodayPulseDigest(
         {
             var autoSwapHint = match.BeatLines
                 .FirstOrDefault(b => b.StartsWith("Sakat XI'de:", StringComparison.Ordinal));
-            return (
-                FocusMatch,
-                autoSwapHint is not null
-                    ? autoSwapHint
-                    : match.HasInjuryPressure
-                        ? "Sakatlık kadroyu düşürdü — sakatsız XI onayla."
-                        : "Maç kapıda — kadroyu kilitle.");
+            if (autoSwapHint is not null)
+            {
+                return (FocusMatch, autoSwapHint);
+            }
+
+            if (match.HasInjuryPressure)
+            {
+                return (FocusMatch, "Sakatlık kadroyu düşürdü — sakatsız XI onayla.");
+            }
+
+            if (match.HasPromiseRisk)
+            {
+                var who = match.FirstAtRiskPromisePlayerName;
+                return (
+                    FocusMatch,
+                    string.IsNullOrWhiteSpace(who)
+                        ? "Söz riski — Kadro Onayla ile yerleşir."
+                        : $"Söz riski ({who}) — Kadro Onayla ile yerleşir.");
+            }
+
+            return (FocusMatch, "Maç kapıda — kadroyu kilitle.");
         }
 
         if (match is { HasMatch: true, HasInjuryPressure: true })
@@ -193,7 +211,12 @@ public sealed record TodayPulseDigest(
 
         if (match is { HasMatch: true, HasPromiseRisk: true })
         {
-            return (FocusMatch, "Söz riski var — XI↔Yedek düşün.");
+            var who = match.FirstAtRiskPromisePlayerName;
+            return (
+                FocusMatch,
+                string.IsNullOrWhiteSpace(who)
+                    ? "Söz riski var — XI↔Yedek düşün."
+                    : $"{who} söz riskinde — XI↔Yedek.");
         }
 
         // Çok sezon dikey kesiti: sezon geçişi sakin günde kaybolmasın.
