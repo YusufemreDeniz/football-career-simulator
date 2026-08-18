@@ -52,6 +52,11 @@ public partial class CareerHubScreen : Control
     private Label _transferDeskLabel = null!;
     private Button _openTransferWindowButton = null!;
     private Button _closeTransferWindowButton = null!;
+    private Button _transferNextStepButton = null!;
+    private Button _transferNegotiationToggle = null!;
+    private Control[] _transferNegotiationCards = [];
+    private string _transferNextStepAction = Application.CareerHub.Queries.OfficeNextStepGuide.ActionNavigate;
+    private string _transferNextStepTarget = Application.Transfer.Queries.TransferNextStep.TargetTransfer;
     private Label _transferNeedLabel = null!;
     private Label _scoutReportLabel = null!;
     private ItemList _scoutCandidateList = null!;
@@ -283,6 +288,24 @@ public partial class CareerHubScreen : Control
                 return;
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionOpenTransferWindow:
                 Apply(_controller.OpenTransferWindow());
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionScanNeeds:
+                Apply(_controller.RefreshTransferNeedSuggestions());
+                ShowPage(HubPage.Transfer);
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionStartProcess:
+                Apply(_controller.OpenTransferProcessFromOldestTarget());
+                ShowPage(HubPage.Transfer);
+                SetTransferNegotiationExpanded(true);
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceProcess:
+                Apply(_controller.AdvanceOldestTransferStep());
+                ShowPage(HubPage.Transfer);
+                SetTransferNegotiationExpanded(true);
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAnswerOffers:
+                ShowPage(HubPage.Transfer);
+                SetTransferNegotiationExpanded(true);
                 return;
             default:
                 ShowPage(_officeNextStepTarget);
@@ -881,6 +904,11 @@ public partial class CareerHubScreen : Control
         _transferBudgetLabel = BodyLabel("TransferBudgetLabel", autowrap: true);
         overviewCard.AddChild(_transferBudgetLabel);
 
+        _transferNextStepButton = PrimaryButton("Sıradaki Adım");
+        _transferNextStepButton.Visible = false;
+        _transferNextStepButton.Pressed += OnTransferNextStepPressed;
+        overviewCard.AddChild(_transferNextStepButton);
+
         var windowRow = ActionFlow();
         windowRow.Visible = false; // Pencere takvim/OfficeNextStep tarafından yönetilir.
         overviewCard.AddChild(windowRow);
@@ -1044,29 +1072,77 @@ public partial class CareerHubScreen : Control
             Apply(_controller.CompleteOldestFinanciallyApprovedProcess());
         financialRow.AddChild(_completeTransferButton);
 
-        var negotiationToggle = SecondaryButton("Muzakere adimlari");
-        overviewCard.AddChild(negotiationToggle);
-        var negotiationCards = new[]
-        {
+        _transferNegotiationToggle = SecondaryButton("Muzakere adimlari");
+        overviewCard.AddChild(_transferNegotiationToggle);
+        _transferNegotiationCards =
+        [
             processCard.GetParent<Control>(),
             offerCard.GetParent<Control>(),
             contractCard.GetParent<Control>(),
             financeCard.GetParent<Control>(),
-        };
-        foreach (var card in negotiationCards)
+        ];
+        foreach (var card in _transferNegotiationCards)
         {
             card.Visible = false;
         }
-        negotiationToggle.Pressed += () =>
-        {
-            var visible = !negotiationCards[0].Visible;
-            foreach (var card in negotiationCards)
-            {
-                card.Visible = visible;
-            }
-            negotiationToggle.Text = visible ? "Muzakere adimlarini gizle" : "Muzakere adimlari";
-        };
+
+        _transferNegotiationToggle.Pressed += () =>
+            SetTransferNegotiationExpanded(!_transferNegotiationCards[0].Visible);
         return page;
+    }
+
+    private void OnTransferNextStepPressed()
+    {
+        switch (_transferNextStepAction)
+        {
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionSellFringe:
+                Apply(_controller.SellFringePlayerFromManagedClub());
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionOpenTransferWindow:
+                Apply(_controller.OpenTransferWindow());
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionScanNeeds:
+                Apply(_controller.RefreshTransferNeedSuggestions());
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionStartProcess:
+                Apply(_controller.OpenTransferProcessFromOldestTarget());
+                SetTransferNegotiationExpanded(true);
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceProcess:
+                Apply(_controller.AdvanceOldestTransferStep());
+                SetTransferNegotiationExpanded(true);
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAnswerOffers:
+                SetTransferNegotiationExpanded(true);
+                return;
+            default:
+                if (string.Equals(
+                        _transferNextStepTarget,
+                        Application.Transfer.Queries.TransferNextStep.TargetToday,
+                        StringComparison.Ordinal))
+                {
+                    ShowPage(HubPage.Today);
+                }
+
+                return;
+        }
+    }
+
+    private void SetTransferNegotiationExpanded(bool expanded)
+    {
+        if (_transferNegotiationCards.Length == 0)
+        {
+            return;
+        }
+
+        foreach (var card in _transferNegotiationCards)
+        {
+            card.Visible = expanded;
+        }
+
+        _transferNegotiationToggle.Text = expanded
+            ? "Muzakere adimlarini gizle"
+            : "Muzakere adimlari";
     }
 
     private Control BuildPrepPage()
@@ -1790,7 +1866,50 @@ public partial class CareerHubScreen : Control
 
     private void RefreshTransferDesk()
     {
-        _transferDeskLabel.Text = _controller.BuildTransferDeskBriefing().ToDisplayText();
+        var desk = _controller.BuildTransferDeskBriefing();
+        _transferDeskLabel.Text = desk.ToDisplayText();
+        BindTransferNextStep(desk);
+    }
+
+    private void BindTransferNextStep(Application.Transfer.Queries.TransferDeskBriefing desk)
+    {
+        if (desk.NextStep is null)
+        {
+            _transferNextStepButton.Visible = false;
+            _transferNextStepAction = Application.CareerHub.Queries.OfficeNextStepGuide.ActionNavigate;
+            _transferNextStepTarget = Application.Transfer.Queries.TransferNextStep.TargetTransfer;
+            return;
+        }
+
+        var step = desk.NextStep;
+        _transferNextStepButton.Text = step.ButtonLabel;
+        _transferNextStepButton.Visible = true;
+        _transferNextStepTarget = step.TargetPageCode;
+        _transferNextStepAction = step.ActionCode switch
+        {
+            Application.Transfer.Queries.TransferNextStep.ActionSellFringe =>
+                Application.CareerHub.Queries.OfficeNextStepGuide.ActionSellFringe,
+            Application.Transfer.Queries.TransferNextStep.ActionOpenTransferWindow =>
+                Application.CareerHub.Queries.OfficeNextStepGuide.ActionOpenTransferWindow,
+            Application.Transfer.Queries.TransferNextStep.ActionScanNeeds =>
+                Application.CareerHub.Queries.OfficeNextStepGuide.ActionScanNeeds,
+            Application.Transfer.Queries.TransferNextStep.ActionStartProcess =>
+                Application.CareerHub.Queries.OfficeNextStepGuide.ActionStartProcess,
+            Application.Transfer.Queries.TransferNextStep.ActionAdvanceProcess =>
+                Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceProcess,
+            Application.Transfer.Queries.TransferNextStep.ActionAnswerOffers =>
+                Application.CareerHub.Queries.OfficeNextStepGuide.ActionAnswerOffers,
+            _ => Application.CareerHub.Queries.OfficeNextStepGuide.ActionNavigate,
+        };
+
+        var expandNegotiation = step.ReasonCode is
+            Application.Transfer.Queries.TransferNextStep.ReasonAdvanceProcess
+            or Application.Transfer.Queries.TransferNextStep.ReasonAnswerOffers
+            or Application.Transfer.Queries.TransferNextStep.ReasonStartProcess;
+        if (expandNegotiation)
+        {
+            SetTransferNegotiationExpanded(true);
+        }
     }
 
     private void RefreshTransferBudgetStatus()
@@ -1965,13 +2084,14 @@ public partial class CareerHubScreen : Control
         _refreshTransferNeedsButton.Disabled = !employed;
         _declareTransferNeedButton.Disabled = !employed;
         _closeTransferNeedButton.Disabled = !employed || openCount == 0;
-        _refreshTransferNeedsButton.Visible = false;
+        var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
+        // Boş pencere: İhtiyaç Tara görünür (D-364); Pozisyon İhtiyacı geliştirici API'sinde kalır.
+        _refreshTransferNeedsButton.Visible = employed && windowOpen && openCount == 0;
         _declareTransferNeedButton.Visible = false;
         _closeTransferNeedButton.Visible = !_closeTransferNeedButton.Disabled;
         var activeProcessCount = employed
             ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveCount
             : 0;
-        var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
         var selectedScout = _selectedScoutPlayerId is long selectedScoutId
             ? _scoutCandidates.FirstOrDefault(candidate => candidate.PlayerId == selectedScoutId)
             : null;

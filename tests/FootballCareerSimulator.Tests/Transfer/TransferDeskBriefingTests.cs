@@ -282,4 +282,91 @@ public sealed class TransferDeskBriefingTests
         Assert.Equal(TransferNextStep.ReasonAnswerOffers, desk.NextStep!.ReasonCode);
         Assert.Contains(desk.BeatLines, b => b.Contains("Söz baskısı", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void IdleOpenWindow_ScanNeeds_SoftGuideWithoutAttentionPressure()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: null,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null);
+
+        Assert.Equal(TransferNextStep.ReasonScanNeeds, desk.NextStep!.ReasonCode);
+        Assert.Equal(TransferNextStep.ActionScanNeeds, desk.NextStep.ActionCode);
+        Assert.False(desk.DemandsAttention);
+    }
+
+    [Fact]
+    public void OpenNeedsWithoutTarget_PickTargetNavigate()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: null,
+            openNeedCount: 1,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null);
+
+        Assert.Equal(TransferNextStep.ReasonPickTarget, desk.NextStep!.ReasonCode);
+        Assert.Equal(TransferNextStep.ActionNavigate, desk.NextStep.ActionCode);
+        Assert.False(desk.DemandsAttention);
+    }
+
+    [Fact]
+    public void ListedTarget_StartProcessIsExecutable()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: null,
+            openNeedCount: 1,
+            openExitNeedCount: 0,
+            listedTargetCount: 1,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null);
+
+        Assert.Equal(TransferNextStep.ReasonStartProcess, desk.NextStep!.ReasonCode);
+        Assert.Equal(TransferNextStep.ActionStartProcess, desk.NextStep.ActionCode);
+        Assert.True(desk.DemandsAttention);
+    }
+
+    [Fact]
+    public void ActiveProcess_AdvanceProcessIsExecutable()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: null,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 1,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: null);
+
+        Assert.Equal(TransferNextStep.ReasonAdvanceProcess, desk.NextStep!.ReasonCode);
+        Assert.Equal(TransferNextStep.ActionAdvanceProcess, desk.NextStep.ActionCode);
+    }
 }

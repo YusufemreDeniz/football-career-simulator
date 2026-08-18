@@ -1993,6 +1993,62 @@ public sealed class CareerSessionController
         }
     }
 
+    /// <summary>
+    /// Transfer masası birincil CTA — en eski aktif süreçte bir adım ilerler.
+    /// </summary>
+    public UiActionResult AdvanceOldestTransferStep()
+    {
+        try
+        {
+            var offers = Host.TransferModule.Queries.GetManagedClubOffers();
+            if (offers.PendingCount > 0)
+            {
+                return AcceptPendingClubOffer();
+            }
+
+            var proposals = Host.TransferModule.Queries.GetManagedContractProposals();
+            if (proposals.PendingCount > 0)
+            {
+                return AcceptPendingContractProposal();
+            }
+
+            var process = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+                .OrderBy(p => p.ProcessId)
+                .FirstOrDefault()
+                ?? throw new InvalidOperationException("İlerletilecek aktif süreç yok.");
+
+            return ((TransferProcessStatus)process.StatusCode) switch
+            {
+                TransferProcessStatus.UnderEvaluation =>
+                    RequestSportingApprovalForOldestProcess(),
+                TransferProcessStatus.SportingApprovalPending =>
+                    GrantSportingApprovalForOldestPendingProcess(),
+                TransferProcessStatus.SportingApproved
+                    or TransferProcessStatus.ClubNegotiation
+                    when !process.IsFreeAgent =>
+                    SubmitDefaultClubOffer(),
+                TransferProcessStatus.SportingApproved when process.IsFreeAgent =>
+                    SubmitDefaultContractProposal(),
+                TransferProcessStatus.ClubAgreementReached
+                    or TransferProcessStatus.PlayerNegotiation =>
+                    SubmitDefaultContractProposal(),
+                TransferProcessStatus.PlayerAgreementReached =>
+                    RequestFinancialApprovalForOldestProcess(),
+                TransferProcessStatus.FinancialApprovalPending =>
+                    GrantFinancialApprovalForOldestPendingProcess(),
+                TransferProcessStatus.FinancialApproved
+                    or TransferProcessStatus.CompletionPending =>
+                    CompleteOldestFinanciallyApprovedProcess(),
+                _ => UiActionResult.Fail(
+                    $"Bu süreç durumunda otomatik adım yok ({process.StatusName}). Müzakere kartlarını aç."),
+            };
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Süreç ilerletilemedi: {ex.Message}");
+        }
+    }
+
     public UiActionResult OpenTransferWindow()
     {
         try

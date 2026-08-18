@@ -367,4 +367,32 @@ public sealed class OfficeNextStepGuideTests
         Assert.Equal(OfficeNextStepGuide.ActionOpenTransferWindow, step!.ActionCode);
         Assert.Equal("Pencere Aç", step.ButtonLabel);
     }
+
+    [Fact]
+    public void TransferScanNeeds_MapsToScanNeedsAction()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusTransfer,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            transferNextStep: TransferNextStep.ScanNeeds());
+
+        Assert.Equal(OfficeNextStepGuide.ActionScanNeeds, step!.ActionCode);
+        Assert.Equal("İhtiyaç Tara", step.ButtonLabel);
+    }
+
+    [Fact]
+    public void TransferAdvanceProcess_MapsToAdvanceAction()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusTransfer,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            transferNextStep: TransferNextStep.AdvanceProcess(closingPressure: false));
+
+        Assert.Equal(OfficeNextStepGuide.ActionAdvanceProcess, step!.ActionCode);
+        Assert.Equal("Süreci İlerlet", step.ButtonLabel);
+    }
 }

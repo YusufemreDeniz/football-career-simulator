@@ -25,6 +25,10 @@ public static class OfficeNextStepGuide
     public const string ActionApplyPrepSuggestion = "ApplyPrepSuggestion";
     public const string ActionSellFringe = "SellFringe";
     public const string ActionOpenTransferWindow = "OpenTransferWindow";
+    public const string ActionScanNeeds = "ScanNeeds";
+    public const string ActionStartProcess = "StartProcess";
+    public const string ActionAdvanceProcess = "AdvanceProcess";
+    public const string ActionAnswerOffers = "AnswerOffers";
 
     public static OfficeNextStep? Resolve(string? focusCode)
     {
@@ -382,6 +386,26 @@ public static class OfficeNextStepGuide
                 StringComparison.Ordinal))
         {
             return ActionOpenTransferWindow;
+        }
+
+        if (string.Equals(transferActionCode, TransferNextStep.ActionScanNeeds, StringComparison.Ordinal))
+        {
+            return ActionScanNeeds;
+        }
+
+        if (string.Equals(transferActionCode, TransferNextStep.ActionStartProcess, StringComparison.Ordinal))
+        {
+            return ActionStartProcess;
+        }
+
+        if (string.Equals(transferActionCode, TransferNextStep.ActionAdvanceProcess, StringComparison.Ordinal))
+        {
+            return ActionAdvanceProcess;
+        }
+
+        if (string.Equals(transferActionCode, TransferNextStep.ActionAnswerOffers, StringComparison.Ordinal))
+        {
+            return ActionAnswerOffers;
         }
 
         return ActionNavigate;

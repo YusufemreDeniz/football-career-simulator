@@ -185,7 +185,14 @@ public sealed record TransferDeskBriefing(
             && left <= ClosingPressureDays
             && unfinished;
 
-        var demands = unfinished || closingPressure || nextStep is not null;
+        // ScanNeeds / PickTarget: sakin masa rehberi — nabız baskısı değil.
+        var softGuide = nextStep is
+        {
+            ReasonCode: TransferNextStep.ReasonScanNeeds or TransferNextStep.ReasonPickTarget
+        };
+        var demands = unfinished
+            || closingPressure
+            || (nextStep is not null && !softGuide);
 
         return new TransferDeskBriefing(
             true,
@@ -419,6 +426,22 @@ public sealed record TransferDeskBriefing(
             return TransferNextStep.ClosingCheck();
         }
 
+        if (windowOpen
+            && activeProcessCount == 0
+            && pendingOfferCount == 0
+            && promiseExitPressurePlayerId is null)
+        {
+            if (openNeedCount == 0 && listedTargetCount == 0)
+            {
+                return TransferNextStep.ScanNeeds();
+            }
+
+            if (openNeedCount > 0 && listedTargetCount == 0)
+            {
+                return TransferNextStep.PickTarget();
+            }
+        }
+
         return null;
     }
 }
@@ -440,6 +463,8 @@ public sealed record TransferNextStep(
     public const string ReasonStartProcess = "StartProcess";
     public const string ReasonClosingCheck = "ClosingCheck";
     public const string ReasonPromiseExit = "PromiseExitPressure";
+    public const string ReasonScanNeeds = "ScanNeeds";
+    public const string ReasonPickTarget = "PickTarget";
 
     public const string TargetTransfer = "Transfer";
     public const string TargetClub = "Club";
@@ -448,6 +473,10 @@ public sealed record TransferNextStep(
     public const string ActionNavigate = "Navigate";
     public const string ActionSellFringe = "SellFringe";
     public const string ActionOpenTransferWindow = "OpenTransferWindow";
+    public const string ActionScanNeeds = "ScanNeeds";
+    public const string ActionStartProcess = "StartProcess";
+    public const string ActionAdvanceProcess = "AdvanceProcess";
+    public const string ActionAnswerOffers = "AnswerOffers";
 
     public static TransferNextStep OpenWindow() =>
         new(
@@ -472,7 +501,7 @@ public sealed record TransferNextStep(
             ReasonAnswerOffers,
             "Teklifleri Yanıtla",
             TargetTransfer,
-            ActionNavigate,
+            ActionAnswerOffers,
             closingPressure
                 ? "Pencere bitiyor — bekleyen teklifleri yanıtla."
                 : "Bekleyen teklif var — Transfer Masası.");
@@ -482,7 +511,7 @@ public sealed record TransferNextStep(
             ReasonAdvanceProcess,
             "Süreci İlerlet",
             TargetTransfer,
-            ActionNavigate,
+            ActionAdvanceProcess,
             closingPressure
                 ? "Pencere bitiyor — aktif süreci tamamla."
                 : "Aktif süreç var — Transfer Masası.");
@@ -492,7 +521,7 @@ public sealed record TransferNextStep(
             ReasonStartProcess,
             "Süreç Aç",
             TargetTransfer,
-            ActionNavigate,
+            ActionStartProcess,
             closingPressure
                 ? "Pencere bitiyor — listedeki hedefe süreç aç."
                 : "Hedef listede — Süreç Aç.");
@@ -504,6 +533,22 @@ public sealed record TransferNextStep(
             TargetTransfer,
             ActionNavigate,
             "Pencere kapanmak üzere — ihtiyaçları bitir.");
+
+    public static TransferNextStep ScanNeeds() =>
+        new(
+            ReasonScanNeeds,
+            "İhtiyaç Tara",
+            TargetTransfer,
+            ActionScanNeeds,
+            "Pencere açık — önce kadro ihtiyacını tara.");
+
+    public static TransferNextStep PickTarget() =>
+        new(
+            ReasonPickTarget,
+            "Scout'tan Hedef Seç",
+            TargetTransfer,
+            ActionNavigate,
+            "İhtiyaç açık — scout listesinden hedef seç.");
 
     public static TransferNextStep AnswerPromiseExit(long playerId) =>
         new(
