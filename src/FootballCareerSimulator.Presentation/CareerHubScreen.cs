@@ -241,6 +241,7 @@ public partial class CareerHubScreen : Control
         if (step is null)
         {
             _officeNextStepButton.Visible = false;
+            SyncTodayActionVisibility();
             return;
         }
 
@@ -255,6 +256,7 @@ public partial class CareerHubScreen : Control
         };
         _officeNextStepButton.Text = step.ButtonLabel;
         _officeNextStepButton.Visible = true;
+        SyncTodayActionVisibility();
     }
 
     private void OnOfficeNextStepPressed()
@@ -819,6 +821,7 @@ public partial class CareerHubScreen : Control
         jobRow.AddChild(_promisePlayingTimeButton);
 
         var decisionRow = ActionFlow();
+        decisionRow.Visible = false; // Geliştirici tetikleri: gerçek oyuncu akışında olaylar domain'den açılır.
         teamDynamicsCard.AddChild(decisionRow);
         _openDecisionButton = SecondaryButton("Süre Talebi Aç");
         _openDecisionButton.Pressed += () =>
@@ -879,6 +882,7 @@ public partial class CareerHubScreen : Control
         overviewCard.AddChild(_transferBudgetLabel);
 
         var windowRow = ActionFlow();
+        windowRow.Visible = false; // Pencere takvim/OfficeNextStep tarafından yönetilir.
         overviewCard.AddChild(windowRow);
 
         _openTransferWindowButton = SecondaryButton("Pencere Aç");
@@ -1127,6 +1131,16 @@ public partial class CareerHubScreen : Control
             Apply(_controller.SetWeeklyTrainingRest(RestApproach.Heavy));
         restRow.AddChild(_restHeavyButton);
 
+        foreach (var option in new[]
+                 {
+                     _trainLowButton, _trainMediumButton, _trainHighButton,
+                     _focusGeneralButton, _focusFitnessButton, _focusRecoveryButton,
+                     _restLightButton, _restNormalButton, _restHeavyButton,
+                 })
+        {
+            option.ToggleMode = true;
+        }
+
         var tacticsCard = AddCard(page, "MAÇ PLANI", emphasized: true);
         _tacticLabel = BodyLabel("TacticLabel", autowrap: true);
         tacticsCard.AddChild(_tacticLabel);
@@ -1160,6 +1174,15 @@ public partial class CareerHubScreen : Control
         _approachDefensiveButton = SecondaryButton("Defans");
         _approachDefensiveButton.Pressed += () => Apply(_controller.SetTacticApproach(TacticalApproach.Defensive));
         approachRow.AddChild(_approachDefensiveButton);
+
+        foreach (var option in new[]
+                 {
+                     _formation442Button, _formation433Button, _formation352Button,
+                     _approachBalancedButton, _approachAttackingButton, _approachDefensiveButton,
+                 })
+        {
+            option.ToggleMode = true;
+        }
         return page;
     }
 
@@ -1215,6 +1238,7 @@ public partial class CareerHubScreen : Control
         fixtureCard.AddChild(_fixtureList);
 
         var advancedToggle = SecondaryButton("Gelişmiş sezon araçları");
+        advancedToggle.Visible = false; // Manuel lifecycle tetikleri oyuncu yüzeyine ait değil.
         fixtureCard.AddChild(advancedToggle);
 
         var advanced = new VBoxContainer { Visible = false };
@@ -1501,6 +1525,7 @@ public partial class CareerHubScreen : Control
 
         _selectedScoutPlayerId = _scoutCandidates[(int)index].PlayerId;
         _suggestTargetButton.Disabled = _scoutCandidates[(int)index].IsListedTarget;
+        _suggestTargetButton.Visible = !_suggestTargetButton.Disabled;
     }
 
     private void AddSelectedScoutCandidate()
@@ -1525,6 +1550,8 @@ public partial class CareerHubScreen : Control
         var disabled = selected is null;
         _promiseStartButton.Disabled = disabled;
         _promisePlayingTimeButton.Disabled = disabled;
+        _promiseStartButton.Visible = !disabled;
+        _promisePlayingTimeButton.Visible = !disabled;
         _openDecisionButton.Disabled = disabled;
         _openStartingDecisionButton.Disabled = disabled;
         _openTransferDecisionButton.Disabled = disabled;
@@ -1938,6 +1965,9 @@ public partial class CareerHubScreen : Control
         _refreshTransferNeedsButton.Disabled = !employed;
         _declareTransferNeedButton.Disabled = !employed;
         _closeTransferNeedButton.Disabled = !employed || openCount == 0;
+        _refreshTransferNeedsButton.Visible = false;
+        _declareTransferNeedButton.Visible = false;
+        _closeTransferNeedButton.Visible = !_closeTransferNeedButton.Disabled;
         var activeProcessCount = employed
             ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveCount
             : 0;
@@ -1947,6 +1977,8 @@ public partial class CareerHubScreen : Control
             : null;
         _suggestTargetButton.Disabled = !employed || selectedScout is null || selectedScout.IsListedTarget;
         _dropTargetButton.Disabled = !employed || listedCount == 0;
+        _suggestTargetButton.Visible = !_suggestTargetButton.Disabled;
+        _dropTargetButton.Visible = !_dropTargetButton.Disabled;
         var processes = employed
             ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
             : [];
@@ -1954,11 +1986,16 @@ public partial class CareerHubScreen : Control
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.SportingApprovalPending);
         var canRequestSporting = processes.Any(p =>
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.UnderEvaluation);
-        _openProcessButton.Disabled = !employed || !windowOpen;
+        _openProcessButton.Disabled = !employed || !windowOpen || listedCount == 0;
         _withdrawProcessButton.Disabled = !employed || activeProcessCount == 0;
         _requestSportingApprovalButton.Disabled = !canRequestSporting;
         _grantSportingApprovalButton.Disabled = !pendingSporting;
         _rejectSportingApprovalButton.Disabled = !pendingSporting;
+        _openProcessButton.Visible = !_openProcessButton.Disabled;
+        _withdrawProcessButton.Visible = !_withdrawProcessButton.Disabled;
+        _requestSportingApprovalButton.Visible = !_requestSportingApprovalButton.Disabled;
+        _grantSportingApprovalButton.Visible = !_grantSportingApprovalButton.Disabled;
+        _rejectSportingApprovalButton.Visible = !_rejectSportingApprovalButton.Disabled;
 
         var canSubmitOffer = employed && windowOpen && processes.Any(p =>
             !p.IsFreeAgent
@@ -1970,6 +2007,10 @@ public partial class CareerHubScreen : Control
         _acceptClubOfferButton.Disabled = !pendingOffers;
         _rejectClubOfferButton.Disabled = !pendingOffers;
         _counterClubOfferButton.Disabled = !pendingOffers || !windowOpen;
+        _submitClubOfferButton.Visible = !_submitClubOfferButton.Disabled;
+        _acceptClubOfferButton.Visible = !_acceptClubOfferButton.Disabled;
+        _rejectClubOfferButton.Visible = !_rejectClubOfferButton.Disabled;
+        _counterClubOfferButton.Visible = !_counterClubOfferButton.Disabled;
 
         var canSubmitProposal = employed && windowOpen && processes.Any(p =>
             p.StatusCode is (int)Domain.Transfer.TransferProcessStatus.ClubAgreementReached
@@ -1982,6 +2023,10 @@ public partial class CareerHubScreen : Control
         _acceptContractProposalButton.Disabled = !pendingProposals;
         _rejectContractProposalButton.Disabled = !pendingProposals;
         _counterContractProposalButton.Disabled = !pendingProposals || !windowOpen;
+        _submitContractProposalButton.Visible = !_submitContractProposalButton.Disabled;
+        _acceptContractProposalButton.Visible = !_acceptContractProposalButton.Disabled;
+        _rejectContractProposalButton.Visible = !_rejectContractProposalButton.Disabled;
+        _counterContractProposalButton.Visible = !_counterContractProposalButton.Disabled;
 
         var canRequestFinancial = employed && processes.Any(p =>
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.PlayerAgreementReached);
@@ -1995,6 +2040,10 @@ public partial class CareerHubScreen : Control
         _grantFinancialApprovalButton.Disabled = !pendingFinancial;
         _rejectFinancialApprovalButton.Disabled = !pendingFinancial;
         _completeTransferButton.Disabled = !canStartComplete && !canFinishComplete;
+        _requestFinancialApprovalButton.Visible = !_requestFinancialApprovalButton.Disabled;
+        _grantFinancialApprovalButton.Visible = !_grantFinancialApprovalButton.Disabled;
+        _rejectFinancialApprovalButton.Visible = !_rejectFinancialApprovalButton.Disabled;
+        _completeTransferButton.Visible = !_completeTransferButton.Disabled;
     }
 
     private void RefreshTrainingStatus()
@@ -2073,6 +2122,17 @@ public partial class CareerHubScreen : Control
         _restLightButton.Disabled = !employed;
         _restNormalButton.Disabled = !employed;
         _restHeavyButton.Disabled = !employed;
+
+        var training = _controller.GetTrainingSummary();
+        _trainLowButton.ButtonPressed = training.Intensity == (int)TrainingIntensity.Low;
+        _trainMediumButton.ButtonPressed = training.Intensity == (int)TrainingIntensity.Medium;
+        _trainHighButton.ButtonPressed = training.Intensity == (int)TrainingIntensity.High;
+        _focusGeneralButton.ButtonPressed = training.Focus == (int)TrainingFocus.General;
+        _focusFitnessButton.ButtonPressed = training.Focus == (int)TrainingFocus.Fitness;
+        _focusRecoveryButton.ButtonPressed = training.Focus == (int)TrainingFocus.Recovery;
+        _restLightButton.ButtonPressed = training.RestApproach == (int)RestApproach.Light;
+        _restNormalButton.ButtonPressed = training.RestApproach == (int)RestApproach.Normal;
+        _restHeavyButton.ButtonPressed = training.RestApproach == (int)RestApproach.Heavy;
     }
 
     private void RefreshTacticStatus()
@@ -2108,6 +2168,17 @@ public partial class CareerHubScreen : Control
         _approachBalancedButton.Disabled = !employed;
         _approachAttackingButton.Disabled = !employed;
         _approachDefensiveButton.Disabled = !employed;
+
+        var tactic = _controller.Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
+        _formation442Button.ButtonPressed = tactic.ClubId is not null && tactic.Formation == Formation.F442;
+        _formation433Button.ButtonPressed = tactic.ClubId is not null && tactic.Formation == Formation.F433;
+        _formation352Button.ButtonPressed = tactic.ClubId is not null && tactic.Formation == Formation.F352;
+        _approachBalancedButton.ButtonPressed =
+            tactic.ClubId is not null && tactic.Approach == TacticalApproach.Balanced;
+        _approachAttackingButton.ButtonPressed =
+            tactic.ClubId is not null && tactic.Approach == TacticalApproach.Attacking;
+        _approachDefensiveButton.ButtonPressed =
+            tactic.ClubId is not null && tactic.Approach == TacticalApproach.Defensive;
     }
 
     private void RefreshDevelopmentStatus()
@@ -2339,13 +2410,17 @@ public partial class CareerHubScreen : Control
         var unemployed = string.Equals(manager.EmploymentStatus, "Unemployed", StringComparison.Ordinal);
         _generateOfferButton.Disabled = !unemployed;
         _acceptOfferButton.Disabled = !unemployed || manager.PendingOfferId is null;
+        _generateOfferButton.Visible = unemployed && manager.PendingOfferId is null;
+        _acceptOfferButton.Visible = !_acceptOfferButton.Disabled;
 
         var signable = !unemployed
             && _controller.Host.ContractModule.Queries.GetNextSignableFreeAgentForManagedClub() is not null;
         _signFreeAgentButton.Disabled = !signable;
+        _signFreeAgentButton.Visible = signable;
 
         var capacity = _controller.BuildSquadCapacityDigest();
         _promoteOverflowButton.Disabled = !capacity.IsOverCapacity;
+        _promoteOverflowButton.Visible = capacity.IsOverCapacity;
         _promoteOverflowButton.Text = capacity.IsOverCapacity && capacity.OverflowPlayerIds.Count > 0
             ? $"Taşanı Kadroya Al (#{capacity.OverflowPlayerIds[0]})"
             : "Taşanı Kadroya Al";
@@ -2354,6 +2429,8 @@ public partial class CareerHubScreen : Control
             ? _controller.SuggestReleaseCandidatePlayerId()
             : null;
         _releaseCapacityButton.Disabled = releaseId is null;
+        _releaseCapacityButton.Visible =
+            releaseId is not null && (capacity.IsFull || capacity.IsOverCapacity);
         _releaseCapacityButton.Text = releaseId is long rid
             ? (capacity.IsOverCapacity
                 ? $"Taşanı Serbest Bırak (#{rid})"
@@ -2364,7 +2441,18 @@ public partial class CareerHubScreen : Control
             ? _controller.SuggestSaleCandidatePlayerId()
             : null;
         var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
+        var saleStep = _controller.BuildTransferDeskBriefing().NextStep;
+        var salePressure = saleStep is not null
+            && (string.Equals(
+                    saleStep.ReasonCode,
+                    Application.Transfer.Queries.TransferNextStep.ReasonSellFringe,
+                    StringComparison.Ordinal)
+                || string.Equals(
+                    saleStep.ReasonCode,
+                    Application.Transfer.Queries.TransferNextStep.ReasonPromiseExit,
+                    StringComparison.Ordinal));
         _sellFringeButton.Disabled = saleId is null || !windowOpen;
+        _sellFringeButton.Visible = !_sellFringeButton.Disabled && salePressure;
         _sellFringeButton.Text = saleId is long sid
             ? (windowOpen ? $"Satışa Çıkar (#{sid})" : "Satışa Çıkar (pencere kapalı)")
             : "Satışa Çıkar";
@@ -2444,7 +2532,7 @@ public partial class CareerHubScreen : Control
             ? "Kadro: onaylı — gerekirse XI↔Yedek ile dokun."
             : autoSwapHint is not null
                 ? "Kadro: onayda sakatlar dışarı — " + autoSwapHint
-                : "Kadro: onay gerekli — aşağıdaki butonlarla XI'yi kilitle.";
+                : "Kadro: onay gerekli — Sıradaki Adım ile XI'yi kilitle.";
         _approveSelectionButton.Disabled = pending.IsApproved;
         _swapSelectionButton.Disabled = false;
     }
@@ -2487,6 +2575,41 @@ public partial class CareerHubScreen : Control
         _seasonTransitionButton.Text = progress is { CanArchive: true, CanComplete: false }
             ? "Yeni Sezona Geç"
             : "Sezonu Bitir → Yeni Sezon";
+        SyncTodayActionVisibility();
+    }
+
+    /// <summary>
+    /// Merkez yüzeyi: tek birincil OfficeNextStep, en fazla bağlamsal XI↔Yedek ve
+    /// çakışmayan 1 Gün yardımcı eylemi. Domain/debug tetikleri burada çoğaltılmaz.
+    /// </summary>
+    private void SyncTodayActionVisibility()
+    {
+        var hasOpenDecision = _controller.Host.InteractionModule.Queries
+            .GetPending(take: 1)
+            .OpenCount > 0;
+        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pendingMatch = _controller.Host.TeamPreparationModule.SelectionQueries
+            .GetNextDueManagedFixture(currentDay);
+        var canAdvance = _controller.Host.WorldModule.Queries.GetTimeAdvanceEligibility().CanAdvance;
+
+        // Bu eylemlerin tamamı OfficeNextStep tarafından zaten kapsanır.
+        _approveSelectionButton.Visible = false;
+        _playButton.Visible = false;
+        _seasonTransitionButton.Visible = false;
+        _advanceWeekButton.Visible = false;
+
+        // Açık karar varken aynı kartta yalnızca gerçek diyalog seçenekleri kalır.
+        _officeNextStepButton.Visible = _officeNextStepButton.Visible && !hasOpenDecision;
+        _swapSelectionButton.Visible = !hasOpenDecision && pendingMatch is not null;
+        _advanceDayButton.Visible =
+            !hasOpenDecision
+            && canAdvance
+            && pendingMatch is null
+            && (!_officeNextStepButton.Visible
+                || !string.Equals(
+                    _officeNextStepAction,
+                    Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceDay,
+                    StringComparison.Ordinal));
     }
 
     private void RefreshSquadList()
