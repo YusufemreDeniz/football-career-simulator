@@ -2966,6 +2966,11 @@ public sealed class CareerSessionController
         {
             yield return "Forma süresi talebi açıldı.";
         }
+
+        if (c.BoardDemandOpened)
+        {
+            yield return "Yönetim talebi açıldı.";
+        }
     }
 
     private static IEnumerable<string> FormatMatchKeyMoments(
@@ -3065,6 +3070,11 @@ public sealed class CareerSessionController
             yield return c.PlayingTimeDemandPlayerId is long pid
                 ? $"{header} · forma süresi talebi açıldı (#{pid})."
                 : $"{header} · forma süresi talebi açıldı.";
+        }
+
+        if (c.BoardDemandOpened)
+        {
+            yield return $"{header} · yönetim talebi açıldı.";
         }
     }
 

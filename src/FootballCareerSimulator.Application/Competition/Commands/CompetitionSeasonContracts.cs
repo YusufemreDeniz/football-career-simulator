@@ -120,4 +120,5 @@ public sealed record ManagedMatchConsequenceSummary(
     IReadOnlyList<int> NewlyInjuredSlots,
     bool PressQuestionOpened,
     bool PlayingTimeDemandOpened = false,
-    long? PlayingTimeDemandPlayerId = null);
+    long? PlayingTimeDemandPlayerId = null,
+    bool BoardDemandOpened = false);

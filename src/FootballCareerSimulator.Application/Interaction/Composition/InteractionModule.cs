@@ -26,6 +26,7 @@ public sealed class InteractionModule
         DecisionRequestTimeAdvanceBlockerSource timeAdvanceBlocker,
         PostMatchPressDecisionTrigger postMatchPress,
         PostMatchPlayingTimeDemandTrigger postMatchPlayingTimeDemand,
+        PostMatchBoardDemandTrigger postMatchBoardDemand,
         PromiseBrokenDecisionTrigger promiseBroken)
     {
         DecisionRequestStore = decisionRequestStore;
@@ -39,6 +40,7 @@ public sealed class InteractionModule
         TimeAdvanceBlocker = timeAdvanceBlocker;
         PostMatchPress = postMatchPress;
         PostMatchPlayingTimeDemand = postMatchPlayingTimeDemand;
+        PostMatchBoardDemand = postMatchBoardDemand;
         PromiseBroken = promiseBroken;
     }
 
@@ -63,6 +65,8 @@ public sealed class InteractionModule
     public PostMatchPressDecisionTrigger PostMatchPress { get; }
 
     public PostMatchPlayingTimeDemandTrigger PostMatchPlayingTimeDemand { get; }
+
+    public PostMatchBoardDemandTrigger PostMatchBoardDemand { get; }
 
     public PromiseBrokenDecisionTrigger PromiseBroken { get; }
 
@@ -107,13 +111,15 @@ public sealed class InteractionModule
             store,
             relationshipStore,
             promiseStore,
-            memoryStore);
+            memoryStore,
+            managerCareerStore);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
         var postMatchPress = new PostMatchPressDecisionTrigger(decisions);
         var postMatchPlayingTimeDemand = new PostMatchPlayingTimeDemandTrigger(
             decisions,
             memoryStore ?? new InMemoryMemoryStore(),
             promiseStore);
+        var postMatchBoardDemand = new PostMatchBoardDemandTrigger(decisions);
         var promiseBroken = new PromiseBrokenDecisionTrigger(decisions, relationshipStore);
         return new InteractionModule(
             store,
@@ -127,6 +133,7 @@ public sealed class InteractionModule
             blocker,
             postMatchPress,
             postMatchPlayingTimeDemand,
+            postMatchBoardDemand,
             promiseBroken);
     }
 }

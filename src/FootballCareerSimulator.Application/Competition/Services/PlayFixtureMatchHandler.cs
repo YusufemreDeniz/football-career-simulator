@@ -45,6 +45,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly RelationshipEvaluationService? _relationships;
     private readonly PostMatchPressDecisionTrigger? _postMatchPress;
     private readonly PostMatchPlayingTimeDemandTrigger? _postMatchPlayingTimeDemand;
+    private readonly PostMatchBoardDemandTrigger? _postMatchBoardDemand;
     private readonly MatchSelectionAvailabilityRevalidationService? _selectionRevalidation;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
@@ -69,7 +70,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         RelationshipEvaluationService? relationships = null,
         PostMatchPressDecisionTrigger? postMatchPress = null,
         MatchSelectionAvailabilityRevalidationService? selectionRevalidation = null,
-        PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null)
+        PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null,
+        PostMatchBoardDemandTrigger? postMatchBoardDemand = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -91,6 +93,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _relationships = relationships;
         _postMatchPress = postMatchPress;
         _postMatchPlayingTimeDemand = postMatchPlayingTimeDemand;
+        _postMatchBoardDemand = postMatchBoardDemand;
         _selectionRevalidation = selectionRevalidation;
     }
 
@@ -243,7 +246,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 newlyInjured,
                 pressOpened,
                 playingTimeDemand is not null,
-                playingTimeDemand?.SubjectPlayerId.Value);
+                playingTimeDemand?.SubjectPlayerId.Value,
+                board?.BoardDemandOpened ?? false);
         }
 
         var keyMoments = simulation.KeyMoments
@@ -305,7 +309,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         int? BoardConfidence,
         string? RiskBand,
         string? ReasonCode,
-        bool ManagerDismissed);
+        bool ManagerDismissed,
+        bool BoardDemandOpened);
 
     private BoardConsequenceSummary? TryApplyBoardAssessment(
         Fixture fixture,
@@ -330,6 +335,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             return null;
         }
 
+        var previousRisk = employment.RiskBand;
         var isHome = fixture.HomeClubId == managedClubId;
         var managedGoals = isHome ? score.HomeGoals : score.AwayGoals;
         var opponentGoals = isHome ? score.AwayGoals : score.HomeGoals;
@@ -391,6 +397,17 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         _managerCareerStore.Replace(career);
 
+        var boardDemandOpened = false;
+        if (!managerDismissed
+            && assessment.WasApplied
+            && _postMatchBoardDemand is not null)
+        {
+            boardDemandOpened = _postMatchBoardDemand.TryOpenAfterRiskEscalation(
+                previousRisk,
+                assessment.RiskBand,
+                occurredAt) is not null;
+        }
+
         return new BoardConsequenceSummary(
             assessment.WasApplied || assessment.WasAlreadyApplied
                 ? assessment.ConfidenceDelta
@@ -402,7 +419,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 ? assessment.RiskBand.ToString()
                 : null,
             assessment.ReasonCode,
-            managerDismissed);
+            managerDismissed,
+            boardDemandOpened);
     }
 
     private int ResolveLineupBonus(FixtureId fixtureId, ClubId clubId, int rootSeed, GameDate day)

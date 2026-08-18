@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.Interaction.Queries;
+using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Ports;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.SocialContinuity;
@@ -12,17 +13,20 @@ public sealed class DecisionRequestQueryService
     private readonly IRelationshipStore? _relationships;
     private readonly IPromiseStore? _promises;
     private readonly IMemoryStore? _memories;
+    private readonly IManagerCareerStore? _managerCareer;
 
     public DecisionRequestQueryService(
         IDecisionRequestStore store,
         IRelationshipStore? relationships = null,
         IPromiseStore? promises = null,
-        IMemoryStore? memories = null)
+        IMemoryStore? memories = null,
+        IManagerCareerStore? managerCareer = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _relationships = relationships;
         _promises = promises;
         _memories = memories;
+        _managerCareer = managerCareer;
     }
 
     public PendingDecisionsReadModel GetPending(int take = 8)
@@ -109,6 +113,8 @@ public sealed class DecisionRequestQueryService
                 _memories.Memories,
                 request.SubjectPlayerId);
 
+        var boardReason = _managerCareer?.Career.ActiveEmployment?.LastAssessmentReasonCode;
+
         return request.Kind switch
         {
             DecisionRequestKind.TransferRequest when trustLow && broken is not null =>
@@ -125,11 +131,28 @@ public sealed class DecisionRequestQueryService
             DecisionRequestKind.StartingOpportunityRequest when broken is not null =>
                 $"Önceki İlk 11 sözü bozuldu (#{broken.PromiseId.Value})"
                 + (memory is null ? string.Empty : $" · hatırlanıyor (etki {memory.CurrentInfluence})"),
+            DecisionRequestKind.BoardDemandRequest when boardReason is not null =>
+                ExplainBoardDemandReason(boardReason),
             _ when memory is not null && memory.CurrentInfluence >= 40 =>
                 $"Olumsuz hafıza etki {memory.CurrentInfluence}",
             _ => null,
         };
     }
+
+    /// <summary>
+    /// Mevcut board assessment reason code'larını oyuncu yüzüne çevirir; yeni formül yoktur.
+    /// </summary>
+    private static string ExplainBoardDemandReason(string reasonCode) =>
+        reasonCode switch
+        {
+            "LossBehindExpectation" =>
+                "Beklentinin altında mağlubiyet — yönetim masaya oturdu",
+            "LossOnTrack" =>
+                "Mağlubiyet — yönetim masaya oturdu",
+            "DrawBehindExpectation" =>
+                "Beklentinin altında beraberlik — yönetim masaya oturdu",
+            _ => "Yönetim güveni incelemede — masaya oturdular",
+        };
 
     private static DecisionRequestLineReadModel ToLine(DecisionRequest request) =>
         new(

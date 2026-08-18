@@ -121,6 +121,7 @@ public sealed class CompetitionModule
         RelationshipEvaluationService? relationships = null,
         PostMatchPressDecisionTrigger? postMatchPress = null,
         PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null,
+        PostMatchBoardDemandTrigger? postMatchBoardDemand = null,
         long competitionId = 1)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
@@ -145,7 +146,8 @@ public sealed class CompetitionModule
             matchPerformanceMemory,
             relationships,
             postMatchPress,
-            postMatchPlayingTimeDemand);
+            postMatchPlayingTimeDemand,
+            postMatchBoardDemand);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
@@ -168,7 +170,8 @@ public sealed class CompetitionModule
         MatchPerformanceMemoryService? matchPerformanceMemory = null,
         RelationshipEvaluationService? relationships = null,
         PostMatchPressDecisionTrigger? postMatchPress = null,
-        PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null)
+        PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null,
+        PostMatchBoardDemandTrigger? postMatchBoardDemand = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
@@ -205,7 +208,8 @@ public sealed class CompetitionModule
             relationships,
             postMatchPress,
             selectionRevalidation,
-            postMatchPlayingTimeDemand);
+            postMatchPlayingTimeDemand,
+            postMatchBoardDemand);
 
         return new CompetitionModule(
             store,

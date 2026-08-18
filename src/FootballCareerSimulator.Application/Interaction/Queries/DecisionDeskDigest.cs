@@ -101,6 +101,12 @@ public sealed record DecisionDeskDigest(
 
         if (kindName.Contains("Yönetim", StringComparison.OrdinalIgnoreCase))
         {
+            if (causalityLine is not null
+                && causalityLine.Contains("Beklentinin altında", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Beklentinin altında — yönetim masaya oturdu.";
+            }
+
             return "Yönetim masaya oturdu.";
         }
 
