@@ -415,12 +415,16 @@ public sealed class CareerSessionController
             var buyerName = sale.BuyingClubId is long buyer
                 ? GetClubDisplayName(buyer)
                 : "—";
-            var managerId = Host.ManagerModule.Queries.GetCareer().ManagerId.Value;
+            var soldPlayerId = sale.PlayerId
+                ?? throw new InvalidOperationException("Satış sonucu oyuncu kimliği eksik.");
+            var transferFee = sale.TransferFee
+                ?? throw new InvalidOperationException("Satış sonucu bedel eksik.");
+            var managerId = Host.ManagerModule.Queries.GetCareer().ManagerId;
             var aftermath = ManagedSaleAftermathDigest.Compose(
-                sale.PlayerId!.Value,
+                soldPlayerId,
                 managerId,
                 buyerName,
-                sale.TransferFee!.Value,
+                transferFee,
                 after.ActiveContractCount,
                 ClubSquad.MaxMembers,
                 Host.TransferModule.NeedStore.Needs,
