@@ -75,8 +75,11 @@ public sealed class TeamPreparationModule
 
     public ICommandIdempotencyReset IdempotencyReset => ApproveDefaultSelection;
 
-    public void BindPromiseStore(IPromiseStore promiseStore) =>
+    public void BindPromiseStore(IPromiseStore promiseStore)
+    {
         PromiseTension.BindPromiseStore(promiseStore);
+        ApproveDefaultSelection.BindPromiseStore(promiseStore);
+    }
 
     public static TeamPreparationModule Create(
         ILeagueCompetitionStore competitionStore,
@@ -120,7 +123,8 @@ public sealed class TeamPreparationModule
                 competitionStore,
                 trainingStore,
                 timelineStore,
-                clubSquadStore),
+                clubSquadStore,
+                promiseStore),
             new ApproveMatchSelectionHandler(
                 store,
                 competitionStore,

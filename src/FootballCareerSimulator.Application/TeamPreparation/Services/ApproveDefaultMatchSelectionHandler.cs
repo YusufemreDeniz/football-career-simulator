@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.Competition.Ports;
+using FootballCareerSimulator.Application.SocialContinuity.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
@@ -19,6 +20,7 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
     private readonly ITrainingPhysicalStateStore? _trainingStore;
     private readonly IWorldTimelineStore? _timelineStore;
     private readonly IClubSquadStore? _squadStore;
+    private IPromiseStore? _promiseStore;
     private readonly Dictionary<Guid, ApproveDefaultMatchSelectionResult> _completedCommands = new();
 
     public ApproveDefaultMatchSelectionHandler(
@@ -26,14 +28,19 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
         ILeagueCompetitionStore competitionStore,
         ITrainingPhysicalStateStore? trainingStore = null,
         IWorldTimelineStore? timelineStore = null,
-        IClubSquadStore? squadStore = null)
+        IClubSquadStore? squadStore = null,
+        IPromiseStore? promiseStore = null)
     {
         _selectionStore = selectionStore ?? throw new ArgumentNullException(nameof(selectionStore));
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _trainingStore = trainingStore;
         _timelineStore = timelineStore;
         _squadStore = squadStore;
+        _promiseStore = promiseStore;
     }
+
+    public void BindPromiseStore(IPromiseStore promiseStore) =>
+        _promiseStore = promiseStore ?? throw new ArgumentNullException(nameof(promiseStore));
 
     public ApproveDefaultMatchSelectionResult Handle(ApproveDefaultMatchSelectionCommand command)
     {
@@ -91,6 +98,29 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
         else
         {
             selection = MatchSelection.ApproveDefault(fixtureId, clubId, clubSquad);
+        }
+
+        var beforeHonor = selection;
+        selection = PromiseAwareDefaultSelection.Honor(
+            selection,
+            clubSquad,
+            _promiseStore,
+            clubId,
+            _timelineStore?.Timeline.CurrentDate,
+            _trainingStore?.PhysicalBySlot);
+
+        if (_timelineStore is not null)
+        {
+            var names = MvpSquadRosterGenerator.GeneratePlayerNames(
+                clubId,
+                _timelineStore.Timeline.RootSeed);
+            var honorNote = PromiseAwareDefaultSelection.FormatHonorNote(beforeHonor, selection, names);
+            if (!string.IsNullOrWhiteSpace(honorNote))
+            {
+                autoSwapSummary = string.IsNullOrWhiteSpace(autoSwapSummary)
+                    ? honorNote
+                    : $"{autoSwapSummary} · {honorNote}";
+            }
         }
 
         _selectionStore.Upsert(selection);
