@@ -77,7 +77,10 @@ public sealed record TodayPulseDigest(
 
         if (desk.HasOpenDecision)
         {
-            lines.Add($"Masada: {desk.Headline}");
+            lines.Add(
+                string.IsNullOrWhiteSpace(desk.CausalityLine)
+                    ? $"Masada: {desk.Headline}"
+                    : $"Masada: {desk.Headline} · {desk.CausalityLine}");
         }
 
         if (squad.IsOverCapacity)

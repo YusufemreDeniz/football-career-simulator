@@ -678,11 +678,15 @@ public sealed class CareerSessionController
                     generated.IneligibilityReason ?? "Seçenek şu an uygun değil.");
             }
 
+            var causalityBeforeAnswer = Host.InteractionModule.Queries.ExplainCausality(
+                new DecisionRequestId(pending.DecisionRequestId));
+
             Host.InteractionModule.Decisions.Answer(
                 new DecisionRequestId(pending.DecisionRequestId),
                 generated.OptionCode,
                 day);
-            return UiActionResult.Ok(ComposeDecisionAnswerStatus(pending, generated));
+            return UiActionResult.Ok(
+                ComposeDecisionAnswerStatus(pending, generated, causalityBeforeAnswer));
         }
         catch (InteractionInvariantViolationException ex)
         {
@@ -720,11 +724,15 @@ public sealed class CareerSessionController
                     generated.IneligibilityReason ?? "Seçenek şu an uygun değil.");
             }
 
+            var causalityBeforeAnswer = Host.InteractionModule.Queries.ExplainCausality(
+                new DecisionRequestId(pending.DecisionRequestId));
+
             Host.InteractionModule.Decisions.Answer(
                 new DecisionRequestId(pending.DecisionRequestId),
                 generated.OptionCode,
                 day);
-            return UiActionResult.Ok(ComposeDecisionAnswerStatus(pending, generated));
+            return UiActionResult.Ok(
+                ComposeDecisionAnswerStatus(pending, generated, causalityBeforeAnswer));
         }
         catch (InteractionInvariantViolationException ex)
         {
@@ -746,9 +754,11 @@ public sealed class CareerSessionController
 
     private string ComposeDecisionAnswerStatus(
         DecisionRequestLineReadModel pending,
-        DialogueOptionReadModel option)
+        DialogueOptionReadModel option,
+        string? causalityLine = null)
     {
         var remaining = Host.InteractionModule.Queries.GetPending(take: 1).OpenCount;
+
         string? nextHint = null;
         if (string.Equals(
                 option.OptionCode,
@@ -762,6 +772,26 @@ public sealed class CareerSessionController
         {
             nextHint = "Oyuncu yönetimi ve ilişki satırına bak — kırgınlık gerçek.";
         }
+        else if (string.Equals(
+                     option.OptionCode,
+                     DecisionRequest.OptionGrantPlayingTimePromise,
+                     StringComparison.Ordinal))
+        {
+            nextHint = causalityLine is not null
+                       && (causalityLine.Contains("yedek", StringComparison.OrdinalIgnoreCase)
+                           || causalityLine.Contains("kadro dışı", StringComparison.OrdinalIgnoreCase))
+                ? $"Sıradaki: Hazırlık / Maç Günü — #{pending.SubjectPlayerId} için XI veya yedek tut."
+                : $"Sıradaki: Hazırlık / Maç Günü — sözü maç görünürlüğüyle ilerlet (#{pending.SubjectPlayerId}).";
+        }
+        else if (string.Equals(option.OptionCode, DecisionRequest.OptionRefuse, StringComparison.Ordinal)
+                 && (pending.KindName.Contains("süre", StringComparison.OrdinalIgnoreCase)
+                     || pending.KindName.Contains("Forma", StringComparison.OrdinalIgnoreCase))
+                 && causalityLine is not null
+                 && (causalityLine.Contains("yedek", StringComparison.OrdinalIgnoreCase)
+                     || causalityLine.Contains("kadro dışı", StringComparison.OrdinalIgnoreCase)))
+        {
+            nextHint = "Oyuncu yönetimi — yedek kalma hafızası ve güven satırına bak.";
+        }
 
         return DecisionAnswerNarrative.Compose(
             pending.KindName,
@@ -770,7 +800,8 @@ public sealed class CareerSessionController
             pending.SubjectPlayerId,
             pending.IsHardBlocker,
             remaining,
-            nextHint).ToStatusMessage();
+            nextHint,
+            causalityLine).ToStatusMessage();
     }
 
     private UiActionResult OpenDecisionForOldestSquadPlayer(

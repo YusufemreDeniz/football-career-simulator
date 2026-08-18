@@ -485,6 +485,32 @@ public sealed class TodayPulseDigestTests
         Assert.Contains("Satışa Çıkar", pulse.Headline, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SittingOutDesk_SurfacesCausalityOnPulseLine()
+    {
+        var desk = new DecisionDeskDigest(
+            true,
+            true,
+            "Masada (zorunlu)",
+            "Yedek kaldı — forma süresi istiyor.",
+            "destek",
+            1,
+            "Forma süresi talebi",
+            1,
+            "Son 3 maçta yedek/kadro dışı — forma istiyor");
+
+        var pulse = TodayPulseDigest.Compose(
+            desk,
+            MatchReady(),
+            PrepOk(),
+            LeagueOk());
+
+        Assert.Equal(TodayPulseDigest.FocusDesk, pulse.PrimaryFocusCode);
+        Assert.Contains(
+            pulse.PulseLines,
+            l => l.Contains("yedek/kadro dışı", StringComparison.OrdinalIgnoreCase));
+    }
+
     private static DecisionDeskDigest Desk(bool hard, bool open, string headline) =>
         open
             ? new DecisionDeskDigest(

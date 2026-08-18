@@ -123,6 +123,30 @@ public sealed class WeekMoodDigestTests
         Assert.Contains("Transfer masası sıcak", mood.MoodLine, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SittingOutDesk_SetsPlayingTimeMoodLine()
+    {
+        var desk = new DecisionDeskDigest(
+            true,
+            true,
+            "Masada (zorunlu)",
+            "Yedek kaldı — forma süresi istiyor.",
+            "destek",
+            1,
+            "Forma süresi talebi",
+            1,
+            "Son 3 maçta yedek/kadro dışı — forma istiyor");
+
+        var mood = WeekMoodDigest.Compose(
+            desk,
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk());
+
+        Assert.Equal(WeekMoodDigest.MoodDesk, mood.MoodCode);
+        Assert.Contains("Yedek kalan forma istiyor", mood.MoodLine, StringComparison.Ordinal);
+    }
+
     private static PreparationBriefing PrepOk() =>
         PreparationBriefing.Compose(
             new ClubTrainingSummaryReadModel(

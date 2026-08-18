@@ -29,13 +29,15 @@ public sealed record DecisionAnswerNarrative(
         long subjectPlayerId,
         bool wasHardBlocker,
         int remainingOpenCount,
-        string? nextActionHint = null)
+        string? nextActionHint = null,
+        string? causalityLine = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(kindName);
         ArgumentException.ThrowIfNullOrWhiteSpace(optionCode);
         ArgumentException.ThrowIfNullOrWhiteSpace(optionDisplayText);
 
-        var headline = HeadlineFor(kindName, optionCode);
+        var sittingOutPressure = IsSittingOutCausality(causalityLine);
+        var headline = HeadlineFor(kindName, optionCode, sittingOutPressure);
         var choice = $"Seçimin: {optionDisplayText}";
         var beats = new List<string>();
 
@@ -44,12 +46,17 @@ public sealed record DecisionAnswerNarrative(
             beats.Add($"Konu: oyuncu#{subjectPlayerId}");
         }
 
+        if (!string.IsNullOrWhiteSpace(causalityLine))
+        {
+            beats.Add($"Neden: {causalityLine.Trim()}");
+        }
+
         if (wasHardBlocker)
         {
             beats.Add("Zorunlu engel kalktı — zaman yine akabilir.");
         }
 
-        var consequence = ConsequenceBeat(kindName, optionCode, subjectPlayerId);
+        var consequence = ConsequenceBeat(kindName, optionCode, subjectPlayerId, sittingOutPressure);
         if (!string.IsNullOrWhiteSpace(consequence))
         {
             beats.Add(consequence);
@@ -78,7 +85,12 @@ public sealed record DecisionAnswerNarrative(
     private static bool ShowSubjectPlayer(long subjectPlayerId) =>
         subjectPlayerId > 0 && subjectPlayerId != BoardDemandSentinelPlayerId;
 
-    private static string HeadlineFor(string kindName, string optionCode)
+    private static bool IsSittingOutCausality(string? causalityLine) =>
+        !string.IsNullOrWhiteSpace(causalityLine)
+        && (causalityLine.Contains("yedek", StringComparison.OrdinalIgnoreCase)
+            || causalityLine.Contains("kadro dışı", StringComparison.OrdinalIgnoreCase));
+
+    private static string HeadlineFor(string kindName, string optionCode, bool sittingOutPressure)
     {
         if (IsRefuse(optionCode))
         {
@@ -93,7 +105,23 @@ public sealed record DecisionAnswerNarrative(
                 return "Ayrılmayı reddettin — kırgınlık masada kaldı.";
             }
 
+            if (sittingOutPressure
+                && (kindName.Contains("süre", StringComparison.OrdinalIgnoreCase)
+                    || kindName.Contains("Forma", StringComparison.OrdinalIgnoreCase)))
+            {
+                return "Yedek kalma talebini reddettin — gerilim büyüdü.";
+            }
+
             return "Reddettin — gerilim soğumadı.";
+        }
+
+        if (sittingOutPressure
+            && string.Equals(
+                optionCode,
+                DecisionRequest.OptionGrantPlayingTimePromise,
+                StringComparison.Ordinal))
+        {
+            return "Yedek birikimine söz verdin — forma hesabı başladı.";
         }
 
         return optionCode switch
@@ -124,9 +152,17 @@ public sealed record DecisionAnswerNarrative(
         };
     }
 
-    private static string? ConsequenceBeat(string kindName, string optionCode, long subjectPlayerId) =>
+    private static string? ConsequenceBeat(
+        string kindName,
+        string optionCode,
+        long subjectPlayerId,
+        bool sittingOutPressure) =>
         optionCode switch
         {
+            DecisionRequest.OptionGrantPlayingTimePromise when sittingOutPressure =>
+                ShowSubjectPlayer(subjectPlayerId)
+                    ? $"#{subjectPlayerId} sözü yazdı — sonraki maçlarda XI veya yedek tutarak ilerlet."
+                    : "Oyuncu sözü hafızasına yazdı; kadro seçimleri ilerletecek.",
             DecisionRequest.OptionGrantPlayingTimePromise =>
                 "Oyuncu sözü hafızasına yazdı; kadro seçimleri ilerletecek.",
             DecisionRequest.OptionGrantStartingOpportunityPromise =>
@@ -151,6 +187,8 @@ public sealed record DecisionAnswerNarrative(
                 "Eleştiri kamuoyuna yansıdı.",
             DecisionRequest.OptionRefuse when kindName.Contains("Transfer", StringComparison.OrdinalIgnoreCase) =>
                 "Red işlendi; düşük güven ve söz kırığı unutulmadı.",
+            DecisionRequest.OptionRefuse when sittingOutPressure =>
+                "Red işlendi; yedek kalma hafızası ve güven baskısı sürüyor.",
             DecisionRequest.OptionRefuse =>
                 "Red, ilişki ve hafızaya işlendi.",
             _ => null,

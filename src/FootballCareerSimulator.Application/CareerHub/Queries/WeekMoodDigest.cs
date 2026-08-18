@@ -50,6 +50,13 @@ public sealed record WeekMoodDigest(
 
         if (desk.HasOpenDecision)
         {
+            if (!string.IsNullOrWhiteSpace(desk.CausalityLine)
+                && (desk.CausalityLine.Contains("yedek", StringComparison.OrdinalIgnoreCase)
+                    || desk.CausalityLine.Contains("kadro dışı", StringComparison.OrdinalIgnoreCase)))
+            {
+                return Active("Yedek kalan forma istiyor — masayı temizle, sonra ritim kur.", MoodDesk);
+            }
+
             return Active(
                 desk.IsHardBlocker
                     ? "Masada zorunlu dosya — hafta burada kilitli."

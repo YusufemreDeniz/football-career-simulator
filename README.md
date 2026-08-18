@@ -4,7 +4,7 @@ Uzun soluklu, oyuncunun kararlarını, ilişkilerini ve geçmişini yıllarca ha
 
 ## Proje Durumu
 
-Dokümantasyon ve teknik spike aşaması tamamlanmıştır. Üretim implementasyonu **aktif ilerliyor**: World & Calendar, Competition, Match, Club Governance, Manager Career, Team Preparation, Social Continuity ve birleşik Career SQLite kaydı kodlanmıştır. **Forma Sözü Zinciri** (Promise → maç/deadline → Memory → Relationship → Decision/Transfer → satış terminali → save/load; giriş: maç sonrası yedek birikimi → PlayingTimeRequest + masa nedenselliği) D-313/D-352–D-360 ile otomatik çapraz senaryoda kilitlenmiştir.
+Dokümantasyon ve teknik spike aşaması tamamlanmıştır. Üretim implementasyonu **aktif ilerliyor**: World & Calendar, Competition, Match, Club Governance, Manager Career, Team Preparation, Social Continuity ve birleşik Career SQLite kaydı kodlanmıştır. **Forma Sözü Zinciri** (Promise → maç/deadline → Memory → Relationship → Decision/Transfer → satış terminali → save/load; giriş: maç sonrası yedek birikimi → PlayingTimeRequest + masa/nabız nedenselliği + cevap köprüsü) D-313/D-352–D-361 ile otomatik çapraz senaryoda kilitlenmiştir.
 
 Godot Presentation katmanında ince bir kariyer döngüsü vardır: **ana menü → kariyer merkezi → maç günü → maç sonuçları** (yeni kariyer / devam et, lig kurma, maç öncesi kadro onayı, ayrı maç günü kontrol noktası, son kadro/formasyon/yaklaşım dokunuşları, maç oynatma, temel maç raporu ve öne çıkan oyuncu, zaman ilerletme, kaydet/yükle). Bu bir görsel ürün UI'sı değil; oynanabilir dikey kesit kontrol yüzeyidir. `Spike1Placeholder` / `Spike4Placeholder` yalnızca eski spike kanıtı için durur; asıl oyun akışı üretim context'leri üzerinden yürür.
 

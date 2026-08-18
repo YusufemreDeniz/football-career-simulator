@@ -77,6 +77,44 @@ public sealed class DecisionAnswerNarrativeTests
     }
 
     [Fact]
+    public void GrantPlayingTime_WithSittingOutCausality_PointsToXi()
+    {
+        var narrative = DecisionAnswerNarrative.Compose(
+            kindName: "Forma süresi talebi",
+            optionCode: DecisionRequest.OptionGrantPlayingTimePromise,
+            optionDisplayText: "Forma süresi sözü ver",
+            subjectPlayerId: 21,
+            wasHardBlocker: true,
+            remainingOpenCount: 0,
+            nextActionHint: "Sıradaki: Hazırlık / Maç Günü — #21 için XI veya yedek tut.",
+            causalityLine: "Son 3 maçta yedek/kadro dışı — forma istiyor");
+
+        Assert.Equal("Yedek birikimine söz verdin — forma hesabı başladı.", narrative.Headline);
+        Assert.Contains(narrative.BeatLines, b => b.StartsWith("Neden:", StringComparison.Ordinal));
+        Assert.Contains(narrative.BeatLines, b => b.Contains("XI veya yedek", StringComparison.Ordinal));
+        Assert.Contains(narrative.BeatLines, b => b.Contains("Sıradaki:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RefusePlayingTime_WithSittingOutCausality_KeepsBenchTension()
+    {
+        var narrative = DecisionAnswerNarrative.Compose(
+            "Forma süresi talebi",
+            DecisionRequest.OptionRefuse,
+            "Talebi reddet",
+            subjectPlayerId: 21,
+            wasHardBlocker: true,
+            remainingOpenCount: 0,
+            nextActionHint: "Oyuncu yönetimi — yedek kalma hafızası ve güven satırına bak.",
+            causalityLine: "Son 3 maçta yedek/kadro dışı — forma istiyor");
+
+        Assert.Equal("Yedek kalma talebini reddettin — gerilim büyüdü.", narrative.Headline);
+        Assert.Contains(
+            narrative.BeatLines,
+            b => b.Contains("yedek kalma hafızası", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void AcknowledgeTransfer_PointsToSellOnTransferDesk()
     {
         var narrative = DecisionAnswerNarrative.Compose(
