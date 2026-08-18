@@ -15,6 +15,7 @@ public sealed class DialogueOptionGenerationService
 {
     private readonly IDecisionRequestStore _decisions;
     private readonly IPromiseStore? _promises;
+    private readonly IRelationshipStore? _relationships;
     private readonly TransferNeedService? _transferNeeds;
     private readonly IDisciplinaryActionStore? _discipline;
 
@@ -22,10 +23,12 @@ public sealed class DialogueOptionGenerationService
         IDecisionRequestStore decisions,
         IPromiseStore? promises = null,
         TransferNeedService? transferNeeds = null,
-        IDisciplinaryActionStore? discipline = null)
+        IDisciplinaryActionStore? discipline = null,
+        IRelationshipStore? relationships = null)
     {
         _decisions = decisions ?? throw new ArgumentNullException(nameof(decisions));
         _promises = promises;
+        _relationships = relationships;
         _transferNeeds = transferNeeds;
         _discipline = discipline;
     }
@@ -102,7 +105,8 @@ public sealed class DialogueOptionGenerationService
 
     private IReadOnlyList<DialogueOptionReadModel> BuildPlayingTimeOptions(DecisionRequest request)
     {
-        var grantBlockedReason = FindActivePromiseBlockReason(request, PromiseKind.PlayingTime, "forma süresi");
+        var grantBlockedReason = FindActivePromiseBlockReason(request, PromiseKind.PlayingTime, "forma süresi")
+            ?? FindLowTrustGrantBlockReason(request);
         return
         [
             new DialogueOptionReadModel(
@@ -110,7 +114,9 @@ public sealed class DialogueOptionGenerationService
                 SemanticIntentName: "GrantPlayingTimePromise",
                 DisplayText: "Forma süresi sözü ver",
                 ToneCode: "Supportive",
-                RiskHint: "Aktif PlayingTime Promise oluşur; takip edilir.",
+                RiskHint: grantBlockedReason is null
+                    ? "Aktif PlayingTime Promise oluşur; takip edilir."
+                    : "Güven onarılmadan yeni söz inandırıcı olmaz.",
                 IsEligible: grantBlockedReason is null,
                 IneligibilityReason: grantBlockedReason),
             RefuseOption("RefusePlayingTimeRequest"),
@@ -122,7 +128,8 @@ public sealed class DialogueOptionGenerationService
         var grantBlockedReason = FindActivePromiseBlockReason(
             request,
             PromiseKind.StartingOpportunity,
-            "ilk 11 fırsatı");
+            "ilk 11 fırsatı")
+            ?? FindLowTrustGrantBlockReason(request);
         return
         [
             new DialogueOptionReadModel(
@@ -130,7 +137,9 @@ public sealed class DialogueOptionGenerationService
                 SemanticIntentName: "GrantStartingOpportunityPromise",
                 DisplayText: "İlk 11 sözü ver",
                 ToneCode: "Supportive",
-                RiskHint: "Aktif StartingOpportunity Promise oluşur; takip edilir.",
+                RiskHint: grantBlockedReason is null
+                    ? "Aktif StartingOpportunity Promise oluşur; takip edilir."
+                    : "Güven onarılmadan yeni söz inandırıcı olmaz.",
                 IsEligible: grantBlockedReason is null,
                 IneligibilityReason: grantBlockedReason),
             RefuseOption("RefuseStartingOpportunityRequest"),
@@ -273,6 +282,26 @@ public sealed class DialogueOptionGenerationService
 
         return hasActive
             ? $"Oyuncunun bu kulüpte zaten aktif {label} sözü var."
+            : null;
+    }
+
+    private string? FindLowTrustGrantBlockReason(DecisionRequest request)
+    {
+        if (_relationships is null)
+        {
+            return null;
+        }
+
+        var relationship = _relationships.FindPlayerToManager(
+            request.SubjectPlayerId.Value,
+            request.ManagerId.Value);
+        if (relationship is null || relationship.Status != RelationshipStatus.Active)
+        {
+            return null;
+        }
+
+        return RelationshipDimensionBands.FromValue(relationship.Trust) == RelationshipDimensionBand.Low
+            ? "Güven düşük — yeni forma sözü inandırıcı değil; transfer baskısı oluşabilir."
             : null;
     }
 

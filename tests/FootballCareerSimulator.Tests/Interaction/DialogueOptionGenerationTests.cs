@@ -3,6 +3,7 @@ using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.SocialContinuity.Composition;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.PlayerCareer;
+using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Tests.Interaction;
@@ -114,5 +115,48 @@ public sealed class DialogueOptionGenerationTests
         var options = interaction.DialogueOptions.GetForDecision(request.DecisionRequestId);
         Assert.False(options.DecisionIsOpen);
         Assert.Empty(options.Options);
+    }
+
+    [Fact]
+    public void GrantOption_BecomesIneligible_WhenTrustIsLow()
+    {
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var social = SocialContinuityModule.Create();
+        var interaction = InteractionModule.Create(
+            manager.Store,
+            social.PlayingTime,
+            relationships: social.RelationshipEvaluation,
+            promiseStore: social.PromiseStore,
+            relationshipStore: social.RelationshipStore);
+
+        var playerId = new PlayerId(24);
+        social.PlayingTime.Create(
+            manager.Store.Career.ManagerId,
+            playerId,
+            manager.Store.Career.ActiveEmployment!.ClubId,
+            targetAppearances: 2,
+            deadlineOn: Day.AddDays(3),
+            createdOn: Day);
+        social.StartingOpportunity.EvaluateDeadlines(Day.AddDays(3));
+        social.PlayingTime.Create(
+            manager.Store.Career.ManagerId,
+            playerId,
+            manager.Store.Career.ActiveEmployment!.ClubId,
+            targetAppearances: 2,
+            deadlineOn: Day.AddDays(10),
+            createdOn: Day.AddDays(4));
+        social.StartingOpportunity.EvaluateDeadlines(Day.AddDays(10));
+
+        Assert.Equal(
+            RelationshipDimensionBand.Low,
+            RelationshipDimensionBands.FromValue(
+                social.RelationshipStore.FindPlayerToManager(24, 1)!.Trust));
+
+        var request = interaction.Decisions.OpenPlayingTimeRequest(playerId, Day.AddDays(11));
+        var grant = Assert.Single(
+            interaction.DialogueOptions.GetForDecision(request.DecisionRequestId).Options,
+            o => o.OptionCode == DecisionRequest.OptionGrantPlayingTimePromise);
+        Assert.False(grant.IsEligible);
+        Assert.Contains("Güven düşük", grant.IneligibilityReason!, StringComparison.Ordinal);
     }
 }

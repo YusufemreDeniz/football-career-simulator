@@ -3039,7 +3039,8 @@ public sealed class CareerSessionController
             Host.TrainingModule.Store.PhysicalBySlot,
             Host.ContractModule.Store.Contracts,
             Host.SocialContinuityModule.RelationshipStore.Relationships,
-            Host.SocialContinuityModule.PromiseStore.Promises);
+            Host.SocialContinuityModule.PromiseStore.Promises,
+            Host.SocialContinuityModule.MemoryStore.Memories);
     }
 
     public CareerLegacyDigest BuildCareerLegacyDigest()

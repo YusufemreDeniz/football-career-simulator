@@ -23,7 +23,8 @@ public sealed class PromiseBrokenDecisionTriggerTests
             relationships: social.RelationshipEvaluation,
             decisionMemory: social.DecisionMemory,
             promiseStore: social.PromiseStore,
-            startingOpportunity: social.StartingOpportunity);
+            startingOpportunity: social.StartingOpportunity,
+            relationshipStore: social.RelationshipStore);
         return (interaction, social);
     }
 
@@ -119,5 +120,45 @@ public sealed class PromiseBrokenDecisionTriggerTests
 
         Assert.Null(opened);
         Assert.Single(interaction.DecisionRequestStore.Requests);
+    }
+
+    [Fact]
+    public void SecondBrokenPlayingTime_WithLowTrust_OpensTransferDecision()
+    {
+        var (interaction, social) = Create();
+        var playerId = new PlayerId(44);
+        var managerId = new Domain.ManagerCareer.ManagerId(1);
+        var clubId = new Domain.Shared.ClubId(1);
+
+        social.PlayingTime.Create(
+            managerId,
+            playerId,
+            clubId,
+            targetAppearances: 2,
+            deadlineOn: Day.AddDays(2),
+            createdOn: Day);
+        social.StartingOpportunity.EvaluateDeadlines(Day.AddDays(2));
+        Assert.Equal(38, social.RelationshipStore.FindPlayerToManager(44, 1)!.Trust);
+
+        social.PlayingTime.Create(
+            managerId,
+            playerId,
+            clubId,
+            targetAppearances: 2,
+            deadlineOn: Day.AddDays(8),
+            createdOn: Day.AddDays(3));
+
+        DecisionRequest? opened = null;
+        social.StartingOpportunity.EvaluateDeadlines(
+            Day.AddDays(8),
+            promise => opened = interaction.PromiseBroken.TryOpenAfterBroken(promise, Day.AddDays(8)));
+
+        Assert.Equal(26, social.RelationshipStore.FindPlayerToManager(44, 1)!.Trust);
+        Assert.Equal(
+            RelationshipDimensionBand.Low,
+            RelationshipDimensionBands.FromValue(social.RelationshipStore.FindPlayerToManager(44, 1)!.Trust));
+        Assert.NotNull(opened);
+        Assert.Equal(DecisionRequestKind.TransferRequest, opened.Kind);
+        Assert.Equal(44, opened.SubjectPlayerId.Value);
     }
 }

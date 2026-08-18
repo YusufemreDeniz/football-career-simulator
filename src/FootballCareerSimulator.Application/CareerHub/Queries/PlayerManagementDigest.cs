@@ -32,7 +32,8 @@ public sealed record PlayerManagementLine(
     int? Respect,
     int? Compatibility,
     string RelationshipState,
-    string PromiseSummary)
+    string PromiseSummary,
+    string CausalitySummary)
 {
     public string ToListLabel() =>
         $"{SquadNumber}. {DisplayName} · {PositionCode} · GÜÇ {Rating} · FİT %{Fitness}"
@@ -52,7 +53,8 @@ public sealed record PlayerManagementLine(
             + $"Fitness %{Fitness} · yorgunluk %{Fatigue} · {Availability}\n"
             + $"{contract}\n"
             + $"İlişki: {RelationshipState} · {relationship}\n"
-            + $"Sözler: {PromiseSummary}";
+            + $"Sözler: {PromiseSummary}\n"
+            + $"Nedensellik: {CausalitySummary}";
     }
 }
 
@@ -75,7 +77,8 @@ public sealed record PlayerManagementDigest(
         IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot,
         IReadOnlyList<PlayerContract> contracts,
         IReadOnlyList<RelationshipRecord> relationships,
-        IReadOnlyList<Promise> promises)
+        IReadOnlyList<Promise> promises,
+        IReadOnlyList<MemoryRecord>? memories = null)
     {
         ArgumentNullException.ThrowIfNull(profiles);
         ArgumentNullException.ThrowIfNull(squadPlayers);
@@ -84,6 +87,7 @@ public sealed record PlayerManagementDigest(
         ArgumentNullException.ThrowIfNull(contracts);
         ArgumentNullException.ThrowIfNull(relationships);
         ArgumentNullException.ThrowIfNull(promises);
+        memories ??= Array.Empty<MemoryRecord>();
 
         var memberBySlot = membership?.Members.ToDictionary(member => member.SlotIndex)
             ?? new Dictionary<int, SquadMember>();
@@ -112,12 +116,22 @@ public sealed record PlayerManagementDigest(
                     && candidate.Observer.Id == playerId.Value
                     && candidate.Subject.Kind == ActorKind.Manager
                     && candidate.Subject.Id == managerId);
-                var activePromises = promises
+                var playerPromises = promises
                     .Where(candidate =>
-                        candidate.IsActive
-                        && candidate.Promisee.Kind == ActorKind.Player
+                        candidate.Promisee.Kind == ActorKind.Player
                         && candidate.Promisee.Id == playerId.Value)
-                    .OrderBy(candidate => candidate.DeadlineOn.DayNumber)
+                    .OrderByDescending(candidate => candidate.IsActive)
+                    .ThenBy(candidate => candidate.DeadlineOn.DayNumber)
+                    .ToArray();
+                var activePromises = playerPromises.Where(candidate => candidate.IsActive).ToArray();
+                var playerMemories = memories
+                    .Where(candidate =>
+                        candidate.Status == MemoryStatus.Active
+                        && candidate.RememberingActor.Kind == ActorKind.Player
+                        && candidate.RememberingActor.Id == playerId.Value
+                        && candidate.Category is MemoryCategory.Promise or MemoryCategory.Trust)
+                    .OrderByDescending(candidate => candidate.CreatedOn.DayNumber)
+                    .ThenByDescending(candidate => candidate.MemoryId.Value)
                     .ToArray();
 
                 return new PlayerManagementLine(
@@ -141,7 +155,8 @@ public sealed record PlayerManagementDigest(
                     relationship?.Respect,
                     relationship?.ProfessionalCompatibility,
                     RelationshipLabel(relationship),
-                    PromiseLabel(activePromises));
+                    PromiseLabel(activePromises),
+                    CausalityLabel(relationship, playerPromises, playerMemories));
             })
             .ToArray();
 
@@ -198,4 +213,59 @@ public sealed record PlayerManagementDigest(
                 $"{(promise.Kind == PromiseKind.StartingOpportunity ? "İlk 11" : "Oyun süresi")} "
                 + $"{promise.StartsGiven}/{promise.TargetStarts}, son gün {promise.DeadlineOn.DayNumber}"));
     }
+
+    private static string CausalityLabel(
+        RelationshipRecord? relationship,
+        IReadOnlyList<Promise> promises,
+        IReadOnlyList<MemoryRecord> memories)
+    {
+        var parts = new List<string>();
+
+        var terminal = promises
+            .Where(p => p.Status is PromiseStatus.Fulfilled or PromiseStatus.Broken)
+            .OrderByDescending(p => p.TerminalOn?.DayNumber ?? 0)
+            .ThenByDescending(p => p.PromiseId.Value)
+            .FirstOrDefault();
+        if (terminal is not null)
+        {
+            var kind = terminal.Kind == PromiseKind.StartingOpportunity ? "İlk 11" : "Oyun süresi";
+            var status = terminal.Status == PromiseStatus.Fulfilled ? "tutuldu" : "bozuldu";
+            parts.Add($"{kind} sözü {status} (#{terminal.PromiseId.Value})");
+        }
+
+        var memory = memories.FirstOrDefault();
+        if (memory is not null)
+        {
+            var category = memory.Category == MemoryCategory.Trust ? "Güven hafızası" : "Söz hafızası";
+            var valence = memory.Valence switch
+            {
+                MemoryValence.Positive => "olumlu",
+                MemoryValence.Negative => "olumsuz",
+                _ => "nötr",
+            };
+            parts.Add($"{category} {valence} (etki {memory.CurrentInfluence})");
+        }
+
+        if (relationship?.LastChangeReasonCode is { Length: > 0 } reason)
+        {
+            parts.Add(ExplainReason(reason));
+        }
+
+        return parts.Count == 0 ? "henüz izlenebilir neden yok" : string.Join(" · ", parts);
+    }
+
+    private static string ExplainReason(string reasonCode) => reasonCode switch
+    {
+        "CreatedNeutral" => "ilişki: yeni kayıt (nötr başlangıç)",
+        "PromiseBrokenTrust" => "ilişki: söz bozulması güveni düşürdü",
+        "PromiseFulfilledTrust" => "ilişki: söz tutulması güveni yükseltti",
+        "DecisionPlayingTimeGranted" => "ilişki: forma sözü verildi",
+        "DecisionPlayingTimeRefused" => "ilişki: forma talebi reddedildi",
+        "DecisionPlayingTimeExpired" => "ilişki: forma talebi zaman aşımına uğradı",
+        "DecisionTransferAcknowledged" => "ilişki: transfer talebi kabul edildi",
+        "DecisionTransferRefused" => "ilişki: transfer talebi reddedildi",
+        "SelectionStartedRespect" => "ilişki: XI seçimi saygıyı yükseltti",
+        "SelectionOmittedCompatibility" => "ilişki: kadro dışı bırakma uyumu düşürdü",
+        _ => $"ilişki: {reasonCode}",
+    };
 }

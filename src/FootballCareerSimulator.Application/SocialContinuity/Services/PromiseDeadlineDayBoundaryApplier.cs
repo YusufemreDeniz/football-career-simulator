@@ -8,7 +8,7 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Application.SocialContinuity.Services;
 
 /// <summary>
-/// DayBoundaryObserved reaction → owner StartingOpportunity.EvaluateDeadlines
+/// DayBoundaryObserved reaction → owner EvaluateDeadlines (PlayingTime + StartingOpportunity)
 /// (+ isteğe bağlı PromiseBroken karar tetikleyicisi).
 /// </summary>
 public sealed class PromiseDeadlineDayBoundaryApplier

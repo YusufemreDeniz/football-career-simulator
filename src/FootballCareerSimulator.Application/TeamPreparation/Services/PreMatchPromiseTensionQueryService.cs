@@ -9,7 +9,7 @@ using FootballCareerSimulator.Domain.TeamPreparation;
 namespace FootballCareerSimulator.Application.TeamPreparation.Services;
 
 /// <summary>
-/// Maç öncesi: aktif İlk 11 sözü vs mevcut (veya varsayılan) kadro yerleşimi.
+/// Maç öncesi: aktif İlk 11 / forma süresi sözü vs mevcut (veya varsayılan) kadro yerleşimi.
 /// </summary>
 public sealed class PreMatchPromiseTensionQueryService
 {
@@ -62,17 +62,17 @@ public sealed class PreMatchPromiseTensionQueryService
         }
 
         var clubId = new ClubId(pending.ManagedClubId);
-        var startingPromises = _promiseStore.Promises
+        var activePromises = _promiseStore.Promises
             .Where(p =>
                 p.IsActive
-                && p.Kind == PromiseKind.StartingOpportunity
+                && p.Kind is PromiseKind.StartingOpportunity or PromiseKind.PlayingTime
                 && p.ClubId == clubId
                 && p.Promisee.Kind == ActorKind.Player)
             .OrderBy(p => p.DeadlineOn.DayNumber)
             .ThenBy(p => p.PromiseId.Value)
             .ToArray();
 
-        if (startingPromises.Length == 0)
+        if (activePromises.Length == 0)
         {
             return new PreMatchPromiseTensionReadModel(
                 pending.FixtureId,
@@ -80,7 +80,7 @@ public sealed class PreMatchPromiseTensionQueryService
                 pending.IsApproved,
                 HasTension: false,
                 ToneNone,
-                "Söz gerilimi yok — aktif İlk 11 sözü yok.",
+                "Söz gerilimi yok — aktif forma / İlk 11 sözü yok.",
                 Array.Empty<PreMatchPromiseTensionLine>());
         }
 
@@ -88,8 +88,9 @@ public sealed class PreMatchPromiseTensionQueryService
         var squad = _squadStore.Get(clubId);
         var lines = new List<PreMatchPromiseTensionLine>();
 
-        foreach (var promise in startingPromises)
+        foreach (var promise in activePromises)
         {
+            var kindName = promise.Kind == PromiseKind.StartingOpportunity ? "İlk 11" : "Oyun süresi";
             var member = squad?.Members.FirstOrDefault(m => m.PlayerId.Value == promise.Promisee.Id);
             if (member is null)
             {
@@ -97,9 +98,9 @@ public sealed class PreMatchPromiseTensionQueryService
                     promise.PromiseId.Value,
                     promise.Promisee.Id,
                     SlotIndex: -1,
-                    "İlk 11",
+                    kindName,
                     PlacementOut,
-                    $"Oyuncu#{promise.Promisee.Id} kadroda değil — söz risk altında."));
+                    $"Oyuncu#{promise.Promisee.Id} kadroda değil — {kindName} sözü risk altında."));
                 continue;
             }
 
@@ -109,29 +110,20 @@ public sealed class PreMatchPromiseTensionQueryService
                     ? PlacementBench
                     : PlacementOut;
 
-            var summary = placement switch
-            {
-                PlacementStarting =>
-                    $"Oyuncu#{promise.Promisee.Id} (slot {member.SlotIndex}) XI'da — söz yolunda.",
-                PlacementBench =>
-                    $"Oyuncu#{promise.Promisee.Id} (slot {member.SlotIndex}) YEDEKTE — söz risk altında.",
-                _ =>
-                    $"Oyuncu#{promise.Promisee.Id} (slot {member.SlotIndex}) maç günü kadrosunda değil — söz risk altında.",
-            };
-
+            var summary = BuildSummary(promise.Kind, promise.Promisee.Id, member.SlotIndex, placement);
             lines.Add(new PreMatchPromiseTensionLine(
                 promise.PromiseId.Value,
                 promise.Promisee.Id,
                 member.SlotIndex,
-                "İlk 11",
+                kindName,
                 placement,
                 summary));
         }
 
-        var atRisk = lines.Any(l => l.PlacementCode is PlacementBench or PlacementOut);
+        var atRisk = lines.Any(IsAtRisk);
         var tone = atRisk ? ToneAtRisk : ToneOnTrack;
         var headline = atRisk
-            ? lines.First(l => l.PlacementCode is PlacementBench or PlacementOut).SummaryLine
+            ? lines.First(IsAtRisk).SummaryLine
             : lines[0].SummaryLine;
 
         return new PreMatchPromiseTensionReadModel(
@@ -143,6 +135,39 @@ public sealed class PreMatchPromiseTensionQueryService
             headline,
             lines);
     }
+
+    private static bool IsAtRisk(PreMatchPromiseTensionLine line) =>
+        line.KindName == "İlk 11"
+            ? line.PlacementCode is PlacementBench or PlacementOut
+            : line.PlacementCode == PlacementOut;
+
+    private static string BuildSummary(
+        PromiseKind kind,
+        long playerId,
+        int slotIndex,
+        string placement) =>
+        kind switch
+        {
+            PromiseKind.StartingOpportunity => placement switch
+            {
+                PlacementStarting =>
+                    $"Oyuncu#{playerId} (slot {slotIndex}) XI'da — İlk 11 sözü yolunda.",
+                PlacementBench =>
+                    $"Oyuncu#{playerId} (slot {slotIndex}) YEDEKTE — İlk 11 sözü risk altında.",
+                _ =>
+                    $"Oyuncu#{playerId} (slot {slotIndex}) maç günü kadrosunda değil — İlk 11 sözü risk altında.",
+            },
+            PromiseKind.PlayingTime => placement switch
+            {
+                PlacementStarting =>
+                    $"Oyuncu#{playerId} (slot {slotIndex}) XI'da — oyun süresi sözü yolunda.",
+                PlacementBench =>
+                    $"Oyuncu#{playerId} (slot {slotIndex}) YEDEKTE — oyun süresi sözü yolunda.",
+                _ =>
+                    $"Oyuncu#{playerId} (slot {slotIndex}) maç günü kadrosunda değil — oyun süresi sözü risk altında.",
+            },
+            _ => $"Oyuncu#{playerId} söz durumu belirsiz.",
+        };
 
     private (IReadOnlyList<int> Starting, IReadOnlyList<int> Bench) ResolveSlots(
         long fixtureId,

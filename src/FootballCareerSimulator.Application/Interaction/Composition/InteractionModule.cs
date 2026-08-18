@@ -71,7 +71,8 @@ public sealed class InteractionModule
         IDialogueSessionStore? dialogueSessionStore = null,
         StartingOpportunityPromiseService? startingOpportunity = null,
         TransferNeedService? transferNeeds = null,
-        IDisciplinaryActionStore? disciplinaryActionStore = null)
+        IDisciplinaryActionStore? disciplinaryActionStore = null,
+        IRelationshipStore? relationshipStore = null)
     {
         ArgumentNullException.ThrowIfNull(managerCareerStore);
         var store = decisionRequestStore ?? new InMemoryDecisionRequestStore();
@@ -82,7 +83,8 @@ public sealed class InteractionModule
             store,
             promiseStore,
             transferNeeds,
-            disciplineStore);
+            disciplineStore,
+            relationshipStore);
         var dialogueSessionService = new DialogueSessionService(sessions);
         var decisions = new DecisionRequestService(
             store,
@@ -98,7 +100,7 @@ public sealed class InteractionModule
         var queries = new DecisionRequestQueryService(store);
         var blocker = new DecisionRequestTimeAdvanceBlockerSource(store);
         var postMatchPress = new PostMatchPressDecisionTrigger(decisions);
-        var promiseBroken = new PromiseBrokenDecisionTrigger(decisions);
+        var promiseBroken = new PromiseBrokenDecisionTrigger(decisions, relationshipStore);
         return new InteractionModule(
             store,
             sessions,

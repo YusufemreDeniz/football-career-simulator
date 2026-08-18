@@ -77,6 +77,8 @@ public sealed class PlayerManagementDigestTests
         Assert.Equal(125_000, player.WeeklyWage);
         Assert.Equal(50, player.Trust);
         Assert.Contains("İlk 11 0/3", player.PromiseSummary, StringComparison.Ordinal);
+        Assert.Contains("nötr başlangıç", player.CausalitySummary, StringComparison.Ordinal);
         Assert.Contains("Gerçek Oyuncu", player.ToDetailText(), StringComparison.Ordinal);
+        Assert.Contains("Nedensellik:", player.ToDetailText(), StringComparison.Ordinal);
     }
 }

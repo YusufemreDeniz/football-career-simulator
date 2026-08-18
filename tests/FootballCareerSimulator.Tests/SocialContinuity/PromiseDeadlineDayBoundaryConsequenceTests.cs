@@ -56,7 +56,8 @@ public sealed class PromiseDeadlineDayBoundaryConsequenceTests
             relationships: social.RelationshipEvaluation,
             decisionMemory: social.DecisionMemory,
             promiseStore: social.PromiseStore,
-            startingOpportunity: social.StartingOpportunity);
+            startingOpportunity: social.StartingOpportunity,
+            relationshipStore: social.RelationshipStore);
 
         world.AdvanceSimulationTime.BindPromiseDeadlineConsequences(
             new PromiseDeadlineDayBoundaryApplier(
