@@ -411,7 +411,6 @@ public sealed class CareerSessionController
                     + $"\n· {sale.Message}");
             }
 
-            Host.TransferModule.Needs.Close(need.NeedId, day);
             var after = squad.GetCapacityDigest(id, day);
             var buyerName = sale.BuyingClubId is long buyer
                 ? GetClubDisplayName(buyer)

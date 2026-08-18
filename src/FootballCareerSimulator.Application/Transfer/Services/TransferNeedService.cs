@@ -71,6 +71,24 @@ public sealed class TransferNeedService
             && string.Equals(n.ReasonCode, reasonCode, StringComparison.Ordinal));
     }
 
+    public int ClosePlayerExitRequest(ClubId clubId, PlayerId playerId, GameDate day)
+    {
+        var reasonCode = TransferNeed.BuildPlayerExitReasonCode(playerId);
+        var closed = 0;
+        foreach (var need in _store.GetForClub(clubId)
+                     .Where(n =>
+                         n.IsOpen
+                         && n.Kind == TransferNeedKind.PlayerExitRequest
+                         && string.Equals(n.ReasonCode, reasonCode, StringComparison.Ordinal))
+                     .ToArray())
+        {
+            _store.Upsert(need.Close(day));
+            closed++;
+        }
+
+        return closed;
+    }
+
     public IReadOnlyList<TransferNeed> RefreshSuggestions(ClubId clubId, GameDate day)
     {
         var createdOrKept = new List<TransferNeed>();

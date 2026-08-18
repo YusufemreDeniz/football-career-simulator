@@ -110,6 +110,40 @@ public sealed class TransferNeedTests : IDisposable
     }
 
     [Fact]
+    public void ClosePlayerExitRequest_ClosesOnlyMatchingPlayer_Idempotently()
+    {
+        var modules = CreateModules();
+        modules.Transfer.Needs.DeclarePlayerExitRequest(
+            new ClubId(1),
+            new PlayerId(71),
+            Day);
+        modules.Transfer.Needs.DeclarePlayerExitRequest(
+            new ClubId(1),
+            new PlayerId(72),
+            Day);
+
+        Assert.Equal(
+            1,
+            modules.Transfer.Needs.ClosePlayerExitRequest(
+                new ClubId(1),
+                new PlayerId(71),
+                Day.AddDays(1)));
+        Assert.Equal(
+            0,
+            modules.Transfer.Needs.ClosePlayerExitRequest(
+                new ClubId(1),
+                new PlayerId(71),
+                Day.AddDays(2)));
+
+        Assert.False(modules.Transfer.Needs.HasOpenPlayerExitRequest(
+            new ClubId(1),
+            new PlayerId(71)));
+        Assert.True(modules.Transfer.Needs.HasOpenPlayerExitRequest(
+            new ClubId(1),
+            new PlayerId(72)));
+    }
+
+    [Fact]
     public void SaveLoad_PreservesTransferNeedAtSchemaV19()
     {
         var modules = CreateModules();

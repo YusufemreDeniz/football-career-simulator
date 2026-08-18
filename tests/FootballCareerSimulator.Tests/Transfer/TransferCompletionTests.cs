@@ -4,6 +4,7 @@ using FootballCareerSimulator.Application.ContractRegistration.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
+using FootballCareerSimulator.Application.SocialContinuity.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
@@ -12,6 +13,7 @@ using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.SocialContinuity;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.Transfer;
@@ -91,6 +93,56 @@ public sealed class TransferCompletionTests : IDisposable
     }
 
     [Fact]
+    public void Complete_PlayerLeaving_InvalidatesPromise_DormantsRelationship_AndCreatesTransferMemory()
+    {
+        var modules = CreateModulesThroughFinancialApproval(freeAgent: false);
+        var process = modules.Transfer.ProcessStore.Processes.Single();
+        var playerId = process.PlayerId;
+        var sellingClubId = process.SellingClubId!.Value;
+        var managerId = modules.Manager.Store.Career.ManagerId;
+
+        modules.Social.PlayingTime.Create(
+            managerId,
+            playerId,
+            sellingClubId,
+            targetAppearances: 3,
+            deadlineOn: Day.AddDays(14),
+            createdOn: Day);
+        modules.Social.RelationshipEvaluation.ApplySelectionStarted(
+            new FixtureId(9001),
+            playerId,
+            managerId,
+            Day);
+
+        modules.Transfer.Completion.Complete(process.ProcessId, Day.AddDays(1));
+
+        var promise = Assert.Single(
+            modules.Social.PromiseStore.Promises,
+            candidate => candidate.Promisee.Id == playerId.Value);
+        Assert.Equal(PromiseStatus.Invalidated, promise.Status);
+
+        var relationship = modules.Social.RelationshipStore.FindPlayerToManager(
+            playerId.Value,
+            managerId.Value);
+        Assert.NotNull(relationship);
+        Assert.Equal(RelationshipStatus.Dormant, relationship!.Status);
+
+        Assert.Contains(
+            modules.Social.MemoryStore.Memories,
+            memory => memory.Category == MemoryCategory.Transfer
+                      && memory.RememberingActor.Kind == ActorKind.Player
+                      && memory.RememberingActor.Id == playerId.Value);
+        Assert.Contains(
+            modules.Social.MemoryStore.Memories,
+            memory => memory.Category == MemoryCategory.Promise
+                      && memory.RelatedPromiseId == promise.PromiseId);
+
+        var memoryCount = modules.Social.MemoryStore.Memories.Count;
+        modules.Transfer.Completion.Complete(process.ProcessId, Day.AddDays(2));
+        Assert.Equal(memoryCount, modules.Social.MemoryStore.Memories.Count);
+    }
+
+    [Fact]
     public void Complete_WithoutFinancialApproval_Throws()
     {
         var modules = CreateModulesThroughFinancialApproval(freeAgent: false);
@@ -162,7 +214,8 @@ public sealed class TransferCompletionTests : IDisposable
         TransferModule Transfer,
         ContractRegistrationModule Contracts,
         Application.TeamPreparation.Ports.IClubSquadStore Squad,
-        Application.PlayerCareer.Ports.IPlayerCareerStore Players) CreateModulesThroughFinancialApproval(
+        Application.PlayerCareer.Ports.IPlayerCareerStore Players,
+        SocialContinuityModule Social) CreateModulesThroughFinancialApproval(
         bool freeAgent)
     {
         var world = WorldCalendarModule.Create(Day, rootSeed: 81);
@@ -194,13 +247,18 @@ public sealed class TransferCompletionTests : IDisposable
         teamPrep.ClubSquad!.SyncFromActiveContracts(new ClubId(1), Day);
         teamPrep.ClubSquad.SyncFromActiveContracts(new ClubId(2), Day);
 
+        var social = SocialContinuityModule.Create();
         var transfer = TransferModule.Create(
             contracts.Store,
             teamPrep.SquadStore,
             manager.Store,
             contracts.Registration,
             teamPrep.ClubSquad,
-            transferBudget: clubs.TransferBudget);
+            transferBudget: clubs.TransferBudget,
+            promiseInvalidation: social.Invalidation,
+            transferMemory: social.TransferMemory,
+            clubHistoryMemory: social.ClubHistoryMemory,
+            relationships: social.RelationshipEvaluation);
 
         transfer.Needs.Declare(
             new ClubId(1),
@@ -260,7 +318,7 @@ public sealed class TransferCompletionTests : IDisposable
         // Buying club is full (25); free one slot so completion can add the incoming player.
         FreeOneBuyingClubSlot(contracts, teamPrep.ClubSquad, playerStore, Day);
 
-        return (world, clubs, manager, transfer, contracts, teamPrep.SquadStore, playerStore);
+        return (world, clubs, manager, transfer, contracts, teamPrep.SquadStore, playerStore, social);
     }
 
     private static void FreeOneBuyingClubSlot(

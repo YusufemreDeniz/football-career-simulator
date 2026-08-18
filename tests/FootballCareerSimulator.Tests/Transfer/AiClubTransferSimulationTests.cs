@@ -154,6 +154,12 @@ public sealed class AiClubTransferSimulationTests
             sale.BuyingClubId,
             modules.Contracts.Store.GetByPlayer(playerId)!.ClubId.Value);
         Assert.True(modules.TeamPrep.ClubSquad.HasFreeSquadCapacity(new ClubId(1), Day));
+        Assert.DoesNotContain(
+            modules.Transfer.NeedStore.GetForClub(new ClubId(1)),
+            need => need.IsOpen
+                    && need.Kind == TransferNeedKind.PlayerExitRequest
+                    && TransferNeed.TryParsePlayerExitPlayerId(need.ReasonCode, out var id)
+                    && id == playerId.Value);
     }
 
     [Fact]

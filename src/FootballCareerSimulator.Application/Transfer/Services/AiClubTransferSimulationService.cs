@@ -220,6 +220,7 @@ public sealed class AiClubTransferSimulationService
                     "Transfer tamamlanamadı — tekrar dene veya Yer Aç.");
             }
 
+            _needs.ClosePlayerExitRequest(sellingClubId, playerId, day);
             return ManagedClubExitSaleResult.Succeeded(
                 playerId.Value,
                 sellingClubId.Value,
