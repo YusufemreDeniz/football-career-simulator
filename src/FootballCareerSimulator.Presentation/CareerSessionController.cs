@@ -388,7 +388,7 @@ public sealed class CareerSessionController
             var squad = Host.TeamPreparationModule.ClubSquad
                 ?? throw new InvalidOperationException("Kadro servisi yok.");
 
-            var candidateId = squad.SuggestSaleCandidatePlayerId(id, day)
+            var candidateId = SuggestSaleCandidatePlayerId()
                 ?? throw new InvalidOperationException(
                     "Satılacak kenar oyuncu yok — kadro çok ince.");
 
@@ -1232,6 +1232,12 @@ public sealed class CareerSessionController
             || Host.TeamPreparationModule.ClubSquad is not { } squad)
         {
             return null;
+        }
+
+        var exitPreferred = Host.TransferModule.Queries.GetPreferredPlayerExitSaleCandidateId();
+        if (exitPreferred is long exitPlayerId)
+        {
+            return exitPlayerId;
         }
 
         var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;

@@ -49,6 +49,30 @@ public sealed class TransferNeedQueryService
         return new ManagedClubTransferNeedsReadModel(clubId.Value, open.Length, open);
     }
 
+    /// <summary>
+    /// Açık PlayerExit TransferNeed varsa satış adayı olarak o oyuncuyu tercih et (Forma Sözü kabul döngüsü).
+    /// </summary>
+    public long? GetPreferredPlayerExitSaleCandidateId()
+    {
+        if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId })
+        {
+            return null;
+        }
+
+        foreach (var need in _store.GetForClub(clubId)
+                     .Where(n => n.IsOpen && n.Kind == TransferNeedKind.PlayerExitRequest)
+                     .OrderBy(n => n.IdentifiedOn.DayNumber)
+                     .ThenBy(n => n.NeedId.Value))
+        {
+            if (TransferNeed.TryParsePlayerExitPlayerId(need.ReasonCode, out var playerId))
+            {
+                return playerId;
+            }
+        }
+
+        return null;
+    }
+
     public ManagedClubShortlistTargetsReadModel GetManagedClubShortlistTargets()
     {
         if (_managerCareerStore.Career.ActiveEmployment is not { ClubId: var clubId })

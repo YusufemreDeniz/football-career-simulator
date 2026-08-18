@@ -16,6 +16,19 @@ public sealed class TransferNeed
     public static string BuildPlayerExitReasonCode(PlayerId playerId) =>
         $"{PlayerExitReasonPrefix}{playerId.Value}";
 
+    public static bool TryParsePlayerExitPlayerId(string reasonCode, out long playerId)
+    {
+        playerId = 0;
+        if (string.IsNullOrWhiteSpace(reasonCode)
+            || !reasonCode.StartsWith(PlayerExitReasonPrefix, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var suffix = reasonCode[PlayerExitReasonPrefix.Length..];
+        return long.TryParse(suffix, out playerId) && playerId > 0;
+    }
+
     private TransferNeed(
         TransferNeedId needId,
         ClubId clubId,
