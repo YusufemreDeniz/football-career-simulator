@@ -6,36 +6,106 @@ namespace FootballCareerSimulator.Presentation;
 public partial class MatchResultScreen : Control
 {
     private readonly PlayMatchesUiResult _results;
+    private readonly MatchNightNarrative _narrative;
+    private readonly IReadOnlyList<MatchNightPage> _pages;
+
+    private int _pageIndex;
+    private VBoxContainer _shell = null!;
+    private Control? _stageMarker;
+    private ScrollContainer _scroll = null!;
+    private Button _continueButton = null!;
 
     public event Action? ContinueRequested;
 
     public MatchResultScreen(PlayMatchesUiResult results)
     {
         _results = results;
+        _narrative = results.Narrative
+            ?? MatchNightNarrative.Failure(results.Message);
+        _pages = MatchNightPagePlan.Build(
+            _narrative,
+            hasReport: results.Report is not null,
+            hasTechnicalArea: results.TechnicalArea is not null,
+            hasRoundup: results.Roundup is not null,
+            hasDressingRoom: results.DressingRoom is not null);
     }
 
     public override void _Ready()
     {
         CareerUiTheme.EnsureLoaded();
-        var narrative = _results.Narrative
-            ?? MatchNightNarrative.Failure(_results.Message);
 
         var margin = MatchScreenUi.CreateStageRoot(
             this,
             new Color(CareerUiTheme.Accent.R, CareerUiTheme.Accent.G, CareerUiTheme.Accent.B, 0.045f));
 
-        var shell = MatchScreenUi.VerticalStack(12);
-        shell.SizeFlagsVertical = SizeFlags.ExpandFill;
-        margin.AddChild(shell);
+        _shell = MatchScreenUi.VerticalStack(12);
+        _shell.SizeFlagsVertical = SizeFlags.ExpandFill;
+        margin.AddChild(_shell);
 
-        shell.AddChild(MatchScreenUi.StageMarker("04  •  MAÇ SONU", "RAPOR", CareerUiTheme.Accent));
+        _scroll = MatchScreenUi.ScrollArea();
+        _shell.AddChild(_scroll);
 
-        var scroll = MatchScreenUi.ScrollArea();
-        shell.AddChild(scroll);
+        _continueButton = new Button
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StylePrimaryButton(_continueButton);
+        _continueButton.Pressed += OnContinuePressed;
+        _shell.AddChild(_continueButton);
+
+        ShowPage(0, animateHero: true);
+    }
+
+    private void ShowPage(int index, bool animateHero)
+    {
+        _pageIndex = Math.Clamp(index, 0, _pages.Count - 1);
+        var page = _pages[_pageIndex];
+
+        if (_stageMarker is not null)
+        {
+            _stageMarker.QueueFree();
+            _stageMarker = null;
+        }
+
+        _stageMarker = MatchScreenUi.StageMarker(
+            $"{page.MarkerCode}  •  {page.MarkerTitle}",
+            page.AccentLabel,
+            CareerUiTheme.Accent);
+        _shell.AddChild(_stageMarker);
+        _shell.MoveChild(_stageMarker, 0);
+
+        foreach (var child in _scroll.GetChildren())
+        {
+            child.QueueFree();
+        }
 
         var content = MatchScreenUi.VerticalStack(15);
-        scroll.AddChild(content);
+        _scroll.AddChild(content);
+        BuildPageContent(content, page.Kind, animateHero);
 
+        _continueButton.Text = page.ContinueLabel;
+        _scroll.ScrollVertical = 0;
+        MatchScreenUi.FadeIn(content, this);
+    }
+
+    private void BuildPageContent(VBoxContainer content, MatchNightPageKind kind, bool animateHero)
+    {
+        switch (kind)
+        {
+            case MatchNightPageKind.Score:
+                BuildScorePage(content, animateHero);
+                break;
+            case MatchNightPageKind.Match:
+                BuildMatchPage(content);
+                break;
+            case MatchNightPageKind.Aftermath:
+                BuildAftermathPage(content);
+                break;
+        }
+    }
+
+    private void BuildScorePage(VBoxContainer content, bool animateHero)
+    {
         var hero = MatchScreenUi.Card(emphasized: true);
         content.AddChild(hero);
         var heroContent = MatchScreenUi.VerticalStack(8);
@@ -43,7 +113,7 @@ public partial class MatchResultScreen : Control
 
         var brand = new Label
         {
-            Text = narrative.BrandTitle.ToUpperInvariant(),
+            Text = _narrative.BrandTitle.ToUpperInvariant(),
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
@@ -52,34 +122,42 @@ public partial class MatchResultScreen : Control
 
         var score = new Label
         {
-            Text = narrative.Scoreline,
+            Text = _narrative.Scoreline,
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         StyleScore(score);
-        score.Modulate = new Color(1f, 1f, 1f, 0f);
         heroContent.AddChild(score);
 
         var tone = new Label
         {
-            Text = narrative.OutcomeTone,
+            Text = _narrative.OutcomeTone,
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(tone);
         tone.AddThemeFontSizeOverride("font_size", 24);
-        tone.Modulate = new Color(1f, 1f, 1f, 0f);
         heroContent.AddChild(tone);
 
-        if (!string.IsNullOrWhiteSpace(narrative.SupportingLine))
+        if (!string.IsNullOrWhiteSpace(_narrative.SupportingLine))
         {
             heroContent.AddChild(MatchScreenUi.BodyLine(
-                narrative.SupportingLine,
+                _narrative.SupportingLine,
                 muted: true,
                 alignment: HorizontalAlignment.Center));
         }
 
-        if (narrative.Atmosphere is { } stadium)
+        if (animateHero)
+        {
+            score.Modulate = new Color(1f, 1f, 1f, 0f);
+            tone.Modulate = new Color(1f, 1f, 1f, 0f);
+            var tween = CreateTween();
+            tween.SetParallel(true);
+            tween.TweenProperty(score, "modulate:a", 1f, 0.4f).SetTrans(Tween.TransitionType.Cubic);
+            tween.TweenProperty(tone, "modulate:a", 1f, 0.55f).SetDelay(0.12f);
+        }
+
+        if (_narrative.Atmosphere is { } stadium)
         {
             content.AddChild(MatchScreenUi.SectionTitle("STADYUM", stadium.Headline));
             var atmospherePanel = MatchScreenUi.Card();
@@ -90,29 +168,38 @@ public partial class MatchResultScreen : Control
                 alignment: HorizontalAlignment.Center));
         }
 
-        if (narrative.KickoffLines.Count > 0)
+        if (_results.DressingRoom is { } dressingRoom)
+        {
+            content.AddChild(MatchScreenUi.SectionTitle("SOYUNMA ODASI", dressingRoom.BrandTitle));
+            var dressingPanel = MatchScreenUi.Card(emphasized: true);
+            content.AddChild(dressingPanel);
+            var voice = MatchScreenUi.BodyLine(
+                dressingRoom.VoiceLine,
+                alignment: HorizontalAlignment.Center);
+            voice.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+            dressingPanel.AddChild(voice);
+        }
+    }
+
+    private void BuildMatchPage(VBoxContainer content)
+    {
+        if (_narrative.KickoffLines.Count > 0)
         {
             content.AddChild(MatchScreenUi.SectionTitle("BAŞLAMA ANI", "Maça böyle girdin"));
             var kickoffPanel = MatchScreenUi.Card();
             content.AddChild(kickoffPanel);
             var kickoffStack = MatchScreenUi.VerticalStack(8);
             kickoffPanel.AddChild(kickoffStack);
-            foreach (var kickoff in narrative.KickoffLines)
+            foreach (var kickoff in _narrative.KickoffLines)
             {
                 kickoffStack.AddChild(MatchScreenUi.BeatLine(kickoff, muted: true));
             }
         }
 
-        if (narrative.LineupBridge is { StartingXi.Count: > 0 } lineup)
+        if (_narrative.LineupBridge is { StartingXi.Count: > 0 } lineup)
         {
             content.AddChild(MatchScreenUi.SectionTitle("KADRO", "Böyle çıktın"));
             content.AddChild(LineupStripUi.BuildPanel(lineup, lineup.ResultBridgeCaption));
-        }
-
-        if (_results.Report is { } report)
-        {
-            content.AddChild(MatchScreenUi.SectionTitle("VERİ MERKEZİ", "Maç raporu"));
-            content.AddChild(BuildReportPanel(report));
         }
 
         if (_results.TechnicalArea is { } technicalArea)
@@ -138,27 +225,36 @@ public partial class MatchResultScreen : Control
             technicalStack.AddChild(verdict);
         }
 
-        if (narrative.BeatLines.Count > 0)
+        if (_narrative.BeatLines.Count > 0)
         {
             content.AddChild(MatchScreenUi.SectionTitle("MAÇ AKIŞI", "Kritik anlar"));
             var momentsPanel = MatchScreenUi.Card();
             content.AddChild(momentsPanel);
             var moments = MatchScreenUi.VerticalStack(8);
             momentsPanel.AddChild(moments);
-            foreach (var beat in narrative.BeatLines)
+            foreach (var beat in _narrative.BeatLines)
             {
                 moments.AddChild(MatchScreenUi.BodyLine(beat));
             }
         }
+    }
 
-        if (narrative.AfterWhistleLines.Count > 0)
+    private void BuildAftermathPage(VBoxContainer content)
+    {
+        if (_results.Report is { } report)
+        {
+            content.AddChild(MatchScreenUi.SectionTitle("VERİ MERKEZİ", "Maç raporu"));
+            content.AddChild(BuildReportPanel(report));
+        }
+
+        if (_narrative.AfterWhistleLines.Count > 0)
         {
             content.AddChild(MatchScreenUi.SectionTitle("DÜDÜK SONRASI", "Saha kenarından"));
             var afterPanel = MatchScreenUi.Card();
             content.AddChild(afterPanel);
             var afterStack = MatchScreenUi.VerticalStack(8);
             afterPanel.AddChild(afterStack);
-            foreach (var lineText in narrative.AfterWhistleLines)
+            foreach (var lineText in _narrative.AfterWhistleLines)
             {
                 afterStack.AddChild(MatchScreenUi.BodyLine(lineText));
             }
@@ -177,45 +273,18 @@ public partial class MatchResultScreen : Control
             }
         }
 
-        if (narrative.OtherScorelines.Count > 0)
+        if (_narrative.OtherScorelines.Count > 0)
         {
             content.AddChild(MatchScreenUi.SectionTitle("SKORBORD", "Diğer sonuçlar"));
             var scorelinesPanel = MatchScreenUi.Card();
             content.AddChild(scorelinesPanel);
             var scorelines = MatchScreenUi.VerticalStack(7);
             scorelinesPanel.AddChild(scorelines);
-            foreach (var other in narrative.OtherScorelines)
+            foreach (var other in _narrative.OtherScorelines)
             {
                 scorelines.AddChild(MatchScreenUi.BodyLine(other));
             }
         }
-
-        if (_results.DressingRoom is { } dressingRoom)
-        {
-            content.AddChild(MatchScreenUi.SectionTitle("SOYUNMA ODASI", dressingRoom.BrandTitle));
-            var dressingPanel = MatchScreenUi.Card(emphasized: true);
-            content.AddChild(dressingPanel);
-            var voice = MatchScreenUi.BodyLine(
-                dressingRoom.VoiceLine,
-                alignment: HorizontalAlignment.Center);
-            voice.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-            dressingPanel.AddChild(voice);
-        }
-
-        var continueButton = new Button
-        {
-            Text = "Kariyere Dön",
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
-        CareerUiTheme.StylePrimaryButton(continueButton);
-        continueButton.Pressed += OnContinuePressed;
-        shell.AddChild(continueButton);
-
-        MatchScreenUi.FadeIn(content, this);
-        var tween = CreateTween();
-        tween.SetParallel(true);
-        tween.TweenProperty(score, "modulate:a", 1f, 0.4f).SetTrans(Tween.TransitionType.Cubic);
-        tween.TweenProperty(tone, "modulate:a", 1f, 0.55f).SetDelay(0.12f);
     }
 
     private static Control BuildReportPanel(MatchReportDigest report)
@@ -289,7 +358,14 @@ public partial class MatchResultScreen : Control
 
     private void OnContinuePressed()
     {
-        Callable.From(() => ContinueRequested?.Invoke()).CallDeferred();
+        var page = _pages[_pageIndex];
+        if (page.IsFinal)
+        {
+            Callable.From(() => ContinueRequested?.Invoke()).CallDeferred();
+            return;
+        }
+
+        ShowPage(_pageIndex + 1, animateHero: false);
     }
 
     private static Label ReportCell(

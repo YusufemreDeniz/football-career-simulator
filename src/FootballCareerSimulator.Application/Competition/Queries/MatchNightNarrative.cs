@@ -93,6 +93,8 @@ public sealed record MatchNightNarrative(
             line.Contains("işten çıkardı", StringComparison.OrdinalIgnoreCase)
             || line.Contains("basın", StringComparison.OrdinalIgnoreCase)
             || line.Contains("Yönetim güveni", StringComparison.Ordinal)
+            || line.Contains("Yönetim talebi", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("forma süresi talebi", StringComparison.OrdinalIgnoreCase)
             || line.Contains(MatchupPlanOutcomeDigest.Brand, StringComparison.Ordinal);
 
         return afterWhistleLines
