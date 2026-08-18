@@ -415,12 +415,20 @@ public sealed class CareerSessionController
             var buyerName = sale.BuyingClubId is long buyer
                 ? GetClubDisplayName(buyer)
                 : "—";
+            var managerId = Host.ManagerModule.Queries.GetCareer().ManagerId.Value;
+            var aftermath = ManagedSaleAftermathDigest.Compose(
+                sale.PlayerId!.Value,
+                managerId,
+                buyerName,
+                sale.TransferFee!.Value,
+                after.ActiveContractCount,
+                ClubSquad.MaxMembers,
+                Host.TransferModule.NeedStore.Needs,
+                Host.SocialContinuityModule.PromiseStore.Promises,
+                Host.SocialContinuityModule.RelationshipStore.Relationships,
+                Host.SocialContinuityModule.MemoryStore.Memories);
 
-            return UiActionResult.Ok(
-                $"Satış Tamam\n#{sale.PlayerId} → {buyerName}."
-                + $"\n· Bedel {sale.TransferFee:N0}"
-                + $" · sözleşme {after.ActiveContractCount}/{ClubSquad.MaxMembers}"
-                + "\nÖneri: Günün Nabzı ve bütçeye bak — slot açıldı.");
+            return UiActionResult.Ok(aftermath.ToStatusMessage());
         }
         catch (TransferInvariantViolationException ex)
         {
