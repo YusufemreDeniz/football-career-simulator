@@ -152,4 +152,47 @@ public sealed class DecisionDeskPromisePressureTests
             causality);
         Assert.Equal("Forma sözü bozuldu — yeni talep masada.", desk.Headline);
     }
+
+    [Fact]
+    public void ExplainCausality_AndDesk_SurfaceSittingOutForPlayingTimeDemand()
+    {
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var social = SocialContinuityModule.Create();
+        var interaction = InteractionModule.Create(
+            manager.Store,
+            social.PlayingTime,
+            relationships: social.RelationshipEvaluation,
+            decisionMemory: social.DecisionMemory,
+            promiseStore: social.PromiseStore,
+            relationshipStore: social.RelationshipStore,
+            memoryStore: social.MemoryStore);
+
+        var player = new PlayerId(21);
+        for (var i = 0; i < 3; i++)
+        {
+            social.SelectionMemory.RecordMatchday(
+                new Domain.Competition.FixtureId(i + 1),
+                startingPlayerIds: Array.Empty<PlayerId>(),
+                benchedPlayerIds: [player],
+                squadMembers: null,
+                Day.AddDays(i));
+        }
+
+        var opened = interaction.PostMatchPlayingTimeDemand.TryOpenAfterManagedSittingOut(
+            [player],
+            Day.AddDays(2));
+        Assert.NotNull(opened);
+
+        var causality = interaction.Queries.ExplainCausality(opened.DecisionRequestId);
+        Assert.NotNull(causality);
+        Assert.Contains("yedek/kadro dışı", causality, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("3", causality, StringComparison.Ordinal);
+
+        var desk = DecisionDeskDigest.Compose(
+            interaction.Queries.GetPending(take: 1),
+            Day.AddDays(2).DayNumber,
+            causality);
+        Assert.Equal("Yedek kaldı — forma süresi istiyor.", desk.Headline);
+        Assert.Contains("yedek/kadro dışı", desk.SupportingLine, StringComparison.OrdinalIgnoreCase);
+    }
 }

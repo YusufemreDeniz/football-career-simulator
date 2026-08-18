@@ -120,9 +120,20 @@ public sealed record DecisionDeskDigest(
         if (kindName.Contains("süre", StringComparison.OrdinalIgnoreCase)
             || kindName.Contains("Forma", StringComparison.OrdinalIgnoreCase))
         {
-            return causalityLine is not null && causalityLine.Contains("bozuldu", StringComparison.OrdinalIgnoreCase)
-                ? "Forma sözü bozuldu — yeni talep masada."
-                : "Forma süresi talebi bekliyor.";
+            if (causalityLine is not null
+                && causalityLine.Contains("bozuldu", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Forma sözü bozuldu — yeni talep masada.";
+            }
+
+            if (causalityLine is not null
+                && (causalityLine.Contains("yedek", StringComparison.OrdinalIgnoreCase)
+                    || causalityLine.Contains("kadro dışı", StringComparison.OrdinalIgnoreCase)))
+            {
+                return "Yedek kaldı — forma süresi istiyor.";
+            }
+
+            return "Forma süresi talebi bekliyor.";
         }
 
         return hard

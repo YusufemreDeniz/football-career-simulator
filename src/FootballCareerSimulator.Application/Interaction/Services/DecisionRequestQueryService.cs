@@ -103,6 +103,12 @@ public sealed class DecisionRequestQueryService
             .ThenByDescending(m => m.MemoryId.Value)
             .FirstOrDefault();
 
+        var sittingOut = _memories is null
+            ? 0
+            : PostMatchPlayingTimeDemandTrigger.CountSittingOutEvents(
+                _memories.Memories,
+                request.SubjectPlayerId);
+
         return request.Kind switch
         {
             DecisionRequestKind.TransferRequest when trustLow && broken is not null =>
@@ -113,6 +119,9 @@ public sealed class DecisionRequestQueryService
             DecisionRequestKind.PlayingTimeRequest when broken is not null =>
                 $"Önceki forma sözü bozuldu (#{broken.PromiseId.Value})"
                 + (memory is null ? string.Empty : $" · hatırlanıyor (etki {memory.CurrentInfluence})"),
+            DecisionRequestKind.PlayingTimeRequest when sittingOut
+                >= PostMatchPlayingTimeDemandTrigger.SittingOutDemandThreshold =>
+                $"Son {sittingOut} maçta yedek/kadro dışı — forma istiyor",
             DecisionRequestKind.StartingOpportunityRequest when broken is not null =>
                 $"Önceki İlk 11 sözü bozuldu (#{broken.PromiseId.Value})"
                 + (memory is null ? string.Empty : $" · hatırlanıyor (etki {memory.CurrentInfluence})"),
