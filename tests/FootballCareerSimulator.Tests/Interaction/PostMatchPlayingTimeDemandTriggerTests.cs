@@ -124,6 +124,35 @@ public sealed class PostMatchPlayingTimeDemandTriggerTests
     }
 
     [Fact]
+    public void AnsweredRequest_DoesNotReopenUntilThreeNewSittingOutEvents()
+    {
+        var (interaction, social, trigger, _) = Create();
+        var player = new PlayerId(15);
+        SeedBenchMemories(social, player, count: 3);
+
+        var first = trigger.TryOpenAfterManagedSittingOut([player], Day.AddDays(2));
+        Assert.NotNull(first);
+        interaction.Decisions.Answer(
+            first.DecisionRequestId,
+            DecisionRequest.OptionRefuse,
+            Day.AddDays(2));
+
+        SeedBenchMemories(social, player, count: 1, startFixtureId: 10);
+        Assert.Null(trigger.TryOpenAfterManagedSittingOut([player], Day.AddDays(3)));
+
+        SeedBenchMemories(social, player, count: 2, startFixtureId: 11);
+        var second = trigger.TryOpenAfterManagedSittingOut([player], Day.AddDays(5));
+
+        Assert.NotNull(second);
+        Assert.NotEqual(first.DecisionRequestId, second.DecisionRequestId);
+        Assert.Equal(
+            2,
+            interaction.DecisionRequestStore.Requests.Count(r =>
+                r.Kind == DecisionRequestKind.PlayingTimeRequest
+                && r.SubjectPlayerId == player));
+    }
+
+    [Fact]
     public void EmptyCandidates_DoesNotOpen()
     {
         var (_, _, trigger, _) = Create();

@@ -163,6 +163,21 @@ public sealed class DecisionRequestService
             && r.ClubId == clubId);
     }
 
+    public int CountPlayerRequests(PlayerId subjectPlayerId, DecisionRequestKind kind)
+    {
+        var career = _managerCareerStore.Career;
+        if (!career.IsEmployed || career.ActiveEmployment is null)
+        {
+            return 0;
+        }
+
+        var clubId = career.ActiveEmployment.ClubId;
+        return _store.Requests.Count(r =>
+            r.Kind == kind
+            && r.SubjectPlayerId == subjectPlayerId
+            && r.ClubId == clubId);
+    }
+
     public DecisionRequest OpenBoardDemandRequest(
         GameDate day,
         int? deadlineDays = null,

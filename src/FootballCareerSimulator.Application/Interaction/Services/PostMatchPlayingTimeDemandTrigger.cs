@@ -10,7 +10,7 @@ namespace FootballCareerSimulator.Application.Interaction.Services;
 /// Maç sonrası forma süresi talebi: SelectionBenched / SelectionOmitted hafızası
 /// <see cref="DecisionRequestService.DefaultPlayingTimeTargetAppearances"/> eşiğine
 /// ulaşınca (GDD “üç maç yedek”; yeni formül yok) yönetilen kulüpte PlayingTimeRequest açar.
-/// Maç başına en fazla bir talep; açık talep veya aktif forma sözü varken tekrar açılmaz.
+/// Her yeni eşik diliminde en fazla bir talep; açık talep veya aktif forma sözü varken açılmaz.
 /// </summary>
 public sealed class PostMatchPlayingTimeDemandTrigger
 {
@@ -47,11 +47,15 @@ public sealed class PostMatchPlayingTimeDemandTrigger
 
         var candidates = benchedOrOmittedThisMatch
             .Distinct()
-            .Select(id => (PlayerId: id, Pressure: CountSittingOutEvents(id)))
-            .Where(c => c.Pressure >= SittingOutDemandThreshold)
+            .Select(id => (
+                PlayerId: id,
+                Pressure: CountSittingOutEvents(id),
+                RequiredPressure: RequiredPressureForNextRequest(id)))
+            .Where(c => c.Pressure >= c.RequiredPressure)
             .Where(c => !HasBlockingOpenRequest(c.PlayerId))
             .Where(c => !HasActivePlayingTimePromise(c.PlayerId))
-            .OrderByDescending(c => c.Pressure)
+            .OrderByDescending(c => c.Pressure - c.RequiredPressure)
+            .ThenByDescending(c => c.Pressure)
             .ThenBy(c => c.PlayerId.Value)
             .ToArray();
 
@@ -97,6 +101,14 @@ public sealed class PostMatchPlayingTimeDemandTrigger
 
     private int CountSittingOutEvents(PlayerId playerId) =>
         CountSittingOutEvents(_memories.Memories, playerId);
+
+    private int RequiredPressureForNextRequest(PlayerId playerId)
+    {
+        var priorRequestCount = _decisions.CountPlayerRequests(
+            playerId,
+            DecisionRequestKind.PlayingTimeRequest);
+        return checked((priorRequestCount + 1) * SittingOutDemandThreshold);
+    }
 
     private bool HasBlockingOpenRequest(PlayerId playerId) =>
         _decisions.HasOpenPlayerRequest(
