@@ -21,10 +21,8 @@ public sealed class CareerResumeDigestTests
         var resume = CareerResumeDigest.Compose(
             pulse,
             dayNumber: 40,
-            isoDate: "2026-09-09",
             managerDisplayName: "Yusuf",
             clubDisplayName: "Home FC",
-            loadedFixtureCount: 12,
             wasMigrated: false);
 
         Assert.Equal(CareerResumeDigest.Brand, resume.BrandTitle);
@@ -58,10 +56,8 @@ public sealed class CareerResumeDigestTests
         var resume = CareerResumeDigest.Compose(
             pulse,
             dayNumber: 41,
-            isoDate: "2026-09-10",
             managerDisplayName: "Yusuf",
             clubDisplayName: "Home FC",
-            loadedFixtureCount: 13,
             wasMigrated: false,
             weekStory: story,
             nextStep: next);
@@ -91,10 +87,8 @@ public sealed class CareerResumeDigestTests
         var resume = CareerResumeDigest.Compose(
             pulse,
             22,
-            "2026-08-22",
             "Yusuf",
             "Home FC",
-            loadedFixtureCount: 5,
             wasMigrated: true);
 
         Assert.Equal(TodayPulseDigest.FocusSquad, resume.PulseFocusCode);

@@ -2,6 +2,7 @@ using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.WorldCalendar;
 using Godot;
 using System.Text.RegularExpressions;
 
@@ -50,6 +51,9 @@ public partial class CareerHubScreen : Control
     private Label _transferWindowLabel = null!;
     private Label _transferBudgetLabel = null!;
     private Label _transferDeskLabel = null!;
+    private Label _transferScoutReportLabel = null!;
+    private Button _transferScoutToggle = null!;
+    private Control _transferScoutDetails = null!;
     private Button _openTransferWindowButton = null!;
     private Button _closeTransferWindowButton = null!;
     private Button _transferNextStepButton = null!;
@@ -89,6 +93,9 @@ public partial class CareerHubScreen : Control
     private Control _clubPitchHost = null!;
     private Label _playerManagementHeadlineLabel = null!;
     private Label _playerDetailLabel = null!;
+    private Control _playerDossierOverlay = null!;
+    private Label _playerDossierTitle = null!;
+    private Label _playerDossierBody = null!;
     private IReadOnlyList<PlayerManagementLine> _playerManagementPlayers = Array.Empty<PlayerManagementLine>();
     private long? _selectedPlayerId;
     private Button _approveSelectionButton = null!;
@@ -161,7 +168,7 @@ public partial class CareerHubScreen : Control
     private Label _brandLabel = null!;
     private bool _layoutBuilt;
 
-    private static readonly Regex InternalIdentifierPattern = new(@"\b[A-Za-z]*#\d+", RegexOptions.Compiled);
+    private static readonly Regex InternalIdentifierPattern = new(@"\(?[A-Za-z]*#\d+\)?", RegexOptions.Compiled);
 
     private enum HubPage
     {
@@ -466,6 +473,7 @@ public partial class CareerHubScreen : Control
         _statusPanel.Visible = false;
         shell.AddChild(_statusPanel);
 
+        BuildPlayerDossierOverlay();
         _layoutBuilt = true;
 
         ShowPage(HubPage.Today);
@@ -516,8 +524,93 @@ public partial class CareerHubScreen : Control
         _navButtons[(int)HubPage.File] = _careerButton;
     }
 
+    private void BuildPlayerDossierOverlay()
+    {
+        _playerDossierOverlay = new Control
+        {
+            Name = "PlayerDossierOverlay",
+            Visible = false,
+            MouseFilter = MouseFilterEnum.Stop,
+        };
+        _playerDossierOverlay.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(_playerDossierOverlay);
+
+        var dim = new ColorRect
+        {
+            Color = new Color(0.01f, 0.03f, 0.02f, 0.72f),
+            MouseFilter = MouseFilterEnum.Stop,
+        };
+        dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        dim.GuiInput += OnPlayerDossierBackdropInput;
+        _playerDossierOverlay.AddChild(dim);
+
+        var center = new CenterContainer
+        {
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        center.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _playerDossierOverlay.AddChild(center);
+
+        var panel = new PanelContainer
+        {
+            CustomMinimumSize = new Vector2(520, 460),
+            MouseFilter = MouseFilterEnum.Stop,
+        };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.HeroPanel());
+        center.AddChild(panel);
+
+        var content = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        content.AddThemeConstantOverride("separation", 12);
+        panel.AddChild(content);
+
+        var title = SectionTitle("FUTBOLCU DOSYASI");
+        content.AddChild(title);
+        _playerDossierTitle = BodyLabel("PlayerDossierTitle");
+        CareerUiTheme.StyleHeadline(_playerDossierTitle);
+        content.AddChild(_playerDossierTitle);
+        _playerDossierBody = BodyLabel("PlayerDossierBody", autowrap: true);
+        _playerDossierBody.SizeFlagsVertical = SizeFlags.ExpandFill;
+        content.AddChild(_playerDossierBody);
+
+        var close = PrimaryButton("Kapat");
+        close.Pressed += ClosePlayerDossier;
+        content.AddChild(close);
+    }
+
+    private void OnPlayerDossierBackdropInput(InputEvent @event)
+    {
+        if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+        {
+            ClosePlayerDossier();
+        }
+    }
+
+    private void OpenPlayerDossier(long playerId)
+    {
+        var player = _playerManagementPlayers.FirstOrDefault(candidate => candidate.PlayerId == playerId);
+        if (player is null)
+        {
+            return;
+        }
+
+        _selectedPlayerId = playerId;
+        _playerDossierTitle.Text = player.DisplayName;
+        _playerDossierBody.Text = player.ToDossierText();
+        _playerDossierOverlay.Visible = true;
+        RefreshPlayerDetail();
+    }
+
+    private void ClosePlayerDossier()
+    {
+        if (_playerDossierOverlay is not null)
+        {
+            _playerDossierOverlay.Visible = false;
+        }
+    }
+
     private void ShowPage(HubPage page)
     {
+        ClosePlayerDossier();
         _currentPage = page;
         var titles = new[] { "Merkez", "Kadro", "Transfer Merkezi", "Taktik & Antrenman", "Lig Merkezi", "Kariyer" };
         var subtitles = new[]
@@ -756,7 +849,7 @@ public partial class CareerHubScreen : Control
         _clubPitchHost = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 300),
+            CustomMinimumSize = new Vector2(0, 340),
         };
         pitchCard.AddChild(_clubPitchHost);
         _developmentLabel = BodyLabel("DevelopmentLabel", autowrap: true);
@@ -799,10 +892,12 @@ public partial class CareerHubScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StyleList(_squadList);
+        _squadList.AllowReselect = true;
         _squadList.ItemSelected += OnSquadPlayerSelected;
+        _squadList.ItemClicked += OnSquadPlayerClicked;
         playerManagementCard.AddChild(_squadList);
-        _playerDetailLabel = BodyLabel("PlayerDetailLabel", autowrap: true);
-        _playerDetailLabel.CustomMinimumSize = new Vector2(0, 92);
+        _playerDetailLabel = BodyLabel("PlayerDetailLabel", muted: true, autowrap: true);
+        _playerDetailLabel.Text = "Oyuncu dosyası için isme dokun.";
         playerManagementCard.AddChild(_playerDetailLabel);
 
         var actionCard = AddCard(page, "KADRO & KARİYER AKSİYONLARI");
@@ -899,15 +994,30 @@ public partial class CareerHubScreen : Control
         var overviewCard = AddCard(page, "TRANSFER PENCERESİ", emphasized: true);
         _transferDeskLabel = BodyLabel("TransferDeskLabel", autowrap: true);
         overviewCard.AddChild(_transferDeskLabel);
-        _transferWindowLabel = BodyLabel("TransferWindowLabel", autowrap: true);
-        overviewCard.AddChild(_transferWindowLabel);
-        _transferBudgetLabel = BodyLabel("TransferBudgetLabel", autowrap: true);
-        overviewCard.AddChild(_transferBudgetLabel);
 
         _transferNextStepButton = PrimaryButton("Sıradaki Adım");
         _transferNextStepButton.Visible = false;
         _transferNextStepButton.Pressed += OnTransferNextStepPressed;
         overviewCard.AddChild(_transferNextStepButton);
+
+        _transferScoutToggle = SecondaryButton("Scout raporu al");
+        _transferScoutToggle.Pressed += ToggleTransferScoutDetails;
+        overviewCard.AddChild(_transferScoutToggle);
+
+        _transferScoutDetails = new VBoxContainer
+        {
+            Name = "TransferScoutDetails",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Visible = false,
+        };
+        _transferScoutDetails.AddThemeConstantOverride("separation", 8);
+        overviewCard.AddChild(_transferScoutDetails);
+        _transferScoutReportLabel = BodyLabel("TransferScoutReportLabel", autowrap: true);
+        _transferScoutDetails.AddChild(_transferScoutReportLabel);
+        _transferWindowLabel = BodyLabel("TransferWindowLabel", muted: true, autowrap: true);
+        _transferScoutDetails.AddChild(_transferWindowLabel);
+        _transferBudgetLabel = BodyLabel("TransferBudgetLabel", muted: true, autowrap: true);
+        _transferScoutDetails.AddChild(_transferBudgetLabel);
 
         var windowRow = ActionFlow();
         windowRow.Visible = false; // Pencere takvim/OfficeNextStep tarafından yönetilir.
@@ -921,7 +1031,7 @@ public partial class CareerHubScreen : Control
         _closeTransferWindowButton.Pressed += () => Apply(_controller.CloseTransferWindow());
         windowRow.AddChild(_closeTransferWindowButton);
 
-        var scoutingCard = AddCard(page, "1  İHTİYAÇ & HEDEF");
+        var scoutingCard = AddCard(page, "SCOUT EKİBİ");
         _scoutReportLabel = BodyLabel("ScoutReportLabel", autowrap: true);
         scoutingCard.AddChild(_scoutReportLabel);
         _scoutCandidateList = new ItemList
@@ -1565,6 +1675,19 @@ public partial class CareerHubScreen : Control
         RefreshPlayerDetail();
     }
 
+    private void OnSquadPlayerClicked(long index, Vector2 atPosition, long mouseButtonIndex)
+    {
+        _ = atPosition;
+        if (mouseButtonIndex != (long)MouseButton.Left
+            || index < 0
+            || index >= _playerManagementPlayers.Count)
+        {
+            return;
+        }
+
+        OpenPlayerDossier(_playerManagementPlayers[(int)index].PlayerId);
+    }
+
     private void RefreshClubPitch(IReadOnlyList<PlayerManagementLine> players)
     {
         MatchScreenUi.ClearChildren(_clubPitchHost);
@@ -1589,7 +1712,16 @@ public partial class CareerHubScreen : Control
             return;
         }
 
-        _clubPitchHost.AddChild(TacticalPitchBoardUi.BuildReadOnly(startingXi));
+        _clubPitchHost.AddChild(TacticalPitchBoardUi.BuildReadOnly(startingXi, OnPitchPlayerSelected));
+    }
+
+    private void OnPitchPlayerSelected(Application.TeamPreparation.Queries.SquadSelectionPlayerDigest digest)
+    {
+        var player = _playerManagementPlayers.FirstOrDefault(candidate => candidate.SlotIndex == digest.SlotIndex);
+        if (player is not null)
+        {
+            OpenPlayerDossier(player.PlayerId);
+        }
     }
 
     private void OnScoutCandidateSelected(long index)
@@ -1620,8 +1752,9 @@ public partial class CareerHubScreen : Control
         var selected = _selectedPlayerId is long playerId
             ? _playerManagementPlayers.FirstOrDefault(player => player.PlayerId == playerId)
             : null;
-        _playerDetailLabel.Text = selected?.ToDetailText()
-            ?? "Kariyer, fizik, sözleşme ve ilişki ayrıntıları için kadrodan bir futbolcu seç.";
+        _playerDetailLabel.Text = selected is null
+            ? "Oyuncu dosyası için isme dokun."
+            : $"{selected.DisplayName} seçili — dosya için tekrar dokun.";
 
         var disabled = selected is null;
         _promiseStartButton.Disabled = disabled;
@@ -1661,7 +1794,7 @@ public partial class CareerHubScreen : Control
         var manager = host.ManagerModule.Queries.GetCareer();
         var period = world.Queries.GetCurrentPlanningPeriod();
 
-        _dateLabel.Text = current.IsoDate;
+        _dateLabel.Text = $"{current.Day:D2}.{current.Month:D2}.{current.Year}";
         RefreshClubBranding();
 
         if (string.Equals(manager.EmploymentStatus, "Unemployed", StringComparison.Ordinal))
@@ -1857,8 +1990,12 @@ public partial class CareerHubScreen : Control
     private void RefreshTransferWindowStatus()
     {
         var window = _controller.Host.WorldModule.Queries.GetTransferWindow();
-        var openText = window.OpenedOnDayNumber is { } openDay ? $" · açılış gün {openDay}" : string.Empty;
-        var closeText = window.ClosesOnDayNumber is { } closeDay ? $" · kapanış gün {closeDay}" : string.Empty;
+        var openText = window.OpenedOnDayNumber is { } openDay
+            ? $" · açılış {GameDate.ToDisplayDateString(openDay)}"
+            : string.Empty;
+        var closeText = window.ClosesOnDayNumber is { } closeDay
+            ? $" · kapanış {GameDate.ToDisplayDateString(closeDay)}"
+            : string.Empty;
         _transferWindowLabel.Text = $"Transfer penceresi: {window.StatusName}{openText}{closeText}";
         _openTransferWindowButton.Disabled = window.IsOpen;
         _closeTransferWindowButton.Disabled = !window.IsOpen;
@@ -1867,7 +2004,8 @@ public partial class CareerHubScreen : Control
     private void RefreshTransferDesk()
     {
         var desk = _controller.BuildTransferDeskBriefing();
-        _transferDeskLabel.Text = desk.ToDisplayText();
+        _transferDeskLabel.Text = desk.ToSummaryText();
+        _transferScoutReportLabel.Text = desk.ToScoutReportText();
         BindTransferNextStep(desk);
     }
 
@@ -1910,6 +2048,13 @@ public partial class CareerHubScreen : Control
         {
             SetTransferNegotiationExpanded(true);
         }
+    }
+
+    private void ToggleTransferScoutDetails()
+    {
+        var visible = !_transferScoutDetails.Visible;
+        _transferScoutDetails.Visible = visible;
+        _transferScoutToggle.Text = visible ? "Scout raporunu gizle" : "Scout raporu al";
     }
 
     private void RefreshTransferBudgetStatus()
@@ -2542,7 +2687,7 @@ public partial class CareerHubScreen : Control
         _promoteOverflowButton.Disabled = !capacity.IsOverCapacity;
         _promoteOverflowButton.Visible = capacity.IsOverCapacity;
         _promoteOverflowButton.Text = capacity.IsOverCapacity && capacity.OverflowPlayerIds.Count > 0
-            ? $"Taşanı Kadroya Al (#{capacity.OverflowPlayerIds[0]})"
+            ? $"Taşanı Kadroya Al — {_controller.GetPlayerDisplayName(capacity.OverflowPlayerIds[0])}"
             : "Taşanı Kadroya Al";
 
         var releaseId = !unemployed
@@ -2553,8 +2698,8 @@ public partial class CareerHubScreen : Control
             releaseId is not null && (capacity.IsFull || capacity.IsOverCapacity);
         _releaseCapacityButton.Text = releaseId is long rid
             ? (capacity.IsOverCapacity
-                ? $"Taşanı Serbest Bırak (#{rid})"
-                : $"Yer Aç (#{rid})")
+                ? $"Taşanı Serbest Bırak — {_controller.GetPlayerDisplayName(rid)}"
+                : $"Yer Aç — {_controller.GetPlayerDisplayName(rid)}")
             : "Yer Aç";
 
         var saleId = !unemployed
@@ -2574,7 +2719,9 @@ public partial class CareerHubScreen : Control
         _sellFringeButton.Disabled = saleId is null || !windowOpen;
         _sellFringeButton.Visible = !_sellFringeButton.Disabled && salePressure;
         _sellFringeButton.Text = saleId is long sid
-            ? (windowOpen ? $"Satışa Çıkar (#{sid})" : "Satışa Çıkar (pencere kapalı)")
+            ? (windowOpen
+                ? $"Satışa Çıkar — {_controller.GetPlayerDisplayName(sid)}"
+                : "Satışa Çıkar (pencere kapalı)")
             : "Satışa Çıkar";
     }
 
@@ -2782,11 +2929,23 @@ public partial class CareerHubScreen : Control
         RefreshPlayerDetail();
         RefreshClubPitch(management.Players);
 
+        if (_playerDossierOverlay is { Visible: true } && _selectedPlayerId is long openId)
+        {
+            if (management.Players.Any(player => player.PlayerId == openId))
+            {
+                OpenPlayerDossier(openId);
+            }
+            else
+            {
+                ClosePlayerDossier();
+            }
+        }
+
         if (capacity.IsOverCapacity)
         {
             foreach (var id in capacity.OverflowPlayerIds)
             {
-                _squadList.AddItem($"[kadro dışı sözleşme] oyuncu#{id}");
+                _squadList.AddItem($"[kadro dışı sözleşme] {_controller.GetPlayerDisplayName(id)}");
             }
         }
     }

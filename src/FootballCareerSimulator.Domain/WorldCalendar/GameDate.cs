@@ -56,6 +56,12 @@ public readonly record struct GameDate : IComparable<GameDate>
 
     public string ToIsoDateString() => ToDateOnly().ToString("yyyy-MM-dd");
 
+    /// <summary>Oyuncu yüzü: gerçek takvim tarihi, ham gün numarası değil.</summary>
+    public string ToDisplayDateString() => ToDateOnly().ToString("dd.MM.yyyy");
+
+    public static string ToDisplayDateString(int dayNumber) =>
+        FromDayNumber(dayNumber).ToDisplayDateString();
+
     public int CompareTo(GameDate other) => DayNumber.CompareTo(other.DayNumber);
 
     public static bool operator <(GameDate left, GameDate right) => left.DayNumber < right.DayNumber;

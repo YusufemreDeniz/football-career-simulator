@@ -1,3 +1,5 @@
+using FootballCareerSimulator.Domain.WorldCalendar;
+
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
 /// <summary>
@@ -16,26 +18,21 @@ public sealed record CareerResumeDigest(
     public static CareerResumeDigest Compose(
         TodayPulseDigest pulse,
         int dayNumber,
-        string isoDate,
         string managerDisplayName,
         string? clubDisplayName,
-        int loadedFixtureCount,
         bool wasMigrated,
         WeekStoryDigest? weekStory = null,
         OfficeNextStep? nextStep = null)
     {
         ArgumentNullException.ThrowIfNull(pulse);
-        ArgumentException.ThrowIfNullOrWhiteSpace(isoDate);
         ArgumentException.ThrowIfNullOrWhiteSpace(managerDisplayName);
         weekStory ??= WeekStoryDigest.Clear();
 
         var beats = new List<string>
         {
-            $"Şimdi: gün {dayNumber} ({isoDate})",
             clubDisplayName is null
-                ? $"Menajer: {managerDisplayName} · işsiz"
-                : $"Menajer: {managerDisplayName} · {clubDisplayName}",
-            $"Kayıttaki maçlar: {loadedFixtureCount}",
+                ? $"{managerDisplayName} · kulüpsüz · {GameDate.ToDisplayDateString(dayNumber)}"
+                : $"{managerDisplayName} · {clubDisplayName} · {GameDate.ToDisplayDateString(dayNumber)}",
         };
 
         if (wasMigrated)
@@ -49,7 +46,7 @@ public sealed record CareerResumeDigest(
         }
 
         beats.Add($"Nabız: {pulse.Headline}");
-        foreach (var line in pulse.PulseLines.Take(weekStory.IsActive ? 1 : 2))
+        foreach (var line in pulse.PulseLines.Take(1))
         {
             if (weekStory.IsActive
                 && line.StartsWith("Hikâye:", StringComparison.Ordinal))
@@ -68,7 +65,7 @@ public sealed record CareerResumeDigest(
             headline,
             advice,
             pulse.PrimaryFocusCode,
-            beats.Take(6).ToArray(),
+            beats.Take(4).ToArray(),
             nextStep?.ButtonLabel);
     }
 
@@ -83,7 +80,18 @@ public sealed record CareerResumeDigest(
         return $"{BrandTitle}\n{Headline}{beats}{advice}";
     }
 
-    public string ToStatusMessage() => ToDisplayText();
+    /// <summary>
+    /// Alt nabız şeridi: yalnız "neredeyim" + "sıradaki iş". Ayrıntı Bugün kartlarında kalır.
+    /// </summary>
+    public string ToStatusMessage()
+    {
+        var follow = string.IsNullOrWhiteSpace(NextCtaLabel)
+            ? AdviceLine
+            : $"Sıradaki: {NextCtaLabel}";
+        return string.IsNullOrWhiteSpace(follow)
+            ? $"{BrandTitle} · {Headline}"
+            : $"{BrandTitle} · {Headline}\n{follow}";
+    }
 
     private static string ResolveHeadline(TodayPulseDigest pulse, WeekStoryDigest weekStory)
     {

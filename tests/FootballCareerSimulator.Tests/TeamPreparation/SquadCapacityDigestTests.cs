@@ -17,7 +17,7 @@ public sealed class SquadCapacityDigestTests
         Assert.True(digest.IsOverCapacity);
         Assert.True(digest.IsFull);
         Assert.Contains("sığmıyor", digest.Headline, StringComparison.Ordinal);
-        Assert.Contains("#2001", digest.ToDisplayText(), StringComparison.Ordinal);
+        Assert.Contains("Taşan: 2 oyuncu", digest.ToDisplayText(), StringComparison.Ordinal);
         Assert.Contains("Taşanı Serbest Bırak", digest.AdviceLine, StringComparison.Ordinal);
         Assert.Contains("Satışa Çıkar", digest.AdviceLine, StringComparison.Ordinal);
         Assert.Contains("Öneri:", digest.ToDisplayText(), StringComparison.Ordinal);

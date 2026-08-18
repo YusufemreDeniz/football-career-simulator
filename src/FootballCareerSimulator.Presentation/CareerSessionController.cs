@@ -128,7 +128,7 @@ public sealed class CareerSessionController
             }
 
             return UiActionResult.Ok(
-                $"Lig hazır: sezon #{season.SeasonId}, {season.ParticipantCount} takım, {season.FixtureCount} maç.");
+                $"Lig hazır: {season.ParticipantCount} takım, {LeagueMatchweeks(season.ParticipantCount)} haftalık sezon.");
         }
         catch (Exception ex)
         {
@@ -359,8 +359,9 @@ public sealed class CareerSessionController
             var after = squad.GetCapacityDigest(id, day);
 
             var kind = result.WasOverflow ? "Taşan serbest bırakıldı" : "Kadrodan serbest bırakıldı";
+            var releasedName = GetPlayerDisplayName(result.PlayerId);
             return UiActionResult.Ok(
-                $"Yer Açıldı\n{kind}: #{result.PlayerId}."
+                $"Yer Açıldı\n{kind}: {releasedName}."
                 + $"\n· Aktif sözleşme {result.RemainingActiveContracts}/{ClubSquad.MaxMembers}"
                 + (after.IsOverCapacity
                     ? $" · hâlâ {after.OverflowPlayerIds.Count} taşan"
@@ -392,7 +393,7 @@ public sealed class CareerSessionController
                 ?? throw new InvalidOperationException(
                     "Satılacak kenar oyuncu yok — kadro çok ince.");
 
-            var need = Host.TransferModule.Needs.DeclarePlayerExitRequest(
+            _ = Host.TransferModule.Needs.DeclarePlayerExitRequest(
                 id,
                 new PlayerId(candidateId),
                 day);
@@ -407,7 +408,7 @@ public sealed class CareerSessionController
             if (!sale.Sold)
             {
                 return UiActionResult.Fail(
-                    $"Satışa Çıkış\nOyuncu #{candidateId} listelendi (ihtiyaç #{need.NeedId.Value})."
+                    $"Satışa Çıkış\n{GetPlayerDisplayName(candidateId)} listelendi."
                     + $"\n· {sale.Message}");
             }
 
@@ -470,9 +471,9 @@ public sealed class CareerSessionController
             Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, day);
 
             return UiActionResult.Ok(
-                $"Serbest oyuncu imzalandı: #{result.PlayerId}"
+                $"Serbest oyuncu imzalandı: {GetPlayerDisplayName(result.PlayerId)}"
                 + $" · ücret {result.WeeklyWage}"
-                + $" · bitiş gün {result.EndDayNumber}.");
+                + $" · sözleşme bitişi {GameDate.ToDisplayDateString(result.EndDayNumber)}.");
         }
         catch (ContractRegistrationInvariantViolationException ex)
         {
@@ -526,8 +527,7 @@ public sealed class CareerSessionController
                 $"İlk 11 sözü verildi: {GetPlayerDisplayName(member.PlayerId.Value)}"
                 + $" · slot {member.SlotIndex}"
                 + $" · hedef {promise.TargetStarts}"
-                + $" · son gün {promise.DeadlineOn.DayNumber}"
-                + $" · söz #{promise.PromiseId.Value}{tensionHint}.");
+                + $" · son gün {GameDate.ToDisplayDateString(promise.DeadlineOn.DayNumber)}{tensionHint}.");
         }
         catch (SocialContinuityInvariantViolationException ex)
         {
@@ -571,8 +571,7 @@ public sealed class CareerSessionController
             return UiActionResult.Ok(
                 $"Oyun süresi sözü verildi: {GetPlayerDisplayName(member.PlayerId.Value)}"
                 + $" · hedef {promise.TargetStarts} maç günü"
-                + $" · son gün {promise.DeadlineOn.DayNumber}"
-                + $" · söz #{promise.PromiseId.Value}.");
+                + $" · son gün {GameDate.ToDisplayDateString(promise.DeadlineOn.DayNumber)}.");
         }
         catch (SocialContinuityInvariantViolationException ex)
         {
@@ -635,8 +634,7 @@ public sealed class CareerSessionController
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
             var request = Host.InteractionModule.Decisions.OpenBoardDemandRequest(day);
             return UiActionResult.Ok(
-                $"Yönetim talebi açıldı: #{request.DecisionRequestId.Value}"
-                + $" · son gün {request.DeadlineOn.DayNumber}.");
+                $"Yönetim talebi açıldı · son gün {GameDate.ToDisplayDateString(request.DeadlineOn.DayNumber)}.");
         }
         catch (InteractionInvariantViolationException ex)
         {
@@ -765,7 +763,7 @@ public sealed class CareerSessionController
                 DecisionRequest.OptionAcknowledgeTransferRequest,
                 StringComparison.Ordinal))
         {
-            nextHint = $"Sıradaki: Günün Nabzı / Transfer → Satışa Çıkar (#{pending.SubjectPlayerId})";
+            nextHint = $"Sıradaki: Günün Nabzı / Transfer → Satışa Çıkar — {GetPlayerDisplayName(pending.SubjectPlayerId)}";
         }
         else if (string.Equals(option.OptionCode, DecisionRequest.OptionRefuse, StringComparison.Ordinal)
                  && pending.KindName.Contains("Transfer", StringComparison.OrdinalIgnoreCase))
@@ -780,8 +778,8 @@ public sealed class CareerSessionController
             nextHint = causalityLine is not null
                        && (causalityLine.Contains("yedek", StringComparison.OrdinalIgnoreCase)
                            || causalityLine.Contains("kadro dışı", StringComparison.OrdinalIgnoreCase))
-                ? $"Sıradaki: Hazırlık / Maç Günü — #{pending.SubjectPlayerId} için XI veya yedek tut."
-                : $"Sıradaki: Hazırlık / Maç Günü — sözü maç görünürlüğüyle ilerlet (#{pending.SubjectPlayerId}).";
+                ? $"Sıradaki: Hazırlık / Maç Günü — {GetPlayerDisplayName(pending.SubjectPlayerId)} için XI veya yedek tut."
+                : $"Sıradaki: Hazırlık / Maç Günü — {GetPlayerDisplayName(pending.SubjectPlayerId)} sözünü maç görünürlüğüyle ilerlet.";
         }
         else if (string.Equals(option.OptionCode, DecisionRequest.OptionRefuse, StringComparison.Ordinal)
                  && (pending.KindName.Contains("süre", StringComparison.OrdinalIgnoreCase)
@@ -793,6 +791,9 @@ public sealed class CareerSessionController
             nextHint = "Oyuncu yönetimi — yedek kalma hafızası ve güven satırına bak.";
         }
 
+        var subjectName = pending.SubjectPlayerId > 0
+            ? GetPlayerDisplayName(pending.SubjectPlayerId)
+            : null;
         return DecisionAnswerNarrative.Compose(
             pending.KindName,
             option.OptionCode,
@@ -801,7 +802,8 @@ public sealed class CareerSessionController
             pending.IsHardBlocker,
             remaining,
             nextHint,
-            causalityLine).ToStatusMessage();
+            causalityLine,
+            subjectName).ToStatusMessage();
     }
 
     private UiActionResult OpenDecisionForOldestSquadPlayer(
@@ -821,9 +823,8 @@ public sealed class CareerSessionController
 
             var request = open(member.PlayerId, day);
             return UiActionResult.Ok(
-                $"Karar açıldı: {kindLabel} · oyuncu #{member.PlayerId.Value}"
-                + $" · karar #{request.DecisionRequestId.Value}"
-                + $" · son gün {request.DeadlineOn.DayNumber}.");
+                $"Karar açıldı: {kindLabel} · {GetPlayerDisplayName(member.PlayerId.Value)}"
+                + $" · son gün {GameDate.ToDisplayDateString(request.DeadlineOn.DayNumber)}.");
         }
         catch (InteractionInvariantViolationException ex)
         {
@@ -906,13 +907,19 @@ public sealed class CareerSessionController
         var day = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         var pending = Host.InteractionModule.Queries.GetPending(take: 5);
         string? causality = null;
+        string? subjectPlayerName = null;
         if (pending.OpenRequests.Count > 0)
         {
+            var first = pending.OpenRequests[0];
             causality = Host.InteractionModule.Queries.ExplainCausality(
-                new Domain.Interaction.DecisionRequestId(pending.OpenRequests[0].DecisionRequestId));
+                new Domain.Interaction.DecisionRequestId(first.DecisionRequestId));
+            if (first.SubjectPlayerId > 0)
+            {
+                subjectPlayerName = GetPlayerDisplayName(first.SubjectPlayerId);
+            }
         }
 
-        return DecisionDeskDigest.Compose(pending, day, causality);
+        return DecisionDeskDigest.Compose(pending, day, causality, subjectPlayerName);
     }
 
     public PreMatchBriefing BuildNextMatchBriefing()
@@ -935,8 +942,7 @@ public sealed class CareerSessionController
             var request = open(member.PlayerId, day);
             return UiActionResult.Ok(
                 $"Karar açıldı: {kindLabel} · {GetPlayerDisplayName(member.PlayerId.Value)}"
-                + $" · karar #{request.DecisionRequestId.Value}"
-                + $" · son gün {request.DeadlineOn.DayNumber}.");
+                + $" · son gün {GameDate.ToDisplayDateString(request.DeadlineOn.DayNumber)}.");
         }
         catch (InteractionInvariantViolationException ex)
         {
@@ -966,10 +972,27 @@ public sealed class CareerSessionController
         GetManagedSquadMembers().FirstOrDefault(member => member.PlayerId.Value == playerId)
         ?? throw new InvalidOperationException("Seçili oyuncu yönetilen kulübün A takımında değil.");
 
-    private string GetPlayerDisplayName(long playerId) =>
-        BuildPlayerManagementDigest().Players
-            .FirstOrDefault(player => player.PlayerId == playerId)?.DisplayName
-        ?? $"oyuncu #{playerId}";
+    public string GetPlayerDisplayName(long playerId) =>
+        DescribeManagedPlayer(playerId).Name ?? "kenar oyuncu";
+
+    private (string? Name, string? Detail) DescribeManagedPlayer(long? playerId)
+    {
+        if (playerId is not long id)
+        {
+            return (null, null);
+        }
+
+        var player = BuildPlayerManagementDigest().Players
+            .FirstOrDefault(candidate => candidate.PlayerId == id);
+        return player is null
+            ? (null, null)
+            : (player.DisplayName, player.ToSaleLabel());
+    }
+
+    private static int LeagueMatchweeks(int participantCount) =>
+        participantCount > 1
+            ? (participantCount - 1) * 2
+            : CompetitionMvpConstraints.LeagueMatchesPerTeam;
 
     public TechnicalDirectorNotebookDigest BuildTechnicalDirectorNotebook() =>
         TechnicalDirectorNotebookDigest.Compose(_matchupPlanHistory);
@@ -1422,7 +1445,10 @@ public sealed class CareerSessionController
         var budget = Host.ClubModule.TransferBudget.Get(new Domain.Shared.ClubId(clubId));
         var capacity = BuildSquadCapacityDigest();
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var saleCandidateId = SuggestSaleCandidatePlayerId();
+        var (saleName, saleDetail) = DescribeManagedPlayer(saleCandidateId);
         var (promiseExitPlayerId, promiseExitHint) = ResolvePromiseExitPressure();
+        var (promiseExitName, _) = DescribeManagedPlayer(promiseExitPlayerId);
 
         return TransferDeskBriefing.Compose(
             window.IsOpen,
@@ -1436,10 +1462,13 @@ public sealed class CareerSessionController
             budget.Available,
             budget.Spent,
             capacity.IsFull || capacity.IsOverCapacity,
-            SuggestSaleCandidatePlayerId(),
+            saleCandidateId,
             currentDay,
             promiseExitPlayerId,
-            promiseExitHint);
+            promiseExitHint,
+            saleName,
+            saleDetail,
+            promiseExitName);
     }
 
     private (long? PlayerId, string? Hint) ResolvePromiseExitPressure()
@@ -1757,7 +1786,7 @@ public sealed class CareerSessionController
                 new TransferTargetId(listed.TargetId),
                 day);
             return UiActionResult.Ok(
-                $"Hedef düşürüldü: #{listed.TargetId} (oyuncu {listed.PlayerId}).");
+                $"Hedef düşürüldü: {GetPlayerDisplayName(listed.PlayerId)}.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1784,8 +1813,7 @@ public sealed class CareerSessionController
 
             var process = Host.TransferModule.Processes.OpenOldestListedTargetForClub(id, day);
             return UiActionResult.Ok(
-                $"Süreç açıldı: #{process.ProcessId.Value} · hedef #{process.TargetId.Value}"
-                + $" · oyuncu {process.PlayerId.Value} (değerlendirmede).");
+                $"Süreç açıldı: {GetPlayerDisplayName(process.PlayerId.Value)} (değerlendirmede).");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1807,7 +1835,7 @@ public sealed class CareerSessionController
                 ?? throw new InvalidOperationException("Geri çekilecek aktif süreç yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
             Host.TransferModule.Processes.Withdraw(new TransferProcessId(active.ProcessId), day);
-            return UiActionResult.Ok($"Süreç geri çekildi: #{active.ProcessId}.");
+            return UiActionResult.Ok("Süreç geri çekildi.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1827,7 +1855,7 @@ public sealed class CareerSessionController
             var updated = Host.TransferModule.Processes.RequestSportingApproval(
                 new TransferProcessId(processId));
             return UiActionResult.Ok(
-                $"Sportif onay istendi: süreç #{updated.ProcessId.Value} · {TranslateProcessStatus(updated.Status)}.");
+                $"Sportif onay istendi: {TranslateProcessStatus(updated.Status)}.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1851,7 +1879,7 @@ public sealed class CareerSessionController
             var updated = Host.TransferModule.Processes.GrantSportingApproval(
                 new TransferProcessId(pending.ProcessId));
             return UiActionResult.Ok(
-                $"Sportif onay verildi: süreç #{updated.ProcessId.Value} · oyuncu {updated.PlayerId.Value}.");
+                $"Sportif onay verildi: {GetPlayerDisplayName(updated.PlayerId.Value)}.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1877,7 +1905,7 @@ public sealed class CareerSessionController
                 new TransferProcessId(pending.ProcessId),
                 "SportingRejected",
                 day);
-            return UiActionResult.Ok($"Sportif red: süreç #{updated.ProcessId.Value}.");
+            return UiActionResult.Ok("Sportif red uygulandı.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1901,7 +1929,7 @@ public sealed class CareerSessionController
             var updated = Host.TransferModule.Processes.RequestFinancialApproval(
                 new TransferProcessId(process.ProcessId));
             return UiActionResult.Ok(
-                $"Mali onay istendi: süreç #{updated.ProcessId.Value} · {TranslateProcessStatus(updated.Status)}.");
+                $"Mali onay istendi: {TranslateProcessStatus(updated.Status)}.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1925,7 +1953,7 @@ public sealed class CareerSessionController
             var updated = Host.TransferModule.Processes.GrantFinancialApproval(
                 new TransferProcessId(pending.ProcessId));
             return UiActionResult.Ok(
-                $"Mali onay verildi: süreç #{updated.ProcessId.Value} · oyuncu {updated.PlayerId.Value}.");
+                $"Mali onay verildi: {GetPlayerDisplayName(updated.PlayerId.Value)}.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1951,7 +1979,7 @@ public sealed class CareerSessionController
                 new TransferProcessId(pending.ProcessId),
                 "FinancialRejected",
                 day);
-            return UiActionResult.Ok($"Mali red: süreç #{updated.ProcessId.Value}.");
+            return UiActionResult.Ok("Mali red uygulandı.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1979,9 +2007,8 @@ public sealed class CareerSessionController
                 new TransferProcessId(process.ProcessId),
                 day);
             return UiActionResult.Ok(
-                $"Transfer tamamlandı: süreç #{updated.ProcessId.Value}"
-                + $" · oyuncu {updated.PlayerId.Value} → kulüp {updated.BuyingClubId.Value}"
-                + $" · {TranslateProcessStatus(updated.Status)}.");
+                $"Transfer tamamlandı: {GetPlayerDisplayName(updated.PlayerId.Value)}"
+                + $" → {GetClubDisplayName(updated.BuyingClubId.Value)}.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -2058,7 +2085,7 @@ public sealed class CareerSessionController
                     Guid.NewGuid(),
                     ClosesOnDayNumber: null));
             return UiActionResult.Ok(
-                $"Transfer penceresi açıldı (gün {result.OpenedOnDayNumber})"
+                $"Transfer penceresi açıldı ({GameDate.ToDisplayDateString(result.OpenedOnDayNumber)})"
                 + $" · AI transfer: {result.AiTransferCompletedCount}.");
         }
         catch (Exception ex)
@@ -2934,9 +2961,7 @@ public sealed class CareerSessionController
 
         if (c.PlayingTimeDemandOpened)
         {
-            yield return c.PlayingTimeDemandPlayerId is long pid
-                ? $"Forma süresi talebi açıldı (#{pid})."
-                : "Forma süresi talebi açıldı.";
+            yield return "Forma süresi talebi açıldı.";
         }
     }
 
@@ -3718,7 +3743,7 @@ public sealed class CareerSessionController
                 CaptureHubNarrativeUiState());
             var desk = BuildSaveDeskDigest();
             return UiActionResult.Ok(
-                $"Kayıt Masası\nKariyer diske işlendi — gün {result.SavedDayNumber}, {result.SavedFixtureCount} maç."
+                $"Kayıt Masası\nKariyer diske işlendi — {GameDate.ToDisplayDateString(result.SavedDayNumber)}."
                 + $"\n· {result.SavePath}"
                 + $"\nÖneri: {desk.AdviceLine}");
         }
@@ -3741,9 +3766,7 @@ public sealed class CareerSessionController
 
             var result = Host.GameSession.Load(Host.DefaultSavePath);
             ApplyHubNarrativeUiState(result.HubNarrativeUiState);
-            LastCareerResume = BuildCareerResumeDigest(
-                result.WasMigrated,
-                result.LoadedFixtureCount);
+            LastCareerResume = BuildCareerResumeDigest(result.WasMigrated);
             return UiActionResult.Ok(LastCareerResume.ToStatusMessage());
         }
         catch (Exception ex)
@@ -3772,7 +3795,7 @@ public sealed class CareerSessionController
         _matchupPlanHistory.AddRange(state.MatchupPlanHistory);
     }
 
-    public CareerResumeDigest BuildCareerResumeDigest(bool wasMigrated, int loadedFixtureCount)
+    public CareerResumeDigest BuildCareerResumeDigest(bool wasMigrated)
     {
         var day = Host.WorldModule.Queries.GetCurrentGameDate();
         var manager = Host.ManagerModule.Queries.GetCareer();
@@ -3786,10 +3809,8 @@ public sealed class CareerSessionController
         return CareerResumeDigest.Compose(
             pulse,
             day.DayNumber,
-            day.IsoDate,
             manager.DisplayName,
             clubName,
-            loadedFixtureCount,
             wasMigrated,
             weekStory,
             nextStep);
@@ -3851,7 +3872,7 @@ public sealed class CareerSessionController
                 new CompletePlanningPeriodCommand(Guid.NewGuid()));
 
             return UiActionResult.Ok(
-                $"Planlama dönemi tamamlandı: #{result.PlanningPeriodId} (gün {result.CompletedAtDayNumber}).");
+                $"Planlama dönemi tamamlandı ({GameDate.ToDisplayDateString(result.CompletedAtDayNumber)}).");
         }
         catch (Exception ex)
         {

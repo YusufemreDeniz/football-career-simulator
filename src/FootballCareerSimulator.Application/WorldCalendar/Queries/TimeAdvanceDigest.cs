@@ -16,7 +16,10 @@ public sealed record TimeAdvanceDigest(
         var beats = BeatLines.Count == 0
             ? string.Empty
             : "\n" + string.Join("\n", BeatLines.Select(b => "· " + b));
-        return $"{BrandTitle}\n{Headline}\n{SpanLine}{beats}";
+        var header = string.IsNullOrWhiteSpace(SpanLine)
+            ? BrandTitle
+            : $"{BrandTitle} · {SpanLine}";
+        return $"{header}\n{Headline}{beats}";
     }
 
     public static TimeAdvanceDigest Blocked(string reason) =>
@@ -28,7 +31,11 @@ public sealed record TimeAdvanceDigest(
         string? nextMatchHint = null)
     {
         var brand = requestedDayCount >= 7 ? "Hafta Özeti" : "Gün Özeti";
-        var span = $"Gün {result.PreviousDayNumber} → {result.NewDayNumber}";
+        var from = Domain.WorldCalendar.GameDate.ToDisplayDateString(result.PreviousDayNumber);
+        var to = Domain.WorldCalendar.GameDate.ToDisplayDateString(result.NewDayNumber);
+        var span = string.Equals(from, to, StringComparison.Ordinal)
+            ? from
+            : $"{from} → {to}";
         var beats = new List<string>();
 
         if (result.TransferWindowsClosedBySchedule > 0)

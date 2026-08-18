@@ -28,7 +28,7 @@ public sealed class TransferDeskBriefingTests
         Assert.Contains("Pencere Aç", desk.AdviceLine, StringComparison.Ordinal);
         Assert.Equal(TransferNextStep.ReasonOpenWindow, desk.NextStep!.ReasonCode);
         Assert.Equal(TransferNextStep.ActionOpenTransferWindow, desk.NextStep.ActionCode);
-        Assert.Contains(desk.BeatLines, b => b.Contains("#1024", StringComparison.Ordinal));
+        Assert.Contains(desk.BeatLines, b => b.Contains("kenar oyuncu", StringComparison.Ordinal));
         Assert.Contains("Öneri:", desk.ToDisplayText(), StringComparison.Ordinal);
     }
 
@@ -55,7 +55,8 @@ public sealed class TransferDeskBriefingTests
         Assert.True(desk.DemandsAttention);
         Assert.Equal(TransferNextStep.ReasonSellFringe, desk.NextStep!.ReasonCode);
         Assert.Equal(TransferNextStep.ActionSellFringe, desk.NextStep.ActionCode);
-        Assert.Contains(desk.BeatLines, b => b.Contains("kapanış gün 40", StringComparison.Ordinal));
+        Assert.Contains(desk.BeatLines, b => b.Contains("kapanış", StringComparison.Ordinal));
+        Assert.DoesNotContain(desk.ToDisplayText(), "kapanış gün", StringComparison.Ordinal);
     }
 
     [Fact]
@@ -250,7 +251,7 @@ public sealed class TransferDeskBriefingTests
 
         Assert.True(desk.DemandsAttention);
         Assert.Contains("Söz kırılması", desk.Headline, StringComparison.Ordinal);
-        Assert.Contains("#77", desk.Headline, StringComparison.Ordinal);
+        Assert.Contains("kenar oyuncu", desk.Headline, StringComparison.Ordinal);
         Assert.Contains("Masada Cevapla", desk.AdviceLine, StringComparison.Ordinal);
         Assert.Equal(TransferNextStep.ReasonPromiseExit, desk.NextStep!.ReasonCode);
         Assert.Equal(TransferNextStep.TargetToday, desk.NextStep.TargetPageCode);
@@ -368,5 +369,35 @@ public sealed class TransferDeskBriefingTests
 
         Assert.Equal(TransferNextStep.ReasonAdvanceProcess, desk.NextStep!.ReasonCode);
         Assert.Equal(TransferNextStep.ActionAdvanceProcess, desk.NextStep.ActionCode);
+    }
+
+    [Fact]
+    public void NamedSaleCandidate_ReplacesInternalIdOnPlayerFacingCopy()
+    {
+        var desk = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            windowStatusName: "Açık",
+            windowClosesOnDayNumber: 40,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: 1_000_000,
+            budgetSpent: 0,
+            squadFull: true,
+            saleCandidatePlayerId: 17025,
+            currentDayNumber: 30,
+            saleCandidatePlayerName: "Rayan Raveloson",
+            saleCandidateDetail: "Rayan Raveloson (DOS · GÜÇ 70)");
+
+        Assert.Contains("Rayan Raveloson (DOS · GÜÇ 70)", desk.Headline, StringComparison.Ordinal);
+        Assert.Equal("Satışa Çıkar — Rayan Raveloson", desk.NextStep!.ButtonLabel);
+        Assert.Contains("Rayan Raveloson", desk.NextStep.PulseHeadline, StringComparison.Ordinal);
+        Assert.DoesNotContain("#17025", desk.ToDisplayText(), StringComparison.Ordinal);
+        Assert.DoesNotContain("#17025", desk.ToSummaryText(), StringComparison.Ordinal);
+        Assert.Equal(
+            "Kadro dolu — Rayan Raveloson (DOS · GÜÇ 70) çıkışta.\nSatışa Çıkar — Rayan Raveloson veya Yer Aç ile slot aç.",
+            desk.ToSummaryText());
     }
 }

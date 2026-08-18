@@ -47,7 +47,7 @@ public sealed class SaveDeskDigestTests
 
         Assert.True(digest.SaveExists);
         Assert.Contains("Kayıt mevcut", digest.Headline, StringComparison.Ordinal);
-        Assert.Contains(digest.BeatLines, b => b.Contains("işsiz", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b.Contains("kulüpsüz", StringComparison.Ordinal));
         Assert.Contains(digest.BeatLines, b => b.StartsWith("Diskteki kayıt:", StringComparison.Ordinal));
         Assert.Contains("üzerine yazabilir", digest.Headline, StringComparison.OrdinalIgnoreCase);
     }

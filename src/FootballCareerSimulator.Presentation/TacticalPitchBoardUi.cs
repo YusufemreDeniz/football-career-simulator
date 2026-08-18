@@ -5,7 +5,9 @@ namespace FootballCareerSimulator.Presentation;
 
 internal static class TacticalPitchBoardUi
 {
-    public static Control BuildReadOnly(IReadOnlyList<SquadSelectionPlayerDigest> startingXi)
+    public static Control BuildReadOnly(
+        IReadOnlyList<SquadSelectionPlayerDigest> startingXi,
+        Action<SquadSelectionPlayerDigest>? onPlayerSelected = null)
     {
         var board = new SquadSelectionBoardDigest(
             HasMatch: true,
@@ -20,12 +22,13 @@ internal static class TacticalPitchBoardUi
         root.AddChild(new TacticalPitchBoard(
             board.StartingXi,
             selectedSlotIndex: null,
-            _ => { },
-            interactionEnabled: false)
+            onPlayerSelected ?? (_ => { }),
+            interactionEnabled: onPlayerSelected is not null,
+            playerButtonMinimumSize: new Vector2(92, 58))
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(440, 280),
+            CustomMinimumSize = new Vector2(440, 320),
         });
         return root;
     }
@@ -135,18 +138,10 @@ internal static class TacticalPitchBoardUi
             Text = $"{ShortName(player.DisplayName)}\n{player.PositionCode}  {player.Rating}",
             TooltipText = $"{player.DisplayName} · {player.PositionName} · Güç {player.Rating} · Fitness %{player.Fitness}",
             Disabled = !interactionEnabled || (!player.IsAvailable && !player.IsStarter),
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        if (selected)
-        {
-            CareerUiTheme.StylePrimaryButton(button);
-        }
-        else
-        {
-            CareerUiTheme.StyleSecondaryButton(button);
-        }
-
-        button.AddThemeFontSizeOverride("font_size", 11);
-        button.CustomMinimumSize = minimumSize ?? new Vector2(76, 48);
+        CareerUiTheme.StylePitchChip(button, selected);
+        button.CustomMinimumSize = minimumSize ?? new Vector2(88, 54);
         return button;
     }
 
@@ -185,7 +180,7 @@ internal sealed partial class TacticalPitchBoard : Control
         _selectedSlotIndex = selectedSlotIndex;
         _selectPlayer = selectPlayer;
         _interactionEnabled = interactionEnabled;
-        _playerButtonMinimumSize = playerButtonMinimumSize ?? new Vector2(76, 48);
+        _playerButtonMinimumSize = playerButtonMinimumSize ?? new Vector2(88, 54);
         ClipContents = true;
     }
 
@@ -236,6 +231,7 @@ internal sealed partial class TacticalPitchBoard : Control
     {
         foreach (var (button, position) in _buttons)
         {
+            button.Size = _playerButtonMinimumSize;
             var target = new Vector2(position.X * Size.X, position.Y * Size.Y);
             button.Position = target - (button.Size * 0.5f);
         }

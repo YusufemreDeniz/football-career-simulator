@@ -30,7 +30,8 @@ public sealed record DecisionAnswerNarrative(
         bool wasHardBlocker,
         int remainingOpenCount,
         string? nextActionHint = null,
-        string? causalityLine = null)
+        string? causalityLine = null,
+        string? subjectPlayerName = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(kindName);
         ArgumentException.ThrowIfNullOrWhiteSpace(optionCode);
@@ -39,11 +40,14 @@ public sealed record DecisionAnswerNarrative(
         var sittingOutPressure = IsSittingOutCausality(causalityLine);
         var headline = HeadlineFor(kindName, optionCode, sittingOutPressure);
         var choice = $"Seçimin: {optionDisplayText}";
+        var subjectLabel = ShowSubjectPlayer(subjectPlayerId)
+            ? (string.IsNullOrWhiteSpace(subjectPlayerName) ? "oyuncu" : subjectPlayerName.Trim())
+            : null;
         var beats = new List<string>();
 
-        if (ShowSubjectPlayer(subjectPlayerId))
+        if (subjectLabel is not null)
         {
-            beats.Add($"Konu: oyuncu#{subjectPlayerId}");
+            beats.Add($"Konu: {subjectLabel}");
         }
 
         if (!string.IsNullOrWhiteSpace(causalityLine))
@@ -56,7 +60,7 @@ public sealed record DecisionAnswerNarrative(
             beats.Add("Zorunlu engel kalktı — zaman yine akabilir.");
         }
 
-        var consequence = ConsequenceBeat(kindName, optionCode, subjectPlayerId, sittingOutPressure);
+        var consequence = ConsequenceBeat(kindName, optionCode, subjectPlayerId, sittingOutPressure, subjectLabel);
         if (!string.IsNullOrWhiteSpace(consequence))
         {
             beats.Add(consequence);
@@ -156,20 +160,21 @@ public sealed record DecisionAnswerNarrative(
         string kindName,
         string optionCode,
         long subjectPlayerId,
-        bool sittingOutPressure) =>
+        bool sittingOutPressure,
+        string? subjectLabel) =>
         optionCode switch
         {
             DecisionRequest.OptionGrantPlayingTimePromise when sittingOutPressure =>
-                ShowSubjectPlayer(subjectPlayerId)
-                    ? $"#{subjectPlayerId} sözü yazdı — sonraki maçlarda XI veya yedek tutarak ilerlet."
+                subjectLabel is not null
+                    ? $"{subjectLabel} sözü yazdı — sonraki maçlarda XI veya yedek tutarak ilerlet."
                     : "Oyuncu sözü hafızasına yazdı; kadro seçimleri ilerletecek.",
             DecisionRequest.OptionGrantPlayingTimePromise =>
                 "Oyuncu sözü hafızasına yazdı; kadro seçimleri ilerletecek.",
             DecisionRequest.OptionGrantStartingOpportunityPromise =>
                 "İlk 11 sözü aktif; kadro seçimleri izlenecek.",
             DecisionRequest.OptionAcknowledgeTransferRequest =>
-                ShowSubjectPlayer(subjectPlayerId)
-                    ? $"Ayrılma ihtiyacı açıldı — Transfer Masası'nda Satışa Çıkar (#{subjectPlayerId})."
+                subjectLabel is not null
+                    ? $"Ayrılma ihtiyacı açıldı — Transfer Masası'nda Satışa Çıkar: {subjectLabel}."
                     : "Kulüp transfer ihtiyacı olarak işaretlendi.",
             DecisionRequest.OptionIssueWarning =>
                 "Disiplin kaydı: uyarı.",

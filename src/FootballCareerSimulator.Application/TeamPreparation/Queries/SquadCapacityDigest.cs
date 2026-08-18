@@ -92,8 +92,7 @@ public sealed record SquadCapacityDigest(
 
         var overflow = OverflowPlayerIds.Count == 0
             ? string.Empty
-            : "\n· Taşan: "
-              + string.Join(", ", OverflowPlayerIds.Select(id => $"#{id}"))
+            : $"\n· Taşan: {OverflowPlayerIds.Count} oyuncu"
               + (ActiveContractCount - SquadMemberCount > OverflowPlayerIds.Count
                   ? "…"
                   : string.Empty);

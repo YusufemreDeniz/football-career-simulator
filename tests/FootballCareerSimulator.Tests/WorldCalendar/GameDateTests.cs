@@ -14,6 +14,8 @@ public class GameDateTests
         Assert.Equal(2, date.Month);
         Assert.Equal(29, date.Day);
         Assert.Equal("2024-02-29", date.ToIsoDateString());
+        Assert.Equal("29.02.2024", date.ToDisplayDateString());
+        Assert.Equal("18.08.2026", GameDate.FromCalendarDate(2026, 8, 18).ToDisplayDateString());
     }
 
     [Fact]

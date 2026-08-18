@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
+using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Tests.WorldCalendar;
 
@@ -8,13 +9,15 @@ public sealed class TimeAdvanceDigestTests
     [Fact]
     public void QuietWeek_HasCalmHeadline()
     {
+        var from = GameDate.FromCalendarDate(2026, 8, 18);
+        var to = GameDate.FromCalendarDate(2026, 8, 25);
         var digest = TimeAdvanceDigest.Compose(
-            QuietAdvance(from: 10, to: 17),
+            QuietAdvance(from.DayNumber, to.DayNumber),
             requestedDayCount: 7);
 
         Assert.Equal("Hafta Özeti", digest.BrandTitle);
         Assert.Equal("Sakin bir hafta — sahaya odaklan.", digest.Headline);
-        Assert.Equal("Gün 10 → 17", digest.SpanLine);
+        Assert.Equal("18.08.2026 → 25.08.2026", digest.SpanLine);
         Assert.Empty(digest.BeatLines);
     }
 

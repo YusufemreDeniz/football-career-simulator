@@ -31,7 +31,8 @@ public sealed record DecisionDeskDigest(
     public static DecisionDeskDigest Compose(
         PendingDecisionsReadModel pending,
         int currentDayNumber,
-        string? causalityLine = null)
+        string? causalityLine = null,
+        string? subjectPlayerName = null)
     {
         ArgumentNullException.ThrowIfNull(pending);
         if (pending.OpenCount == 0 || pending.OpenRequests.Count == 0)
@@ -50,9 +51,12 @@ public sealed record DecisionDeskDigest(
                     : $"{daysLeft} gün kaldı.";
 
         var headline = HeadlineFor(first.KindName, first.IsHardBlocker, causalityLine);
-        var support = ShowSubjectPlayer(first.SubjectPlayerId)
-            ? $"{first.KindName} · oyuncu#{first.SubjectPlayerId} · {urgency}"
-            : $"{first.KindName} · {urgency}";
+        var subjectLabel = ShowSubjectPlayer(first.SubjectPlayerId)
+            ? (string.IsNullOrWhiteSpace(subjectPlayerName) ? "oyuncu" : subjectPlayerName.Trim())
+            : null;
+        var support = subjectLabel is null
+            ? $"{first.KindName} · {urgency}"
+            : $"{first.KindName} · {subjectLabel} · {urgency}";
 
         if (pending.OpenCount > 1)
         {

@@ -14,12 +14,14 @@ public sealed class DecisionAnswerNarrativeTests
             optionDisplayText: "Forma süresi sözü ver",
             subjectPlayerId: 12,
             wasHardBlocker: false,
-            remainingOpenCount: 0);
+            remainingOpenCount: 0,
+            subjectPlayerName: "Ali Veli");
 
         Assert.Equal("Masada", narrative.BrandTitle);
         Assert.Equal("Söz verdin — forma süresi hesabı başladı.", narrative.Headline);
         Assert.Equal("Seçimin: Forma süresi sözü ver", narrative.ChoiceLine);
-        Assert.Contains(narrative.BeatLines, b => b.Contains("oyuncu#12", StringComparison.Ordinal));
+        Assert.Contains(narrative.BeatLines, b => b.Contains("Konu: Ali Veli", StringComparison.Ordinal));
+        Assert.DoesNotContain(narrative.BeatLines, b => b.Contains("oyuncu#", StringComparison.Ordinal));
         Assert.Contains(narrative.BeatLines, b => b.Contains("hafızasına", StringComparison.Ordinal));
         Assert.Contains(narrative.BeatLines, b => b.Contains("bekleyen kalmadı", StringComparison.Ordinal));
     }
@@ -124,12 +126,13 @@ public sealed class DecisionAnswerNarrativeTests
             subjectPlayerId: 501,
             wasHardBlocker: true,
             remainingOpenCount: 0,
-            nextActionHint: "Sıradaki: Transfer → Satışa Çıkar (#501)");
+            nextActionHint: "Sıradaki: Transfer → Satışa Çıkar — Kaan Demir",
+            subjectPlayerName: "Kaan Demir");
 
         Assert.Equal("Ayrılma isteğini kabul ettin — satış masası ısındı.", narrative.Headline);
         Assert.Contains(
             narrative.BeatLines,
-            b => b.Contains("Satışa Çıkar (#501)", StringComparison.Ordinal));
+            b => b.Contains("Satışa Çıkar: Kaan Demir", StringComparison.Ordinal));
         Assert.Contains(
             narrative.BeatLines,
             b => b.Contains("Sıradaki:", StringComparison.Ordinal));

@@ -75,7 +75,7 @@ public sealed class TransferDeskPromiseExitPressureTests
         Assert.True(desk.DemandsAttention);
         Assert.Equal(TransferNextStep.ReasonPromiseExit, desk.NextStep!.ReasonCode);
         Assert.Contains("Söz kırılması", desk.Headline, StringComparison.Ordinal);
-        Assert.Contains("#88", desk.NextStep.PulseHeadline, StringComparison.Ordinal);
+        Assert.Contains("kenar oyuncu", desk.NextStep.PulseHeadline, StringComparison.Ordinal);
         Assert.NotNull(hint);
         Assert.Contains("bozuldu", hint, StringComparison.OrdinalIgnoreCase);
     }

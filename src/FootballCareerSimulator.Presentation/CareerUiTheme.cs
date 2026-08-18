@@ -189,14 +189,49 @@ internal static class CareerUiTheme
     public static void StyleList(ItemList list)
     {
         ApplyBodyFont(list);
-        list.AddThemeFontSizeOverride("font_size", 14);
+        list.AddThemeFontSizeOverride("font_size", 16);
         list.AddThemeColorOverride("font_color", Ink);
         list.AddThemeColorOverride("font_hovered_color", ActionHover);
         list.AddThemeColorOverride("font_selected_color", BackgroundDeep);
+        list.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.72f));
+        list.AddThemeConstantOverride("outline_size", 2);
+        list.AddThemeConstantOverride("v_separation", 10);
         list.AddThemeStyleboxOverride("panel", SoftPanel());
         list.AddThemeStyleboxOverride("focus", FocusRing(Data));
         list.AddThemeStyleboxOverride("selected", SolidButton(Action));
         list.AddThemeStyleboxOverride("selected_focus", SolidButton(ActionHover));
+    }
+
+    public static void StylePitchChip(Button button, bool selected)
+    {
+        ApplyBodyFont(button);
+        button.AddThemeFontSizeOverride("font_size", 12);
+        var ink = selected ? BackgroundDeep : Ink;
+        button.AddThemeColorOverride("font_color", ink);
+        button.AddThemeColorOverride("font_hover_color", ink);
+        button.AddThemeColorOverride("font_pressed_color", ink);
+        button.AddThemeColorOverride("font_focus_color", ink);
+        button.AddThemeColorOverride("font_disabled_color", Ink);
+        button.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.82f));
+        button.AddThemeConstantOverride("outline_size", 4);
+        if (selected)
+        {
+            button.AddThemeStyleboxOverride("normal", SolidButton(Action));
+            button.AddThemeStyleboxOverride("hover", SolidButton(ActionHover));
+            button.AddThemeStyleboxOverride("pressed", SolidButton(Action));
+            button.AddThemeStyleboxOverride("disabled", SolidButton(Action));
+        }
+        else
+        {
+            var chip = PitchChipSurface();
+            button.AddThemeStyleboxOverride("normal", chip);
+            button.AddThemeStyleboxOverride("hover", PitchChipSurface(ActionBright));
+            button.AddThemeStyleboxOverride("pressed", PitchChipSurface(Action));
+            button.AddThemeStyleboxOverride("disabled", chip);
+        }
+
+        button.AddThemeStyleboxOverride("focus", FocusRing(Data));
+        button.CustomMinimumSize = new Vector2(88, 54);
     }
 
     public static void StyleTable(Tree table)
@@ -369,6 +404,28 @@ internal static class CareerUiTheme
             ContentMarginTop = 8,
             ContentMarginRight = 14,
             ContentMarginBottom = 8,
+        };
+
+    private static StyleBoxFlat PitchChipSurface(Color? border = null) =>
+        new()
+        {
+            BgColor = new Color(0.06f, 0.10f, 0.09f, 0.96f),
+            BorderColor = border ?? ActionBright,
+            BorderWidthLeft = 2,
+            BorderWidthTop = 2,
+            BorderWidthRight = 2,
+            BorderWidthBottom = 2,
+            CornerRadiusTopLeft = 10,
+            CornerRadiusTopRight = 10,
+            CornerRadiusBottomRight = 10,
+            CornerRadiusBottomLeft = 10,
+            ContentMarginLeft = 6,
+            ContentMarginRight = 6,
+            ContentMarginTop = 5,
+            ContentMarginBottom = 5,
+            ShadowColor = new Color(0f, 0f, 0f, 0.45f),
+            ShadowSize = 4,
+            ShadowOffset = new Vector2(0, 2),
         };
 
     private static StyleBoxFlat NavButtonSurface() =>

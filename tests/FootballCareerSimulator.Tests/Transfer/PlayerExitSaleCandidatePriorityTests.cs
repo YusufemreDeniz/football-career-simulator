@@ -106,7 +106,7 @@ public sealed class PlayerExitSaleCandidatePriorityTests
 
         Assert.True(desk.DemandsAttention);
         Assert.Equal(TransferNextStep.ReasonSellFringe, desk.NextStep!.ReasonCode);
-        Assert.Contains("#501", desk.NextStep.ButtonLabel, StringComparison.Ordinal);
+        Assert.Contains("kenar oyuncu", desk.NextStep.ButtonLabel, StringComparison.Ordinal);
         Assert.Contains("Ayrılma listesi", desk.Headline, StringComparison.Ordinal);
     }
 }

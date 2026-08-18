@@ -39,6 +39,8 @@ public sealed record PlayerManagementLine(
         $"{SquadNumber}. {DisplayName} · {PositionCode} · GÜÇ {Rating} · FİT %{Fitness}"
         + (Availability == "Hazır" ? string.Empty : $" · {Availability.ToUpperInvariant()}");
 
+    public string ToSaleLabel() => $"{DisplayName} ({PositionCode} · GÜÇ {Rating})";
+
     public string ToDetailText()
     {
         var contract = WeeklyWage is int wage
@@ -55,6 +57,26 @@ public sealed record PlayerManagementLine(
             + $"İlişki: {RelationshipState} · {relationship}\n"
             + $"Sözler: {PromiseSummary}\n"
             + $"Nedensellik: {CausalitySummary}";
+    }
+
+    public string ToDossierText()
+    {
+        var contract = WeeklyWage is int wage
+            ? $"Haftalık ücret {wage:N0}\nSözleşme bitişi {ContractEnd}"
+            : "Aktif sözleşme yok";
+        var relationship = Trust is int trust && Respect is int respect && Compatibility is int compatibility
+            ? $"Güven {trust} · saygı {respect} · uyum {compatibility}"
+            : "Henüz bireysel ilişki kaydı yok";
+
+        return $"{PositionName} · {PositionCode}\n"
+            + $"Güç {Rating} · yaş {Age} · {CareerPhase}\n"
+            + $"Yetenek {CurrentAbility} / potansiyel {PotentialAbility}\n"
+            + $"Fitness %{Fitness} · yorgunluk %{Fatigue}\n"
+            + $"Durum: {Availability}\n\n"
+            + $"{contract}\n\n"
+            + $"İlişki: {RelationshipState}\n{relationship}\n\n"
+            + $"Sözler: {PromiseSummary}\n"
+            + $"Not: {CausalitySummary}";
     }
 }
 
@@ -178,7 +200,9 @@ public sealed record PlayerManagementDigest(
     {
         if (!physical.IsAvailableOn(day))
         {
-            return $"Sakat · dönüş gün {physical.InjuredUntilDayNumber}";
+            return physical.InjuredUntilDayNumber is int until
+                ? $"Sakat · dönüş {GameDate.ToDisplayDateString(until)}"
+                : "Sakat";
         }
 
         return physical.Fitness < 60 || physical.Fatigue >= 70 ? "Riskli" : "Hazır";
@@ -211,7 +235,7 @@ public sealed record PlayerManagementDigest(
             " · ",
             promises.Select(promise =>
                 $"{(promise.Kind == PromiseKind.StartingOpportunity ? "İlk 11" : "Oyun süresi")} "
-                + $"{promise.StartsGiven}/{promise.TargetStarts}, son gün {promise.DeadlineOn.DayNumber}"));
+                + $"{promise.StartsGiven}/{promise.TargetStarts}, son {promise.DeadlineOn.ToDisplayDateString()}"));
     }
 
     private static string CausalityLabel(

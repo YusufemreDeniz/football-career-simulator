@@ -481,7 +481,7 @@ public sealed class TodayPulseDigestTests
             transfer: transfer);
 
         Assert.Equal(TodayPulseDigest.FocusTransfer, pulse.PrimaryFocusCode);
-        Assert.Contains("#501", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains("kenar oyuncu", pulse.Headline, StringComparison.Ordinal);
         Assert.Contains("Satışa Çıkar", pulse.Headline, StringComparison.Ordinal);
     }
 

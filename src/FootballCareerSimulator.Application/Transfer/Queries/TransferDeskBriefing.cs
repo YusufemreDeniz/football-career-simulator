@@ -1,3 +1,5 @@
+using FootballCareerSimulator.Domain.WorldCalendar;
+
 namespace FootballCareerSimulator.Application.Transfer.Queries;
 
 /// <summary>
@@ -84,7 +86,10 @@ public sealed record TransferDeskBriefing(
         long? saleCandidatePlayerId,
         int? currentDayNumber = null,
         long? promiseExitPressurePlayerId = null,
-        string? promiseExitPressureHint = null)
+        string? promiseExitPressureHint = null,
+        string? saleCandidatePlayerName = null,
+        string? saleCandidateDetail = null,
+        string? promiseExitPlayerName = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(windowStatusName);
 
@@ -109,12 +114,13 @@ public sealed record TransferDeskBriefing(
             ResolveWindowBeat(windowOpen, windowStatusName, windowClosesOnDayNumber, daysUntilClose),
         };
 
-        if (promiseExitPressurePlayerId is long exitPlayerId)
+        if (promiseExitPressurePlayerId is not null)
         {
+            var exitName = TransferPlayerCopy.NamedPlayer(promiseExitPlayerName);
             beats.Add(
                 string.IsNullOrWhiteSpace(promiseExitPressureHint)
-                    ? $"Söz baskısı: #{exitPlayerId} ayrılma kararı masada"
-                    : $"Söz baskısı: #{exitPlayerId} — {promiseExitPressureHint.Trim()}");
+                    ? $"Söz baskısı: {exitName} ayrılma kararı masada"
+                    : $"Söz baskısı: {exitName} — {promiseExitPressureHint.Trim()}");
         }
 
         if (budgetAvailable is int available)
@@ -132,12 +138,13 @@ public sealed record TransferDeskBriefing(
         beats.Add($"Hedef {listedTargetCount} · aktif süreç {activeProcessCount}"
             + (pendingOfferCount > 0 ? $" · bekleyen teklif {pendingOfferCount}" : string.Empty));
 
-        if (saleCandidatePlayerId is long saleId)
+        if (saleCandidatePlayerId is not null)
         {
+            var saleName = TransferPlayerCopy.NamedPlayer(saleCandidatePlayerName, saleCandidateDetail);
             beats.Add(
                 windowOpen
-                    ? $"Satış adayı: #{saleId}"
-                    : $"Satış adayı: #{saleId} (pencere kapalı)");
+                    ? $"Satış adayı: {saleName}"
+                    : $"Satış adayı: {saleName} (pencere kapalı)");
         }
 
         if (squadFull)
@@ -155,7 +162,10 @@ public sealed record TransferDeskBriefing(
             squadFull,
             saleCandidatePlayerId,
             daysUntilClose,
-            promiseExitPressurePlayerId);
+            promiseExitPressurePlayerId,
+            saleCandidatePlayerName,
+            saleCandidateDetail,
+            promiseExitPlayerName);
 
         var (headline, advice) = ResolveFocus(
             windowOpen,
@@ -169,7 +179,10 @@ public sealed record TransferDeskBriefing(
             daysUntilClose,
             nextStep,
             promiseExitPressurePlayerId,
-            promiseExitPressureHint);
+            promiseExitPressureHint,
+            saleCandidatePlayerName,
+            saleCandidateDetail,
+            promiseExitPlayerName);
 
         var unfinished =
             pendingOfferCount > 0
@@ -220,6 +233,22 @@ public sealed record TransferDeskBriefing(
         return $"{BrandTitle}\n{Headline}{beats}{advice}";
     }
 
+    public string ToSummaryText()
+    {
+        var advice = string.IsNullOrWhiteSpace(AdviceLine)
+            ? string.Empty
+            : $"\n{AdviceLine}";
+        return $"{Headline}{advice}";
+    }
+
+    public string ToScoutReportText()
+    {
+        var beats = BeatLines.Count == 0
+            ? "Scout ekibi henüz ek not düşmedi."
+            : string.Join("\n", BeatLines.Select(b => "· " + b));
+        return beats;
+    }
+
     private static string ResolveWindowBeat(
         bool windowOpen,
         string windowStatusName,
@@ -236,7 +265,7 @@ public sealed record TransferDeskBriefing(
             if (left < 0)
             {
                 return windowClosesOnDayNumber is int close
-                    ? $"Pencere açık · kapanış gün {close} (geçmiş)"
+                    ? $"Pencere açık · kapanış {GameDate.ToDisplayDateString(close)} (geçmiş)"
                     : "Pencere açık";
             }
 
@@ -261,12 +290,12 @@ public sealed record TransferDeskBriefing(
             }
 
             return windowClosesOnDayNumber is int closeDay
-                ? $"Pencere açık · kapanış gün {closeDay}"
+                ? $"Pencere açık · kapanış {GameDate.ToDisplayDateString(closeDay)}"
                 : $"Pencere açık · kapanış {left} gün";
         }
 
         return windowClosesOnDayNumber is int closeOnly
-            ? $"Pencere açık · kapanış gün {closeOnly}"
+            ? $"Pencere açık · kapanış {GameDate.ToDisplayDateString(closeOnly)}"
             : "Pencere açık";
     }
 
@@ -282,15 +311,19 @@ public sealed record TransferDeskBriefing(
         int? daysUntilClose,
         TransferNextStep? nextStep,
         long? promiseExitPressurePlayerId,
-        string? promiseExitPressureHint)
+        string? promiseExitPressureHint,
+        string? saleCandidatePlayerName,
+        string? saleCandidateDetail,
+        string? promiseExitPlayerName)
     {
-        if (promiseExitPressurePlayerId is long exitId
+        if (promiseExitPressurePlayerId is not null
             && nextStep is { ReasonCode: TransferNextStep.ReasonPromiseExit })
         {
+            var exitName = TransferPlayerCopy.NamedPlayer(promiseExitPlayerName);
             return (
                 string.IsNullOrWhiteSpace(promiseExitPressureHint)
-                    ? $"Söz kırılması — #{exitId} ayrılma kararı masada."
-                    : $"Söz kırılması — #{exitId} ayrılmak istiyor.",
+                    ? $"Söz kırılması — {exitName} ayrılma kararı masada."
+                    : $"Söz kırılması — {exitName} ayrılmak istiyor.",
                 "Masada Cevapla; kabul ayrılma ihtiyacı açar.");
         }
 
@@ -330,18 +363,20 @@ public sealed record TransferDeskBriefing(
                 "Sportif / mali onay veya teklif adımlarını tamamla.");
         }
 
-        if (openExitNeedCount > 0 && saleCandidatePlayerId is long listedExitId)
+        if (openExitNeedCount > 0 && saleCandidatePlayerId is not null)
         {
+            var listedExit = TransferPlayerCopy.NamedPlayer(saleCandidatePlayerName, saleCandidateDetail);
             return (
-                $"Ayrılma listesi açık — #{listedExitId} satılabilir.",
-                "Satışa Çıkar ile AI alıcıya tamamla.");
+                $"Ayrılma listesi açık — {listedExit} satılabilir.",
+                "Satışa Çıkar ile alıcıyı tamamla.");
         }
 
-        if (squadFull && saleCandidatePlayerId is long fullId)
+        if (squadFull && saleCandidatePlayerId is not null)
         {
+            var fullName = TransferPlayerCopy.NamedPlayer(saleCandidatePlayerName, saleCandidateDetail);
             return (
-                "Kadro dolu — çıkış masada.",
-                $"Satışa Çıkar (#{fullId}) veya Yer Aç ile slot aç.");
+                $"Kadro dolu — {fullName} çıkışta.",
+                $"Satışa Çıkar — {TransferPlayerCopy.NamedPlayer(saleCandidatePlayerName)} veya Yer Aç ile slot aç.");
         }
 
         if (listedTargetCount > 0 && activeProcessCount == 0)
@@ -380,7 +415,10 @@ public sealed record TransferDeskBriefing(
         bool squadFull,
         long? saleCandidatePlayerId,
         int? daysUntilClose,
-        long? promiseExitPressurePlayerId)
+        long? promiseExitPressurePlayerId,
+        string? saleCandidatePlayerName,
+        string? saleCandidateDetail,
+        string? promiseExitPlayerName)
     {
         var closingSoon = daysUntilClose is int d
             && d >= 0
@@ -406,14 +444,18 @@ public sealed record TransferDeskBriefing(
 
         if (promiseExitPressurePlayerId is long exitPlayerId)
         {
-            return TransferNextStep.AnswerPromiseExit(exitPlayerId);
+            return TransferNextStep.AnswerPromiseExit(exitPlayerId, promiseExitPlayerName);
         }
 
         if (windowOpen
             && saleCandidatePlayerId is long saleId
             && (openExitNeedCount > 0 || squadFull))
         {
-            return TransferNextStep.SellFringe(saleId, closingCritical || closingSoon);
+            return TransferNextStep.SellFringe(
+                saleId,
+                closingCritical || closingSoon,
+                saleCandidatePlayerName,
+                saleCandidateDetail);
         }
 
         if (listedTargetCount > 0 && activeProcessCount == 0)
@@ -486,15 +528,24 @@ public sealed record TransferNextStep(
             ActionOpenTransferWindow,
             "Pencere kapalı — satış için önce aç.");
 
-    public static TransferNextStep SellFringe(long playerId, bool closingPressure) =>
-        new(
+    public static TransferNextStep SellFringe(
+        long playerId,
+        bool closingPressure,
+        string? playerName = null,
+        string? playerDetail = null)
+    {
+        _ = playerId;
+        var who = TransferPlayerCopy.NamedPlayer(playerName);
+        var detail = TransferPlayerCopy.NamedPlayer(playerName, playerDetail);
+        return new(
             ReasonSellFringe,
-            $"Satışa Çıkar (#{playerId})",
+            $"Satışa Çıkar — {who}",
             TargetTransfer,
             ActionSellFringe,
             closingPressure
-                ? $"Pencere daralıyor — #{playerId} için Satışa Çıkar."
-                : $"Kadro dolu — #{playerId} için Satışa Çıkar.");
+                ? $"Pencere daralıyor — {detail} için Satışa Çıkar."
+                : $"Kadro dolu — {detail} için Satışa Çıkar.");
+    }
 
     public static TransferNextStep AnswerOffers(bool closingPressure) =>
         new(
@@ -550,11 +601,24 @@ public sealed record TransferNextStep(
             ActionNavigate,
             "İhtiyaç açık — scout listesinden hedef seç.");
 
-    public static TransferNextStep AnswerPromiseExit(long playerId) =>
-        new(
+    public static TransferNextStep AnswerPromiseExit(long playerId, string? playerName = null)
+    {
+        _ = playerId;
+        var who = TransferPlayerCopy.NamedPlayer(playerName);
+        return new(
             ReasonPromiseExit,
             "Masada Cevapla",
             TargetToday,
             ActionNavigate,
-            $"Söz kırılması — #{playerId} ayrılma kararı masada.");
+            $"Söz kırılması — {who} ayrılma kararı masada.");
+    }
+}
+
+file static class TransferPlayerCopy
+{
+    public static string NamedPlayer(string? name, string? detail = null)
+    {
+        var who = string.IsNullOrWhiteSpace(name) ? "kenar oyuncu" : name.Trim();
+        return string.IsNullOrWhiteSpace(detail) ? who : detail.Trim();
+    }
 }

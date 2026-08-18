@@ -35,14 +35,18 @@ public sealed class DecisionDeskDigestTests
                     SelectedOptionCode: null),
             ]);
 
-        var digest = DecisionDeskDigest.Compose(pending, currentDayNumber: 10);
+        var digest = DecisionDeskDigest.Compose(
+            pending,
+            currentDayNumber: 10,
+            subjectPlayerName: "Ahmet Yılmaz");
 
         Assert.True(digest.HasOpenDecision);
         Assert.True(digest.IsHardBlocker);
         Assert.Equal("Masada (zorunlu)", digest.BrandTitle);
         Assert.Equal("Basın kapıda — cevap vermeden ilerleyemezsin.", digest.Headline);
         Assert.Contains("ZORUNLU", digest.SupportingLine, StringComparison.Ordinal);
-        Assert.Contains("oyuncu#42", digest.SupportingLine, StringComparison.Ordinal);
+        Assert.Contains("Ahmet Yılmaz", digest.SupportingLine, StringComparison.Ordinal);
+        Assert.DoesNotContain("oyuncu#", digest.SupportingLine, StringComparison.Ordinal);
         Assert.Equal(7, digest.DecisionRequestId);
     }
 

@@ -1,3 +1,5 @@
+using FootballCareerSimulator.Domain.WorldCalendar;
+
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
 /// <summary>
@@ -31,16 +33,13 @@ public sealed record SaveDeskDigest(
 
         var beats = new List<string>
         {
-            $"Şimdi: gün {currentDayNumber} ({currentIsoDate})",
-            clubDisplayName is null
-                ? $"Menajer: {managerDisplayName} · işsiz"
-                : $"Menajer: {managerDisplayName} · {clubDisplayName}",
+            $"{managerDisplayName} · {clubDisplayName ?? "kulüpsüz"} · {GameDate.ToDisplayDateString(currentDayNumber)}",
         };
 
-        if (seasonId is long sid)
+        if (seasonId is not null)
         {
             var status = string.IsNullOrWhiteSpace(seasonStatus) ? "—" : seasonStatus;
-            beats.Add($"Sezon #{sid} ({TranslateStatus(status)}) · maç {acceptedFixtureCount}/{totalFixtureCount}");
+            beats.Add($"Sezon: {TranslateStatus(status)} · oynanan maç {acceptedFixtureCount}/{totalFixtureCount}");
         }
         else
         {
