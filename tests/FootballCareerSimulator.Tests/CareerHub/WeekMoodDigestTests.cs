@@ -82,6 +82,47 @@ public sealed class WeekMoodDigestTests
         Assert.DoesNotContain(pulse.PulseLines, l => l.StartsWith("Hikâye:", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void PlayerExitSellFringe_BeatsPrepDemandMood()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.General,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Medium,
+                (int)Domain.TrainingPhysicalState.RestApproach.Normal,
+                null, null, null, 1, 30, 70, true, 1, 1,
+                InjuredPlayerNames: ["Yorgun"]),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 5);
+
+        var transfer = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            90,
+            openNeedCount: 1,
+            openExitNeedCount: 1,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: 501,
+            currentDayNumber: 40);
+
+        var mood = WeekMoodDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk(),
+            transfer);
+
+        Assert.Equal(WeekMoodDigest.MoodTransfer, mood.MoodCode);
+        Assert.Contains("Transfer masası sıcak", mood.MoodLine, StringComparison.Ordinal);
+    }
+
     private static PreparationBriefing PrepOk() =>
         PreparationBriefing.Compose(
             new ClubTrainingSummaryReadModel(

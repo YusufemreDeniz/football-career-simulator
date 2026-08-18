@@ -28,7 +28,8 @@ public sealed record DecisionAnswerNarrative(
         string optionDisplayText,
         long subjectPlayerId,
         bool wasHardBlocker,
-        int remainingOpenCount)
+        int remainingOpenCount,
+        string? nextActionHint = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(kindName);
         ArgumentException.ThrowIfNullOrWhiteSpace(optionCode);
@@ -48,10 +49,15 @@ public sealed record DecisionAnswerNarrative(
             beats.Add("Zorunlu engel kalktı — zaman yine akabilir.");
         }
 
-        var consequence = ConsequenceBeat(optionCode);
+        var consequence = ConsequenceBeat(kindName, optionCode, subjectPlayerId);
         if (!string.IsNullOrWhiteSpace(consequence))
         {
             beats.Add(consequence);
+        }
+
+        if (!string.IsNullOrWhiteSpace(nextActionHint))
+        {
+            beats.Add(nextActionHint.Trim());
         }
 
         if (remainingOpenCount > 0)
@@ -82,6 +88,11 @@ public sealed record DecisionAnswerNarrative(
                 return "Sert bir hayır — sonuçları zamanla gelir.";
             }
 
+            if (kindName.Contains("Transfer", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Ayrılmayı reddettin — kırgınlık masada kaldı.";
+            }
+
             return "Reddettin — gerilim soğumadı.";
         }
 
@@ -92,7 +103,7 @@ public sealed record DecisionAnswerNarrative(
             DecisionRequest.OptionGrantStartingOpportunityPromise =>
                 "İlk 11 sözü verdin — tutman lazım.",
             DecisionRequest.OptionAcknowledgeTransferRequest =>
-                "Transfer isteği kayda geçti.",
+                "Ayrılma isteğini kabul ettin — satış masası ısındı.",
             DecisionRequest.OptionIssueWarning =>
                 "Uyarı masaya kondu.",
             DecisionRequest.OptionIssueFine =>
@@ -113,15 +124,17 @@ public sealed record DecisionAnswerNarrative(
         };
     }
 
-    private static string? ConsequenceBeat(string optionCode) =>
+    private static string? ConsequenceBeat(string kindName, string optionCode, long subjectPlayerId) =>
         optionCode switch
         {
             DecisionRequest.OptionGrantPlayingTimePromise =>
-                "Oyuncu sözü hafızasına yazdı.",
+                "Oyuncu sözü hafızasına yazdı; kadro seçimleri ilerletecek.",
             DecisionRequest.OptionGrantStartingOpportunityPromise =>
                 "İlk 11 sözü aktif; kadro seçimleri izlenecek.",
             DecisionRequest.OptionAcknowledgeTransferRequest =>
-                "Kulüp transfer ihtiyacı olarak işaretlendi.",
+                ShowSubjectPlayer(subjectPlayerId)
+                    ? $"Ayrılma ihtiyacı açıldı — Transfer Masası'nda Satışa Çıkar (#{subjectPlayerId})."
+                    : "Kulüp transfer ihtiyacı olarak işaretlendi.",
             DecisionRequest.OptionIssueWarning =>
                 "Disiplin kaydı: uyarı.",
             DecisionRequest.OptionIssueFine =>
@@ -136,6 +149,8 @@ public sealed record DecisionAnswerNarrative(
                 "Savunma kamuoyuna yansıdı.",
             DecisionRequest.OptionPubliclyCriticize =>
                 "Eleştiri kamuoyuna yansıdı.",
+            DecisionRequest.OptionRefuse when kindName.Contains("Transfer", StringComparison.OrdinalIgnoreCase) =>
+                "Red işlendi; düşük güven ve söz kırığı unutulmadı.",
             DecisionRequest.OptionRefuse =>
                 "Red, ilişki ve hafızaya işlendi.",
             _ => null,

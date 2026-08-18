@@ -203,6 +203,20 @@ public sealed record TodayPulseDigest(
                     : "Sezon bitti — kapanışı tamamla.");
         }
 
+        if (match.HasMatch && match.IsReadyToKickOff)
+        {
+            return (FocusMatch, "Hazırsın — düdük için Bugün'de kal.");
+        }
+
+        // Forma Sözü / ayrılma kabulü sonrası satış CTA'sı hazırlık-lig sakin nabzına gömülmesin.
+        // Maç günü (yukarıdaki düdük) hâlâ önceliklidir.
+        if (transfer.NextStep is { } exitStep
+            && (string.Equals(exitStep.ReasonCode, TransferNextStep.ReasonSellFringe, StringComparison.Ordinal)
+                || string.Equals(exitStep.ReasonCode, TransferNextStep.ReasonPromiseExit, StringComparison.Ordinal)))
+        {
+            return (FocusTransfer, exitStep.PulseHeadline);
+        }
+
         if (prep is { IsEmployed: true, DemandsAttention: true })
         {
             var prepHeadline = prep.Suggestion?.ActionCode switch
@@ -225,11 +239,6 @@ public sealed record TodayPulseDigest(
             return (
                 FocusLeague,
                 league.NextStep?.PulseHeadline ?? "Lig Masası'na bir bak — sıralama konuşuyor.");
-        }
-
-        if (match.HasMatch && match.IsReadyToKickOff)
-        {
-            return (FocusMatch, "Hazırsın — düdük için Bugün'de kal.");
         }
 
         if (transfer.DemandsAttention)

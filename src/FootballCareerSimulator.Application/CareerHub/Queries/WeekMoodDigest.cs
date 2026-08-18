@@ -72,6 +72,13 @@ public sealed record WeekMoodDigest(
             return Active("Düdük yakın — kadro hazır, haftanın ritmi senin.", MoodMatchReady);
         }
 
+        if (transfer.NextStep is { } exitStep
+            && (string.Equals(exitStep.ReasonCode, TransferNextStep.ReasonSellFringe, StringComparison.Ordinal)
+                || string.Equals(exitStep.ReasonCode, TransferNextStep.ReasonPromiseExit, StringComparison.Ordinal)))
+        {
+            return Active($"Transfer masası sıcak — {transfer.Headline}", MoodTransfer);
+        }
+
         if (prep is { IsEmployed: true, DemandsAttention: true })
         {
             var mood = prep.Suggestion?.ActionCode switch

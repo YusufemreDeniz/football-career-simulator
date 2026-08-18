@@ -738,13 +738,28 @@ public sealed class CareerSessionController
         DialogueOptionReadModel option)
     {
         var remaining = Host.InteractionModule.Queries.GetPending(take: 1).OpenCount;
+        string? nextHint = null;
+        if (string.Equals(
+                option.OptionCode,
+                DecisionRequest.OptionAcknowledgeTransferRequest,
+                StringComparison.Ordinal))
+        {
+            nextHint = $"Sıradaki: Günün Nabzı / Transfer → Satışa Çıkar (#{pending.SubjectPlayerId})";
+        }
+        else if (string.Equals(option.OptionCode, DecisionRequest.OptionRefuse, StringComparison.Ordinal)
+                 && pending.KindName.Contains("Transfer", StringComparison.OrdinalIgnoreCase))
+        {
+            nextHint = "Oyuncu yönetimi ve ilişki satırına bak — kırgınlık gerçek.";
+        }
+
         return DecisionAnswerNarrative.Compose(
             pending.KindName,
             option.OptionCode,
             option.DisplayText,
             pending.SubjectPlayerId,
             pending.IsHardBlocker,
-            remaining).ToStatusMessage();
+            remaining,
+            nextHint).ToStatusMessage();
     }
 
     private UiActionResult OpenDecisionForOldestSquadPlayer(

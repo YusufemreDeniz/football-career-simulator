@@ -75,4 +75,42 @@ public sealed class DecisionAnswerNarrativeTests
         Assert.Equal("Masada pazarlık açıldı.", narrative.Headline);
         Assert.DoesNotContain(narrative.BeatLines, b => b.Contains("oyuncu#", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void AcknowledgeTransfer_PointsToSellOnTransferDesk()
+    {
+        var narrative = DecisionAnswerNarrative.Compose(
+            "Transfer isteği",
+            DecisionRequest.OptionAcknowledgeTransferRequest,
+            "Transfer isteğini kabul et",
+            subjectPlayerId: 501,
+            wasHardBlocker: true,
+            remainingOpenCount: 0,
+            nextActionHint: "Sıradaki: Transfer → Satışa Çıkar (#501)");
+
+        Assert.Equal("Ayrılma isteğini kabul ettin — satış masası ısındı.", narrative.Headline);
+        Assert.Contains(
+            narrative.BeatLines,
+            b => b.Contains("Satışa Çıkar (#501)", StringComparison.Ordinal));
+        Assert.Contains(
+            narrative.BeatLines,
+            b => b.Contains("Sıradaki:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RefuseTransfer_KeepsBrokenPromiseTensionBeat()
+    {
+        var narrative = DecisionAnswerNarrative.Compose(
+            "Transfer isteği",
+            DecisionRequest.OptionRefuse,
+            "Talebi reddet",
+            subjectPlayerId: 88,
+            wasHardBlocker: true,
+            remainingOpenCount: 0);
+
+        Assert.Equal("Ayrılmayı reddettin — kırgınlık masada kaldı.", narrative.Headline);
+        Assert.Contains(
+            narrative.BeatLines,
+            b => b.Contains("söz kırığı unutulmadı", StringComparison.OrdinalIgnoreCase));
+    }
 }

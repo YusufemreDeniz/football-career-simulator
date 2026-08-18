@@ -440,6 +440,51 @@ public sealed class TodayPulseDigestTests
             pulse.PulseLines.FirstOrDefault(l => l.StartsWith("Transfer:", StringComparison.Ordinal)));
     }
 
+    [Fact]
+    public void PlayerExitSellFringe_BeatsCalmPrepDemand()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.General,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Medium,
+                (int)Domain.TrainingPhysicalState.RestApproach.Normal,
+                null, null, null, 1, 30, 70, true, 1, 1,
+                InjuredPlayerNames: ["Yorgun"]),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 5);
+
+        var transfer = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: 90,
+            openNeedCount: 1,
+            openExitNeedCount: 1,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: false,
+            saleCandidatePlayerId: 501,
+            currentDayNumber: 40);
+
+        Assert.True(prep.DemandsAttention);
+        Assert.Equal(TransferNextStep.ReasonSellFringe, transfer.NextStep!.ReasonCode);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk(),
+            transfer: transfer);
+
+        Assert.Equal(TodayPulseDigest.FocusTransfer, pulse.PrimaryFocusCode);
+        Assert.Contains("#501", pulse.Headline, StringComparison.Ordinal);
+        Assert.Contains("Satışa Çıkar", pulse.Headline, StringComparison.Ordinal);
+    }
+
     private static DecisionDeskDigest Desk(bool hard, bool open, string headline) =>
         open
             ? new DecisionDeskDigest(
