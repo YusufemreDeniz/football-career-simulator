@@ -26,6 +26,7 @@ public static class OfficeNextStepGuide
     public const string ActionSellFringe = "SellFringe";
     public const string ActionOpenTransferWindow = "OpenTransferWindow";
     public const string ActionScanNeeds = "ScanNeeds";
+    public const string ActionPickTarget = "PickTarget";
     public const string ActionStartProcess = "StartProcess";
     public const string ActionAdvanceProcess = "AdvanceProcess";
     public const string ActionAnswerOffers = "AnswerOffers";
@@ -391,6 +392,11 @@ public static class OfficeNextStepGuide
         if (string.Equals(transferActionCode, TransferNextStep.ActionScanNeeds, StringComparison.Ordinal))
         {
             return ActionScanNeeds;
+        }
+
+        if (string.Equals(transferActionCode, TransferNextStep.ActionPickTarget, StringComparison.Ordinal))
+        {
+            return ActionPickTarget;
         }
 
         if (string.Equals(transferActionCode, TransferNextStep.ActionStartProcess, StringComparison.Ordinal))

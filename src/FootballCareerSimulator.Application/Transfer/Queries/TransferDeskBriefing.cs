@@ -516,6 +516,7 @@ public sealed record TransferNextStep(
     public const string ActionSellFringe = "SellFringe";
     public const string ActionOpenTransferWindow = "OpenTransferWindow";
     public const string ActionScanNeeds = "ScanNeeds";
+    public const string ActionPickTarget = "PickTarget";
     public const string ActionStartProcess = "StartProcess";
     public const string ActionAdvanceProcess = "AdvanceProcess";
     public const string ActionAnswerOffers = "AnswerOffers";
@@ -598,7 +599,7 @@ public sealed record TransferNextStep(
             ReasonPickTarget,
             "Scout'tan Hedef Seç",
             TargetTransfer,
-            ActionNavigate,
+            ActionPickTarget,
             "İhtiyaç açık — scout listesinden hedef seç.");
 
     public static TransferNextStep AnswerPromiseExit(long playerId, string? playerName = null)

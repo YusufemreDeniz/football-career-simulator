@@ -383,6 +383,20 @@ public sealed class OfficeNextStepGuideTests
     }
 
     [Fact]
+    public void TransferPickTarget_MapsToPickTargetAction()
+    {
+        var step = OfficeNextStepGuide.ResolveFromPulse(
+            TodayPulseDigest.FocusTransfer,
+            hasDueUnapprovedMatch: false,
+            hasDuePlayableMatch: false,
+            canAdvanceDay: true,
+            transferNextStep: TransferNextStep.PickTarget());
+
+        Assert.Equal(OfficeNextStepGuide.ActionPickTarget, step!.ActionCode);
+        Assert.Equal("Scout'tan Hedef Seç", step.ButtonLabel);
+    }
+
+    [Fact]
     public void TransferAdvanceProcess_MapsToAdvanceAction()
     {
         var step = OfficeNextStepGuide.ResolveFromPulse(

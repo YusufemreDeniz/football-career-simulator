@@ -307,7 +307,7 @@ public sealed class TransferDeskBriefingTests
     }
 
     [Fact]
-    public void OpenNeedsWithoutTarget_PickTargetNavigate()
+    public void OpenNeedsWithoutTarget_PickTargetIsExecutable()
     {
         var desk = TransferDeskBriefing.Compose(
             windowOpen: true,
@@ -324,7 +324,7 @@ public sealed class TransferDeskBriefingTests
             saleCandidatePlayerId: null);
 
         Assert.Equal(TransferNextStep.ReasonPickTarget, desk.NextStep!.ReasonCode);
-        Assert.Equal(TransferNextStep.ActionNavigate, desk.NextStep.ActionCode);
+        Assert.Equal(TransferNextStep.ActionPickTarget, desk.NextStep.ActionCode);
         Assert.False(desk.DemandsAttention);
     }
 

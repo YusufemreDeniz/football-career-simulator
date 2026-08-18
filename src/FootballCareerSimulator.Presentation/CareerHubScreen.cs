@@ -300,6 +300,10 @@ public partial class CareerHubScreen : Control
                 Apply(_controller.RefreshTransferNeedSuggestions());
                 ShowPage(HubPage.Transfer);
                 return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionPickTarget:
+                Apply(_controller.SuggestTransferTarget());
+                ShowPage(HubPage.Transfer);
+                return;
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionStartProcess:
                 Apply(_controller.OpenTransferProcessFromOldestTarget());
                 ShowPage(HubPage.Transfer);
@@ -1214,6 +1218,9 @@ public partial class CareerHubScreen : Control
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionScanNeeds:
                 Apply(_controller.RefreshTransferNeedSuggestions());
                 return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionPickTarget:
+                Apply(_controller.SuggestTransferTarget());
+                return;
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionStartProcess:
                 Apply(_controller.OpenTransferProcessFromOldestTarget());
                 SetTransferNegotiationExpanded(true);
@@ -2031,6 +2038,8 @@ public partial class CareerHubScreen : Control
                 Application.CareerHub.Queries.OfficeNextStepGuide.ActionOpenTransferWindow,
             Application.Transfer.Queries.TransferNextStep.ActionScanNeeds =>
                 Application.CareerHub.Queries.OfficeNextStepGuide.ActionScanNeeds,
+            Application.Transfer.Queries.TransferNextStep.ActionPickTarget =>
+                Application.CareerHub.Queries.OfficeNextStepGuide.ActionPickTarget,
             Application.Transfer.Queries.TransferNextStep.ActionStartProcess =>
                 Application.CareerHub.Queries.OfficeNextStepGuide.ActionStartProcess,
             Application.Transfer.Queries.TransferNextStep.ActionAdvanceProcess =>
@@ -2242,7 +2251,11 @@ public partial class CareerHubScreen : Control
             : null;
         _suggestTargetButton.Disabled = !employed || selectedScout is null || selectedScout.IsListedTarget;
         _dropTargetButton.Disabled = !employed || listedCount == 0;
-        _suggestTargetButton.Visible = !_suggestTargetButton.Disabled;
+        var nextStepPicksTarget = string.Equals(
+            _transferNextStepAction,
+            Application.CareerHub.Queries.OfficeNextStepGuide.ActionPickTarget,
+            StringComparison.Ordinal);
+        _suggestTargetButton.Visible = !_suggestTargetButton.Disabled && !nextStepPicksTarget;
         _dropTargetButton.Visible = !_dropTargetButton.Disabled;
         var processes = employed
             ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
