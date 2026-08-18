@@ -126,7 +126,7 @@ public sealed class DecisionRequestQueryService
                 $"Önceki İlk 11 sözü bozuldu (#{broken.PromiseId.Value})"
                 + (memory is null ? string.Empty : $" · hatırlanıyor (etki {memory.CurrentInfluence})"),
             _ when memory is not null && memory.CurrentInfluence >= 40 =>
-                $"Olumsuz hafıza etki {memory.CurrentInfluence} (oyuncu#{playerId})",
+                $"Olumsuz hafıza etki {memory.CurrentInfluence}",
             _ => null,
         };
     }

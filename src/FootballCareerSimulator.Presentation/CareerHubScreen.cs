@@ -2106,7 +2106,7 @@ public partial class CareerHubScreen : Control
         var latest = offers.RecentOffers[0];
         _clubOfferLabel.Text =
             $"Kulüp teklifi: bekleyen {offers.PendingCount}"
-            + $" · son #{latest.OfferId} tur {latest.Round} ücret {latest.OfferedFee} ({latest.StatusName})";
+            + $" · son tur {latest.Round} ücret {latest.OfferedFee} ({latest.StatusName})";
     }
 
     private void RefreshContractProposalStatus()
@@ -2128,7 +2128,7 @@ public partial class CareerHubScreen : Control
         var latest = proposals.RecentProposals[0];
         _contractProposalLabel.Text =
             $"Sözleşme teklifi: bekleyen {proposals.PendingCount}"
-            + $" · son #{latest.ProposalId} tur {latest.Round}"
+            + $" · son tur {latest.Round}"
             + $" maaş {latest.WeeklyWage} × {latest.ContractYears}y ({latest.StatusName})";
     }
 
@@ -2149,7 +2149,8 @@ public partial class CareerHubScreen : Control
 
         var preview = string.Join(
             " · ",
-            view.ActiveProcesses.Take(2).Select(p => $"#{p.ProcessId} {p.StatusName} P{p.PlayerId}"));
+            view.ActiveProcesses.Take(2).Select(p =>
+                $"{_controller.GetPlayerDisplayName(p.PlayerId)} {p.StatusName}"));
         _transferProcessLabel.Text = $"Transfer süreci: {view.ActiveCount} aktif · {preview}";
     }
 
@@ -2195,7 +2196,7 @@ public partial class CareerHubScreen : Control
         }
 
         var targetPreview = view.ListedTargets.Take(2)
-            .Select(t => $"T#{t.TargetId} P{t.PlayerId}")
+            .Select(t => _controller.GetPlayerDisplayName(t.PlayerId))
             .ToArray();
         _shortlistTargetLabel.Text =
             $"Shortlist {view.ActiveShortlistCount} · hedef {view.ListedTargetCount}"
@@ -2219,7 +2220,7 @@ public partial class CareerHubScreen : Control
 
         var preview = string.Join(
             " · ",
-            needs.OpenNeeds.Take(3).Select(n => $"#{n.NeedId} {n.KindName} (P{n.Priority})"));
+            needs.OpenNeeds.Take(3).Select(n => $"{n.KindName} (öncelik {n.Priority})"));
         _transferNeedLabel.Text =
             $"Transfer ihtiyacı: {needs.OpenCount} açık · {preview}"
             + (needs.OpenCount > 3 ? "…" : string.Empty);
@@ -2551,7 +2552,7 @@ public partial class CareerHubScreen : Control
         var preview = string.Join(
             " · ",
             promises.RecentActive.Select(p =>
-                $"{p.KindName} oyuncu#{p.PromiseeId} {p.ProgressCount}/{p.TargetCount}"));
+                $"{p.KindName} {_controller.GetPlayerDisplayName(p.PromiseeId)} {p.ProgressCount}/{p.TargetCount}"));
         _promiseLabel.Text =
             $"Sözler: {promises.ActiveCount} aktif"
             + (string.IsNullOrWhiteSpace(preview) ? string.Empty : $" — {preview}");
@@ -2572,7 +2573,7 @@ public partial class CareerHubScreen : Control
         var preview = string.Join(
             " · ",
             relationships.RecentActive.Select(r =>
-                $"oyuncu#{r.ObserverPlayerId} G:{r.TrustLabel}/S:{r.RespectLabel}/U:{r.CompatibilityLabel}"));
+                $"{_controller.GetPlayerDisplayName(r.ObserverPlayerId)} G:{r.TrustLabel}/S:{r.RespectLabel}/U:{r.CompatibilityLabel}"));
         _relationshipLabel.Text =
             $"İlişki: {relationships.ActiveCount} aktif"
             + (string.IsNullOrWhiteSpace(preview) ? string.Empty : $" — {preview}");
@@ -2665,12 +2666,8 @@ public partial class CareerHubScreen : Control
         _boardCounterButton.Disabled = counter is null || !counter.IsEligible;
         _pressCriticizeButton.Disabled = criticize is null || !criticize.IsEligible;
 
-        var preview = string.Join(
-            " · ",
-            pending.OpenRequests.Select(d =>
-                $"{d.KindName}{(d.IsHardBlocker ? " [zorunlu]" : string.Empty)} son:{d.DeadlineDayNumber}"));
         _decisionLabel.Text =
-            $"Kararlar: {pending.OpenCount} açık — cevaplar Bugün → Masada. {preview}";
+            $"Kararlar: {pending.OpenCount} açık — cevaplar Bugün → Masada. {desk.SupportingLine}";
 
         var awaiting = _controller.Host.InteractionModule.DialogueSessionStore.Sessions
             .Count(s => s.IsAwaitingPlayer);

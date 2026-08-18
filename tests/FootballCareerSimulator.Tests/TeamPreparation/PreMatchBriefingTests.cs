@@ -56,7 +56,7 @@ public sealed class PreMatchBriefingTests
                     12,
                     "İlk 11",
                     PreMatchPromiseTensionQueryService.PlacementBench,
-                    "Oyuncu#5 YEDEKTE — söz risk altında."),
+                    "Yedek kalan YEDEKTE — söz risk altında."),
             ]);
 
         var briefing = PreMatchBriefing.Compose(
@@ -117,7 +117,7 @@ public sealed class PreMatchBriefingTests
                     0,
                     "İlk 11",
                     PreMatchPromiseTensionQueryService.PlacementStarting,
-                    "Oyuncu#2 XI'da — söz yolunda."),
+                    "İlk 11 oyuncusu XI'da — söz yolunda."),
             ]);
 
         var briefing = PreMatchBriefing.Compose(

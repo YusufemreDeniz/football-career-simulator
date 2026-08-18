@@ -200,7 +200,7 @@ public sealed class MatchNightNarrativeTests
                     12,
                     "İlk 11",
                     PreMatchPromiseTensionQueryService.PlacementBench,
-                    "Oyuncu#5 YEDEKTE — söz risk altında."),
+                    "Yedek kalan YEDEKTE — söz risk altında."),
             ]);
 
         var briefing = PreMatchBriefing.Compose(

@@ -100,11 +100,14 @@ public sealed class TeamPreparationModule
         }
 
         var selectionQueries = new MatchSelectionQueryService(store, competitionStore, managerCareerStore);
+        var squadQueries = new SquadQueryService(clubSquadStore, playerCareerStore);
         var promiseTension = new PreMatchPromiseTensionQueryService(
             selectionQueries,
             store,
             clubSquadStore,
-            promiseStore);
+            promiseStore,
+            squadQueries,
+            timelineStore);
 
         return new TeamPreparationModule(
             store,
@@ -132,7 +135,7 @@ public sealed class TeamPreparationModule
                 clubSquadStore),
             selectionQueries,
             promiseTension,
-            new SquadQueryService(clubSquadStore, playerCareerStore),
+            squadQueries,
             new TacticPlanQueryService(tactics, managerCareerStore));
     }
 }

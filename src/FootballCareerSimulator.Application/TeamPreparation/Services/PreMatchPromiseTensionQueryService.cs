@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.SocialContinuity.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.SocialContinuity;
@@ -24,18 +25,24 @@ public sealed class PreMatchPromiseTensionQueryService
     private readonly MatchSelectionQueryService _selectionQueries;
     private readonly IMatchSelectionStore _selectionStore;
     private readonly IClubSquadStore _squadStore;
+    private readonly SquadQueryService? _squadQueries;
+    private readonly IWorldTimelineStore? _timelineStore;
     private IPromiseStore? _promiseStore;
 
     public PreMatchPromiseTensionQueryService(
         MatchSelectionQueryService selectionQueries,
         IMatchSelectionStore selectionStore,
         IClubSquadStore squadStore,
-        IPromiseStore? promiseStore = null)
+        IPromiseStore? promiseStore = null,
+        SquadQueryService? squadQueries = null,
+        IWorldTimelineStore? timelineStore = null)
     {
         _selectionQueries = selectionQueries ?? throw new ArgumentNullException(nameof(selectionQueries));
         _selectionStore = selectionStore ?? throw new ArgumentNullException(nameof(selectionStore));
         _squadStore = squadStore ?? throw new ArgumentNullException(nameof(squadStore));
         _promiseStore = promiseStore;
+        _squadQueries = squadQueries;
+        _timelineStore = timelineStore;
     }
 
     public void BindPromiseStore(IPromiseStore promiseStore) =>
@@ -94,13 +101,14 @@ public sealed class PreMatchPromiseTensionQueryService
             var member = squad?.Members.FirstOrDefault(m => m.PlayerId.Value == promise.Promisee.Id);
             if (member is null)
             {
+                var missingName = ResolvePlayerName(clubId, slotIndex: -1);
                 lines.Add(new PreMatchPromiseTensionLine(
                     promise.PromiseId.Value,
                     promise.Promisee.Id,
                     SlotIndex: -1,
                     kindName,
                     PlacementOut,
-                    $"Oyuncu#{promise.Promisee.Id} kadroda değil — {kindName} sözü risk altında."));
+                    $"{missingName} kadroda değil — {kindName} sözü risk altında."));
                 continue;
             }
 
@@ -110,7 +118,8 @@ public sealed class PreMatchPromiseTensionQueryService
                     ? PlacementBench
                     : PlacementOut;
 
-            var summary = BuildSummary(promise.Kind, promise.Promisee.Id, member.SlotIndex, placement);
+            var playerName = ResolvePlayerName(clubId, member.SlotIndex);
+            var summary = BuildSummary(promise.Kind, playerName, placement);
             lines.Add(new PreMatchPromiseTensionLine(
                 promise.PromiseId.Value,
                 promise.Promisee.Id,
@@ -143,31 +152,46 @@ public sealed class PreMatchPromiseTensionQueryService
 
     private static string BuildSummary(
         PromiseKind kind,
-        long playerId,
-        int slotIndex,
+        string playerName,
         string placement) =>
         kind switch
         {
             PromiseKind.StartingOpportunity => placement switch
             {
                 PlacementStarting =>
-                    $"Oyuncu#{playerId} (slot {slotIndex}) XI'da — İlk 11 sözü yolunda.",
+                    $"{playerName} XI'da — İlk 11 sözü yolunda.",
                 PlacementBench =>
-                    $"Oyuncu#{playerId} (slot {slotIndex}) YEDEKTE — İlk 11 sözü risk altında.",
+                    $"{playerName} YEDEKTE — İlk 11 sözü risk altında.",
                 _ =>
-                    $"Oyuncu#{playerId} (slot {slotIndex}) maç günü kadrosunda değil — İlk 11 sözü risk altında.",
+                    $"{playerName} maç günü kadrosunda değil — İlk 11 sözü risk altında.",
             },
             PromiseKind.PlayingTime => placement switch
             {
                 PlacementStarting =>
-                    $"Oyuncu#{playerId} (slot {slotIndex}) XI'da — oyun süresi sözü yolunda.",
+                    $"{playerName} XI'da — oyun süresi sözü yolunda.",
                 PlacementBench =>
-                    $"Oyuncu#{playerId} (slot {slotIndex}) YEDEKTE — oyun süresi sözü yolunda.",
+                    $"{playerName} YEDEKTE — oyun süresi sözü yolunda.",
                 _ =>
-                    $"Oyuncu#{playerId} (slot {slotIndex}) maç günü kadrosunda değil — oyun süresi sözü risk altında.",
+                    $"{playerName} maç günü kadrosunda değil — oyun süresi sözü risk altında.",
             },
-            _ => $"Oyuncu#{playerId} söz durumu belirsiz.",
+            _ => $"{playerName} söz durumu belirsiz.",
         };
+
+    private string ResolvePlayerName(ClubId clubId, int slotIndex)
+    {
+        if (slotIndex >= 0 && _squadQueries is not null)
+        {
+            var seed = _timelineStore?.Timeline.RootSeed ?? 0;
+            var match = _squadQueries.GetClubSquad(clubId.Value, seed)
+                .FirstOrDefault(player => player.SlotIndex == slotIndex);
+            if (!string.IsNullOrWhiteSpace(match?.DisplayName))
+            {
+                return match.DisplayName;
+            }
+        }
+
+        return "Oyuncu";
+    }
 
     private (IReadOnlyList<int> Starting, IReadOnlyList<int> Bench) ResolveSlots(
         long fixtureId,

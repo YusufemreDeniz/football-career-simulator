@@ -46,6 +46,9 @@ public sealed class PreMatchPromiseTensionTests
         Assert.True(tension!.HasTension);
         Assert.Equal(PreMatchPromiseTensionQueryService.ToneAtRisk, tension.ToneCode);
         Assert.Contains("YEDEKTE", tension.Headline, StringComparison.Ordinal);
+        Assert.DoesNotContain("Oyuncu#", tension.Headline, StringComparison.Ordinal);
+        Assert.DoesNotContain("slot", tension.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("#", tension.Headline, StringComparison.Ordinal);
         Assert.Equal(
             PreMatchPromiseTensionQueryService.PlacementBench,
             tension.Lines.Single().PlacementCode);
@@ -73,6 +76,8 @@ public sealed class PreMatchPromiseTensionTests
         Assert.NotNull(tension);
         Assert.Equal(PreMatchPromiseTensionQueryService.ToneOnTrack, tension!.ToneCode);
         Assert.Contains("XI'da", tension.Headline, StringComparison.Ordinal);
+        Assert.DoesNotContain("Oyuncu#", tension.Headline, StringComparison.Ordinal);
+        Assert.DoesNotContain("#", tension.Headline, StringComparison.Ordinal);
     }
 
     private static void AdvanceToManagedMatchday(

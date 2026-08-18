@@ -146,8 +146,11 @@ public sealed class CareerSessionController
 
             if (pending.IsApproved)
             {
+                var alreadyOpponent = GetClubDisplayName(pending.OpponentClubId);
+                var alreadyVenue = pending.IsHome ? "ev sahibi" : "deplasman";
                 return UiActionResult.Ok(
-                    $"Kadro zaten onaylı: fikstür #{pending.FixtureId} ({pending.ScheduledIsoDate}).");
+                    $"Kadro zaten onaylı: {alreadyVenue} vs {alreadyOpponent}"
+                    + $" ({GameDate.ToDisplayDateString(pending.ScheduledDayNumber)}).");
             }
 
             var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
@@ -166,7 +169,7 @@ public sealed class CareerSessionController
                 ? string.Empty
                 : $" · {approval.AutoSwapSummary}";
             var message =
-                $"Kadro onaylandı: fikstür #{pending.FixtureId} · {venue} vs {opponent}{swapNote}.";
+                $"Kadro onaylandı: {venue} vs {opponent}{swapNote}.";
 
             var tempoOffice = PostMatchOfficeDigest.AfterMoodTempoShift(
                 moodBefore.MoodCode,
