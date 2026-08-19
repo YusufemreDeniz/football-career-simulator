@@ -3043,6 +3043,16 @@ public sealed class CareerSessionController
                 ? $"Disiplin görüşmesi açıldı — {named[0]} kırmızı gördü."
                 : "Disiplin görüşmesi açıldı.";
         }
+
+        if (c.FormerClubEncounter)
+        {
+            yield return "Eski kulüple yeniden karşılaşma kariyer hafızasına işlendi.";
+        }
+
+        if (c.FormerPlayerEncounterCount > 0)
+        {
+            yield return $"{c.FormerPlayerEncounterCount} eski futbolcuyla bağ yeniden canlandı.";
+        }
     }
 
     private static IEnumerable<string> FormatMatchKeyMoments(
@@ -3160,6 +3170,16 @@ public sealed class CareerSessionController
             yield return named is { Length: > 0 }
                 ? $"{header} · disiplin görüşmesi açıldı — {named[0]} kırmızı gördü."
                 : $"{header} · disiplin görüşmesi açıldı.";
+        }
+
+        if (c.FormerClubEncounter)
+        {
+            yield return $"{header} · eski kulüple yeniden karşılaşma kariyer hafızasına işlendi.";
+        }
+
+        if (c.FormerPlayerEncounterCount > 0)
+        {
+            yield return $"{header} · {c.FormerPlayerEncounterCount} eski futbolcuyla bağ yeniden canlandı.";
         }
     }
 
@@ -3331,10 +3351,28 @@ public sealed class CareerSessionController
     public CareerLegacyDigest BuildCareerLegacyDigest()
     {
         var career = Host.ManagerModule.Store.Career;
+        var employmentHistory = career.EmploymentHistory
+            .Select(entry => new CareerEmploymentLegacySource(
+                GetClubDisplayName(entry.ClubId.Value),
+                entry.StartedAt.DayNumber,
+                entry.EndedAt.DayNumber,
+                entry.EndReason.ToString(),
+                entry.FinalBoardConfidence))
+            .ToList();
         if (career.ActiveEmployment is not { } employment)
         {
-            return CareerLegacyDigest.Empty();
+            return CareerLegacyDigest.WithoutActiveEmployment(
+                career.DisplayName,
+                career.Reputation.Value,
+                employmentHistory);
         }
+
+        employmentHistory.Add(new CareerEmploymentLegacySource(
+            GetClubDisplayName(employment.ClubId.Value),
+            employment.StartedAt.DayNumber,
+            EndedDayNumber: null,
+            EndReason: null,
+            employment.BoardConfidence.Value));
 
         var timeline = Host.WorldModule.TimelineStore.Timeline;
         var clubId = employment.ClubId;
@@ -3401,7 +3439,8 @@ public sealed class CareerSessionController
                 ? 0
                 : (int)Math.Round(squadCareers.Average(player => player.AgeYears(timeline.CurrentDate))),
             expiring,
-            seasons);
+            seasons,
+            employmentHistory);
     }
 
     public TacticPlanReadModel GetManagedTacticPlan() =>

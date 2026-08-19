@@ -28,7 +28,8 @@ internal static class ManagerSnapshotMapper
         int? pendingOfferStatus = null,
         int? pendingOfferCreatedDayNumber = null,
         int? managerReputation = null,
-        string? lastReputationReasonCode = null)
+        string? lastReputationReasonCode = null,
+        IReadOnlyList<EmploymentHistoryEntry>? employmentHistory = null)
     {
         JobOffer? pendingOffer = null;
         if (pendingOfferId is long offerId
@@ -71,7 +72,8 @@ internal static class ManagerSnapshotMapper
                     : null,
                 pendingJobOffer: pendingOffer,
                 reputation: reputation,
-                lastReputationReasonCode: lastReputationReasonCode);
+                lastReputationReasonCode: lastReputationReasonCode,
+                employmentHistory: employmentHistory);
         }
 
         if (employmentStartedDayNumber is null)
@@ -115,6 +117,7 @@ internal static class ManagerSnapshotMapper
             dismissedAt: null,
             pendingJobOffer: null,
             reputation: reputation,
-            lastReputationReasonCode: lastReputationReasonCode);
+            lastReputationReasonCode: lastReputationReasonCode,
+            employmentHistory: employmentHistory);
     }
 }

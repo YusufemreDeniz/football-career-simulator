@@ -21,6 +21,7 @@ public sealed class RelationshipEvaluationService
     public const string PlayerLeftDormantRuleId = "PlayerLeftDormant";
     public const string ManagerLeftDormantRuleId = "ManagerLeftDormant";
     public const string ManagerHiredReactivateRuleId = "ManagerHiredReactivate";
+    public const string FormerPlayerEncounterReactivateRuleId = "FormerPlayerEncounterReactivate";
     public const string DecisionPlayingTimeGrantedRuleId = "DecisionPlayingTimeGranted";
     public const string DecisionPlayingTimeRefusedRuleId = "DecisionPlayingTimeRefused";
     public const string DecisionPlayingTimeExpiredRuleId = "DecisionPlayingTimeExpired";
@@ -180,6 +181,30 @@ public sealed class RelationshipEvaluationService
         }
 
         return updated;
+    }
+
+    public IReadOnlyList<PlayerId> ReactivateForFormerPlayerEncounter(
+        ManagerId managerId,
+        IReadOnlyCollection<PlayerId> opponentPlayerIds,
+        GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(opponentPlayerIds);
+        var opponentIds = opponentPlayerIds.Select(playerId => playerId.Value).ToHashSet();
+        var reactivated = new List<PlayerId>();
+        foreach (var relationship in _store.Relationships
+                     .Where(record =>
+                         record.Status == RelationshipStatus.Dormant
+                         && record.Subject == new ActorRef(ActorKind.Manager, managerId.Value)
+                         && record.Observer.Kind == ActorKind.Player
+                         && opponentIds.Contains(record.Observer.Id))
+                     .OrderBy(record => record.Observer.Id)
+                     .ToArray())
+        {
+            _store.Upsert(relationship.Reactivate(FormerPlayerEncounterReactivateRuleId, day));
+            reactivated.Add(new PlayerId(relationship.Observer.Id));
+        }
+
+        return reactivated;
     }
 
     public int ApplyDecisionRequestOutcome(DecisionRequest request, GameDate day)

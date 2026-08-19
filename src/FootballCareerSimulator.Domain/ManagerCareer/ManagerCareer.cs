@@ -17,7 +17,8 @@ public sealed class ManagerCareer
         GameDate? dismissedAt,
         JobOffer? pendingJobOffer,
         ManagerReputation reputation,
-        string? lastReputationReasonCode)
+        string? lastReputationReasonCode,
+        IReadOnlyList<EmploymentHistoryEntry> employmentHistory)
     {
         ManagerId = managerId;
         DisplayName = displayName;
@@ -30,6 +31,7 @@ public sealed class ManagerCareer
         PendingJobOffer = pendingJobOffer;
         Reputation = reputation;
         LastReputationReasonCode = lastReputationReasonCode;
+        EmploymentHistory = employmentHistory;
     }
 
     public ManagerId ManagerId { get; }
@@ -53,6 +55,8 @@ public sealed class ManagerCareer
     public ManagerReputation Reputation { get; }
 
     public string? LastReputationReasonCode { get; }
+
+    public IReadOnlyList<EmploymentHistoryEntry> EmploymentHistory { get; }
 
     public bool IsEmployed =>
         EmploymentStatus == ManagerEmploymentStatus.Employed && ActiveEmployment is not null;
@@ -85,7 +89,8 @@ public sealed class ManagerCareer
             dismissedAt: null,
             pendingJobOffer: null,
             new ManagerReputation(ManagerReputation.DefaultInitialValue),
-            lastReputationReasonCode: null);
+            lastReputationReasonCode: null,
+            Array.Empty<EmploymentHistoryEntry>());
     }
 
     public static ManagerCareer StartNewCareerForClubStrength(
@@ -114,7 +119,8 @@ public sealed class ManagerCareer
         GameDate? dismissedAt,
         JobOffer? pendingJobOffer = null,
         ManagerReputation? reputation = null,
-        string? lastReputationReasonCode = null)
+        string? lastReputationReasonCode = null,
+        IReadOnlyList<EmploymentHistoryEntry>? employmentHistory = null)
     {
         if (employmentStatus == ManagerEmploymentStatus.Employed && activeEmployment is null)
         {
@@ -134,6 +140,16 @@ public sealed class ManagerCareer
                 "Employed manager cannot hold a pending job offer.");
         }
 
+        var history = employmentHistory?.ToArray() ?? Array.Empty<EmploymentHistoryEntry>();
+        for (var index = 1; index < history.Length; index++)
+        {
+            if (history[index].StartedAt.DayNumber < history[index - 1].StartedAt.DayNumber)
+            {
+                throw new ManagerCareerInvariantViolationException(
+                    "Employment history must be chronological.");
+            }
+        }
+
         return new ManagerCareer(
             managerId,
             displayName,
@@ -145,7 +161,8 @@ public sealed class ManagerCareer
             dismissedAt,
             pendingJobOffer,
             reputation ?? new ManagerReputation(ManagerReputation.DefaultInitialValue),
-            lastReputationReasonCode);
+            lastReputationReasonCode,
+            history);
     }
 
     public static ManagerCareer Rehydrate(
@@ -208,7 +225,8 @@ public sealed class ManagerCareer
             dismissedAt: null,
             pendingJobOffer: null,
             Reputation,
-            LastReputationReasonCode);
+            LastReputationReasonCode,
+            EmploymentHistory);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
     }
@@ -252,7 +270,8 @@ public sealed class ManagerCareer
             dismissedAt: null,
             pendingJobOffer: null,
             Reputation,
-            LastReputationReasonCode);
+            LastReputationReasonCode,
+            EmploymentHistory);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
     }
@@ -288,7 +307,8 @@ public sealed class ManagerCareer
             DismissedAt,
             PendingJobOffer,
             nextReputation,
-            reasonCode);
+            reasonCode,
+            EmploymentHistory);
 
         return ManagerReputationChangeResult.Applied(updatedCareer, delta, reasonCode);
     }
@@ -312,6 +332,13 @@ public sealed class ManagerCareer
                 "Dismissal requires Critical employment risk band.");
         }
 
+        var history = EmploymentHistory
+            .Append(EmploymentHistoryEntry.Complete(
+                ActiveEmployment,
+                dismissedAt,
+                EmploymentEndReason.Dismissed,
+                causationFixtureId))
+            .ToArray();
         var unemployed = new ManagerCareer(
             ManagerId,
             DisplayName,
@@ -323,7 +350,8 @@ public sealed class ManagerCareer
             dismissedAt: dismissedAt,
             pendingJobOffer: null,
             Reputation,
-            LastReputationReasonCode);
+            LastReputationReasonCode,
+            history);
 
         return DismissalResult.Applied(unemployed, ActiveEmployment.ClubId, causationFixtureId);
     }
@@ -366,7 +394,8 @@ public sealed class ManagerCareer
             DismissedAt,
             offer,
             Reputation,
-            LastReputationReasonCode);
+            LastReputationReasonCode,
+            EmploymentHistory);
 
         return JobOfferReceiveResult.Received(updated, offer);
     }
@@ -405,7 +434,8 @@ public sealed class ManagerCareer
             dismissedAt: null,
             pendingJobOffer: null,
             Reputation,
-            LastReputationReasonCode);
+            LastReputationReasonCode,
+            EmploymentHistory);
 
         return JobOfferAcceptResult.Accepted(employed, offer.Id, employment.ClubId);
     }

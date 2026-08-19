@@ -127,4 +127,6 @@ public sealed record ManagedMatchConsequenceSummary(
     long? PlayingTimeDemandPlayerId = null,
     bool BoardDemandOpened = false,
     bool DisciplineOpened = false,
-    long? DisciplinePlayerId = null);
+    long? DisciplinePlayerId = null,
+    bool FormerClubEncounter = false,
+    int FormerPlayerEncounterCount = 0);

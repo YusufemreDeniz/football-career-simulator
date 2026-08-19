@@ -116,7 +116,7 @@ public sealed class ClubOfferTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(44, loaded.SchemaVersion);
+        Assert.Equal(45, loaded.SchemaVersion);
         Assert.Single(loaded.ClubOffers);
         Assert.Equal(6_000_000, loaded.ClubOffers[0].OfferedFee);
         Assert.Equal(ClubOfferStatus.Pending, loaded.ClubOffers[0].Status);

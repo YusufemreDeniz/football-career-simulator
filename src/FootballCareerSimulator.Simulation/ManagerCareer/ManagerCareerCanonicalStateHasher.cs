@@ -70,6 +70,21 @@ public static class ManagerCareerCanonicalStateHasher
             builder.Append("LastAssessmentReasonCode=").Append(';');
         }
 
+        foreach (var entry in career.EmploymentHistory)
+        {
+            builder.Append("HistoryClub=").Append(entry.ClubId.Value).Append(';');
+            builder.Append("HistoryStart=").Append(entry.StartedAt.DayNumber).Append(';');
+            builder.Append("HistoryEnd=").Append(entry.EndedAt.DayNumber).Append(';');
+            builder.Append("HistoryReason=").Append((int)entry.EndReason).Append(';');
+            builder.Append("HistoryConfidence=").Append(entry.FinalBoardConfidence).Append(';');
+            builder.Append("HistoryFixture=")
+                .Append(entry.CausationFixtureId?.Value.ToString() ?? string.Empty)
+                .Append(';');
+            builder.Append("HistoryAssessment=")
+                .Append(entry.FinalAssessmentReasonCode ?? string.Empty)
+                .Append(';');
+        }
+
         return builder.ToString();
     }
 }

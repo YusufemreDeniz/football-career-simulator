@@ -180,7 +180,7 @@ public sealed class TransferNeedTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(44, loaded.SchemaVersion);
+        Assert.Equal(45, loaded.SchemaVersion);
         Assert.Single(loaded.TransferNeeds);
         Assert.Equal(TransferNeedKind.ExpiringContract, loaded.TransferNeeds[0].Kind);
         Assert.Equal(TransferNeedStatus.Open, loaded.TransferNeeds[0].Status);

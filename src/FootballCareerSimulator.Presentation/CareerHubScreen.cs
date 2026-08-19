@@ -2018,6 +2018,11 @@ public partial class CareerHubScreen : Control
         _careerLegacyRecordLabel.Text = $"{legacy.RecordLine}\n{legacy.NextMilestoneLine}";
         _careerLegacyDevelopmentLabel.Text = legacy.DevelopmentLine;
         _careerSeasonList.Clear();
+        foreach (var employment in legacy.Employments)
+        {
+            _careerSeasonList.AddItem(employment.ToDisplayText());
+        }
+
         foreach (var season in legacy.Seasons)
         {
             _careerSeasonList.AddItem(season.ToDisplayText());

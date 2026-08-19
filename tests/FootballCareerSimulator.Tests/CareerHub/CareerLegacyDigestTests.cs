@@ -31,4 +31,24 @@ public sealed class CareerLegacyDigestTests
         Assert.Equal(2, digest.Seasons.Count);
         Assert.Contains("1/18. sıra", digest.Seasons[0].Finish, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void WithoutActiveEmployment_KeepsCompletedClubHistoryVisible()
+    {
+        var digest = CareerLegacyDigest.WithoutActiveEmployment(
+            "Teknik Direktör",
+            reputation: 58,
+            [new CareerEmploymentLegacySource(
+                "Eski Kulüp",
+                StartedDayNumber: 100,
+                EndedDayNumber: 500,
+                EndReason: "Dismissed",
+                BoardConfidence: 27)]);
+
+        Assert.True(digest.HasCareer);
+        Assert.Contains("işsiz", digest.Headline, StringComparison.Ordinal);
+        var employment = Assert.Single(digest.Employments);
+        Assert.Contains("Eski Kulüp", employment.ToDisplayText(), StringComparison.Ordinal);
+        Assert.Contains("Görevden alındı", employment.Outcome, StringComparison.Ordinal);
+    }
 }

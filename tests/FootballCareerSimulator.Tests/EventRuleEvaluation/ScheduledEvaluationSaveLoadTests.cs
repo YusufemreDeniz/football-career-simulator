@@ -85,7 +85,7 @@ public sealed class ScheduledEvaluationSaveLoadTests : IDisposable
             scheduledEvaluations: [pending]);
 
         var loaded = _persistence.Load(path);
-        Assert.Equal(44, loaded.SchemaVersion);
+        Assert.Equal(45, loaded.SchemaVersion);
         Assert.NotNull(loaded.ScheduledEvaluations);
         Assert.Single(loaded.ScheduledEvaluations!);
         var restored = loaded.ScheduledEvaluations![0];

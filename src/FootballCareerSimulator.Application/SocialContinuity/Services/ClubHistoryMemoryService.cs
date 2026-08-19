@@ -95,6 +95,50 @@ public sealed class ClubHistoryMemoryService
         return created;
     }
 
+    public int RecordFormerClubEncounter(
+        ManagerId managerId,
+        ClubId formerClubId,
+        FixtureId fixtureId,
+        GameDate day)
+    {
+        var remembering = new ActorRef(ActorKind.Manager, managerId.Value);
+        var sourceKey = MemoryRecord.BuildFormerClubEncounterSourceKey(fixtureId, day);
+        if (Exists(
+                sourceKey,
+                remembering,
+                MemoryRecord.FormerClubEncounterRuleId,
+                MemoryRecord.FormerClubEncounterRuleVersion))
+        {
+            return 0;
+        }
+
+        _store.Upsert(MemoryRecord.CreateFormerClubEncounter(
+            NextId(), managerId, formerClubId, fixtureId, day));
+        return 1;
+    }
+
+    public int RecordFormerPlayerEncounter(
+        ManagerId managerId,
+        PlayerId playerId,
+        FixtureId fixtureId,
+        GameDate day)
+    {
+        var remembering = new ActorRef(ActorKind.Manager, managerId.Value);
+        var sourceKey = MemoryRecord.BuildFormerPlayerEncounterSourceKey(fixtureId, playerId, day);
+        if (Exists(
+                sourceKey,
+                remembering,
+                MemoryRecord.FormerPlayerEncounterRuleId,
+                MemoryRecord.FormerPlayerEncounterRuleVersion))
+        {
+            return 0;
+        }
+
+        _store.Upsert(MemoryRecord.CreateFormerPlayerEncounter(
+            NextId(), managerId, playerId, fixtureId, day));
+        return 1;
+    }
+
     private bool TryCreatePlayerLeft(
         PlayerId playerId,
         ClubId sellingClubId,

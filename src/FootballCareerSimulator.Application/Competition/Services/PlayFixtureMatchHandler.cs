@@ -220,6 +220,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             simulation.KeyMoments,
             occurredAt);
         ApplyRelationshipSelectionEffects(fixture, occurredAt);
+        var reencounter = ApplyFormerEncounters(fixture, managedClubBefore, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
         var invalidated = 0;
@@ -256,7 +257,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 playingTimeDemand?.SubjectPlayerId.Value,
                 board?.BoardDemandOpened ?? false,
                 disciplineDemand is not null,
-                disciplineDemand?.SubjectPlayerId.Value);
+                disciplineDemand?.SubjectPlayerId.Value,
+                reencounter.FormerClubEncounter,
+                reencounter.FormerPlayerCount);
         }
 
         var keyMoments = simulation.KeyMoments
@@ -312,6 +315,53 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     }
 
     public void ResetIdempotencyCache() => _completedCommands.Clear();
+
+    private (bool FormerClubEncounter, int FormerPlayerCount) ApplyFormerEncounters(
+        Fixture fixture,
+        ClubId? managedClubId,
+        GameDate day)
+    {
+        if (managedClubId is not ClubId currentClub
+            || _managerCareerStore is null
+            || (fixture.HomeClubId != currentClub && fixture.AwayClubId != currentClub))
+        {
+            return (false, 0);
+        }
+
+        var career = _managerCareerStore.Career;
+        var opponentClub = fixture.HomeClubId == currentClub
+            ? fixture.AwayClubId
+            : fixture.HomeClubId;
+        var formerClubEncounter = career.EmploymentHistory.Any(entry => entry.ClubId == opponentClub);
+        if (formerClubEncounter)
+        {
+            _clubHistoryMemory?.RecordFormerClubEncounter(
+                career.ManagerId,
+                opponentClub,
+                fixture.Id,
+                day);
+        }
+
+        var opponentPlayers = (_clubSquadStore?.Get(opponentClub)?.Members
+                ?? Array.Empty<SquadMember>())
+            .Select(member => member.PlayerId)
+            .ToArray();
+        var formerPlayers = _relationships?.ReactivateForFormerPlayerEncounter(
+                career.ManagerId,
+                opponentPlayers,
+                day)
+            ?? Array.Empty<PlayerId>();
+        foreach (var playerId in formerPlayers)
+        {
+            _clubHistoryMemory?.RecordFormerPlayerEncounter(
+                career.ManagerId,
+                playerId,
+                fixture.Id,
+                day);
+        }
+
+        return (formerClubEncounter, formerPlayers.Count);
+    }
 
     private sealed record BoardConsequenceSummary(
         int? ConfidenceDelta,

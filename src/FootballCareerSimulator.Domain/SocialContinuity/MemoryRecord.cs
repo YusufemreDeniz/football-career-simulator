@@ -37,6 +37,10 @@ public sealed class MemoryRecord
     public const int ClubHistoryLeftTransferRuleVersion = 1;
     public const string ClubHistoryJoinedTransferRuleId = "ClubHistoryJoinedTransfer";
     public const int ClubHistoryJoinedTransferRuleVersion = 1;
+    public const string FormerClubEncounterRuleId = "FormerClubEncounter";
+    public const int FormerClubEncounterRuleVersion = 1;
+    public const string FormerPlayerEncounterRuleId = "FormerPlayerEncounter";
+    public const int FormerPlayerEncounterRuleVersion = 1;
     public const string MatchBlowoutRuleId = "MatchBlowout";
     public const int MatchBlowoutRuleVersion = 1;
     public const int MatchBlowoutMinGoalDifference = 3;
@@ -777,6 +781,62 @@ public sealed class MemoryRecord
             ClubHistoryJoinedTransferRuleVersion);
     }
 
+    public static MemoryRecord CreateFormerClubEncounter(
+        MemoryId memoryId,
+        ManagerId managerId,
+        ClubId formerClubId,
+        FixtureId fixtureId,
+        GameDate day)
+    {
+        const int importance = 72;
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Manager, managerId.Value),
+            MemorySubjectKind.Club,
+            formerClubId.Value,
+            BuildFormerClubEncounterSourceKey(fixtureId, day),
+            MemoryCategory.ClubHistory,
+            day,
+            day,
+            importance,
+            importance,
+            MemoryValence.Neutral,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            FormerClubEncounterRuleId,
+            FormerClubEncounterRuleVersion);
+    }
+
+    public static MemoryRecord CreateFormerPlayerEncounter(
+        MemoryId memoryId,
+        ManagerId managerId,
+        PlayerId playerId,
+        FixtureId fixtureId,
+        GameDate day)
+    {
+        const int importance = 68;
+        return new MemoryRecord(
+            memoryId,
+            new ActorRef(ActorKind.Manager, managerId.Value),
+            MemorySubjectKind.Player,
+            playerId.Value,
+            BuildFormerPlayerEncounterSourceKey(fixtureId, playerId, day),
+            MemoryCategory.Relationship,
+            day,
+            day,
+            importance,
+            importance,
+            MemoryValence.Neutral,
+            MemoryVisibility.Private,
+            MemoryStatus.Active,
+            reinforcementCount: 0,
+            relatedPromiseId: null,
+            FormerPlayerEncounterRuleId,
+            FormerPlayerEncounterRuleVersion);
+    }
+
     public static MemoryRecord CreateMatchBlowout(
         MemoryId memoryId,
         ActorRef rememberingActor,
@@ -1145,6 +1205,15 @@ public sealed class MemoryRecord
 
     public static string BuildClubHistoryJoinedTransferSourceKey(TransferProcessId processId) =>
         $"ClubHistoryJoinedTransfer:{processId.Value}";
+
+    public static string BuildFormerClubEncounterSourceKey(FixtureId fixtureId, GameDate day) =>
+        $"Fixture:{fixtureId.Value}:Day:{day.DayNumber}:FormerClub";
+
+    public static string BuildFormerPlayerEncounterSourceKey(
+        FixtureId fixtureId,
+        PlayerId playerId,
+        GameDate day) =>
+        $"Fixture:{fixtureId.Value}:Day:{day.DayNumber}:FormerPlayer:{playerId.Value}";
 
     public static string BuildMatchBlowoutSourceKey(FixtureId fixtureId, ActorRef rememberingActor) =>
         $"MatchBlowout:{fixtureId.Value}:{rememberingActor.Kind}:{rememberingActor.Id}";

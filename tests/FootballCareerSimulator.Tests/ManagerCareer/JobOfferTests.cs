@@ -77,6 +77,10 @@ public sealed class JobOfferTests : IDisposable
         Assert.Null(module.Store.Career.PendingJobOffer);
         Assert.Null(module.Store.Career.DismissedAt);
         Assert.Equal(accepted.ClubId, module.Store.Career.ActiveEmployment!.ClubId.Value);
+        var priorEmployment = Assert.Single(module.Store.Career.EmploymentHistory);
+        Assert.Equal(1, priorEmployment.ClubId.Value);
+        Assert.Equal(EmploymentEndReason.Dismissed, priorEmployment.EndReason);
+        Assert.Equal(new FixtureId(1), priorEmployment.CausationFixtureId);
     }
 
     [Fact]
@@ -131,11 +135,16 @@ public sealed class JobOfferTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(44, loaded.SchemaVersion);
+        Assert.Equal(45, loaded.SchemaVersion);
         Assert.NotNull(loaded.ManagerCareer.PendingJobOffer);
         Assert.Equal(
             module.Store.Career.PendingJobOffer!.ClubId.Value,
             loaded.ManagerCareer.PendingJobOffer!.ClubId.Value);
         Assert.Equal(JobOfferStatus.Offered, loaded.ManagerCareer.PendingJobOffer.Status);
+        var history = Assert.Single(loaded.ManagerCareer.EmploymentHistory);
+        Assert.Equal(1, history.ClubId.Value);
+        Assert.Equal(Day, history.EndedAt);
+        Assert.Equal(EmploymentEndReason.Dismissed, history.EndReason);
+        Assert.Equal(26, history.FinalBoardConfidence);
     }
 }

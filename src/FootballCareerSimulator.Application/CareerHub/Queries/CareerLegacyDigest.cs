@@ -1,5 +1,22 @@
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
+using FootballCareerSimulator.Domain.WorldCalendar;
+
+public sealed record CareerEmploymentLegacySource(
+    string ClubName,
+    int StartedDayNumber,
+    int? EndedDayNumber,
+    string? EndReason,
+    int BoardConfidence);
+
+public sealed record CareerEmploymentLegacyLine(
+    string ClubName,
+    string Period,
+    string Outcome)
+{
+    public string ToDisplayText() => $"Görev · {ClubName} · {Period}\n{Outcome}";
+}
+
 public sealed record CareerSeasonLegacySource(
     long SeasonId,
     string Status,
@@ -30,10 +47,27 @@ public sealed record CareerLegacyDigest(
     string RecordLine,
     string DevelopmentLine,
     string NextMilestoneLine,
-    IReadOnlyList<CareerSeasonLegacyLine> Seasons)
+    IReadOnlyList<CareerSeasonLegacyLine> Seasons,
+    IReadOnlyList<CareerEmploymentLegacyLine> Employments)
 {
     public static CareerLegacyDigest Empty() =>
-        new(false, "Kariyer mirası: kulüp görevi yok.", "Maç kaydı yok.", "Gelişim kaydı yok.", "Sıradaki hedef: kulüp görevi bul.", Array.Empty<CareerSeasonLegacyLine>());
+        new(false, "Kariyer mirası: kulüp görevi yok.", "Maç kaydı yok.", "Gelişim kaydı yok.", "Sıradaki hedef: kulüp görevi bul.", Array.Empty<CareerSeasonLegacyLine>(), Array.Empty<CareerEmploymentLegacyLine>());
+
+    public static CareerLegacyDigest WithoutActiveEmployment(
+        string managerName,
+        int reputation,
+        IReadOnlyList<CareerEmploymentLegacySource> employments)
+    {
+        var lines = ComposeEmployments(employments);
+        return new CareerLegacyDigest(
+            lines.Count > 0,
+            $"{managerName} · işsiz · itibar {reputation}",
+            $"Kariyer: {lines.Count} tamamlanmış kulüp görevi.",
+            "Kadro mirası yeni görevle devam edecek.",
+            "Sıradaki hedef: geçerli bir iş teklifini değerlendir.",
+            Array.Empty<CareerSeasonLegacyLine>(),
+            lines);
+    }
 
     public static CareerLegacyDigest Compose(
         string managerName,
@@ -44,7 +78,8 @@ public sealed record CareerLegacyDigest(
         int developedPlayerCount,
         int averageSquadAge,
         int expiringContractCount,
-        IReadOnlyList<CareerSeasonLegacySource> seasons)
+        IReadOnlyList<CareerSeasonLegacySource> seasons,
+        IReadOnlyList<CareerEmploymentLegacySource>? employments = null)
     {
         ArgumentNullException.ThrowIfNull(seasons);
         var played = seasons.Sum(season => season.Played);
@@ -74,8 +109,30 @@ public sealed record CareerLegacyDigest(
             $"Kadro mirası: {developedPlayerCount} gelişim alan oyuncu · ortalama yaş {averageSquadAge}"
             + $" · 1 yıl içinde bitecek sözleşme {expiringContractCount}",
             NextMilestone(played, won, completed, bestRank),
-            lines);
+            lines,
+            ComposeEmployments(employments ?? Array.Empty<CareerEmploymentLegacySource>()));
     }
+
+    private static IReadOnlyList<CareerEmploymentLegacyLine> ComposeEmployments(
+        IReadOnlyList<CareerEmploymentLegacySource> employments) =>
+        employments
+            .OrderByDescending(employment => employment.StartedDayNumber)
+            .Select(employment => new CareerEmploymentLegacyLine(
+                employment.ClubName,
+                employment.EndedDayNumber is int ended
+                    ? $"{GameDate.ToDisplayDateString(employment.StartedDayNumber)}–{GameDate.ToDisplayDateString(ended)}"
+                    : $"{GameDate.ToDisplayDateString(employment.StartedDayNumber)}–devam",
+                employment.EndedDayNumber is null
+                    ? $"Aktif görev · yönetim {employment.BoardConfidence}"
+                    : $"{EndReasonLabel(employment.EndReason)} · kapanış yönetim {employment.BoardConfidence}"))
+            .ToArray();
+
+    private static string EndReasonLabel(string? reason) => reason switch
+    {
+        "Dismissed" => "Görevden alındı",
+        "Resigned" => "Ayrıldı",
+        _ => "Görev tamamlandı",
+    };
 
     private static string NextMilestone(int played, int won, int completed, int bestRank)
     {

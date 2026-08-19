@@ -346,7 +346,7 @@ public sealed class ClubSquadTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(44, loaded.SchemaVersion);
+        Assert.Equal(45, loaded.SchemaVersion);
         Assert.Single(loaded.ClubSquads);
         Assert.Equal(25, loaded.ClubSquads[0].Members.Count);
         Assert.Equal(1, loaded.ClubSquads[0].ClubId.Value);

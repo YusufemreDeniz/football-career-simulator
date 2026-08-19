@@ -131,6 +131,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertCompetition(connection, transaction, league);
             InsertClubs(connection, transaction, clubRegistry);
             InsertManager(connection, transaction, managerCareer);
+            InsertManagerEmploymentHistory(connection, transaction, managerCareer.EmploymentHistory);
             InsertMatchSelections(connection, transaction, matchSelections);
             InsertTrainingPlans(connection, transaction, trainingPlans);
             InsertPhysicalStates(connection, transaction, physicalStates);
@@ -489,6 +490,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 44;
         }
 
+        if (version == 44 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 45)
+        {
+            WorldCalendarSqliteMigrator.MigrateV44ToV45InPlace(filePath);
+            wasMigrated = true;
+            version = 45;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -628,6 +636,19 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 StartingSlotsCsv TEXT NOT NULL,
                 BenchSlotsCsv TEXT NOT NULL,
                 PRIMARY KEY (FixtureId, ClubId)
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE ManagerEmploymentHistoryState (
+                Ordinal INTEGER PRIMARY KEY,
+                ClubId INTEGER NOT NULL,
+                StartedDayNumber INTEGER NOT NULL,
+                EndedDayNumber INTEGER NOT NULL,
+                EndReason INTEGER NOT NULL,
+                FinalBoardConfidence INTEGER NOT NULL,
+                CausationFixtureId INTEGER NULL,
+                FinalAssessmentReasonCode TEXT NULL
             );
             """);
 
@@ -1189,6 +1210,38 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             "$lastReputationReasonCode",
             (object?)managerCareer.LastReputationReasonCode ?? DBNull.Value);
         command.ExecuteNonQuery();
+    }
+
+    private static void InsertManagerEmploymentHistory(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<EmploymentHistoryEntry> history)
+    {
+        for (var index = 0; index < history.Count; index++)
+        {
+            var entry = history[index];
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO ManagerEmploymentHistoryState (
+                    Ordinal, ClubId, StartedDayNumber, EndedDayNumber, EndReason,
+                    FinalBoardConfidence, CausationFixtureId, FinalAssessmentReasonCode)
+                VALUES ($ordinal, $clubId, $started, $ended, $reason, $confidence, $fixture, $assessment);
+                """;
+            command.Parameters.AddWithValue("$ordinal", index);
+            command.Parameters.AddWithValue("$clubId", entry.ClubId.Value);
+            command.Parameters.AddWithValue("$started", entry.StartedAt.DayNumber);
+            command.Parameters.AddWithValue("$ended", entry.EndedAt.DayNumber);
+            command.Parameters.AddWithValue("$reason", (int)entry.EndReason);
+            command.Parameters.AddWithValue("$confidence", entry.FinalBoardConfidence);
+            command.Parameters.AddWithValue(
+                "$fixture",
+                entry.CausationFixtureId is FixtureId fixture ? fixture.Value : DBNull.Value);
+            command.Parameters.AddWithValue(
+                "$assessment",
+                (object?)entry.FinalAssessmentReasonCode ?? DBNull.Value);
+            command.ExecuteNonQuery();
+        }
     }
 
     private static void InsertMatchSelections(
@@ -2439,6 +2492,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 clubSportiveStrength: 50);
         }
 
+        var employmentHistory = ReadManagerEmploymentHistory(connection);
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber,
@@ -2483,7 +2537,40 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             pendingOfferStatus: reader.FieldCount > 16 && !reader.IsDBNull(16) ? reader.GetInt32(16) : null,
             pendingOfferCreatedDayNumber: reader.FieldCount > 17 && !reader.IsDBNull(17) ? reader.GetInt32(17) : null,
             managerReputation: reader.FieldCount > 18 && !reader.IsDBNull(18) ? reader.GetInt32(18) : null,
-            lastReputationReasonCode: reader.FieldCount > 19 && !reader.IsDBNull(19) ? reader.GetString(19) : null);
+            lastReputationReasonCode: reader.FieldCount > 19 && !reader.IsDBNull(19) ? reader.GetString(19) : null,
+            employmentHistory: employmentHistory);
+    }
+
+    private static IReadOnlyList<EmploymentHistoryEntry> ReadManagerEmploymentHistory(
+        SqliteConnection connection)
+    {
+        if (!TableExists(connection, "ManagerEmploymentHistoryState"))
+        {
+            return Array.Empty<EmploymentHistoryEntry>();
+        }
+
+        var history = new List<EmploymentHistoryEntry>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ClubId, StartedDayNumber, EndedDayNumber, EndReason,
+                   FinalBoardConfidence, CausationFixtureId, FinalAssessmentReasonCode
+            FROM ManagerEmploymentHistoryState
+            ORDER BY Ordinal;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            history.Add(EmploymentHistoryEntry.Rehydrate(
+                new ClubId(reader.GetInt64(0)),
+                GameDate.FromDayNumber(reader.GetInt32(1)),
+                GameDate.FromDayNumber(reader.GetInt32(2)),
+                (EmploymentEndReason)reader.GetInt32(3),
+                reader.GetInt32(4),
+                reader.IsDBNull(5) ? null : new FixtureId(reader.GetInt64(5)),
+                reader.IsDBNull(6) ? null : reader.GetString(6)));
+        }
+
+        return history;
     }
 
     private static IReadOnlyList<MatchSelection> ReadMatchSelections(SqliteConnection connection)

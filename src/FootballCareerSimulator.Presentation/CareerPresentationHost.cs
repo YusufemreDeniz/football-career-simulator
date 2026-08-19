@@ -162,7 +162,6 @@ public sealed class CareerPresentationHost
         contractModule.Registration.BindRelationships(socialContinuity.RelationshipEvaluation);
         managerModule.AcceptJobOffer?.BindCareerMemory(socialContinuity.CareerMemory);
         managerModule.AcceptJobOffer?.BindClubHistoryMemory(socialContinuity.ClubHistoryMemory);
-        managerModule.AcceptJobOffer?.BindRelationships(socialContinuity.RelationshipEvaluation);
         var transferModule = TransferModule.Create(
             contractModule.Store,
             teamPreparation.SquadStore,
