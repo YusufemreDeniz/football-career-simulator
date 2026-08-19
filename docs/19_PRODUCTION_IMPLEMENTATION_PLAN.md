@@ -24,18 +24,19 @@
 Bu bölüm güncel repo durumunun authoritative özetidir. Bölüm 2 ve Bölüm 7'deki ayrıntılı spike/Production Kart anlatıları tarihsel planlama kaydı olarak korunur; “henüz başlamadı”, “36 test” ve “Kart 0 bloke” ifadeleri yalnız o tarihteki durumu anlatır ve bu kontrol noktasıyla geçersiz kılınmıştır.
 
 * Araç zinciri: `net9.0`, SDK `9.0.317/latestPatch`, Godot 4.7-stable mono/.NET, `Microsoft.Data.Sqlite 10.0.9` (D-384).
-* Kalite kapısı: 876/876 saf .NET test, Presentation build 0 hata/uyarı ve `CAREER_UI_SMOKE_TEST_RESULT=PASS`.
+* Kalite kapısı: 884/884 hızlı saf .NET test (`Category!=LongRunning`), 1/1 production 10 sezon kabul testi, Presentation build 0 hata/uyarı ve `CAREER_UI_SMOKE_TEST_RESULT=PASS`.
 * Üretim kapsamı: 14 bounded context'in production temelleri ile birleşik Career SQLite persistence ve Godot menü → kariyer merkezi → maç günü → maç sonucu akışı depoda mevcuttur.
+* Save/kariyer sürekliliği: V45; açıklanabilir emeklilik, benzersiz generation kimliği, sözleşme/kadro yenileme, employment history ve eski kulüp/futbolcuyla fikstür-temelli yeniden karşılaşma kalıcıdır (D-386–D-393).
 * Production Kart 0–6: tamamlandı. Spike placeholder'ları yalnız tarihsel kanıt/uyumluluk amacıyla ayrık namespace'lerde tutulur; oyuncu akışı bunlara dayanmaz.
 
 | MVP kilometre taşı | Güncel durum | Açık ana koşul |
 |---|---|---|
-| 1 — Tek sezonluk dikey kesit | Büyük ölçüde tamamlandı | Tam paket kalite kapısını her committe korumak ve gerçek cihaz akışını doğrulamak |
-| 2 — Aynı kulüpte çok sezon | Kısmi | Emeklilik, yeni futbolcu üretimi ve bütünleşik çok sezon kabul senaryosu |
-| 3 — İşten çıkarılma ve sınırlı kulüp değiştirme | Kısmi | Kalıcı kariyer geçmişi ve eski kulüp/futbolcuyla yeniden karşılaşma kanıtı |
-| 4 — 10 sezonluk MVP kabulü | Açık | Tüm context'leri kapsayan 10 sezon koşusu, save/load ve uzun dönem metrikleri |
+| 1 — Tek sezonluk dikey kesit | Otomatik kabul tamamlandı | Gerçek cihazda okunabilirlik, dokunma ve denge release onayı |
+| 2 — Aynı kulüpte çok sezon | Tamamlandı | D-386–D-391: emeklilik/generation, contract/squad/population sürekliliği |
+| 3 — İşten çıkarılma ve sınırlı kulüp değiştirme | Tamamlandı | D-392–D-393: V45 employment history ve fixture-temelli yeniden karşılaşma |
+| 4 — 10 sezonluk MVP kabulü | Tamamlandı | D-394: 18 kulüp, 450 aktif oyuncu, 3.060 fikstür, ara save/load, 7:11 Debug koşu |
 
-Sonraki uygulama sırası: kalite kapısı → doküman/araç zinciri uyumu → repository hijyeni → Kilometre Taşı 2 → Kilometre Taşı 3 → Kilometre Taşı 4 → nihai dokümantasyon denetimi.
+Sonraki uygulama sırası: hızlı ve long-running kalite kapılarını korumak → gerçek cihaz UX/denge kabulü → yalnız ölçülmüş oyuncu deneyimi bulgularına göre ürün cilası. Yeni yatay sistem açılması bu kabul durumunun parçası değildir.
 
 ---
 
@@ -755,10 +756,9 @@ Bu plan belgesi, aşağıdaki koşulların TAMAMI karşılandığında tamamlanm
 
 ## 11. Sonraki Adım — Güncel
 
-D-384 ile Production Kart 0 bloku kapanmış ve Kart 1–6 gerçek kodda tamamlanmıştır. Bir sonraki sıra yeni yatay özellik eklemek değil, MVP kilometre taşlarının açık bütünlük koşullarını kapatmaktır:
+D-384 ile Production Kart 0 bloku kapanmış, Kart 1–6 gerçek kodda tamamlanmış ve D-385–D-394 ile repository hijyeni ile MVP Kilometre Taşı 2–4 kapatılmıştır. Sıradaki iş yeni yatay özellik açmak değildir:
 
-1. Repository EOL/Godot import politikasını temiz ve tekrar üretilebilir hâle getirmek.
-2. Kilometre Taşı 2 için emeklilik, yeni futbolcu üretimi ve bütünleşik çok sezon testini tamamlamak.
-3. Kilometre Taşı 3 için kalıcı kariyer geçmişi ve yeniden karşılaşma sonuçlarını tamamlamak.
-4. Kilometre Taşı 4 için tüm context'leri kapsayan 10 sezonluk kabul koşusu ve save/load kanıtı üretmek.
-5. Son kanıtlardan sonra bu belgeyi ve `README.md`yi nihai sayılarla güncellemek.
+1. Hızlı 884 testlik kapıyı ve ayrı production 10 sezon soak testini regressionsız korumak.
+2. Kilometre Taşı 1'in kalan gerçek cihaz okunabilirlik, dokunma, performans ve denge kabulünü yapmak.
+3. Cihaz/oyuncu testinde ölçülen bulguları küçük ürün cilası commitleriyle kapatmak.
+4. Yeni schema veya sistem değişikliğinde V45 migration ve uzun dönem kabulünü yeniden çalıştırmak.
