@@ -16,7 +16,9 @@ public sealed class InMemoryPlayerCareerStore : IPlayerCareerStore
             .ToArray();
 
     public IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerCareerAggregate> ByClubSlot =>
-        _byId.Values.ToDictionary(c => (c.OriginClubId.Value, c.SlotIndex));
+        _byId.Values
+            .Where(c => !c.IsRetired)
+            .ToDictionary(c => (c.OriginClubId.Value, c.SlotIndex));
 
     public PlayerCareerAggregate? Get(ClubId clubId, int slotIndex) =>
         ByClubSlot.TryGetValue((clubId.Value, slotIndex), out var career) ? career : null;
@@ -42,7 +44,7 @@ public sealed class InMemoryPlayerCareerStore : IPlayerCareerStore
         ArgumentNullException.ThrowIfNull(careers);
 
         var removeIds = _byId.Values
-            .Where(c => c.OriginClubId == clubId)
+            .Where(c => c.OriginClubId == clubId && !c.IsRetired)
             .Select(c => c.Id.Value)
             .ToArray();
         foreach (var id in removeIds)

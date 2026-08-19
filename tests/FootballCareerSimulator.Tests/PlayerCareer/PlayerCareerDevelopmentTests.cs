@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.ClubGovernance.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Commands;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
@@ -68,6 +69,38 @@ public sealed class PlayerCareerDevelopmentTests : IDisposable
         Assert.Equal(69, aged.CurrentAbility);
         Assert.Equal(2026, aged.LastAgedCalendarYear);
         Assert.Equal(aged, aged.ApplyAnnualAging(Day));
+    }
+
+    [Fact]
+    public void Retire_EligiblePlayerBecomesImmutableHistory()
+    {
+        var retirementDay = GameDate.FromCalendarDate(2035, 7, 1);
+        var veteran = Domain.PlayerCareer.PlayerCareer.CreateForSlot(
+            new ClubId(1), 3, 70, 74, birthYear: 2000);
+
+        var retired = veteran.Retire(retirementDay);
+
+        Assert.True(retired.IsRetired);
+        Assert.Equal(CareerPhase.Retired, retired.GetPhase(retirementDay));
+        Assert.Equal(retirementDay, retired.RetiredOn);
+        Assert.Same(retired, retired.ApplyAnnualAging(retirementDay.AddDays(365)));
+        Assert.Same(retired, retired.ApplyDevelopmentGain(20, retirementDay.AddDays(1)));
+    }
+
+    [Fact]
+    public void GeneratedSuccessor_UsesNewIdentityWhileRetiredHistoryRemains()
+    {
+        var clubId = new ClubId(1);
+        var day = GameDate.FromCalendarDate(2035, 7, 1);
+        var retired = Domain.PlayerCareer.PlayerCareer.CreateForSlot(clubId, 3, 70, 74, 2000).Retire(day);
+        var successor = Domain.PlayerCareer.PlayerCareer.CreateGeneratedForSlot(
+            clubId, 3, 55, 72, 2018, generation: 1);
+        var store = new InMemoryPlayerCareerStore();
+        store.ReplaceAll([retired, successor]);
+
+        Assert.NotEqual(retired.Id, successor.Id);
+        Assert.Equal(successor.Id, store.Get(clubId, 3)!.Id);
+        Assert.Contains(store.Careers, career => career.Id == retired.Id && career.IsRetired);
     }
 
     [Fact]

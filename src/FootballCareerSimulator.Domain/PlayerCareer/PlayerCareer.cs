@@ -14,6 +14,7 @@ public sealed class PlayerCareer
     public const int MaxAbility = 99;
     public const int PeakStartAge = 24;
     public const int DeclineStartAge = 30;
+    public const int RetirementEligibleAge = 35;
 
     private PlayerCareer(
         PlayerId id,
@@ -24,7 +25,10 @@ public sealed class PlayerCareer
         int developmentPoints,
         GameDate? lastDevelopedOn,
         int birthYear,
-        int? lastAgedCalendarYear)
+        int? lastAgedCalendarYear,
+        PlayerLifecycleStatus lifecycleStatus,
+        GameDate? retiredOn,
+        int generation)
     {
         Id = id;
         OriginClubId = originClubId;
@@ -35,6 +39,9 @@ public sealed class PlayerCareer
         LastDevelopedOn = lastDevelopedOn;
         BirthYear = birthYear;
         LastAgedCalendarYear = lastAgedCalendarYear;
+        LifecycleStatus = lifecycleStatus;
+        RetiredOn = retiredOn;
+        Generation = generation;
     }
 
     public PlayerId Id { get; }
@@ -54,6 +61,14 @@ public sealed class PlayerCareer
     public int BirthYear { get; }
 
     public int? LastAgedCalendarYear { get; }
+
+    public PlayerLifecycleStatus LifecycleStatus { get; }
+
+    public GameDate? RetiredOn { get; }
+
+    public int Generation { get; }
+
+    public bool IsRetired => LifecycleStatus == PlayerLifecycleStatus.Retired;
 
     public static PlayerCareer CreateForSlot(
         ClubId clubId,
@@ -81,7 +96,39 @@ public sealed class PlayerCareer
             developmentPoints: 0,
             lastDevelopedOn: null,
             birthYear,
-            lastAgedCalendarYear: null);
+            lastAgedCalendarYear: null,
+            PlayerLifecycleStatus.Active,
+            retiredOn: null,
+            generation: 0);
+    }
+
+    public static PlayerCareer CreateGeneratedForSlot(
+        ClubId clubId,
+        int slotIndex,
+        int currentAbility,
+        int potentialAbility,
+        int birthYear,
+        int generation)
+    {
+        var created = CreateForSlot(clubId, slotIndex, currentAbility, potentialAbility, birthYear);
+        if (generation <= 0)
+        {
+            throw new PlayerCareerInvariantViolationException("Generated player generation must be positive.");
+        }
+
+        return new PlayerCareer(
+            PlayerId.FromClubSlotGeneration(clubId.Value, slotIndex, generation),
+            clubId,
+            slotIndex,
+            created.CurrentAbility,
+            created.PotentialAbility,
+            0,
+            null,
+            birthYear,
+            null,
+            PlayerLifecycleStatus.Active,
+            null,
+            generation);
     }
 
     public static PlayerCareer Rehydrate(
@@ -93,7 +140,10 @@ public sealed class PlayerCareer
         int developmentPoints,
         GameDate? lastDevelopedOn,
         int birthYear,
-        int? lastAgedCalendarYear)
+        int? lastAgedCalendarYear,
+        PlayerLifecycleStatus lifecycleStatus = PlayerLifecycleStatus.Active,
+        GameDate? retiredOn = null,
+        int generation = 0)
     {
         EnsureSlot(slotIndex);
         EnsureAbility(currentAbility, nameof(currentAbility));
@@ -111,6 +161,14 @@ public sealed class PlayerCareer
                 "Development points cannot be negative.");
         }
 
+        if (!Enum.IsDefined(lifecycleStatus)
+            || generation < 0
+            || (lifecycleStatus == PlayerLifecycleStatus.Active && retiredOn is not null)
+            || (lifecycleStatus == PlayerLifecycleStatus.Retired && retiredOn is null))
+        {
+            throw new PlayerCareerInvariantViolationException("Player lifecycle state is invalid.");
+        }
+
         return new PlayerCareer(
             id,
             originClubId,
@@ -120,13 +178,21 @@ public sealed class PlayerCareer
             developmentPoints,
             lastDevelopedOn,
             birthYear,
-            lastAgedCalendarYear);
+            lastAgedCalendarYear,
+            lifecycleStatus,
+            retiredOn,
+            generation);
     }
 
     public int AgeYears(GameDate day) => Math.Max(15, day.Year - BirthYear);
 
     public CareerPhase GetPhase(GameDate day)
     {
+        if (IsRetired)
+        {
+            return CareerPhase.Retired;
+        }
+
         var age = AgeYears(day);
         if (age < PeakStartAge)
         {
@@ -143,7 +209,7 @@ public sealed class PlayerCareer
 
     public PlayerCareer ApplyDevelopmentGain(int points, GameDate day)
     {
-        if (points <= 0)
+        if (IsRetired || points <= 0)
         {
             return this;
         }
@@ -178,12 +244,15 @@ public sealed class PlayerCareer
             total,
             day,
             BirthYear,
-            LastAgedCalendarYear);
+            LastAgedCalendarYear,
+            LifecycleStatus,
+            RetiredOn,
+            Generation);
     }
 
     public PlayerCareer ApplyAnnualAging(GameDate day)
     {
-        if (LastAgedCalendarYear is int agedYear && agedYear >= day.Year)
+        if (IsRetired || LastAgedCalendarYear is int agedYear && agedYear >= day.Year)
         {
             return this;
         }
@@ -208,7 +277,38 @@ public sealed class PlayerCareer
             DevelopmentPoints,
             LastDevelopedOn,
             BirthYear,
-            day.Year);
+            day.Year,
+            LifecycleStatus,
+            RetiredOn,
+            Generation);
+    }
+
+    public PlayerCareer Retire(GameDate day)
+    {
+        if (IsRetired)
+        {
+            return this;
+        }
+
+        if (AgeYears(day) < RetirementEligibleAge)
+        {
+            throw new PlayerCareerInvariantViolationException(
+                $"Player must be at least {RetirementEligibleAge} to retire.");
+        }
+
+        return new PlayerCareer(
+            Id,
+            OriginClubId,
+            SlotIndex,
+            CurrentAbility,
+            PotentialAbility,
+            DevelopmentPoints,
+            LastDevelopedOn,
+            BirthYear,
+            LastAgedCalendarYear,
+            PlayerLifecycleStatus.Retired,
+            day,
+            Generation);
     }
 
     private static void EnsureSlot(int slotIndex)
