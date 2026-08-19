@@ -178,4 +178,69 @@ public sealed class FormStreakVerdictDigestTests
         Assert.Equal(expectedCode, verdict!.VerdictCode);
         Assert.Contains(expectedLine, verdict.Headline, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData(1, FormStreakVerdictDigest.RivalCrisisDeepened, "Fırsatı değerlendirdin", "6 maça çıktı")]
+    [InlineData(0, FormStreakVerdictDigest.RivalCrisisStopped, "beraberlikle durdu", "5 maçlık")]
+    [InlineData(-1, FormStreakVerdictDigest.RivalCrisisRevived, "Rakibi ayağa kaldırdın", "sana karşı bitirdi")]
+    public void OpponentOnlyLosingRun_ReceivesAResultVerdict(
+        int margin,
+        string expectedCode,
+        string expectedLine,
+        string expectedDetail)
+    {
+        var verdict = FormStreakVerdictDigest.Compose(
+            DressingRoomEchoDigest.MomentumMixed,
+            margin,
+            opponentLosingStreakLength: 5);
+
+        Assert.NotNull(verdict);
+        Assert.Equal(expectedCode, verdict!.VerdictCode);
+        Assert.Contains(expectedLine, verdict.Headline, StringComparison.Ordinal);
+        Assert.Contains(expectedDetail, verdict.Headline, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(1, FormStreakVerdictDigest.FormGapConfirmed, "serin 6 galibiyete", "krizi 5 mağlubiyete")]
+    [InlineData(-1, FormStreakVerdictDigest.FormGapReversed, "5 galibiyetlik serin bitti", "4 maçlık mağlubiyet serisini")]
+    public void WinningRunAgainstLosingOpponent_SettlesTheFormGap(
+        int margin,
+        string expectedCode,
+        string managedLine,
+        string opponentLine)
+    {
+        var verdict = FormStreakVerdictDigest.Compose(
+            DressingRoomEchoDigest.MomentumWinningStreak,
+            margin,
+            enteringMomentumLength: 5,
+            opponentLosingStreakLength: 4);
+
+        Assert.NotNull(verdict);
+        Assert.Equal(expectedCode, verdict!.VerdictCode);
+        Assert.Contains(managedLine, verdict.Headline, StringComparison.Ordinal);
+        Assert.Contains(opponentLine, verdict.Headline, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(1, "Kırılma gecesini kazandın", "4 yenilgin bitti", "6 mağlubiyete çıktı")]
+    [InlineData(0, "Kırılma gecesi kilitlendi", "4", "5 maçlık mağlubiyet serisi")]
+    [InlineData(-1, "Kırılma gecesini rakip kazandı", "5 mağlubiyete çıktı", "5 maçlık serisini kırdı")]
+    public void BothTeamsOnLosingRuns_SettlesTheCrisisNight(
+        int margin,
+        string expectedHeadline,
+        string managedLine,
+        string opponentLine)
+    {
+        var verdict = FormStreakVerdictDigest.Compose(
+            DressingRoomEchoDigest.MomentumLosingStreak,
+            margin,
+            enteringMomentumLength: 4,
+            opponentLosingStreakLength: 5);
+
+        Assert.NotNull(verdict);
+        Assert.Equal(FormStreakVerdictDigest.CrisisDuelSettled, verdict!.VerdictCode);
+        Assert.Contains(expectedHeadline, verdict.Headline, StringComparison.Ordinal);
+        Assert.Contains(managedLine, verdict.Headline, StringComparison.Ordinal);
+        Assert.Contains(opponentLine, verdict.Headline, StringComparison.Ordinal);
+    }
 }

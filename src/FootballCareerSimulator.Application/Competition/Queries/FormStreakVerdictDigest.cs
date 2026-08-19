@@ -19,12 +19,19 @@ public sealed record FormStreakVerdictDigest(
     public const string StreakBattleLost = "StreakBattleLost";
     public const string RivalStreakStopped = "RivalStreakStopped";
     public const string RivalStreakExtended = "RivalStreakExtended";
+    public const string FormGapConfirmed = "FormGapConfirmed";
+    public const string FormGapReversed = "FormGapReversed";
+    public const string CrisisDuelSettled = "CrisisDuelSettled";
+    public const string RivalCrisisDeepened = "RivalCrisisDeepened";
+    public const string RivalCrisisStopped = "RivalCrisisStopped";
+    public const string RivalCrisisRevived = "RivalCrisisRevived";
 
     public static FormStreakVerdictDigest? Compose(
         string? enteringMomentumCode,
         int? managedGoalMargin,
         int enteringMomentumLength = 0,
-        int opponentWinningStreakLength = 0)
+        int opponentWinningStreakLength = 0,
+        int opponentLosingStreakLength = 0)
     {
         if (managedGoalMargin is null)
         {
@@ -46,6 +53,16 @@ public sealed record FormStreakVerdictDigest(
                 managedLosingStreak,
                 Math.Max(3, enteringMomentumLength),
                 opponentWinningStreakLength,
+                managedGoalMargin.Value);
+        }
+
+        if (opponentLosingStreakLength >= 3)
+        {
+            return ComposeAgainstLosingOpponent(
+                managedWinningStreak,
+                managedLosingStreak,
+                Math.Max(3, enteringMomentumLength),
+                opponentLosingStreakLength,
                 managedGoalMargin.Value);
         }
 
@@ -155,5 +172,90 @@ public sealed record FormStreakVerdictDigest(
             Brand,
             $"Rakibin galibiyet serisi {opponentStreakLength + 1} maça çıktı.",
             RivalStreakExtended);
+    }
+
+    private static FormStreakVerdictDigest ComposeAgainstLosingOpponent(
+        bool managedWinningStreak,
+        bool managedLosingStreak,
+        int managedStreakLength,
+        int opponentStreakLength,
+        int managedGoalMargin)
+    {
+        if (managedGoalMargin > 0)
+        {
+            if (managedWinningStreak)
+            {
+                return new(
+                    Brand,
+                    $"Form farkını kullandın — serin {managedStreakLength + 1} galibiyete,"
+                    + $" rakibin krizi {opponentStreakLength + 1} mağlubiyete çıktı.",
+                    FormGapConfirmed);
+            }
+
+            if (managedLosingStreak)
+            {
+                return new(
+                    Brand,
+                    $"Kırılma gecesini kazandın — {managedStreakLength} yenilgin bitti,"
+                    + $" rakibin serisi {opponentStreakLength + 1} mağlubiyete çıktı.",
+                    CrisisDuelSettled);
+            }
+
+            return new(
+                Brand,
+                $"Fırsatı değerlendirdin — rakibin mağlubiyet serisi"
+                + $" {opponentStreakLength + 1} maça çıktı.",
+                RivalCrisisDeepened);
+        }
+
+        if (managedGoalMargin == 0)
+        {
+            if (managedWinningStreak)
+            {
+                return new(
+                    Brand,
+                    $"Form farkı kapandı — senin {managedStreakLength} galibiyetlik,"
+                    + $" rakibin {opponentStreakLength} mağlubiyetlik serisi sona erdi.",
+                    RivalCrisisStopped);
+            }
+
+            if (managedLosingStreak)
+            {
+                return new(
+                    Brand,
+                    $"Kırılma gecesi kilitlendi — senin {managedStreakLength}, rakibin"
+                    + $" {opponentStreakLength} maçlık mağlubiyet serisi beraberlikle durdu.",
+                    CrisisDuelSettled);
+            }
+
+            return new(
+                Brand,
+                $"Rakibin {opponentStreakLength} maçlık mağlubiyet serisi beraberlikle durdu.",
+                RivalCrisisStopped);
+        }
+
+        if (managedWinningStreak)
+        {
+            return new(
+                Brand,
+                $"Form farkı tersine döndü — {managedStreakLength} galibiyetlik serin bitti,"
+                + $" rakip {opponentStreakLength} maçlık mağlubiyet serisini sana karşı kırdı.",
+                FormGapReversed);
+        }
+
+        if (managedLosingStreak)
+        {
+            return new(
+                Brand,
+                $"Kırılma gecesini rakip kazandı — krizin {managedStreakLength + 1} mağlubiyete çıktı,"
+                + $" rakip {opponentStreakLength} maçlık serisini kırdı.",
+                CrisisDuelSettled);
+        }
+
+        return new(
+            Brand,
+            $"Rakibi ayağa kaldırdın — {opponentStreakLength} maçlık mağlubiyet serisini"
+            + " sana karşı bitirdi.",
+            RivalCrisisRevived);
     }
 }

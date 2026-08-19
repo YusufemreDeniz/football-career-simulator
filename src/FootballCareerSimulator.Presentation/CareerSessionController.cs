@@ -2887,7 +2887,8 @@ public sealed class CareerSessionController
                 formBefore?.MomentumCode,
                 managedMargin,
                 formBefore?.MomentumLength ?? 0,
-                opponentBefore?.WinningStreakLength ?? 0);
+                opponentBefore?.WinningStreakLength ?? 0,
+                opponentBefore?.LosingStreakLength ?? 0);
 
             var narrative = MatchNightNarrative.Compose(
                 heroScoreline ?? "—",
