@@ -37,6 +37,7 @@ public sealed class DressingRoomEchoDigestTests
         Assert.Contains("Rakip B", digest.Headline, StringComparison.Ordinal);
         Assert.Contains("3-1 galibiyet", digest.Headline, StringComparison.Ordinal);
         Assert.Contains("sallanarak", digest.VoiceLine, StringComparison.Ordinal);
+        Assert.Equal("Form (eski→yeni): G-G · 6/6 puan", digest.MomentumLine);
     }
 
     [Fact]
@@ -63,6 +64,40 @@ public sealed class DressingRoomEchoDigestTests
             Clubs);
 
         Assert.Null(digest);
+    }
+
+    [Fact]
+    public void ThreeLatestWins_SurfaceWinningStreak()
+    {
+        var digest = DressingRoomEchoDigest.Compose(
+            [
+                Fixture(1, 10, 1, 2, FixtureStatus.ResultAccepted, 1, 0),
+                Fixture(2, 17, 3, 1, FixtureStatus.ResultAccepted, 0, 2),
+                Fixture(3, 24, 1, 3, FixtureStatus.ResultAccepted, 3, 1),
+            ],
+            managedClubId: 1,
+            managedSinceDayNumber: 1,
+            Clubs);
+
+        Assert.NotNull(digest);
+        Assert.Equal("Form: G-G-G · 3 maçlık galibiyet serisi", digest!.MomentumLine);
+    }
+
+    [Fact]
+    public void ThreeLatestLosses_SurfaceDressingRoomAlarm()
+    {
+        var digest = DressingRoomEchoDigest.Compose(
+            [
+                Fixture(1, 10, 1, 2, FixtureStatus.ResultAccepted, 0, 1),
+                Fixture(2, 17, 3, 1, FixtureStatus.ResultAccepted, 2, 0),
+                Fixture(3, 24, 1, 3, FixtureStatus.ResultAccepted, 1, 4),
+            ],
+            managedClubId: 1,
+            managedSinceDayNumber: 1,
+            Clubs);
+
+        Assert.NotNull(digest);
+        Assert.Equal("Form: M-M-M · 3 maçlık mağlubiyet serisi", digest!.MomentumLine);
     }
 
     [Fact]
