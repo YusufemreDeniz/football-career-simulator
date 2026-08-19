@@ -25,6 +25,11 @@ public sealed record FreeAgentResignResult(
     int WeeklyWage,
     int EndDayNumber);
 
+public sealed record ContractPopulationContinuityResult(
+    int RenewedPlayerCount,
+    int RetainedFreeAgentCount,
+    IReadOnlyList<long> AffectedClubIds);
+
 public sealed record TransferContractActivationResult(
     long PlayerId,
     long ClubId,

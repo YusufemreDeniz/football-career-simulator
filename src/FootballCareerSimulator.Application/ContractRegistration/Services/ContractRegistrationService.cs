@@ -187,6 +187,11 @@ public sealed class ContractRegistrationService
         var career = _playerCareerStore.Careers.FirstOrDefault(c => c.Id == playerId)
             ?? throw new ContractRegistrationInvariantViolationException(
                 $"Player career {playerId.Value} was not found.");
+        if (career.IsRetired)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                $"Retired player {playerId.Value} cannot sign a contract.");
+        }
 
         var endDate = GameDate.FromCalendarDate(day.Year + contractYears, day.Month, day.Day);
         var wage = Math.Max(500, career.CurrentAbility * 120);
@@ -199,6 +204,49 @@ public sealed class ContractRegistrationService
             clubId.Value,
             wage,
             endDate.DayNumber);
+    }
+
+    public ContractPopulationContinuityResult RestorePopulationContinuity(
+        GameDate day,
+        int retainedFreeAgentsPerClub = 2)
+    {
+        if (retainedFreeAgentsPerClub < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(retainedFreeAgentsPerClub));
+        }
+
+        var renewed = 0;
+        var affected = new HashSet<long>();
+        foreach (var clubGroup in _freeAgentStore.FreeAgents
+                     .GroupBy(freeAgent => freeAgent.LastClubId)
+                     .OrderBy(group => group.Key.Value))
+        {
+            var activeFreeAgents = clubGroup
+                .Select(freeAgent => (
+                    FreeAgent: freeAgent,
+                    Career: _playerCareerStore.Careers.FirstOrDefault(
+                        career => career.Id == freeAgent.PlayerId)))
+                .Where(item => item.Career is { IsRetired: false })
+                .OrderByDescending(item => item.Career!.SlotIndex)
+                .ThenBy(item => item.FreeAgent.PlayerId.Value)
+                .ToArray();
+
+            foreach (var item in activeFreeAgents.Skip(retainedFreeAgentsPerClub))
+            {
+                SignFreeAgentToLastClub(
+                    item.FreeAgent.PlayerId,
+                    item.FreeAgent.LastClubId,
+                    day,
+                    contractYears: 2);
+                renewed++;
+                affected.Add(item.FreeAgent.LastClubId.Value);
+            }
+        }
+
+        return new ContractPopulationContinuityResult(
+            renewed,
+            _freeAgentStore.FreeAgents.Count,
+            affected.OrderBy(value => value).ToArray());
     }
 
     /// <summary>

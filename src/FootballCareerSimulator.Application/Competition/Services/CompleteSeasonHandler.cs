@@ -43,7 +43,9 @@ public sealed class CompleteSeasonHandler : ICommandIdempotencyReset
             command.SeasonId,
             season.Status.ToString(),
             lifecycle.RetiredPlayerCount,
-            lifecycle.GeneratedPlayerCount);
+            lifecycle.GeneratedPlayerCount,
+            lifecycle.RenewedContractCount,
+            lifecycle.ActiveFreeAgentCount);
         _completedCommands[command.CommandId] = result;
         return result;
     }

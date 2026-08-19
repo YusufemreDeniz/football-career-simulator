@@ -119,4 +119,68 @@ public sealed class SeasonPlayerLifecycleTests
         Assert.Equal(0, repeated.RetiredPlayerCount);
         Assert.Equal(26, playerStore.Careers.Count);
     }
+
+    [Fact]
+    public void TenSeasonRollover_PreservesActivePopulationContractsAndUniqueIdentity()
+    {
+        var world = WorldCalendarModule.Create(Day, rootSeed: 83);
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var training = new InMemoryTrainingPhysicalStateStore();
+        var playerStore = new InMemoryPlayerCareerStore();
+        var contracts = ContractRegistrationModule.Create(
+            playerStore,
+            manager.Store,
+            world.TimelineStore);
+        var players = PlayerCareerModule.Create(
+            manager.Store,
+            world.TimelineStore,
+            training,
+            playerStore,
+            contracts.Registration);
+        var competitionStore = new InMemoryLeagueCompetitionStore(
+            new LeagueCompetition(new CompetitionId(1)));
+        var team = TeamPreparationModule.Create(
+            competitionStore,
+            manager.Store,
+            trainingStore: training,
+            timelineStore: world.TimelineStore,
+            contractStore: contracts.Store,
+            playerCareerStore: playerStore);
+        var service = new SeasonPlayerLifecycleService(
+            playerStore,
+            players.Development,
+            contracts.Registration,
+            team.ClubSquad!,
+            training,
+            world.TimelineStore);
+        var clubId = new ClubId(1);
+        players.Development.EnsureClub(clubId, world.TimelineStore.Timeline.RootSeed, Day);
+        team.ClubSquad!.SyncFromActiveContracts(clubId, Day);
+
+        for (var season = 1; season <= 10; season++)
+        {
+            var rolloverDay = GameDate.FromCalendarDate(Day.Year + season, Day.Month, Day.Day);
+            service.ApplySeasonRollover(rolloverDay);
+
+            var active = playerStore.Careers.Where(career => !career.IsRetired).ToArray();
+            Assert.Equal(25, active.Length);
+            Assert.Equal(25, active.Select(career => career.Id).Distinct().Count());
+            Assert.Equal(25, active.Select(career => career.SlotIndex).Distinct().Count());
+            Assert.InRange(contracts.FreeAgentStore.FreeAgents.Count, 0, 2);
+
+            var activeContracts = contracts.Store.GetForClub(clubId)
+                .Where(contract => contract.IsActiveOn(rolloverDay))
+                .ToArray();
+            Assert.InRange(activeContracts.Length, 23, 25);
+            Assert.Equal(activeContracts.Length, team.SquadStore.Get(clubId)!.Members.Count);
+            Assert.DoesNotContain(
+                playerStore.Careers.Where(career => career.IsRetired),
+                retired => activeContracts.Any(contract => contract.PlayerId == retired.Id));
+        }
+
+        Assert.Contains(playerStore.Careers, career => career.IsRetired);
+        Assert.Equal(
+            playerStore.Careers.Count,
+            playerStore.Careers.Select(career => career.Id).Distinct().Count());
+    }
 }

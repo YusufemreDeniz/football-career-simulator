@@ -54,7 +54,9 @@ public sealed record CompleteSeasonResult(
     long SeasonId,
     string Status,
     int RetiredPlayerCount = 0,
-    int GeneratedPlayerCount = 0);
+    int GeneratedPlayerCount = 0,
+    int RenewedContractCount = 0,
+    int ActiveFreeAgentCount = 0);
 
 public sealed record ArchiveSeasonCommand(
     Guid CommandId,

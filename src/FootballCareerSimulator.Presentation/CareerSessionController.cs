@@ -3650,7 +3650,10 @@ public sealed class CareerSessionController
             var renewal = result.GeneratedPlayerCount > 0
                 ? $" {result.RetiredPlayerCount} emeklilik, {result.GeneratedPlayerCount} yeni oyuncu."
                 : string.Empty;
-            return UiActionResult.Ok($"Sezon #{season.SeasonId} kapatıldı.{renewal}");
+            var contracts = result.RenewedContractCount > 0
+                ? $" {result.RenewedContractCount} kadro sürekliliği sözleşmesi yenilendi; {result.ActiveFreeAgentCount} serbest oyuncu havuzda."
+                : string.Empty;
+            return UiActionResult.Ok($"Sezon #{season.SeasonId} kapatıldı.{renewal}{contracts}");
         }
         catch (Exception ex)
         {
