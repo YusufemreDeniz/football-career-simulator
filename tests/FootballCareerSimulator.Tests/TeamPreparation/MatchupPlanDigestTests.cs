@@ -129,6 +129,24 @@ public sealed class MatchupPlanDigestTests
         Assert.Contains("ilk 20 dakikada", digest.VerdictLine, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(TacticalApproach.Attacking, MatchupPlanSignal.Opportunity, "ilk gol baskısı")]
+    [InlineData(TacticalApproach.Balanced, MatchupPlanSignal.Opportunity, "kontrollü ön alan baskısı")]
+    [InlineData(TacticalApproach.Defensive, MatchupPlanSignal.Risk, "gereksiz yere")]
+    public void AgainstLosingStreak_TacticReadsOpponentVulnerability(
+        TacticalApproach approach,
+        MatchupPlanSignal expectedSignal,
+        string expectedLine)
+    {
+        var digest = Compose(
+            Formation.F433,
+            approach,
+            OpponentThreatKind.LosingStreak);
+
+        Assert.Equal(expectedSignal, digest.Signal);
+        Assert.Contains(expectedLine, digest.VerdictLine, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Balanced433_AgainstDefensiveResistance_PreservesWidthAndSecurity()
     {

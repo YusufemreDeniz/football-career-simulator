@@ -152,6 +152,28 @@ public sealed class OpponentDossierDigestTests
     }
 
     [Fact]
+    public void Threat_LongLosingRunBecomesAnOpportunityWithActualLength()
+    {
+        var fixtures = Enumerable.Range(1, 6)
+            .Select(index => Result(
+                index,
+                day: index,
+                home: OpponentId,
+                away: 20 + index,
+                homeGoals: 0,
+                awayGoals: 2))
+            .ToArray();
+
+        var digest = Compose(fixtures: fixtures);
+
+        Assert.Equal(OpponentThreatKind.LosingStreak, digest.ThreatKind);
+        Assert.Equal(6, digest.LosingStreakLength);
+        Assert.Contains("Fırsat", digest.ThreatLine, StringComparison.Ordinal);
+        Assert.Contains("6 maçtır kaybediyor", digest.ThreatLine, StringComparison.Ordinal);
+        Assert.Equal("Form (eski→yeni): M-M-M-M-M · 0/15 puan", digest.FormLine);
+    }
+
+    [Fact]
     public void Threat_ProductiveAttackUsesStandingEvidence()
     {
         var digest = Compose(

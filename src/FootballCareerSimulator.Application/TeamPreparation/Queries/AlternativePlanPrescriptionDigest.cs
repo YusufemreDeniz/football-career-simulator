@@ -69,6 +69,10 @@ public sealed record AlternativePlanPrescriptionDigest(
             Formation.F433,
             TacticalApproach.Attacking,
             "savunma direncini kanat genişliğiyle açarken merkez emniyetini kaybetme."),
+        OpponentThreatKind.LosingStreak => new(
+            Formation.F433,
+            TacticalApproach.Attacking,
+            "rakibin form krizine ön alan baskısıyla yüklenirken savunma emniyetini koru."),
         _ => new(
             Formation.F433,
             TacticalApproach.Balanced,
@@ -93,6 +97,10 @@ public sealed record AlternativePlanPrescriptionDigest(
             Formation.F433,
             TacticalApproach.Balanced,
             "genişliği koruyup hücum riskini bir kademe düşürerek sabırlı dolaş."),
+        OpponentThreatKind.LosingStreak => new(
+            Formation.F442,
+            TacticalApproach.Balanced,
+            "kırılgan rakibe iki hatla baskı kurarken maç uzarsa sabrı koru."),
         _ => new(
             Formation.F442,
             TacticalApproach.Balanced,

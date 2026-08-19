@@ -16,7 +16,8 @@ public sealed record OpponentDossierDigest(
     OpponentThreatKind ThreatKind,
     bool ManagedIsHome,
     int StrengthDifference,
-    int WinningStreakLength = 0)
+    int WinningStreakLength = 0,
+    int LosingStreakLength = 0)
 {
     public const string Brand = "Rakip Dosyası";
 
@@ -67,6 +68,12 @@ public sealed record OpponentDossierDigest(
         var winningStreakLength = currentWinningStreakLength >= 3
             ? currentWinningStreakLength
             : 0;
+        var currentLosingStreakLength = latestFirstResults
+            .TakeWhile(result => result < 0)
+            .Count();
+        var losingStreakLength = currentLosingStreakLength >= 3
+            ? currentLosingStreakLength
+            : 0;
         var formPoints = recent.Sum(result => result switch
         {
             > 0 => 3,
@@ -95,7 +102,8 @@ public sealed record OpponentDossierDigest(
             standings.Count,
             standing,
             recent,
-            winningStreakLength);
+            winningStreakLength,
+            losingStreakLength);
 
         return new OpponentDossierDigest(
             Brand,
@@ -109,7 +117,8 @@ public sealed record OpponentDossierDigest(
             threat.Kind,
             managedIsHome,
             strengthDifference,
-            winningStreakLength);
+            winningStreakLength,
+            losingStreakLength);
     }
 
     private static ThreatAssessment ResolveThreat(
@@ -119,7 +128,8 @@ public sealed record OpponentDossierDigest(
         int clubCount,
         StandingEntryReadModel? standing,
         IReadOnlyList<int> recent,
-        int winningStreakLength)
+        int winningStreakLength,
+        int losingStreakLength)
     {
         if (winningStreakLength >= 3)
         {
@@ -128,6 +138,15 @@ public sealed record OpponentDossierDigest(
                 managedIsHome
                     ? $"Tehdit: {winningStreakLength} maçlık galibiyet serisi — evde ilk bölümde sabırlı kal."
                     : $"Tehdit: {winningStreakLength} maçlık galibiyet serisi — deplasmanda erken baskıya hazırlan.");
+        }
+
+        if (losingStreakLength >= 3)
+        {
+            return new ThreatAssessment(
+                OpponentThreatKind.LosingStreak,
+                managedIsHome
+                    ? $"Fırsat: rakip {losingStreakLength} maçtır kaybediyor — evde ilk golle baskıyı büyüt."
+                    : $"Fırsat: rakip {losingStreakLength} maçtır kaybediyor — özgüvenini erken baskıyla sına.");
         }
 
         if (standing is { Played: >= 3 }
@@ -204,4 +223,5 @@ public enum OpponentThreatKind
     SquadQuality = 3,
     TopZoneTempo = 4,
     DefensiveResistance = 5,
+    LosingStreak = 6,
 }

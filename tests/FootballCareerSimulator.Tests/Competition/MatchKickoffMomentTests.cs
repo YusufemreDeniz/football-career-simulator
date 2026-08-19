@@ -195,4 +195,36 @@ public sealed class MatchKickoffMomentTests
                 && beat.Contains("4 yenilgiyi", StringComparison.Ordinal)
                 && beat.Contains("5 galibiyeti", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Compose_WinningRunAgainstLosingOpponent_FramesTheFormGap()
+    {
+        var moment = MatchKickoffMoment.Compose(
+            Briefing(approved: true),
+            tempoFlash: null,
+            formMomentumCode: DressingRoomEchoDigest.MomentumWinningStreak,
+            formMomentumLength: 5,
+            opponentLosingStreakLength: 4);
+
+        Assert.Contains(
+            moment.BeatLines,
+            beat => beat.Contains("Form farkı", StringComparison.Ordinal)
+                && beat.Contains("5 maçtır kazanıyor", StringComparison.Ordinal)
+                && beat.Contains("4 maçtır kaybediyor", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compose_OnlyOpponentOnLosingRun_SurfacesVulnerability()
+    {
+        var moment = MatchKickoffMoment.Compose(
+            Briefing(approved: true),
+            tempoFlash: null,
+            formMomentumCode: DressingRoomEchoDigest.MomentumMixed,
+            opponentLosingStreakLength: 6);
+
+        Assert.Contains(
+            moment.BeatLines,
+            beat => beat.Contains("6 maçlık mağlubiyet serisi", StringComparison.Ordinal)
+                && beat.Contains("kırılganlığı sına", StringComparison.Ordinal));
+    }
 }

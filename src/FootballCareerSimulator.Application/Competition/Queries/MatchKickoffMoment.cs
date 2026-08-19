@@ -28,7 +28,8 @@ public sealed record MatchKickoffMoment(
         MatchDayTempoFlash.Flash? tempoFlash = null,
         string? formMomentumCode = null,
         int formMomentumLength = 0,
-        int opponentWinningStreakLength = 0)
+        int opponentWinningStreakLength = 0,
+        int opponentLosingStreakLength = 0)
     {
         ArgumentNullException.ThrowIfNull(briefing);
         if (!briefing.HasMatch)
@@ -51,6 +52,7 @@ public sealed record MatchKickoffMoment(
             DressingRoomEchoDigest.MomentumLosingStreak,
             StringComparison.Ordinal);
         var opponentWinningStreak = opponentWinningStreakLength >= 3;
+        var opponentLosingStreak = opponentLosingStreakLength >= 3;
 
         if (managedWinningStreak && opponentWinningStreak)
         {
@@ -58,6 +60,13 @@ public sealed record MatchKickoffMoment(
             beats.Add(
                 $"Seri savaşı — senin {streakLength} maçlık serin,"
                 + $" rakibin {opponentWinningStreakLength} maçlık serisine karşı.");
+        }
+        else if (managedWinningStreak && opponentLosingStreak)
+        {
+            var streakLength = Math.Max(3, formMomentumLength);
+            beats.Add(
+                $"Form farkı — sen {streakLength} maçtır kazanıyor,"
+                + $" rakip {opponentLosingStreakLength} maçtır kaybediyor.");
         }
         else if (managedWinningStreak)
         {
@@ -71,6 +80,13 @@ public sealed record MatchKickoffMoment(
                 $"Kriz maçı — sen {streakLength} yenilgiyi kırmaya,"
                 + $" rakip {opponentWinningStreakLength} galibiyeti sürdürmeye geldi.");
         }
+        else if (managedLosingStreak && opponentLosingStreak)
+        {
+            var streakLength = Math.Max(3, formMomentumLength);
+            beats.Add(
+                $"Kırılma gecesi — senin {streakLength}, rakibin"
+                + $" {opponentLosingStreakLength} maçlık mağlubiyet serisi karşı karşıya.");
+        }
         else if (managedLosingStreak)
         {
             var streakLength = Math.Max(3, formMomentumLength);
@@ -81,6 +97,12 @@ public sealed record MatchKickoffMoment(
             beats.Add(
                 $"Rakip {opponentWinningStreakLength} maçlık galibiyet serisiyle geldi"
                 + " — bugün onu durdurma sınavı.");
+        }
+        else if (opponentLosingStreak)
+        {
+            beats.Add(
+                $"Rakip {opponentLosingStreakLength} maçlık mağlubiyet serisiyle geldi"
+                + " — erken baskıyla kırılganlığı sına.");
         }
 
         foreach (var line in briefing.ToKickoffBridgeLines())

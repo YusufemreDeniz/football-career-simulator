@@ -26,6 +26,7 @@ public sealed class AlternativePlanPrescriptionDigestTests
     [InlineData(OpponentThreatKind.SquadQuality, Formation.F433, TacticalApproach.Defensive)]
     [InlineData(OpponentThreatKind.TopZoneTempo, Formation.F442, TacticalApproach.Balanced)]
     [InlineData(OpponentThreatKind.DefensiveResistance, Formation.F433, TacticalApproach.Attacking)]
+    [InlineData(OpponentThreatKind.LosingStreak, Formation.F433, TacticalApproach.Attacking)]
     public void RepeatedWarning_ProducesThreatAwareConcreteTactic(
         OpponentThreatKind threat,
         Formation expectedFormation,

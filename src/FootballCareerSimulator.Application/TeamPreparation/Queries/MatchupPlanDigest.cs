@@ -64,6 +64,13 @@ public sealed record MatchupPlanDigest(
                 + "iki kanat bekini aynı anda çıkarma.");
         }
 
+        if (dossier.ThreatKind == OpponentThreatKind.LosingStreak)
+        {
+            return Opportunity(
+                $"Fırsat: {FormatFormationLabel(formation)} + Hücum, kırılgan rakibe ilk gol"
+                + " baskısı kuruyor; aceleyle savunma emniyetini bırakma.");
+        }
+
         var transitionThreat = dossier.ThreatKind is
             OpponentThreatKind.WinningStreak
             or OpponentThreatKind.ProductiveAttack
@@ -115,7 +122,8 @@ public sealed record MatchupPlanDigest(
     {
         var tooPassive = dossier.StrengthDifference <= -7
             || (dossier.ManagedIsHome && dossier.StrengthDifference <= -3)
-            || dossier.ThreatKind == OpponentThreatKind.DefensiveResistance;
+            || dossier.ThreatKind is OpponentThreatKind.DefensiveResistance
+                or OpponentThreatKind.LosingStreak;
         if (tooPassive)
         {
             return Risk(
@@ -157,6 +165,13 @@ public sealed record MatchupPlanDigest(
         Formation formation,
         OpponentDossierDigest dossier)
     {
+        if (dossier.ThreatKind == OpponentThreatKind.LosingStreak)
+        {
+            return Opportunity(
+                $"Fırsat: {FormatFormationLabel(formation)} + Dengeli, rakibin form krizine"
+                + " kontrollü ön alan baskısı kurar; ilk gol gelmezse sabrı bozma.");
+        }
+
         if (dossier.ThreatKind is OpponentThreatKind.WinningStreak
             or OpponentThreatKind.TopZoneTempo)
         {

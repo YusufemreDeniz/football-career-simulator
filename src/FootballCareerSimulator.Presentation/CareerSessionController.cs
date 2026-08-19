@@ -1148,7 +1148,8 @@ public sealed class CareerSessionController
             BuildMatchDayTempoFlash(),
             dressingRoomEcho?.MomentumCode,
             dressingRoomEcho?.MomentumLength ?? 0,
-            opponentDossier?.WinningStreakLength ?? 0);
+            opponentDossier?.WinningStreakLength ?? 0,
+            opponentDossier?.LosingStreakLength ?? 0);
     }
 
     public MatchDayLineupStrip BuildMatchDayLineupStrip()

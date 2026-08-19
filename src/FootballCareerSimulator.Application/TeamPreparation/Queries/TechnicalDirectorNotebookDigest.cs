@@ -52,6 +52,7 @@ public sealed record TechnicalDirectorNotebookDigest(
         OpponentThreatKind.SquadQuality => "kadro kalitesi",
         OpponentThreatKind.TopZoneTempo => "zirve temposu",
         OpponentThreatKind.DefensiveResistance => "savunma direnci",
+        OpponentThreatKind.LosingStreak => "form krizi",
         _ => "dengeli profil",
     };
 
