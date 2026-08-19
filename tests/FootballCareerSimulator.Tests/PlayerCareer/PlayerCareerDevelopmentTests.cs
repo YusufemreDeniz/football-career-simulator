@@ -143,6 +143,19 @@ public sealed class PlayerCareerDevelopmentTests : IDisposable
         var aged = first.ApplyDevelopmentGain(12, Day).ApplyAnnualAging(Day);
         players.Store.Upsert(aged);
 
+        var retired = Domain.PlayerCareer.PlayerCareer
+            .CreateForSlot(new ClubId(2), 0, 58, 62, birthYear: 1990)
+            .Retire(Day);
+        var successor = Domain.PlayerCareer.PlayerCareer.CreateGeneratedForSlot(
+            new ClubId(2),
+            slotIndex: 0,
+            currentAbility: 51,
+            potentialAbility: 68,
+            birthYear: 2008,
+            generation: 1);
+        players.Store.Upsert(retired);
+        players.Store.Upsert(successor);
+
         var persistence = new CareerSqlitePersistence();
         var path = Path.Combine(_tempDirectory, "players.db");
         persistence.Save(
@@ -169,11 +182,19 @@ public sealed class PlayerCareerDevelopmentTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(42, loaded.SchemaVersion);
-        Assert.Equal(25, loaded.PlayerCareers.Count);
-        var loadedFirst = loaded.PlayerCareers.Single(c => c.SlotIndex == 0);
+        Assert.Equal(43, loaded.SchemaVersion);
+        Assert.Equal(27, loaded.PlayerCareers.Count);
+        var loadedFirst = loaded.PlayerCareers.Single(c => c.OriginClubId == new ClubId(1) && c.SlotIndex == 0);
         Assert.Equal(aged.BirthYear, loadedFirst.BirthYear);
         Assert.Equal(aged.CurrentAbility, loadedFirst.CurrentAbility);
         Assert.Equal(aged.LastAgedCalendarYear, loadedFirst.LastAgedCalendarYear);
+        var loadedRetired = loaded.PlayerCareers.Single(c => c.Id == retired.Id);
+        Assert.True(loadedRetired.IsRetired);
+        Assert.Equal(Day, loadedRetired.RetiredOn);
+        Assert.Equal(0, loadedRetired.Generation);
+        var loadedSuccessor = loaded.PlayerCareers.Single(c => c.Id == successor.Id);
+        Assert.False(loadedSuccessor.IsRetired);
+        Assert.Null(loadedSuccessor.RetiredOn);
+        Assert.Equal(1, loadedSuccessor.Generation);
     }
 }

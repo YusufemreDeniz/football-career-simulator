@@ -2575,6 +2575,80 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV42ToV43InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+        try
+        {
+            MigrateV42ToV43(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V42 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV42ToV43(string workingCopyPath)
+    {
+        using var connection = OpenMigrationConnection(workingCopyPath);
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            if (TableExists(connection, "PlayerCareerState"))
+            {
+                if (!ColumnExists(connection, "PlayerCareerState", "LifecycleStatus"))
+                {
+                    ProductionSqliteCommands.ExecuteNonQuery(
+                        connection,
+                        alterTransaction,
+                        "ALTER TABLE PlayerCareerState ADD COLUMN LifecycleStatus INTEGER NOT NULL DEFAULT 1;");
+                }
+
+                if (!ColumnExists(connection, "PlayerCareerState", "RetiredDayNumber"))
+                {
+                    ProductionSqliteCommands.ExecuteNonQuery(
+                        connection,
+                        alterTransaction,
+                        "ALTER TABLE PlayerCareerState ADD COLUMN RetiredDayNumber INTEGER NULL;");
+                }
+
+                if (!ColumnExists(connection, "PlayerCareerState", "Generation"))
+                {
+                    ProductionSqliteCommands.ExecuteNonQuery(
+                        connection,
+                        alterTransaction,
+                        "ALTER TABLE PlayerCareerState ADD COLUMN Generation INTEGER NOT NULL DEFAULT 0;");
+                }
+            }
+
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 43);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

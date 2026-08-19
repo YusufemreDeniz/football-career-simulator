@@ -119,7 +119,7 @@ public sealed class TransferProcessTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(42, loaded.SchemaVersion);
+        Assert.Equal(43, loaded.SchemaVersion);
         Assert.Single(loaded.TransferProcesses);
         Assert.Equal(TransferProcessStatus.UnderEvaluation, loaded.TransferProcesses[0].Status);
         Assert.Equal(2, loaded.TransferProcesses[0].SellingClubId!.Value.Value);

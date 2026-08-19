@@ -475,6 +475,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 42;
         }
 
+        if (version == 42 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 43)
+        {
+            WorldCalendarSqliteMigrator.MigrateV42ToV43InPlace(filePath);
+            wasMigrated = true;
+            version = 43;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -649,7 +656,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 DevelopmentPoints INTEGER NOT NULL,
                 LastDevelopedDayNumber INTEGER NULL,
                 BirthYear INTEGER NOT NULL,
-                LastAgedCalendarYear INTEGER NULL
+                LastAgedCalendarYear INTEGER NULL,
+                LifecycleStatus INTEGER NOT NULL,
+                RetiredDayNumber INTEGER NULL,
+                Generation INTEGER NOT NULL
             );
             """);
 
@@ -1261,8 +1271,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             command.CommandText = """
                 INSERT INTO PlayerCareerState (
                     PlayerId, OriginClubId, SlotIndex, CurrentAbility, PotentialAbility,
-                    DevelopmentPoints, LastDevelopedDayNumber, BirthYear, LastAgedCalendarYear)
-                VALUES ($playerId, $clubId, $slotIndex, $ca, $pa, $dp, $lastDay, $birthYear, $agedYear);
+                    DevelopmentPoints, LastDevelopedDayNumber, BirthYear, LastAgedCalendarYear,
+                    LifecycleStatus, RetiredDayNumber, Generation)
+                VALUES ($playerId, $clubId, $slotIndex, $ca, $pa, $dp, $lastDay, $birthYear, $agedYear,
+                        $lifecycleStatus, $retiredDay, $generation);
                 """;
             command.Parameters.AddWithValue("$playerId", career.Id.Value);
             command.Parameters.AddWithValue("$clubId", career.OriginClubId.Value);
@@ -1277,6 +1289,11 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             command.Parameters.AddWithValue(
                 "$agedYear",
                 career.LastAgedCalendarYear is int aged ? aged : DBNull.Value);
+            command.Parameters.AddWithValue("$lifecycleStatus", (int)career.LifecycleStatus);
+            command.Parameters.AddWithValue(
+                "$retiredDay",
+                career.RetiredOn is GameDate retired ? retired.DayNumber : DBNull.Value);
+            command.Parameters.AddWithValue("$generation", career.Generation);
             command.ExecuteNonQuery();
         }
     }
@@ -2562,7 +2579,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT PlayerId, OriginClubId, SlotIndex, CurrentAbility, PotentialAbility,
-                   DevelopmentPoints, LastDevelopedDayNumber, BirthYear, LastAgedCalendarYear
+                   DevelopmentPoints, LastDevelopedDayNumber, BirthYear, LastAgedCalendarYear,
+                   LifecycleStatus, RetiredDayNumber, Generation
             FROM PlayerCareerState
             ORDER BY PlayerId;
             """;
@@ -2580,7 +2598,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 reader.GetInt32(5),
                 reader.IsDBNull(6) ? null : GameDate.FromDayNumber(reader.GetInt32(6)),
                 birthYear,
-                agedYear));
+                agedYear,
+                (PlayerLifecycleStatus)reader.GetInt32(9),
+                reader.IsDBNull(10) ? null : GameDate.FromDayNumber(reader.GetInt32(10)),
+                reader.GetInt32(11)));
         }
 
         return careers;
