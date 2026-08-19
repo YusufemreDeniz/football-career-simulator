@@ -1,0 +1,119 @@
+using FootballCareerSimulator.Application.ContractRegistration.Services;
+using FootballCareerSimulator.Application.PlayerCareer.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
+using FootballCareerSimulator.Application.WorldCalendar.Ports;
+using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.PlayerCareer;
+
+namespace FootballCareerSimulator.Application.PlayerCareer.Services;
+
+/// <summary>
+/// Sezon sonunda yaşlanma, emeklilik, genç oyuncu üretimi ve bağlı context senkronunu tek kapıda yürütür.
+/// </summary>
+public sealed class SeasonPlayerLifecycleService
+{
+    private readonly IPlayerCareerStore _store;
+    private readonly PlayerCareerDevelopmentService _development;
+    private readonly ContractRegistrationService _contracts;
+    private readonly ClubSquadService _squads;
+    private readonly ITrainingPhysicalStateStore _training;
+    private readonly IWorldTimelineStore _timeline;
+
+    public SeasonPlayerLifecycleService(
+        IPlayerCareerStore store,
+        PlayerCareerDevelopmentService development,
+        ContractRegistrationService contracts,
+        ClubSquadService squads,
+        ITrainingPhysicalStateStore training,
+        IWorldTimelineStore timeline)
+    {
+        _store = store ?? throw new ArgumentNullException(nameof(store));
+        _development = development ?? throw new ArgumentNullException(nameof(development));
+        _contracts = contracts ?? throw new ArgumentNullException(nameof(contracts));
+        _squads = squads ?? throw new ArgumentNullException(nameof(squads));
+        _training = training ?? throw new ArgumentNullException(nameof(training));
+        _timeline = timeline ?? throw new ArgumentNullException(nameof(timeline));
+    }
+
+    public SeasonPlayerLifecycleResult ApplySeasonRollover(GameDate day)
+    {
+        var agedCount = _development.ApplyDueAging(day);
+        var candidates = _store.Careers
+            .Where(career => !career.IsRetired)
+            .Where(career => career.AgeYears(day) >= Domain.PlayerCareer.PlayerCareer.RetirementEligibleAge)
+            .OrderBy(career => career.OriginClubId.Value)
+            .ThenBy(career => career.SlotIndex)
+            .ThenBy(career => career.Id.Value)
+            .ToArray();
+
+        if (candidates.Length == 0)
+        {
+            return new SeasonPlayerLifecycleResult(agedCount, 0, 0, Array.Empty<long>());
+        }
+
+        var transitions = candidates.Select(career =>
+        {
+            var generation = _store.Careers
+                .Where(existing => existing.OriginClubId == career.OriginClubId)
+                .Where(existing => existing.SlotIndex == career.SlotIndex)
+                .Max(existing => existing.Generation) + 1;
+            var successor = MvpGeneratedPlayerFactory.CreateSuccessor(
+                career.OriginClubId,
+                career.SlotIndex,
+                generation,
+                day,
+                _timeline.Timeline.RootSeed);
+            return (Retired: career.Retire(day), Successor: successor);
+        }).ToArray();
+
+        foreach (var transition in transitions)
+        {
+            _store.Upsert(transition.Retired);
+            _contracts.RetirePlayer(transition.Retired.Id, day);
+            _store.Upsert(transition.Successor);
+        }
+
+        var affectedClubIds = transitions
+            .Select(transition => transition.Retired.OriginClubId.Value)
+            .Distinct()
+            .OrderBy(value => value)
+            .ToArray();
+
+        foreach (var clubIdValue in affectedClubIds)
+        {
+            var clubId = new ClubId(clubIdValue);
+            _contracts.EnsureClubContracts(clubId, day);
+            _squads.SyncFromActiveContracts(clubId, day);
+
+            var physicalBySlot = _training.PhysicalStates
+                .Where(state => state.ClubId == clubId)
+                .ToDictionary(state => state.SlotIndex);
+            foreach (var transition in transitions.Where(item => item.Retired.OriginClubId == clubId))
+            {
+                physicalBySlot[transition.Retired.SlotIndex] =
+                    PlayerPhysicalState.CreateRested(clubId, transition.Retired.SlotIndex);
+            }
+
+            _training.ReplacePhysicalStatesForClub(clubId, physicalBySlot.Values);
+        }
+
+        return new SeasonPlayerLifecycleResult(
+            agedCount,
+            transitions.Length,
+            transitions.Length,
+            affectedClubIds);
+    }
+}
+
+public sealed record SeasonPlayerLifecycleResult(
+    int AgedPlayerCount,
+    int RetiredPlayerCount,
+    int GeneratedPlayerCount,
+    IReadOnlyList<long> AffectedClubIds)
+{
+    public static SeasonPlayerLifecycleResult Empty { get; } =
+        new(0, 0, 0, Array.Empty<long>());
+}

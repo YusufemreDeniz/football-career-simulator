@@ -123,7 +123,8 @@ public sealed class CompetitionModule
         PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null,
         PostMatchBoardDemandTrigger? postMatchBoardDemand = null,
         PostMatchDisciplineDecisionTrigger? postMatchDiscipline = null,
-        long competitionId = 1)
+        long competitionId = 1,
+        SeasonPlayerLifecycleService? playerLifecycle = null)
     {
         var league = new LeagueCompetition(new CompetitionId(competitionId));
         var store = new InMemoryLeagueCompetitionStore(league);
@@ -149,7 +150,8 @@ public sealed class CompetitionModule
             postMatchPress,
             postMatchPlayingTimeDemand,
             postMatchBoardDemand,
-            postMatchDiscipline);
+            postMatchDiscipline,
+            playerLifecycle);
     }
 
     public static CompetitionModule CreateForCareerFromStore(
@@ -174,13 +176,14 @@ public sealed class CompetitionModule
         PostMatchPressDecisionTrigger? postMatchPress = null,
         PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null,
         PostMatchBoardDemandTrigger? postMatchBoardDemand = null,
-        PostMatchDisciplineDecisionTrigger? postMatchDiscipline = null)
+        PostMatchDisciplineDecisionTrigger? postMatchDiscipline = null,
+        SeasonPlayerLifecycleService? playerLifecycle = null)
     {
         var createSeason = new CreateSeasonHandler(store);
         var registerSeasonParticipant = new RegisterSeasonParticipantHandler(store);
         var startSeason = new StartSeasonHandler(store);
         var planLeagueFixtures = new PlanLeagueFixturesHandler(store);
-        var completeSeason = new CompleteSeasonHandler(store);
+        var completeSeason = new CompleteSeasonHandler(store, playerLifecycle);
         var archiveSeason = new ArchiveSeasonHandler(store);
         MatchSelectionAvailabilityRevalidationService? selectionRevalidation = null;
         if (matchSelectionStore is not null && trainingStore is not null)

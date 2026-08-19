@@ -43,7 +43,7 @@ public sealed class ContractRegistrationService
     public void EnsureClubContracts(ClubId clubId, GameDate day)
     {
         var careers = _playerCareerStore.Careers
-            .Where(c => c.OriginClubId == clubId)
+            .Where(c => c.OriginClubId == clubId && !c.IsRetired)
             .ToArray();
 
         foreach (var career in careers)
@@ -63,6 +63,31 @@ public sealed class ContractRegistrationService
             _store.Upsert(contract);
             _freeAgentStore.Remove(career.Id);
         }
+    }
+
+    public bool RetirePlayer(PlayerId playerId, GameDate day)
+    {
+        var contract = _store.GetByPlayer(playerId);
+        var wasRegistered = contract is not null || _freeAgentStore.Get(playerId) is not null;
+
+        if (contract is { Status: ContractStatus.Active })
+        {
+            var retiredContract = contract.IsActiveOn(day)
+                ? contract.ReleaseEarly(day)
+                : contract.ExpireIfDue(day);
+            if (retiredContract.Status == ContractStatus.Active)
+            {
+                throw new ContractRegistrationInvariantViolationException(
+                    $"Contract {contract.Id.Value} cannot retire before its start date.");
+            }
+
+            _store.Upsert(retiredContract);
+        }
+
+        _freeAgentStore.Remove(playerId);
+        _promiseInvalidation?.InvalidateForPlayerLeaving(playerId, day);
+        _relationships?.MarkDormantForPlayerLeaving(playerId, day);
+        return wasRegistered;
     }
 
     public FreeAgencyExpiryResult ExpireDueContracts(GameDate day)

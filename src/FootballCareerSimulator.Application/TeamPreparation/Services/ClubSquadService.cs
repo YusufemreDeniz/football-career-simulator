@@ -32,7 +32,7 @@ public sealed class ClubSquadService
     {
         var active = _contractStore.GetForClub(clubId)
             .Where(c => c.IsActiveOn(day))
-            .Where(c => _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId))
+            .Where(c => _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId && !career.IsRetired))
             .OrderBy(c => c.PlayerId.Value)
             .ToArray();
 
@@ -107,7 +107,7 @@ public sealed class ClubSquadService
     {
         var activeIds = _contractStore.GetForClub(clubId)
             .Where(c => c.IsActiveOn(day))
-            .Where(c => _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId))
+            .Where(c => _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId && !career.IsRetired))
             .Select(c => c.PlayerId.Value)
             .Distinct()
             .OrderBy(id => id)

@@ -3644,10 +3644,13 @@ public sealed class CareerSessionController
                 ?? throw new InvalidOperationException("Aktif sezon yok.");
 
             var current = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-            competition.CompleteSeason.Handle(
+            var result = competition.CompleteSeason.Handle(
                 new CompleteSeasonCommand(Guid.NewGuid(), season.SeasonId, current.DayNumber));
 
-            return UiActionResult.Ok($"Sezon #{season.SeasonId} kapatıldı.");
+            var renewal = result.GeneratedPlayerCount > 0
+                ? $" {result.RetiredPlayerCount} emeklilik, {result.GeneratedPlayerCount} yeni oyuncu."
+                : string.Empty;
+            return UiActionResult.Ok($"Sezon #{season.SeasonId} kapatıldı.{renewal}");
         }
         catch (Exception ex)
         {

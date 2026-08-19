@@ -52,7 +52,9 @@ public sealed record CompleteSeasonCommand(
 public sealed record CompleteSeasonResult(
     bool Succeeded,
     long SeasonId,
-    string Status);
+    string Status,
+    int RetiredPlayerCount = 0,
+    int GeneratedPlayerCount = 0);
 
 public sealed record ArchiveSeasonCommand(
     Guid CommandId,

@@ -1,11 +1,17 @@
 using FootballCareerSimulator.Application.ClubGovernance.Composition;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.Competition.Infrastructure;
+using FootballCareerSimulator.Application.ContractRegistration.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Infrastructure;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.Match;
@@ -125,6 +131,71 @@ public sealed class SeasonTransitionTests
         Assert.Equal(nameof(SeasonStatus.Active), current.Status);
         Assert.True(current.FixtureCount > 0);
         Assert.Equal(SeasonStatus.Archived, module.Store.League.Seasons.Single(s => s.SeasonId.Value == 1).Status);
+    }
+
+    [Fact]
+    public void CompleteSeason_ExecutesBoundPlayerLifecycleExactlyOnce()
+    {
+        var world = WorldCalendarModule.Create(PreseasonStart, rootSeed: 23);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var manager = ManagerCareerModule.CreateNewCareer(PreseasonStart, startingClubId: 1);
+        var trainingStore = new InMemoryTrainingPhysicalStateStore();
+        var playerStore = new InMemoryPlayerCareerStore();
+        var contracts = ContractRegistrationModule.Create(
+            playerStore,
+            manager.Store,
+            world.TimelineStore);
+        var players = PlayerCareerModule.Create(
+            manager.Store,
+            world.TimelineStore,
+            trainingStore,
+            playerStore,
+            contracts.Registration);
+        var competitionStore = new InMemoryLeagueCompetitionStore(
+            new LeagueCompetition(new CompetitionId(1)));
+        var team = TeamPreparationModule.Create(
+            competitionStore,
+            manager.Store,
+            trainingStore: trainingStore,
+            timelineStore: world.TimelineStore,
+            contractStore: contracts.Store,
+            playerCareerStore: playerStore);
+        var lifecycle = new SeasonPlayerLifecycleService(
+            playerStore,
+            players.Development,
+            contracts.Registration,
+            team.ClubSquad!,
+            trainingStore,
+            world.TimelineStore);
+        var competition = CompetitionModule.CreateForCareerFromStore(
+            competitionStore,
+            world.TimelineStore,
+            clubs.Store,
+            playerLifecycle: lifecycle);
+
+        var clubId = new Domain.Shared.ClubId(1);
+        playerStore.Upsert(Domain.PlayerCareer.PlayerCareer.CreateForSlot(
+            clubId,
+            slotIndex: 0,
+            currentAbility: 60,
+            potentialAbility: 65,
+            birthYear: 1992));
+        contracts.Registration.EnsureClubContracts(clubId, PreseasonStart);
+
+        SetupActiveSeason(competition, seasonId: 1);
+        AcceptAllFixtures(competition, seasonId: 1);
+        var command = new CompleteSeasonCommand(
+            Guid.NewGuid(),
+            1,
+            FirstMatchday.AddDays(200).DayNumber);
+
+        var result = competition.CompleteSeason.Handle(command);
+        var repeated = competition.CompleteSeason.Handle(command);
+
+        Assert.Equal(1, result.RetiredPlayerCount);
+        Assert.Equal(1, result.GeneratedPlayerCount);
+        Assert.Equal(result, repeated);
+        Assert.Equal(2, playerStore.Careers.Count);
     }
 
     [Fact]

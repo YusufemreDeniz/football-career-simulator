@@ -2,17 +2,22 @@ namespace FootballCareerSimulator.Application.Competition.Services;
 
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Competition;
 
 public sealed class CompleteSeasonHandler : ICommandIdempotencyReset
 {
     private readonly ILeagueCompetitionStore _store;
+    private readonly SeasonPlayerLifecycleService? _playerLifecycle;
     private readonly Dictionary<Guid, CompleteSeasonResult> _completedCommands = new();
 
-    public CompleteSeasonHandler(ILeagueCompetitionStore store)
+    public CompleteSeasonHandler(
+        ILeagueCompetitionStore store,
+        SeasonPlayerLifecycleService? playerLifecycle = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _playerLifecycle = playerLifecycle;
     }
 
     public CompleteSeasonResult Handle(CompleteSeasonCommand command)
@@ -30,7 +35,15 @@ public sealed class CompleteSeasonHandler : ICommandIdempotencyReset
         var season = CompetitionSeasonCommandSupport.GetSeasonOrThrow(_store, command.SeasonId);
         season.ClearUncommittedEvents();
 
-        var result = new CompleteSeasonResult(true, command.SeasonId, season.Status.ToString());
+        var lifecycle = _playerLifecycle?.ApplySeasonRollover(occurredAt)
+            ?? SeasonPlayerLifecycleResult.Empty;
+
+        var result = new CompleteSeasonResult(
+            true,
+            command.SeasonId,
+            season.Status.ToString(),
+            lifecycle.RetiredPlayerCount,
+            lifecycle.GeneratedPlayerCount);
         _completedCommands[command.CommandId] = result;
         return result;
     }

@@ -147,6 +147,14 @@ public sealed class CareerPresentationHost
             playerCareer.Development,
             teamPreparation.ClubSquad,
             teamPreparation.SelectionStore);
+        var seasonPlayerLifecycle = new SeasonPlayerLifecycleService(
+            playerCareer.Store,
+            playerCareer.Development,
+            contractModule.Registration,
+            teamPreparation.ClubSquad
+                ?? throw new InvalidOperationException("ClubSquad service is required for season lifecycle."),
+            training.Store,
+            worldModule.TimelineStore);
         var socialContinuity = SocialContinuityModule.Create();
         teamPreparation.BindPromiseStore(socialContinuity.PromiseStore);
         clubModule.BindWageBudget(contractModule.Store);
@@ -237,7 +245,8 @@ public sealed class CareerPresentationHost
             interactionModule.PostMatchPress,
             interactionModule.PostMatchPlayingTimeDemand,
             interactionModule.PostMatchBoardDemand,
-            interactionModule.PostMatchDiscipline);
+            interactionModule.PostMatchDiscipline,
+            playerLifecycle: seasonPlayerLifecycle);
         var persistence = new CareerSqlitePersistence();
 
         var eventRule = worldModule.EventRuleEvaluation
