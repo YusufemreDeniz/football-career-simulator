@@ -12,6 +12,7 @@ public sealed record DressingRoomEchoDigest(
     string VoiceLine,
     string MomentumLine,
     string MomentumCode,
+    int MomentumLength,
     long FixtureId)
 {
     public const string Brand = "SOYUNMA ODASI NABZI";
@@ -28,7 +29,7 @@ public sealed record DressingRoomEchoDigest(
         ArgumentNullException.ThrowIfNull(fixtures);
         ArgumentNullException.ThrowIfNull(clubNames);
 
-        var recent = fixtures
+        var completed = fixtures
             .Where(fixture =>
                 string.Equals(
                     fixture.Status,
@@ -41,13 +42,13 @@ public sealed record DressingRoomEchoDigest(
             .OrderByDescending(fixture => fixture.ScheduledDayNumber)
             .ThenByDescending(fixture => fixture.Round)
             .ThenByDescending(fixture => fixture.FixtureId)
-            .Take(5)
             .ToArray();
-        if (recent.Length == 0)
+        if (completed.Length == 0)
         {
             return null;
         }
 
+        var recent = completed.Take(5).ToArray();
         var latest = recent[0];
 
         var managedIsHome = latest.HomeClubId == managedClubId;
@@ -64,23 +65,29 @@ public sealed record DressingRoomEchoDigest(
             _ => "mağlubiyet",
         };
         var captain = CaptainReactionDigest.Compose(goalsFor - goalsAgainst, dismissed: false)!;
-        var latestFirstForm = recent
+        var fullLatestFirstForm = completed
             .Select(fixture => ResultCode(fixture, managedClubId))
             .ToArray();
+        var latestFirstForm = fullLatestFirstForm.Take(5).ToArray();
         var displayForm = latestFirstForm.Reverse().ToArray();
-        var hasWinningStreak = latestFirstForm.Length >= 3
-            && latestFirstForm.Take(3).All(code => code == "G");
-        var hasLosingStreak = latestFirstForm.Length >= 3
-            && latestFirstForm.Take(3).All(code => code == "M");
+        var latestResultCode = fullLatestFirstForm[0];
+        var currentStreakLength = fullLatestFirstForm
+            .TakeWhile(code => string.Equals(code, latestResultCode, StringComparison.Ordinal))
+            .Count();
+        var hasWinningStreak = latestResultCode == "G" && currentStreakLength >= 3;
+        var hasLosingStreak = latestResultCode == "M" && currentStreakLength >= 3;
         var momentumCode = hasWinningStreak
             ? MomentumWinningStreak
             : hasLosingStreak
                 ? MomentumLosingStreak
                 : MomentumMixed;
+        var momentumLength = hasWinningStreak || hasLosingStreak
+            ? currentStreakLength
+            : 0;
         var momentumLine = hasWinningStreak
-                ? $"Form: {string.Join('-', displayForm)} · 3 maçlık galibiyet serisi"
+                ? $"Form: {string.Join('-', displayForm)} · {momentumLength} maçlık galibiyet serisi"
                 : hasLosingStreak
-                    ? $"Form: {string.Join('-', displayForm)} · 3 maçlık mağlubiyet serisi"
+                    ? $"Form: {string.Join('-', displayForm)} · {momentumLength} maçlık mağlubiyet serisi"
                     : $"Form (eski→yeni): {string.Join('-', displayForm)}"
                       + $" · {latestFirstForm.Sum(ResultPoints)}/{latestFirstForm.Length * 3} puan";
 
@@ -90,6 +97,7 @@ public sealed record DressingRoomEchoDigest(
             captain.VoiceLine,
             momentumLine,
             momentumCode,
+            momentumLength,
             latest.FixtureId);
     }
 

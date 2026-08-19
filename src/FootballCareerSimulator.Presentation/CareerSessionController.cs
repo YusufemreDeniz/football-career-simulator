@@ -1138,11 +1138,15 @@ public sealed class CareerSessionController
     /// <summary>
     /// Düdük anı — ofisteki "kadro kilitli, düdük yakın" flash'ının maç başlangıcındaki karşılığı.
     /// </summary>
-    public Application.Competition.Queries.MatchKickoffMoment BuildMatchKickoffMoment() =>
-        Application.Competition.Queries.MatchKickoffMoment.Compose(
+    public Application.Competition.Queries.MatchKickoffMoment BuildMatchKickoffMoment()
+    {
+        var dressingRoomEcho = BuildDressingRoomEcho();
+        return Application.Competition.Queries.MatchKickoffMoment.Compose(
             BuildNextMatchBriefing(),
             BuildMatchDayTempoFlash(),
-            BuildDressingRoomEcho()?.MomentumCode);
+            dressingRoomEcho?.MomentumCode,
+            dressingRoomEcho?.MomentumLength ?? 0);
+    }
 
     public MatchDayLineupStrip BuildMatchDayLineupStrip()
     {
@@ -2605,7 +2609,7 @@ public sealed class CareerSessionController
             }
 
             var injuredBefore = SnapshotInjuredPlayerNames();
-            var formMomentumBefore = BuildDressingRoomEcho()?.MomentumCode;
+            var formBefore = BuildDressingRoomEcho();
             var kickoffBriefing = CaptureKickoffBriefing(currentDay, pendingSelection);
             var matchupPlan = pendingSelection is not null
                 ? BuildMatchupPlan()
@@ -2873,8 +2877,9 @@ public sealed class CareerSessionController
                 afterWhistle.Any(line =>
                     line.Contains("işten çıkardı", StringComparison.OrdinalIgnoreCase)));
             var formStreakVerdict = FormStreakVerdictDigest.Compose(
-                formMomentumBefore,
-                managedMargin);
+                formBefore?.MomentumCode,
+                managedMargin,
+                formBefore?.MomentumLength ?? 0);
 
             var narrative = MatchNightNarrative.Compose(
                 heroScoreline ?? "—",

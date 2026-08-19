@@ -107,11 +107,12 @@ public sealed class MatchKickoffMomentTests
         var moment = MatchKickoffMoment.Compose(
             Briefing(approved: true),
             tempoFlash: null,
-            formMomentumCode: DressingRoomEchoDigest.MomentumWinningStreak);
+            formMomentumCode: DressingRoomEchoDigest.MomentumWinningStreak,
+            formMomentumLength: 4);
 
         Assert.Contains(
             moment.BeatLines,
-            beat => beat.Contains("dördüncü zafer", StringComparison.Ordinal));
+            beat => beat.Contains("5. zafer", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -120,11 +121,15 @@ public sealed class MatchKickoffMomentTests
         var moment = MatchKickoffMoment.Compose(
             Briefing(approved: true),
             tempoFlash: null,
-            formMomentumCode: DressingRoomEchoDigest.MomentumLosingStreak);
+            formMomentumCode: DressingRoomEchoDigest.MomentumLosingStreak,
+            formMomentumLength: 5);
 
         Assert.Contains(
             moment.BeatLines,
             beat => beat.Contains("kırılma maçı", StringComparison.Ordinal));
+        Assert.Contains(
+            moment.BeatLines,
+            beat => beat.Contains("5 maçlık", StringComparison.Ordinal));
     }
 
     [Fact]

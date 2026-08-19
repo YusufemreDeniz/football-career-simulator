@@ -26,7 +26,8 @@ public sealed record MatchKickoffMoment(
     public static MatchKickoffMoment Compose(
         PreMatchBriefing briefing,
         MatchDayTempoFlash.Flash? tempoFlash = null,
-        string? formMomentumCode = null)
+        string? formMomentumCode = null,
+        int formMomentumLength = 0)
     {
         ArgumentNullException.ThrowIfNull(briefing);
         if (!briefing.HasMatch)
@@ -45,14 +46,16 @@ public sealed record MatchKickoffMoment(
                 DressingRoomEchoDigest.MomentumWinningStreak,
                 StringComparison.Ordinal))
         {
-            beats.Add("Üç maçlık galibiyet serisi sahaya çıktı — dördüncü zafer peşinde.");
+            var streakLength = Math.Max(3, formMomentumLength);
+            beats.Add($"{streakLength} maçlık galibiyet serisi sahaya çıktı — {streakLength + 1}. zafer peşinde.");
         }
         else if (string.Equals(
                      formMomentumCode,
                      DressingRoomEchoDigest.MomentumLosingStreak,
                      StringComparison.Ordinal))
         {
-            beats.Add("Üç maçlık mağlubiyet serisi — bugün kırılma maçı.");
+            var streakLength = Math.Max(3, formMomentumLength);
+            beats.Add($"{streakLength} maçlık mağlubiyet serisi — bugün kırılma maçı.");
         }
 
         foreach (var line in briefing.ToKickoffBridgeLines())

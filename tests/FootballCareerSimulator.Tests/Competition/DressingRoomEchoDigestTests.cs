@@ -39,6 +39,7 @@ public sealed class DressingRoomEchoDigestTests
         Assert.Contains("sallanarak", digest.VoiceLine, StringComparison.Ordinal);
         Assert.Equal("Form (eski→yeni): G-G · 6/6 puan", digest.MomentumLine);
         Assert.Equal(DressingRoomEchoDigest.MomentumMixed, digest.MomentumCode);
+        Assert.Equal(0, digest.MomentumLength);
     }
 
     [Fact]
@@ -83,6 +84,7 @@ public sealed class DressingRoomEchoDigestTests
         Assert.NotNull(digest);
         Assert.Equal("Form: G-G-G · 3 maçlık galibiyet serisi", digest!.MomentumLine);
         Assert.Equal(DressingRoomEchoDigest.MomentumWinningStreak, digest.MomentumCode);
+        Assert.Equal(3, digest.MomentumLength);
     }
 
     [Fact]
@@ -101,6 +103,28 @@ public sealed class DressingRoomEchoDigestTests
         Assert.NotNull(digest);
         Assert.Equal("Form: M-M-M · 3 maçlık mağlubiyet serisi", digest!.MomentumLine);
         Assert.Equal(DressingRoomEchoDigest.MomentumLosingStreak, digest.MomentumCode);
+        Assert.Equal(3, digest.MomentumLength);
+    }
+
+    [Fact]
+    public void LongWinningRun_CountsBeyondTheFiveMatchDisplayWindow()
+    {
+        var digest = DressingRoomEchoDigest.Compose(
+            [
+                Fixture(1, 10, 1, 2, FixtureStatus.ResultAccepted, 1, 0),
+                Fixture(2, 11, 3, 1, FixtureStatus.ResultAccepted, 0, 2),
+                Fixture(3, 12, 1, 3, FixtureStatus.ResultAccepted, 3, 1),
+                Fixture(4, 13, 2, 1, FixtureStatus.ResultAccepted, 0, 1),
+                Fixture(5, 14, 1, 2, FixtureStatus.ResultAccepted, 2, 0),
+                Fixture(6, 15, 3, 1, FixtureStatus.ResultAccepted, 1, 2),
+            ],
+            managedClubId: 1,
+            managedSinceDayNumber: 1,
+            Clubs);
+
+        Assert.NotNull(digest);
+        Assert.Equal(6, digest!.MomentumLength);
+        Assert.Equal("Form: G-G-G-G-G · 6 maçlık galibiyet serisi", digest.MomentumLine);
     }
 
     [Fact]

@@ -17,7 +17,8 @@ public sealed record FormStreakVerdictDigest(
 
     public static FormStreakVerdictDigest? Compose(
         string? enteringMomentumCode,
-        int? managedGoalMargin)
+        int? managedGoalMargin,
+        int enteringMomentumLength = 0)
     {
         if (managedGoalMargin is null)
         {
@@ -29,8 +30,9 @@ public sealed record FormStreakVerdictDigest(
                 DressingRoomEchoDigest.MomentumWinningStreak,
                 StringComparison.Ordinal))
         {
+            var nextLength = Math.Max(3, enteringMomentumLength) + 1;
             return managedGoalMargin > 0
-                ? new(Brand, "Seri büyüdü — üst üste dördüncü galibiyet.", WinningExtended)
+                ? new(Brand, $"Seri büyüdü — üst üste {nextLength}. galibiyet.", WinningExtended)
                 : new(Brand, "Galibiyet serisi sona erdi — yeni ritim bu sonuçtan kurulacak.", WinningEnded);
         }
 
@@ -44,7 +46,8 @@ public sealed record FormStreakVerdictDigest(
 
         if (managedGoalMargin < 0)
         {
-            return new(Brand, "Kriz derinleşti — üst üste dördüncü mağlubiyet.", LosingDeepened);
+            var nextLength = Math.Max(3, enteringMomentumLength) + 1;
+            return new(Brand, $"Kriz derinleşti — üst üste {nextLength}. mağlubiyet.", LosingDeepened);
         }
 
         return managedGoalMargin > 0

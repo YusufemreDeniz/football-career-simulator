@@ -9,11 +9,12 @@ public sealed class FormStreakVerdictDigestTests
     {
         var verdict = FormStreakVerdictDigest.Compose(
             DressingRoomEchoDigest.MomentumWinningStreak,
-            managedGoalMargin: 2);
+            managedGoalMargin: 2,
+            enteringMomentumLength: 4);
 
         Assert.NotNull(verdict);
         Assert.Equal(FormStreakVerdictDigest.WinningExtended, verdict!.VerdictCode);
-        Assert.Contains("dördüncü galibiyet", verdict.Headline, StringComparison.Ordinal);
+        Assert.Contains("5. galibiyet", verdict.Headline, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -35,11 +36,12 @@ public sealed class FormStreakVerdictDigestTests
     {
         var verdict = FormStreakVerdictDigest.Compose(
             DressingRoomEchoDigest.MomentumLosingStreak,
-            managedGoalMargin: -2);
+            managedGoalMargin: -2,
+            enteringMomentumLength: 5);
 
         Assert.NotNull(verdict);
         Assert.Equal(FormStreakVerdictDigest.LosingDeepened, verdict!.VerdictCode);
-        Assert.Contains("dördüncü mağlubiyet", verdict.Headline, StringComparison.Ordinal);
+        Assert.Contains("6. mağlubiyet", verdict.Headline, StringComparison.Ordinal);
     }
 
     [Fact]
