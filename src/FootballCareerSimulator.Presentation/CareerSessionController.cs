@@ -2612,6 +2612,9 @@ public sealed class CareerSessionController
 
             var injuredBefore = SnapshotInjuredPlayerNames();
             var formBefore = BuildDressingRoomEcho();
+            var opponentBefore = pendingSelection is not null
+                ? BuildOpponentDossier()
+                : null;
             var kickoffBriefing = CaptureKickoffBriefing(currentDay, pendingSelection);
             var matchupPlan = pendingSelection is not null
                 ? BuildMatchupPlan()
@@ -2881,7 +2884,8 @@ public sealed class CareerSessionController
             var formStreakVerdict = FormStreakVerdictDigest.Compose(
                 formBefore?.MomentumCode,
                 managedMargin,
-                formBefore?.MomentumLength ?? 0);
+                formBefore?.MomentumLength ?? 0,
+                opponentBefore?.WinningStreakLength ?? 0);
 
             var narrative = MatchNightNarrative.Compose(
                 heroScoreline ?? "—",
