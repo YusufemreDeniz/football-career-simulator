@@ -2605,6 +2605,7 @@ public sealed class CareerSessionController
             }
 
             var injuredBefore = SnapshotInjuredPlayerNames();
+            var formMomentumBefore = BuildDressingRoomEcho()?.MomentumCode;
             var kickoffBriefing = CaptureKickoffBriefing(currentDay, pendingSelection);
             var matchupPlan = pendingSelection is not null
                 ? BuildMatchupPlan()
@@ -2871,6 +2872,9 @@ public sealed class CareerSessionController
                 managedMargin,
                 afterWhistle.Any(line =>
                     line.Contains("işten çıkardı", StringComparison.OrdinalIgnoreCase)));
+            var formStreakVerdict = FormStreakVerdictDigest.Compose(
+                formMomentumBefore,
+                managedMargin);
 
             var narrative = MatchNightNarrative.Compose(
                 heroScoreline ?? "—",
@@ -2908,7 +2912,8 @@ public sealed class CareerSessionController
                 roundup,
                 dressingRoom,
                 technicalArea,
-                matchupPlanOutcome);
+                matchupPlanOutcome,
+                formStreakVerdict);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -4070,4 +4075,5 @@ public sealed record PlayMatchesUiResult(
     LeagueRoundupDigest? Roundup = null,
     CaptainReactionDigest? DressingRoom = null,
     TechnicalAreaDigest? TechnicalArea = null,
-    MatchupPlanOutcomeDigest? MatchupPlanOutcome = null);
+    MatchupPlanOutcomeDigest? MatchupPlanOutcome = null,
+    FormStreakVerdictDigest? FormStreakVerdict = null);

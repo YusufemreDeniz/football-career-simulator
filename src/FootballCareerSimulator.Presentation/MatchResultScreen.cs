@@ -179,6 +179,18 @@ public partial class MatchResultScreen : Control
             voice.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
             dressingPanel.AddChild(voice);
         }
+
+        if (_results.FormStreakVerdict is { } formVerdict)
+        {
+            content.AddChild(MatchScreenUi.SectionTitle("FORM", formVerdict.BrandTitle));
+            var formPanel = MatchScreenUi.Card(emphasized: true);
+            content.AddChild(formPanel);
+            var verdict = MatchScreenUi.BodyLine(
+                formVerdict.Headline,
+                alignment: HorizontalAlignment.Center);
+            verdict.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+            formPanel.AddChild(verdict);
+        }
     }
 
     private void BuildMatchPage(VBoxContainer content)
