@@ -1,7 +1,7 @@
 # Üretim Implementasyon Planı
 
 **Belge:** `docs/19_PRODUCTION_IMPLEMENTATION_PLAN.md`
-**Durum:** Kesinleşti (planlama düzeyinde) — bu belge hiçbir üretim kodu içermez
+**Durum:** Aktif üretim yol haritası — ilk planlama tabanı ve güncel uygulama kontrol noktası
 **Ana referans:** `docs/01_GAME_DESIGN_DOCUMENT.md`
 **Doküman haritası:** `docs/00_PROJECT_INDEX.md`
 **MVP kapsamı:** `docs/02_MVP_SCOPE.md`
@@ -16,6 +16,26 @@
 **Teknik mimari:** `docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md`
 **Tamamlanan teknik spike kanıtları:** `docs/18_SPIKE_EXECUTION_PLAN.md`
 **İlgili karar günlüğü:** `docs/15_DECISION_LOG.md`
+
+---
+
+## Güncel Uygulama Kontrol Noktası — 2026-08-19
+
+Bu bölüm güncel repo durumunun authoritative özetidir. Bölüm 2 ve Bölüm 7'deki ayrıntılı spike/Production Kart anlatıları tarihsel planlama kaydı olarak korunur; “henüz başlamadı”, “36 test” ve “Kart 0 bloke” ifadeleri yalnız o tarihteki durumu anlatır ve bu kontrol noktasıyla geçersiz kılınmıştır.
+
+* Araç zinciri: `net9.0`, SDK `9.0.317/latestPatch`, Godot 4.7-stable mono/.NET, `Microsoft.Data.Sqlite 10.0.9` (D-384).
+* Kalite kapısı: 876/876 saf .NET test, Presentation build 0 hata/uyarı ve `CAREER_UI_SMOKE_TEST_RESULT=PASS`.
+* Üretim kapsamı: 14 bounded context'in production temelleri ile birleşik Career SQLite persistence ve Godot menü → kariyer merkezi → maç günü → maç sonucu akışı depoda mevcuttur.
+* Production Kart 0–6: tamamlandı. Spike placeholder'ları yalnız tarihsel kanıt/uyumluluk amacıyla ayrık namespace'lerde tutulur; oyuncu akışı bunlara dayanmaz.
+
+| MVP kilometre taşı | Güncel durum | Açık ana koşul |
+|---|---|---|
+| 1 — Tek sezonluk dikey kesit | Büyük ölçüde tamamlandı | Tam paket kalite kapısını her committe korumak ve gerçek cihaz akışını doğrulamak |
+| 2 — Aynı kulüpte çok sezon | Kısmi | Emeklilik, yeni futbolcu üretimi ve bütünleşik çok sezon kabul senaryosu |
+| 3 — İşten çıkarılma ve sınırlı kulüp değiştirme | Kısmi | Kalıcı kariyer geçmişi ve eski kulüp/futbolcuyla yeniden karşılaşma kanıtı |
+| 4 — 10 sezonluk MVP kabulü | Açık | Tüm context'leri kapsayan 10 sezon koşusu, save/load ve uzun dönem metrikleri |
+
+Sonraki uygulama sırası: kalite kapısı → doküman/araç zinciri uyumu → repository hijyeni → Kilometre Taşı 2 → Kilometre Taşı 3 → Kilometre Taşı 4 → nihai dokümantasyon denetimi.
 
 ---
 
@@ -58,9 +78,9 @@ Spike kodu (`Spike1Placeholder`, `Spike4Placeholder` ve isimsiz yer tutucular) k
 
 ---
 
-## 2. Mevcut Durum Özeti
+## 2. Plan Hazırlanırken Mevcut Durum Özeti — Tarihsel Baseline
 
-Bu özet, `git log`, gerçek dosya sistemi içeriği ve `docs/15_DECISION_LOG.md` D-331–D-340 kayıtlarına dayanır.
+Bu özet planın ilk yazıldığı andaki spike durumunu kaydeder. Güncel durum için belgenin başındaki “Güncel Uygulama Kontrol Noktası” bağlayıcıdır.
 
 ### 2.1. Tamamlanan spike'lar (`docs/18_SPIKE_EXECUTION_PLAN.md`)
 
@@ -97,7 +117,7 @@ Bu özet, `git log`, gerçek dosya sistemi içeriği ve `docs/15_DECISION_LOG.md
 
 `.github/workflows/ci.yml` iki job içerir: `dotnet` (saf .NET restore/build/test) ve `godot-headless` (Godot editör/export şablonu indirme, headless import, Windows x64 export, export doğrulama, smoke test). Her ikisi de her push/PR'da otomatik çalışır ve artefakt üretir.
 
-### 2.6. Test durumu
+### 2.6. Test durumu — tarihsel
 
 36/36 test yeşil (Debug ve Release). Testlerin tamamı spike kod tabanına aittir; **gerçek domain modeline ait hiçbir test henüz mevcut değildir.**
 
@@ -117,7 +137,7 @@ Bu özet, `git log`, gerçek dosya sistemi içeriği ve `docs/15_DECISION_LOG.md
 | `tools/FootballCareerSimulator.SimulationRunner/Program.cs` | Spike 1 headless çalıştırma aracı |
 | `tests/FootballCareerSimulator.Tests/*.cs` | Tüm testler yukarıdaki placeholder'ları hedefler |
 
-### 2.8. Henüz başlamamış gerçek domain implementasyonu
+### 2.8. Henüz başlamamış gerçek domain implementasyonu — tarihsel
 
 `docs/03_DOMAIN_MODEL.md` Bölüm 5'teki 14 bounded context'ten (World & Calendar, Competition, Club & Governance, Player Career, Manager Career & Employment, Contract & Registration, Team Preparation, Training & Physical State, Match, Transfer, Social Continuity, Interaction & Narrative, Event & Rule Evaluation, Save Integrity) **hiçbiri henüz üretim kodu olarak implemente edilmemiştir.**
 
@@ -565,13 +585,13 @@ Somut olarak: Production Kart 1-4 boyunca, **yeni** gerçek Domain/Simulation/Ap
 
 ## 7. Çalışma Kartları
 
-Aşağıdaki kartlar, görev talimatındaki başlangıç yapısını temel alır ve mevcut belgelere göre doğrulanıp küçük düzeltmelerle sunulur. **Bu kartlardan hiçbiri bu görevde başlatılmamıştır.**
+Aşağıdaki kartlar ilk üretim sırasının tarihsel çalışma kaydıdır. Kart 0–6 güncel repo durumunda tamamlanmıştır; eski önkoşul ve blok ifadeleri kararın o tarihte nasıl verildiğini korumak amacıyla değiştirilmeden bırakılmıştır. Güncel uygulama durumu belgenin üstündeki kontrol noktasından okunur.
 
 Bu kart sırası `docs/01_GAME_DESIGN_DOCUMENT.md` Bölüm 36'daki (Geliştirme Yaklaşımı) 12 adımla doğrudan eşleşir: adım 1-7 (amaç, veri, bağımlılıklar, olaylar, senaryolar) bu belgenin Bölüm 5'inde zaten tamamlanmıştır; adım 8-12 (veri modeli, iş kuralları, testler, uzun dönem test, UI) aşağıdaki Kart 1-6'ya karşılık gelir.
 
-### Production Kart 0 — Terminoloji ve Karar Kapanışları — Bloke
+### Production Kart 0 — Terminoloji ve Karar Kapanışları — Tamamlandı (D-384)
 
-**Durum: Bloke — exact .NET SDK pin kanıtı eksik** (bkz. `docs/15_DECISION_LOG.md` D-342–D-351). Aşağıdaki altı koşuldan BEŞİ karşılanmıştır; exact SDK sürümü kanıtlanamadığından Kart 0 **"Tamamlandı" değildir**.
+**Tarihsel durum:** D-351 ile exact SDK kanıtı eksik olduğu için bloke edilmişti. D-384, `net9.0` + SDK `9.0.317/latestPatch` araç zincirini kanıtlayıp pinledi ve bu bloku kapattı.
 
 * **Amaç:** World & Calendar için kullanılacak terminolojiyi (Bölüm 5.1) ve açık kararları (Bölüm 3, madde 1/3/6) görünür ve kayıtlı hâle getirmek; herhangi bir kodu etkilemeden.
 * **Ön koşul:** Bu belgenin (docs/19) onaylanması. — Karşılandı.
@@ -733,16 +753,12 @@ Bu plan belgesi, aşağıdaki koşulların TAMAMI karşılandığında tamamlanm
 
 ---
 
-## 11. Sonraki Adım
+## 11. Sonraki Adım — Güncel
 
-**Production Kart 0, "Bloke — exact .NET SDK pin kanıtı eksik" durumundadır** (bkz. Bölüm 7 ve `docs/15_DECISION_LOG.md` D-342–D-351). Altı kapanış koşulundan beşi karşılanmıştır: World & Calendar terminolojisi kilitlendi (D-342), takvim modeli proleptic Gregorian `DayNumber` olarak bağlayıcı biçimde kapatıldı (D-343), günlük granularity ve same-day ordering kapatıldı (D-344, D-345), Target Framework `net10.0` resmileştirildi (D-346), manuel composition root ve third-party container kullanılmaması kararları kapatıldı (D-348, D-349). **Ancak exact .NET SDK sürümü kanıtla doğrulanamamıştır** (D-347): yerel ortamda eşzamanlı olarak iki farklı SDK (`10.0.300`, `10.0.301`) kurulu bulunmuş ve CI yalnızca kayan bir `10.0.x` feature-band özelliği kullanmıştır; hiçbir spike kaydı tek bir exact sürümü sabitlememiştir.
+D-384 ile Production Kart 0 bloku kapanmış ve Kart 1–6 gerçek kodda tamamlanmıştır. Bir sonraki sıra yeni yatay özellik eklemek değil, MVP kilometre taşlarının açık bütünlük koşullarını kapatmaktır:
 
-Bu nedenle **Production Kart 1 bu belge tarafından "başlatılabilir" olarak gösterilmez.** Bu belge onaylandıktan sonraki en küçük mantıklı adım, Production Kart 1'in KENDİSİ DEĞİL, Kart 0'ın blokunu kaldıracak **küçük, ayrı bir "exact .NET SDK pin" konfigürasyon kartı**dır: bir CI çalıştırmasının veya kontrollü yerel ortamın exact SDK sürümünü (`10.0.xxx`) sabitleyip kanıtla `docs/15_DECISION_LOG.md`'ye işlemek (D-347'yi "Kabul edildi" durumuna taşımak) ve gerekirse `global.json` oluşturmak — **bu adım bu belgenin ve bu görevin kapsamı dışındadır.**
-
-Bu adımdan önce:
-
-* Production Kart 1 **başlatılmamıştır ve başlatılamaz** — Kart 0 Bloke durumdayken hiçbir sonraki kart "hazır" sayılmaz,
-* `Spike1Placeholder`/`Spike4Placeholder` namespace'leri kaldırılmamalı,
-* Bölüm 3'teki kalan açık kararlar (madde 1, 2, 3'ün exact SDK alt maddesi, 4, 7, 8, 9, 10) sessizce kapatılmamalı,
-* Bölüm 8'de listelenen açık kararlar (RNG algoritması, RNG stream listesi, üretim SQLite şeması, migration formatı, exact SQLite provider/paket sürümü, exact season başlangıç tarihi, fixture takvim tarihleri, exact namespace/klasör yapısı, exact command/event sınıf listesi, DI container paketi, persistence repository interface listesi) kapatılmamalı,
-* GDD, MVP kapsamı veya kesinleşmiş alt sistem belgeleri değiştirilmemelidir.
+1. Repository EOL/Godot import politikasını temiz ve tekrar üretilebilir hâle getirmek.
+2. Kilometre Taşı 2 için emeklilik, yeni futbolcu üretimi ve bütünleşik çok sezon testini tamamlamak.
+3. Kilometre Taşı 3 için kalıcı kariyer geçmişi ve yeniden karşılaşma sonuçlarını tamamlamak.
+4. Kilometre Taşı 4 için tüm context'leri kapsayan 10 sezonluk kabul koşusu ve save/load kanıtı üretmek.
+5. Son kanıtlardan sonra bu belgeyi ve `README.md`yi nihai sayılarla güncellemek.

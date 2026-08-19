@@ -230,9 +230,7 @@ içinde kullanılamaz.
 
 ### 6.4. .NET sürüm yönü
 
-Exact target framework bu belgeyle varsayılmayacaktır.
-
-Sabitlenecek Godot .NET sürümüyle uyumlu, desteklenen güncel .NET LTS hattı teknik spike sırasında seçilecektir.
+Teknik spike ve Android/Godot export doğrulamaları sonucunda ortak target framework `net9.0`, exact SDK `9.0.317` ve roll-forward politikası `latestPatch` olarak pinlenmiştir (D-384). Godot Presentation `Godot.NET.Sdk/4.7.0` kullanır.
 
 Domain, Simulation, Application, Infrastructure, Tooling ve Test projeleri ortak uyumlu target framework tabanını kullanmalıdır.
 
@@ -1058,30 +1056,23 @@ Gerekçe:
 
 Aşağıdaki konular kararın özünü değiştirmez ancak spike veya ilgili alt tasarım belgesinde kesinleştirilmelidir:
 
-1. Sabitlenecek exact Godot 4 .NET patch sürümü.
-2. Godot sürümüyle ortak kullanılacak exact .NET LTS target framework.
-3. Kullanılacak SQLite .NET provider.
-4. Versioned deterministic PRNG algoritması ve stream stratejisi.
-5. Godot büyük liste component'inin recycling, virtualization veya paging uygulaması.
-6. İlk portable build sonrasında installer biçimi.
-7. Code signing zamanı ve sertifika yaklaşımı.
-8. Event/audit retention ve compaction eşikleri.
-9. Save backup sayısı ve saklama politikası.
-10. Scheduled soak testlerinin kesin süre ve performans eşikleri.
+1. Versioned deterministic PRNG algoritması ve stream stratejisinin nihai genişleme modeli.
+2. Godot büyük liste component'inin recycling, virtualization veya paging uygulaması.
+3. İlk portable build sonrasında installer biçimi.
+4. Code signing zamanı ve sertifika yaklaşımı.
+5. Event/audit retention ve compaction eşikleri.
+6. Save backup sayısı ve saklama politikası.
+7. Scheduled soak testlerinin kesin süre ve performans eşikleri.
 
 Bu sorular sessiz varsayımla kapatılmamalıdır.
+
+Kapanan teknik pinler: Godot 4.7-stable mono/.NET, `net9.0`, SDK `9.0.317/latestPatch` ve `Microsoft.Data.Sqlite 10.0.9` (D-339, D-384).
 
 ---
 
 ## 20. Sonraki Adım
 
-Bir sonraki en küçük mantıklı adım:
-
-1. Bu belgede tanımlanan altı teknik spike'ın sırasını ve çalışma kartlarını hazırlamak.
-2. Spike'lar tamamlanmadan geniş üretim scaffold'u oluşturmamak.
-3. Spike sonuçlarına göre exact Godot, .NET ve persistence provider sürümlerini pinlemek.
-4. Sonrasında domain modelleme ve sistem tasarım belgelerine devam etmek.
-5. Üretim koduna geçmeden önce ilgili sistem için amaç, veri, bağımlılıklar, olaylar, sınır durumları ve test senaryolarını tanımlamak.
+Altı teknik spike tamamlanmış, üretim implementasyonu başlamış ve araç zinciri D-384 ile pinlenmiştir. Güncel uygulama sırası `docs/19_PRODUCTION_IMPLEMENTATION_PLAN.md` üstündeki uygulama kontrol noktasında izlenir; sıradaki teknik hedefler tam test kapısını korumak, çok sezon kariyer bütünlüğünü tamamlamak ve tam 10 sezonluk MVP kabul koşusunu kanıtlamaktır.
 
 ---
 

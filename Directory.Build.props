@@ -4,9 +4,8 @@
     Ortak proje ayarları (docs/17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md Bölüm 6.4 ve Bölüm 8 ile uyumlu).
     TargetFramework burada net9.0 olarak kullanılmaktadır ve altı spike'ın tamamında (headless
     simulation, determinizm, SQLite, Godot editör/headless çalıştırma, Godot Windows export dahil)
-    sorunsuz doğrulanmıştır (bkz. docs/15_DECISION_LOG.md D-331 vd., D-339). Buna rağmen exact .NET
-    sürüm pinlemesi, `docs/18_SPIKE_EXECUTION_PLAN.md` Bölüm 20'deki genel karar adımıyla ayrı bir
-    karar kaydında açıkça kesinleştirilene kadar teknik olarak hâlâ geçici kabul edilir.
+    sorunsuz doğrulanmıştır. Exact SDK 9.0.317 ve latestPatch politikası D-384 ile pinlenmiştir;
+    Godot Android uyumluluğu nedeniyle önceki net10.0 kararı geçersiz kılınmıştır.
   -->
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
