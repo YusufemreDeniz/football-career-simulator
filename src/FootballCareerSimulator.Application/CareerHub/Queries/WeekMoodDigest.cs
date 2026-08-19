@@ -38,7 +38,8 @@ public sealed record WeekMoodDigest(
         LeagueWorldBriefing league,
         TransferDeskBriefing? transfer = null,
         bool weekStoryActive = false,
-        string? formMomentumCode = null)
+        string? formMomentumCode = null,
+        int formMomentumLength = 0)
     {
         ArgumentNullException.ThrowIfNull(desk);
         ArgumentNullException.ThrowIfNull(match);
@@ -125,7 +126,8 @@ public sealed record WeekMoodDigest(
                 DressingRoomEchoDigest.MomentumWinningStreak,
                 StringComparison.Ordinal))
         {
-            return Active("Üç maçlık galibiyet serisi — ritmi koru.", MoodFormRise);
+            var streakLength = Math.Max(3, formMomentumLength);
+            return Active($"{streakLength} maçlık galibiyet serisi — ritmi koru.", MoodFormRise);
         }
 
         if (string.Equals(
@@ -133,7 +135,10 @@ public sealed record WeekMoodDigest(
                 DressingRoomEchoDigest.MomentumLosingStreak,
                 StringComparison.Ordinal))
         {
-            return Active("Üç maçlık mağlubiyet serisi — haftayı toparlanmaya çevir.", MoodFormCrisis);
+            var streakLength = Math.Max(3, formMomentumLength);
+            return Active(
+                $"{streakLength} maçlık mağlubiyet serisi — haftayı toparlanmaya çevir.",
+                MoodFormCrisis);
         }
 
         if (prep.IsEmployed && match.HasMatch)

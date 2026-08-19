@@ -263,6 +263,33 @@ public sealed class PostMatchOfficeDigestTests
         Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Haftalık Plan Kur");
     }
 
+    [Theory]
+    [InlineData(WeekMoodDigest.MoodFormRise, "seri yükseliyor")]
+    [InlineData(WeekMoodDigest.MoodFormCrisis, "form alarmı")]
+    public void FromTodayPulse_FormMood_UsesSpecificOfficeHeadline(
+        string moodCode,
+        string expectedHeadline)
+    {
+        var mood = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Form serisi haftanın ritmini belirliyor.",
+            moodCode);
+        var pulse = new TodayPulseDigest(
+            TodayPulseDigest.Brand,
+            "Sakin hafta",
+            TodayPulseDigest.FocusCalm,
+            [mood.ToPulseLine()]);
+
+        var digest = PostMatchOfficeDigest.FromTodayPulse(
+            pulse,
+            mood,
+            dayNumber: 12);
+
+        Assert.Contains(expectedHeadline, digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ofise bak", digest.Headline, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public void FromTodayPulse_WeekStory_SurfacesHikayeAndCta()
     {

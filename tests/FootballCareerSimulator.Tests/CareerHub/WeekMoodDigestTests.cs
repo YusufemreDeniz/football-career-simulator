@@ -220,6 +220,27 @@ public sealed class WeekMoodDigestTests
         Assert.Equal(WeekMoodDigest.MoodMatchDraft, mood.MoodCode);
     }
 
+    [Theory]
+    [InlineData(DressingRoomEchoDigest.MomentumWinningStreak, 6, WeekMoodDigest.MoodFormRise, "6 maçlık galibiyet")]
+    [InlineData(DressingRoomEchoDigest.MomentumLosingStreak, 5, WeekMoodDigest.MoodFormCrisis, "5 maçlık mağlubiyet")]
+    public void LongFormRun_UsesActualLengthInWeeklyMood(
+        string momentumCode,
+        int momentumLength,
+        string expectedMoodCode,
+        string expectedLine)
+    {
+        var mood = WeekMoodDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            formMomentumCode: momentumCode,
+            formMomentumLength: momentumLength);
+
+        Assert.Equal(expectedMoodCode, mood.MoodCode);
+        Assert.Contains(expectedLine, mood.MoodLine, StringComparison.Ordinal);
+    }
+
     private static PreparationBriefing PrepOk() =>
         PreparationBriefing.Compose(
             new ClubTrainingSummaryReadModel(

@@ -320,6 +320,8 @@ public sealed record PostMatchOfficeDigest(
         WeekMoodDigest.MoodPrep => "Haftanın havası — hazırlık çağırıyor.",
         WeekMoodDigest.MoodLeague => "Haftanın havası — lig baskısı.",
         WeekMoodDigest.MoodTransfer => "Haftanın havası — transfer sıcak.",
+        WeekMoodDigest.MoodFormRise => "Haftanın havası — seri yükseliyor.",
+        WeekMoodDigest.MoodFormCrisis => "Haftanın havası — form alarmı.",
         WeekMoodDigest.MoodCalmMatch => "Haftanın havası — sakin tempo.",
         WeekMoodDigest.MoodCalm => "Haftanın havası — sakin hafta.",
         _ => "Haftanın havası — ofise bak.",

@@ -915,7 +915,7 @@ public sealed class CareerSessionController
         league ??= BuildLeagueWorldBriefing();
         transfer ??= BuildTransferDeskBriefing();
         var storyActive = weekStoryActive ?? BuildWeekStory(match).IsActive;
-        var formMomentumCode = BuildDressingRoomEcho()?.MomentumCode;
+        var dressingRoomEcho = BuildDressingRoomEcho();
         return WeekMoodDigest.Compose(
             desk,
             match,
@@ -923,7 +923,8 @@ public sealed class CareerSessionController
             league,
             transfer,
             storyActive,
-            formMomentumCode);
+            dressingRoomEcho?.MomentumCode,
+            dressingRoomEcho?.MomentumLength ?? 0);
     }
 
     public DecisionDeskDigest BuildDecisionDeskDigest()
