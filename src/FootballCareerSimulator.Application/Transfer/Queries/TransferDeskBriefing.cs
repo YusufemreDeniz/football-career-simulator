@@ -149,7 +149,7 @@ public sealed record TransferDeskBriefing(
 
         if (squadFull)
         {
-            beats.Add("Kadro dolu — yer için Satışa Çıkar veya Yer Aç.");
+            beats.Add("Kadro dolu — yer için Kadro dosyasından Satışa Çıkar veya Yer Aç.");
         }
 
         var nextStep = ResolveNextStep(
@@ -190,7 +190,6 @@ public sealed record TransferDeskBriefing(
             || openExitNeedCount > 0
             || promiseExitPressurePlayerId is not null
             || (listedTargetCount > 0 && activeProcessCount == 0)
-            || (squadFull && saleCandidatePlayerId is not null)
             || (!windowOpen && (squadFull || saleCandidatePlayerId is not null));
 
         var closingPressure = daysUntilClose is int left
@@ -371,12 +370,11 @@ public sealed record TransferDeskBriefing(
                 "Satışa Çıkar ile alıcıyı tamamla.");
         }
 
-        if (squadFull && saleCandidatePlayerId is not null)
+        if (squadFull)
         {
-            var fullName = TransferPlayerCopy.NamedPlayer(saleCandidatePlayerName, saleCandidateDetail);
             return (
-                $"Kadro dolu — {fullName} çıkışta.",
-                $"Satışa Çıkar — {TransferPlayerCopy.NamedPlayer(saleCandidatePlayerName)} veya Yer Aç ile slot aç.");
+                "Kadro dolu — satılacak oyuncuyu Kadro'dan seç.",
+                "Kadro dosyasında Satışa Çıkar veya Yer Aç ile slot aç.");
         }
 
         if (listedTargetCount > 0 && activeProcessCount == 0)
@@ -449,7 +447,7 @@ public sealed record TransferDeskBriefing(
 
         if (windowOpen
             && saleCandidatePlayerId is long saleId
-            && (openExitNeedCount > 0 || squadFull))
+            && openExitNeedCount > 0)
         {
             return TransferNextStep.SellFringe(
                 saleId,

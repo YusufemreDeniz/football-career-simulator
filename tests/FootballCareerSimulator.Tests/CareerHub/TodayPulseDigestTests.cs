@@ -297,7 +297,40 @@ public sealed class TodayPulseDigestTests
     }
 
     [Fact]
-    public void TransferAttention_OnCalmDay_BeatsSquadFull_ButNotMatchReady()
+    public void FullSquad_SuggestedSale_DoesNotHijackOfficeToNamedSell()
+    {
+        var full = SquadCapacityDigest.Compose(25, 25, 25, Array.Empty<long>());
+        var transfer = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            windowClosesOnDayNumber: 90,
+            openNeedCount: 0,
+            openExitNeedCount: 0,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: null,
+            budgetSpent: null,
+            squadFull: true,
+            saleCandidatePlayerId: 88,
+            currentDayNumber: 40);
+
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            full,
+            transfer);
+
+        Assert.False(transfer.DemandsAttention);
+        Assert.NotEqual(TransferNextStep.ReasonSellFringe, transfer.NextStep?.ReasonCode);
+        Assert.Equal(TodayPulseDigest.FocusSquad, pulse.PrimaryFocusCode);
+        Assert.DoesNotContain("Satışa Çıkar", pulse.Headline, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FullSquad_WithoutExitNeed_StaysSquadFocus_AndDoesNotBeatMatchReady()
     {
         var full = SquadCapacityDigest.Compose(25, 25, 25, Array.Empty<long>());
         var transfer = TransferDeskBriefing.Compose(
@@ -314,7 +347,7 @@ public sealed class TodayPulseDigestTests
             squadFull: true,
             saleCandidatePlayerId: 2001);
 
-        Assert.True(transfer.DemandsAttention);
+        Assert.False(transfer.DemandsAttention);
 
         var calm = TodayPulseDigest.Compose(
             DecisionDeskDigest.Clear(),
@@ -324,9 +357,8 @@ public sealed class TodayPulseDigestTests
             full,
             transfer);
 
-        Assert.Equal(TodayPulseDigest.FocusTransfer, calm.PrimaryFocusCode);
-        Assert.Contains("Satışa Çıkar", calm.Headline, StringComparison.Ordinal);
-        Assert.Contains(calm.PulseLines, l => l.StartsWith("Transfer:", StringComparison.Ordinal));
+        Assert.Equal(TodayPulseDigest.FocusSquad, calm.PrimaryFocusCode);
+        Assert.DoesNotContain("Satışa Çıkar", calm.Headline, StringComparison.Ordinal);
 
         var withMatch = TodayPulseDigest.Compose(
             DecisionDeskDigest.Clear(),
@@ -337,7 +369,6 @@ public sealed class TodayPulseDigestTests
             transfer);
 
         Assert.Equal(TodayPulseDigest.FocusMatch, withMatch.PrimaryFocusCode);
-        Assert.Contains(withMatch.PulseLines, l => l.StartsWith("Transfer:", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -383,6 +383,17 @@ public sealed class CareerSessionController
 
     public UiActionResult SellFringePlayerFromManagedClub()
     {
+        var candidateId = SuggestSaleCandidatePlayerId();
+        if (candidateId is null)
+        {
+            return UiActionResult.Fail("Satılacak kenar oyuncu yok — kadro çok ince.");
+        }
+
+        return SellManagedClubPlayer(candidateId.Value);
+    }
+
+    public UiActionResult SellManagedClubPlayer(long playerId)
+    {
         try
         {
             var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
@@ -392,9 +403,11 @@ public sealed class CareerSessionController
             var squad = Host.TeamPreparationModule.ClubSquad
                 ?? throw new InvalidOperationException("Kadro servisi yok.");
 
-            var candidateId = SuggestSaleCandidatePlayerId()
-                ?? throw new InvalidOperationException(
-                    "Satılacak kenar oyuncu yok — kadro çok ince.");
+            var candidateId = playerId;
+            if (candidateId <= 0)
+            {
+                throw new InvalidOperationException("Satılacak oyuncu seçilmedi.");
+            }
 
             _ = Host.TransferModule.Needs.DeclarePlayerExitRequest(
                 id,

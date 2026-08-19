@@ -96,6 +96,7 @@ public partial class CareerHubScreen : Control
     private Control _playerDossierOverlay = null!;
     private Label _playerDossierTitle = null!;
     private Label _playerDossierBody = null!;
+    private Button _playerDossierSellButton = null!;
     private IReadOnlyList<PlayerManagementLine> _playerManagementPlayers = Array.Empty<PlayerManagementLine>();
     private long? _selectedPlayerId;
     private Button _approveSelectionButton = null!;
@@ -576,7 +577,11 @@ public partial class CareerHubScreen : Control
         _playerDossierBody.SizeFlagsVertical = SizeFlags.ExpandFill;
         content.AddChild(_playerDossierBody);
 
-        var close = PrimaryButton("Kapat");
+        _playerDossierSellButton = PrimaryButton("Satışa Çıkar");
+        _playerDossierSellButton.Pressed += OnPlayerDossierSellPressed;
+        content.AddChild(_playerDossierSellButton);
+
+        var close = SecondaryButton("Kapat");
         close.Pressed += ClosePlayerDossier;
         content.AddChild(close);
     }
@@ -602,6 +607,36 @@ public partial class CareerHubScreen : Control
         _playerDossierBody.Text = player.ToDossierText();
         _playerDossierOverlay.Visible = true;
         RefreshPlayerDetail();
+        RefreshPlayerDossierSellButton();
+    }
+
+    private void OnPlayerDossierSellPressed()
+    {
+        if (_selectedPlayerId is not long playerId)
+        {
+            Apply(UiActionResult.Fail("Önce kadrodan bir futbolcu seç."));
+            return;
+        }
+
+        ClosePlayerDossier();
+        Apply(_controller.SellManagedClubPlayer(playerId));
+    }
+
+    private void RefreshPlayerDossierSellButton()
+    {
+        if (_playerDossierSellButton is null)
+        {
+            return;
+        }
+
+        var employed = _controller.Host.ManagerModule.Queries.GetCareer().EmployedClubId is not null;
+        var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
+        var hasPlayer = _selectedPlayerId is > 0;
+        _playerDossierSellButton.Visible = employed && hasPlayer;
+        _playerDossierSellButton.Disabled = !windowOpen || !hasPlayer;
+        _playerDossierSellButton.Text = windowOpen
+            ? "Satışa Çıkar"
+            : "Satışa Çıkar (pencere kapalı)";
     }
 
     private void ClosePlayerDossier()
@@ -2712,27 +2747,8 @@ public partial class CareerHubScreen : Control
                 : $"Yer Aç — {_controller.GetPlayerDisplayName(rid)}")
             : "Yer Aç";
 
-        var saleId = !unemployed
-            ? _controller.SuggestSaleCandidatePlayerId()
-            : null;
-        var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
-        var saleStep = _controller.BuildTransferDeskBriefing().NextStep;
-        var salePressure = saleStep is not null
-            && (string.Equals(
-                    saleStep.ReasonCode,
-                    Application.Transfer.Queries.TransferNextStep.ReasonSellFringe,
-                    StringComparison.Ordinal)
-                || string.Equals(
-                    saleStep.ReasonCode,
-                    Application.Transfer.Queries.TransferNextStep.ReasonPromiseExit,
-                    StringComparison.Ordinal));
-        _sellFringeButton.Disabled = saleId is null || !windowOpen;
-        _sellFringeButton.Visible = !_sellFringeButton.Disabled && salePressure;
-        _sellFringeButton.Text = saleId is long sid
-            ? (windowOpen
-                ? $"Satışa Çıkar — {_controller.GetPlayerDisplayName(sid)}"
-                : "Satışa Çıkar (pencere kapalı)")
-            : "Satışa Çıkar";
+        _sellFringeButton.Visible = false;
+        RefreshPlayerDossierSellButton();
     }
 
     private string GetClubDisplayNameSafe(long clubId) => _controller.GetClubDisplayName(clubId);

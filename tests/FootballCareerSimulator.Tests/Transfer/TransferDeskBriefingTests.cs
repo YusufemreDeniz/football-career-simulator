@@ -33,7 +33,7 @@ public sealed class TransferDeskBriefingTests
     }
 
     [Fact]
-    public void OpenWindow_FullSquad_PointsToSale()
+    public void OpenWindow_FullSquad_DoesNotForceNamedSale()
     {
         var desk = TransferDeskBriefing.Compose(
             windowOpen: true,
@@ -51,10 +51,11 @@ public sealed class TransferDeskBriefingTests
             currentDayNumber: 30);
 
         Assert.Contains("Kadro dolu", desk.Headline, StringComparison.Ordinal);
+        Assert.Contains("Kadro", desk.Headline, StringComparison.Ordinal);
         Assert.Contains("Satışa Çıkar", desk.AdviceLine, StringComparison.Ordinal);
-        Assert.True(desk.DemandsAttention);
-        Assert.Equal(TransferNextStep.ReasonSellFringe, desk.NextStep!.ReasonCode);
-        Assert.Equal(TransferNextStep.ActionSellFringe, desk.NextStep.ActionCode);
+        Assert.False(desk.DemandsAttention);
+        Assert.NotEqual(TransferNextStep.ReasonSellFringe, desk.NextStep?.ReasonCode);
+        Assert.Equal(TransferNextStep.ReasonPickTarget, desk.NextStep!.ReasonCode);
         Assert.Contains(desk.BeatLines, b => b.Contains("kapanış", StringComparison.Ordinal));
         Assert.DoesNotContain(desk.ToDisplayText(), "kapanış gün", StringComparison.Ordinal);
     }
@@ -77,11 +78,11 @@ public sealed class TransferDeskBriefingTests
             saleCandidatePlayerId: 88,
             currentDayNumber: 40);
 
-        Assert.True(desk.DemandsAttention);
+        Assert.False(desk.DemandsAttention);
         Assert.Contains("kapanıyor", desk.Headline, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(desk.BeatLines, b => b.Contains("kritik", StringComparison.Ordinal));
-        Assert.Equal(TransferNextStep.ActionSellFringe, desk.NextStep!.ActionCode);
-        Assert.Contains("daralıyor", desk.NextStep.PulseHeadline, StringComparison.Ordinal);
+        Assert.Equal(TransferNextStep.ActionScanNeeds, desk.NextStep!.ActionCode);
+        Assert.DoesNotContain("Satışa Çıkar —", desk.NextStep.ButtonLabel, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -391,13 +392,13 @@ public sealed class TransferDeskBriefingTests
             saleCandidatePlayerName: "Rayan Raveloson",
             saleCandidateDetail: "Rayan Raveloson (DOS · GÜÇ 70)");
 
-        Assert.Contains("Rayan Raveloson (DOS · GÜÇ 70)", desk.Headline, StringComparison.Ordinal);
-        Assert.Equal("Satışa Çıkar — Rayan Raveloson", desk.NextStep!.ButtonLabel);
-        Assert.Contains("Rayan Raveloson", desk.NextStep.PulseHeadline, StringComparison.Ordinal);
+        Assert.Contains("Kadro dolu", desk.Headline, StringComparison.Ordinal);
+        Assert.Contains("Rayan Raveloson (DOS · GÜÇ 70)", desk.ToDisplayText(), StringComparison.Ordinal);
+        Assert.NotEqual(TransferNextStep.ReasonSellFringe, desk.NextStep?.ReasonCode);
         Assert.DoesNotContain("#17025", desk.ToDisplayText(), StringComparison.Ordinal);
         Assert.DoesNotContain("#17025", desk.ToSummaryText(), StringComparison.Ordinal);
         Assert.Equal(
-            "Kadro dolu — Rayan Raveloson (DOS · GÜÇ 70) çıkışta.\nSatışa Çıkar — Rayan Raveloson veya Yer Aç ile slot aç.",
+            "Kadro dolu — satılacak oyuncuyu Kadro'dan seç.\nKadro dosyasında Satışa Çıkar veya Yer Aç ile slot aç.",
             desk.ToSummaryText());
     }
 }

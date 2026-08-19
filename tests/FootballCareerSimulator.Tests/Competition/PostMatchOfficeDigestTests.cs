@@ -486,7 +486,7 @@ public sealed class PostMatchOfficeDigestTests
             "Açık",
             40,
             openNeedCount: 0,
-            openExitNeedCount: 0,
+            openExitNeedCount: 1,
             listedTargetCount: 0,
             activeProcessCount: 0,
             pendingOfferCount: 0,
