@@ -112,6 +112,12 @@ public sealed record DecisionDeskDigest(
 
         if (kindName.Contains("Disiplin", StringComparison.OrdinalIgnoreCase))
         {
+            if (causalityLine is not null
+                && causalityLine.Contains("Kırmızı kart", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Kırmızı kart — soyunma odasında konuşma.";
+            }
+
             return "Soyunma odasında gerilim.";
         }
 

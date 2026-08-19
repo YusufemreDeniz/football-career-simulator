@@ -154,4 +154,24 @@ public sealed class DecisionAnswerNarrativeTests
             narrative.BeatLines,
             b => b.Contains("söz kırığı unutulmadı", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void IssueWarning_WithRedCardCausality_NamesTheCard()
+    {
+        var narrative = DecisionAnswerNarrative.Compose(
+            "Disiplin görüşmesi",
+            DecisionRequest.OptionIssueWarning,
+            "Uyarı ver",
+            subjectPlayerId: 12,
+            wasHardBlocker: true,
+            remainingOpenCount: 0,
+            causalityLine: "Kırmızı kart gördü — soyunma odasında konuşma şart",
+            subjectPlayerName: "Tolga Kurt");
+
+        Assert.Equal("Kırmızı kart için uyarı yazıldı.", narrative.Headline);
+        Assert.Contains(narrative.BeatLines, b => b.StartsWith("Neden:", StringComparison.Ordinal));
+        Assert.Contains(
+            narrative.BeatLines,
+            b => b.Contains("kırmızı kart uyarısını", StringComparison.OrdinalIgnoreCase));
+    }
 }

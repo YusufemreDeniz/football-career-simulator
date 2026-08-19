@@ -51,6 +51,12 @@ public sealed record WeekMoodDigest(
         if (desk.HasOpenDecision)
         {
             if (!string.IsNullOrWhiteSpace(desk.CausalityLine)
+                && desk.CausalityLine.Contains("Kırmızı kart", StringComparison.OrdinalIgnoreCase))
+            {
+                return Active("Kırmızı kart — soyunma odasını temizle, sonra ritim kur.", MoodDesk);
+            }
+
+            if (!string.IsNullOrWhiteSpace(desk.CausalityLine)
                 && (desk.CausalityLine.Contains("yedek", StringComparison.OrdinalIgnoreCase)
                     || desk.CausalityLine.Contains("kadro dışı", StringComparison.OrdinalIgnoreCase)))
             {

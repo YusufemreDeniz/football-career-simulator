@@ -625,6 +625,13 @@ public sealed record PostMatchOfficeDigest(
         }
 
         if (narrative.AfterWhistleLines.Any(l =>
+                l.Contains("Disiplin", StringComparison.OrdinalIgnoreCase)
+                || l.Contains("kırmızı kart", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "Kırmızı kart — ofiste disiplin masası.";
+        }
+
+        if (narrative.AfterWhistleLines.Any(l =>
                 l.Contains("Basın sorusu", StringComparison.OrdinalIgnoreCase)))
         {
             return "Basın ofise üşüştü.";

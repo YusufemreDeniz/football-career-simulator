@@ -136,4 +136,33 @@ public sealed class DecisionDeskDigestTests
         Assert.Contains("Söz #2 bozuldu", digest.SupportingLine, StringComparison.Ordinal);
         Assert.Equal("Söz #2 bozuldu · güven düşük", digest.CausalityLine);
     }
+
+    [Fact]
+    public void DisciplineWithRedCardCausality_UsesDressingRoomHeadline()
+    {
+        var pending = new PendingDecisionsReadModel(
+            1,
+            [
+                new DecisionRequestLineReadModel(
+                    5,
+                    "Disiplin görüşmesi",
+                    SubjectPlayerId: 12,
+                    ClubId: 1,
+                    StatusName: "Open",
+                    IsHardBlocker: true,
+                    OpenedDayNumber: 8,
+                    DeadlineDayNumber: 14,
+                    SelectedOptionCode: null),
+            ]);
+
+        var digest = DecisionDeskDigest.Compose(
+            pending,
+            currentDayNumber: 10,
+            causalityLine: "Kırmızı kart gördü — soyunma odasında konuşma şart",
+            subjectPlayerName: "Tolga Kurt");
+
+        Assert.Equal("Kırmızı kart — soyunma odasında konuşma.", digest.Headline);
+        Assert.Contains("Tolga Kurt", digest.SupportingLine, StringComparison.Ordinal);
+        Assert.Contains("Kırmızı kart gördü", digest.SupportingLine, StringComparison.Ordinal);
+    }
 }

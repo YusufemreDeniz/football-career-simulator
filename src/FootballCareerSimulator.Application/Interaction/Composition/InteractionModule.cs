@@ -27,6 +27,7 @@ public sealed class InteractionModule
         PostMatchPressDecisionTrigger postMatchPress,
         PostMatchPlayingTimeDemandTrigger postMatchPlayingTimeDemand,
         PostMatchBoardDemandTrigger postMatchBoardDemand,
+        PostMatchDisciplineDecisionTrigger postMatchDiscipline,
         PromiseBrokenDecisionTrigger promiseBroken)
     {
         DecisionRequestStore = decisionRequestStore;
@@ -41,6 +42,7 @@ public sealed class InteractionModule
         PostMatchPress = postMatchPress;
         PostMatchPlayingTimeDemand = postMatchPlayingTimeDemand;
         PostMatchBoardDemand = postMatchBoardDemand;
+        PostMatchDiscipline = postMatchDiscipline;
         PromiseBroken = promiseBroken;
     }
 
@@ -67,6 +69,8 @@ public sealed class InteractionModule
     public PostMatchPlayingTimeDemandTrigger PostMatchPlayingTimeDemand { get; }
 
     public PostMatchBoardDemandTrigger PostMatchBoardDemand { get; }
+
+    public PostMatchDisciplineDecisionTrigger PostMatchDiscipline { get; }
 
     public PromiseBrokenDecisionTrigger PromiseBroken { get; }
 
@@ -120,6 +124,7 @@ public sealed class InteractionModule
             memoryStore ?? new InMemoryMemoryStore(),
             promiseStore);
         var postMatchBoardDemand = new PostMatchBoardDemandTrigger(decisions);
+        var postMatchDiscipline = new PostMatchDisciplineDecisionTrigger(decisions);
         var promiseBroken = new PromiseBrokenDecisionTrigger(decisions, relationshipStore);
         return new InteractionModule(
             store,
@@ -134,6 +139,7 @@ public sealed class InteractionModule
             postMatchPress,
             postMatchPlayingTimeDemand,
             postMatchBoardDemand,
+            postMatchDiscipline,
             promiseBroken);
     }
 }

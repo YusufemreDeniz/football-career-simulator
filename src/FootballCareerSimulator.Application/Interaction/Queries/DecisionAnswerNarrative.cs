@@ -38,7 +38,8 @@ public sealed record DecisionAnswerNarrative(
         ArgumentException.ThrowIfNullOrWhiteSpace(optionDisplayText);
 
         var sittingOutPressure = IsSittingOutCausality(causalityLine);
-        var headline = HeadlineFor(kindName, optionCode, sittingOutPressure);
+        var redCardPressure = IsRedCardCausality(causalityLine);
+        var headline = HeadlineFor(kindName, optionCode, sittingOutPressure, redCardPressure);
         var choice = $"Seçimin: {optionDisplayText}";
         var subjectLabel = ShowSubjectPlayer(subjectPlayerId)
             ? (string.IsNullOrWhiteSpace(subjectPlayerName) ? "oyuncu" : subjectPlayerName.Trim())
@@ -60,7 +61,13 @@ public sealed record DecisionAnswerNarrative(
             beats.Add("Zorunlu engel kalktı — zaman yine akabilir.");
         }
 
-        var consequence = ConsequenceBeat(kindName, optionCode, subjectPlayerId, sittingOutPressure, subjectLabel);
+        var consequence = ConsequenceBeat(
+            kindName,
+            optionCode,
+            subjectPlayerId,
+            sittingOutPressure,
+            redCardPressure,
+            subjectLabel);
         if (!string.IsNullOrWhiteSpace(consequence))
         {
             beats.Add(consequence);
@@ -94,7 +101,15 @@ public sealed record DecisionAnswerNarrative(
         && (causalityLine.Contains("yedek", StringComparison.OrdinalIgnoreCase)
             || causalityLine.Contains("kadro dışı", StringComparison.OrdinalIgnoreCase));
 
-    private static string HeadlineFor(string kindName, string optionCode, bool sittingOutPressure)
+    private static bool IsRedCardCausality(string? causalityLine) =>
+        !string.IsNullOrWhiteSpace(causalityLine)
+        && causalityLine.Contains("Kırmızı kart", StringComparison.OrdinalIgnoreCase);
+
+    private static string HeadlineFor(
+        string kindName,
+        string optionCode,
+        bool sittingOutPressure,
+        bool redCardPressure)
     {
         if (IsRefuse(optionCode))
         {
@@ -136,10 +151,16 @@ public sealed record DecisionAnswerNarrative(
                 "İlk 11 sözü verdin — tutman lazım.",
             DecisionRequest.OptionAcknowledgeTransferRequest =>
                 "Ayrılma isteğini kabul ettin — satış masası ısındı.",
+            DecisionRequest.OptionIssueWarning when redCardPressure =>
+                "Kırmızı kart için uyarı yazıldı.",
             DecisionRequest.OptionIssueWarning =>
                 "Uyarı masaya kondu.",
+            DecisionRequest.OptionIssueFine when redCardPressure =>
+                "Kırmızı kart cezası kesildi.",
             DecisionRequest.OptionIssueFine =>
                 "Ceza kesildi — soyunma odası sessizleşti.",
+            DecisionRequest.OptionOfferSupport when redCardPressure =>
+                "Kırmızı kartta arkasında durdun.",
             DecisionRequest.OptionOfferSupport =>
                 "Arkasında durdun; güven biraz toparlandı.",
             DecisionRequest.OptionAcceptBoardDemand =>
@@ -161,6 +182,7 @@ public sealed record DecisionAnswerNarrative(
         string optionCode,
         long subjectPlayerId,
         bool sittingOutPressure,
+        bool redCardPressure,
         string? subjectLabel) =>
         optionCode switch
         {
@@ -176,10 +198,20 @@ public sealed record DecisionAnswerNarrative(
                 subjectLabel is not null
                     ? $"Ayrılma ihtiyacı açıldı — Transfer Masası'nda Satışa Çıkar: {subjectLabel}."
                     : "Kulüp transfer ihtiyacı olarak işaretlendi.",
+            DecisionRequest.OptionIssueWarning when redCardPressure =>
+                subjectLabel is not null
+                    ? $"{subjectLabel} kırmızı kart uyarısını hafızasına yazdı."
+                    : "Disiplin kaydı: kırmızı kart uyarısı.",
             DecisionRequest.OptionIssueWarning =>
                 "Disiplin kaydı: uyarı.",
+            DecisionRequest.OptionIssueFine when redCardPressure =>
+                subjectLabel is not null
+                    ? $"{subjectLabel} kırmızı kart cezasını unutmayacak."
+                    : "Disiplin kaydı: kırmızı kart cezası.",
             DecisionRequest.OptionIssueFine =>
                 "Disiplin kaydı: ceza.",
+            DecisionRequest.OptionOfferSupport when redCardPressure =>
+                "Kart sonrası destek jesti ilişkide iz bıraktı.",
             DecisionRequest.OptionOfferSupport =>
                 "Destek jesti ilişkide iz bıraktı.",
             DecisionRequest.OptionAcceptBoardDemand =>

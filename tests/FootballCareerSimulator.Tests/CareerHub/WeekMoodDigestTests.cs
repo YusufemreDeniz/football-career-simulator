@@ -147,6 +147,30 @@ public sealed class WeekMoodDigestTests
         Assert.Contains("Yedek kalan forma istiyor", mood.MoodLine, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void RedCardDesk_SetsDisciplineMoodLine()
+    {
+        var desk = new DecisionDeskDigest(
+            true,
+            true,
+            "Masada (zorunlu)",
+            "Kırmızı kart — soyunma odasında konuşma.",
+            "destek",
+            1,
+            "Disiplin görüşmesi",
+            1,
+            "Kırmızı kart gördü — soyunma odasında konuşma şart");
+
+        var mood = WeekMoodDigest.Compose(
+            desk,
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk());
+
+        Assert.Equal(WeekMoodDigest.MoodDesk, mood.MoodCode);
+        Assert.Contains("Kırmızı kart — soyunma odasını temizle", mood.MoodLine, StringComparison.Ordinal);
+    }
+
     private static PreparationBriefing PrepOk() =>
         PreparationBriefing.Compose(
             new ClubTrainingSummaryReadModel(

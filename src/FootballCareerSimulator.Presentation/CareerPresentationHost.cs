@@ -236,7 +236,8 @@ public sealed class CareerPresentationHost
             socialContinuity.RelationshipEvaluation,
             interactionModule.PostMatchPress,
             interactionModule.PostMatchPlayingTimeDemand,
-            interactionModule.PostMatchBoardDemand);
+            interactionModule.PostMatchBoardDemand,
+            interactionModule.PostMatchDiscipline);
         var persistence = new CareerSqlitePersistence();
 
         var eventRule = worldModule.EventRuleEvaluation

@@ -2984,6 +2984,19 @@ public sealed class CareerSessionController
         {
             yield return "Yönetim talebi açıldı.";
         }
+
+        if (c.DisciplineOpened)
+        {
+            var named = result.KeyMoments?
+                .Where(moment =>
+                    string.Equals(moment.Kind, nameof(MatchKeyMomentKind.RedCard), StringComparison.Ordinal))
+                .Select(moment => FormatPlayerRef(moment.PrimaryPlayerName, moment.PrimarySlotIndex))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            yield return named is { Length: > 0 }
+                ? $"Disiplin görüşmesi açıldı — {named[0]} kırmızı gördü."
+                : "Disiplin görüşmesi açıldı.";
+        }
     }
 
     private static IEnumerable<string> FormatMatchKeyMoments(
@@ -3088,6 +3101,19 @@ public sealed class CareerSessionController
         if (c.BoardDemandOpened)
         {
             yield return $"{header} · yönetim talebi açıldı.";
+        }
+
+        if (c.DisciplineOpened)
+        {
+            var named = result.KeyMoments?
+                .Where(moment =>
+                    string.Equals(moment.Kind, nameof(MatchKeyMomentKind.RedCard), StringComparison.Ordinal))
+                .Select(moment => FormatPlayerRef(moment.PrimaryPlayerName, moment.PrimarySlotIndex))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            yield return named is { Length: > 0 }
+                ? $"{header} · disiplin görüşmesi açıldı — {named[0]} kırmızı gördü."
+                : $"{header} · disiplin görüşmesi açıldı.";
         }
     }
 

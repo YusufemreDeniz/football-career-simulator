@@ -95,6 +95,8 @@ public sealed record MatchNightNarrative(
             || line.Contains("Yönetim güveni", StringComparison.Ordinal)
             || line.Contains("Yönetim talebi", StringComparison.OrdinalIgnoreCase)
             || line.Contains("forma süresi talebi", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("Disiplin", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("kırmızı kart", StringComparison.OrdinalIgnoreCase)
             || line.Contains(MatchupPlanOutcomeDigest.Brand, StringComparison.Ordinal);
 
         return afterWhistleLines
@@ -214,6 +216,13 @@ public sealed record MatchNightNarrative(
             return enteredWithPromiseRisk
                 ? "Söz gerilimiyle girdin; puanlar paylaşıldı."
                 : "Puanlar paylaşıldı.";
+        }
+
+        if (afterWhistle.Any(line =>
+                line.Contains("Disiplin", StringComparison.OrdinalIgnoreCase)
+                || line.Contains("kırmızı kart", StringComparison.OrdinalIgnoreCase)))
+        {
+            return "Kırmızı kart — soyunma odası bekliyor.";
         }
 
         if (afterWhistle.Any(line => line.Contains("basın sorusu", StringComparison.OrdinalIgnoreCase)))

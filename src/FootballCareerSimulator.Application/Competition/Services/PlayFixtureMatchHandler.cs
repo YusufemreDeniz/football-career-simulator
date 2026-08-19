@@ -46,6 +46,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly PostMatchPressDecisionTrigger? _postMatchPress;
     private readonly PostMatchPlayingTimeDemandTrigger? _postMatchPlayingTimeDemand;
     private readonly PostMatchBoardDemandTrigger? _postMatchBoardDemand;
+    private readonly PostMatchDisciplineDecisionTrigger? _postMatchDiscipline;
     private readonly MatchSelectionAvailabilityRevalidationService? _selectionRevalidation;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
 
@@ -71,7 +72,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         PostMatchPressDecisionTrigger? postMatchPress = null,
         MatchSelectionAvailabilityRevalidationService? selectionRevalidation = null,
         PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null,
-        PostMatchBoardDemandTrigger? postMatchBoardDemand = null)
+        PostMatchBoardDemandTrigger? postMatchBoardDemand = null,
+        PostMatchDisciplineDecisionTrigger? postMatchDiscipline = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -94,6 +96,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _postMatchPress = postMatchPress;
         _postMatchPlayingTimeDemand = postMatchPlayingTimeDemand;
         _postMatchBoardDemand = postMatchBoardDemand;
+        _postMatchDiscipline = postMatchDiscipline;
         _selectionRevalidation = selectionRevalidation;
     }
 
@@ -212,6 +215,10 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         ApplyMatchPerformanceMemory(fixture, score, occurredAt);
         var pressOpened = TryOpenPressQuestionAfterBlowoutLoss(fixture, score, occurredAt);
         var playingTimeDemand = TryOpenPlayingTimeDemandAfterSittingOut(fixture, occurredAt);
+        var disciplineDemand = TryOpenDisciplineAfterManagedRedCard(
+            fixture,
+            simulation.KeyMoments,
+            occurredAt);
         ApplyRelationshipSelectionEffects(fixture, occurredAt);
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
@@ -247,7 +254,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 pressOpened,
                 playingTimeDemand is not null,
                 playingTimeDemand?.SubjectPlayerId.Value,
-                board?.BoardDemandOpened ?? false);
+                board?.BoardDemandOpened ?? false,
+                disciplineDemand is not null,
+                disciplineDemand?.SubjectPlayerId.Value);
         }
 
         var keyMoments = simulation.KeyMoments
@@ -812,6 +821,45 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         return _postMatchPlayingTimeDemand.TryOpenAfterManagedSittingOut(
             benchedIds.Concat(omittedIds).ToArray(),
             day);
+    }
+
+    private Domain.Interaction.DecisionRequest? TryOpenDisciplineAfterManagedRedCard(
+        Fixture fixture,
+        IReadOnlyList<MatchKeyMoment> keyMoments,
+        GameDate day)
+    {
+        if (_postMatchDiscipline is null || _managerCareerStore is null)
+        {
+            return null;
+        }
+
+        var employment = _managerCareerStore.Career.ActiveEmployment;
+        if (employment is null)
+        {
+            return null;
+        }
+
+        var managedClubId = employment.ClubId;
+        if (fixture.HomeClubId != managedClubId && fixture.AwayClubId != managedClubId)
+        {
+            return null;
+        }
+
+        var managedIsHome = fixture.HomeClubId == managedClubId;
+        var redSlots = keyMoments
+            .Where(moment =>
+                moment.Kind == MatchKeyMomentKind.RedCard
+                && moment.IsHomeSide == managedIsHome)
+            .Select(moment => moment.PrimarySlotIndex)
+            .Distinct()
+            .ToArray();
+        if (redSlots.Length == 0)
+        {
+            return null;
+        }
+
+        var sentOffIds = ResolvePlayerIdsForSlots(fixture.Id, managedClubId, redSlots);
+        return _postMatchDiscipline.TryOpenAfterManagedRedCards(sentOffIds, day);
     }
 
     private int[] SnapshotInjuredSlots(ClubId clubId)

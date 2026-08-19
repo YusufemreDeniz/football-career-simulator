@@ -133,6 +133,8 @@ public sealed class DecisionRequestQueryService
                 + (memory is null ? string.Empty : $" · hatırlanıyor (etki {memory.CurrentInfluence})"),
             DecisionRequestKind.BoardDemandRequest when boardReason is not null =>
                 ExplainBoardDemandReason(boardReason),
+            DecisionRequestKind.DisciplineRequest =>
+                "Kırmızı kart gördü — soyunma odasında konuşma şart",
             _ when memory is not null && memory.CurrentInfluence >= 40 =>
                 $"Olumsuz hafıza etki {memory.CurrentInfluence}",
             _ => null,

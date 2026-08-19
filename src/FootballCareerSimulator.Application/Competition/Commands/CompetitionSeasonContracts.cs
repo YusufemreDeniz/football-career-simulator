@@ -121,4 +121,6 @@ public sealed record ManagedMatchConsequenceSummary(
     bool PressQuestionOpened,
     bool PlayingTimeDemandOpened = false,
     long? PlayingTimeDemandPlayerId = null,
-    bool BoardDemandOpened = false);
+    bool BoardDemandOpened = false,
+    bool DisciplineOpened = false,
+    long? DisciplinePlayerId = null);

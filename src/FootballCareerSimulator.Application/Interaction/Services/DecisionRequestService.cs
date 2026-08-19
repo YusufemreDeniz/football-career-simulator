@@ -140,6 +140,21 @@ public sealed class DecisionRequestService
             && r.ClubId == clubId);
     }
 
+    public bool HasOpenDisciplineForManagedClub()
+    {
+        var career = _managerCareerStore.Career;
+        if (!career.IsEmployed || career.ActiveEmployment is null)
+        {
+            return false;
+        }
+
+        var clubId = career.ActiveEmployment.ClubId;
+        return _store.Requests.Any(r =>
+            r.IsOpen
+            && r.Kind == DecisionRequestKind.DisciplineRequest
+            && r.ClubId == clubId);
+    }
+
     public bool HasOpenPlayerRequest(PlayerId subjectPlayerId, params DecisionRequestKind[] kinds)
     {
         ArgumentNullException.ThrowIfNull(kinds);
