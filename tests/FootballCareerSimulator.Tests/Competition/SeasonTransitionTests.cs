@@ -179,7 +179,7 @@ public sealed class SeasonTransitionTests
             slotIndex: 0,
             currentAbility: 60,
             potentialAbility: 65,
-            birthYear: 1992));
+            birthYear: 1986));
         contracts.Registration.EnsureClubContracts(clubId, PreseasonStart);
 
         SetupActiveSeason(competition, seasonId: 1);

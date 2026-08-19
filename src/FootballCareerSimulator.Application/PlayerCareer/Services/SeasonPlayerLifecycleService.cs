@@ -43,10 +43,16 @@ public sealed class SeasonPlayerLifecycleService
         var agedCount = _development.ApplyDueAging(day);
         var candidates = _store.Careers
             .Where(career => !career.IsRetired)
-            .Where(career => career.AgeYears(day) >= Domain.PlayerCareer.PlayerCareer.RetirementEligibleAge)
-            .OrderBy(career => career.OriginClubId.Value)
-            .ThenBy(career => career.SlotIndex)
-            .ThenBy(career => career.Id.Value)
+            .Select(career => (
+                Career: career,
+                Evaluation: MvpRetirementEvaluator.Evaluate(
+                    career,
+                    day,
+                    _timeline.Timeline.RootSeed)))
+            .Where(candidate => candidate.Evaluation.Decision == RetirementEvaluationDecision.Retire)
+            .OrderBy(candidate => candidate.Career.OriginClubId.Value)
+            .ThenBy(candidate => candidate.Career.SlotIndex)
+            .ThenBy(candidate => candidate.Career.Id.Value)
             .ToArray();
 
         if (candidates.Length == 0)
@@ -54,8 +60,9 @@ public sealed class SeasonPlayerLifecycleService
             return new SeasonPlayerLifecycleResult(agedCount, 0, 0, Array.Empty<long>());
         }
 
-        var transitions = candidates.Select(career =>
+        var transitions = candidates.Select(candidate =>
         {
+            var career = candidate.Career;
             var generation = _store.Careers
                 .Where(existing => existing.OriginClubId == career.OriginClubId)
                 .Where(existing => existing.SlotIndex == career.SlotIndex)
@@ -66,7 +73,9 @@ public sealed class SeasonPlayerLifecycleService
                 generation,
                 day,
                 _timeline.Timeline.RootSeed);
-            return (Retired: career.Retire(day), Successor: successor);
+            return (
+                Retired: career.Retire(day, candidate.Evaluation.Reason!.Value),
+                Successor: successor);
         }).ToArray();
 
         foreach (var transition in transitions)

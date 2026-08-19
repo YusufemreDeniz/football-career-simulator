@@ -28,6 +28,7 @@ public sealed class PlayerCareer
         int? lastAgedCalendarYear,
         PlayerLifecycleStatus lifecycleStatus,
         GameDate? retiredOn,
+        PlayerRetirementReason? retirementReason,
         int generation)
     {
         Id = id;
@@ -41,6 +42,7 @@ public sealed class PlayerCareer
         LastAgedCalendarYear = lastAgedCalendarYear;
         LifecycleStatus = lifecycleStatus;
         RetiredOn = retiredOn;
+        RetirementReason = retirementReason;
         Generation = generation;
     }
 
@@ -65,6 +67,8 @@ public sealed class PlayerCareer
     public PlayerLifecycleStatus LifecycleStatus { get; }
 
     public GameDate? RetiredOn { get; }
+
+    public PlayerRetirementReason? RetirementReason { get; }
 
     public int Generation { get; }
 
@@ -99,6 +103,7 @@ public sealed class PlayerCareer
             lastAgedCalendarYear: null,
             PlayerLifecycleStatus.Active,
             retiredOn: null,
+            retirementReason: null,
             generation: 0);
     }
 
@@ -128,6 +133,7 @@ public sealed class PlayerCareer
             null,
             PlayerLifecycleStatus.Active,
             null,
+            null,
             generation);
     }
 
@@ -143,6 +149,7 @@ public sealed class PlayerCareer
         int? lastAgedCalendarYear,
         PlayerLifecycleStatus lifecycleStatus = PlayerLifecycleStatus.Active,
         GameDate? retiredOn = null,
+        PlayerRetirementReason? retirementReason = null,
         int generation = 0)
     {
         EnsureSlot(slotIndex);
@@ -163,8 +170,11 @@ public sealed class PlayerCareer
 
         if (!Enum.IsDefined(lifecycleStatus)
             || generation < 0
-            || (lifecycleStatus == PlayerLifecycleStatus.Active && retiredOn is not null)
-            || (lifecycleStatus == PlayerLifecycleStatus.Retired && retiredOn is null))
+            || (lifecycleStatus == PlayerLifecycleStatus.Active
+                && (retiredOn is not null || retirementReason is not null))
+            || (lifecycleStatus == PlayerLifecycleStatus.Retired
+                && (retiredOn is null || retirementReason is null))
+            || (retirementReason is not null && !Enum.IsDefined(retirementReason.Value)))
         {
             throw new PlayerCareerInvariantViolationException("Player lifecycle state is invalid.");
         }
@@ -181,6 +191,7 @@ public sealed class PlayerCareer
             lastAgedCalendarYear,
             lifecycleStatus,
             retiredOn,
+            retirementReason,
             generation);
     }
 
@@ -247,6 +258,7 @@ public sealed class PlayerCareer
             LastAgedCalendarYear,
             LifecycleStatus,
             RetiredOn,
+            RetirementReason,
             Generation);
     }
 
@@ -280,10 +292,13 @@ public sealed class PlayerCareer
             day.Year,
             LifecycleStatus,
             RetiredOn,
+            RetirementReason,
             Generation);
     }
 
-    public PlayerCareer Retire(GameDate day)
+    public PlayerCareer Retire(
+        GameDate day,
+        PlayerRetirementReason reason = PlayerRetirementReason.AgeAndDecline)
     {
         if (IsRetired)
         {
@@ -308,6 +323,7 @@ public sealed class PlayerCareer
             LastAgedCalendarYear,
             PlayerLifecycleStatus.Retired,
             day,
+            reason,
             Generation);
     }
 

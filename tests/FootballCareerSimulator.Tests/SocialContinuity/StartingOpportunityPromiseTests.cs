@@ -224,7 +224,7 @@ public sealed class StartingOpportunityPromiseTests : IDisposable
             social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(43, loaded.SchemaVersion);
+        Assert.Equal(44, loaded.SchemaVersion);
         Assert.Single(loaded.Promises);
         Assert.Equal(4, loaded.Promises[0].TargetStarts);
         Assert.Equal(1, loaded.Promises[0].StartsGiven);

@@ -26,6 +26,7 @@ public static class PlayerCareerCanonicalStateHasher
                 .Append(";AY=").Append(career.LastAgedCalendarYear?.ToString() ?? "-")
                 .Append(";LS=").Append((int)career.LifecycleStatus)
                 .Append(";RD=").Append(career.RetiredOn?.DayNumber.ToString() ?? "-")
+                .Append(";RR=").Append(career.RetirementReason is PlayerRetirementReason reason ? ((int)reason).ToString() : "-")
                 .Append(";G=").Append(career.Generation)
                 .Append('|');
         }

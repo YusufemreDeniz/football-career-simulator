@@ -182,7 +182,7 @@ public sealed class PlayerCareerDevelopmentTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(43, loaded.SchemaVersion);
+        Assert.Equal(44, loaded.SchemaVersion);
         Assert.Equal(27, loaded.PlayerCareers.Count);
         var loadedFirst = loaded.PlayerCareers.Single(c => c.OriginClubId == new ClubId(1) && c.SlotIndex == 0);
         Assert.Equal(aged.BirthYear, loadedFirst.BirthYear);
@@ -191,6 +191,7 @@ public sealed class PlayerCareerDevelopmentTests : IDisposable
         var loadedRetired = loaded.PlayerCareers.Single(c => c.Id == retired.Id);
         Assert.True(loadedRetired.IsRetired);
         Assert.Equal(Day, loadedRetired.RetiredOn);
+        Assert.Equal(PlayerRetirementReason.AgeAndDecline, loadedRetired.RetirementReason);
         Assert.Equal(0, loadedRetired.Generation);
         var loadedSuccessor = loaded.PlayerCareers.Single(c => c.Id == successor.Id);
         Assert.False(loadedSuccessor.IsRetired);

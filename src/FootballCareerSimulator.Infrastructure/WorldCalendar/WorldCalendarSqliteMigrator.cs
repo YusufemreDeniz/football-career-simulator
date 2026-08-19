@@ -2649,6 +2649,66 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV43ToV44InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+        try
+        {
+            MigrateV43ToV44(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V43 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV43ToV44(string workingCopyPath)
+    {
+        using var connection = OpenMigrationConnection(workingCopyPath);
+        connection.Open();
+
+        using (var alterTransaction = connection.BeginTransaction())
+        {
+            if (TableExists(connection, "PlayerCareerState")
+                && !ColumnExists(connection, "PlayerCareerState", "RetirementReason"))
+            {
+                ProductionSqliteCommands.ExecuteNonQuery(
+                    connection,
+                    alterTransaction,
+                    "ALTER TABLE PlayerCareerState ADD COLUMN RetirementReason INTEGER NULL;");
+                ProductionSqliteCommands.ExecuteNonQuery(
+                    connection,
+                    alterTransaction,
+                    "UPDATE PlayerCareerState SET RetirementReason = 1 WHERE LifecycleStatus = 2;");
+            }
+
+            alterTransaction.Commit();
+        }
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 44);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

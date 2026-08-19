@@ -12,12 +12,38 @@ using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.PlayerCareer;
 
 namespace FootballCareerSimulator.Tests.PlayerCareer;
 
 public sealed class SeasonPlayerLifecycleTests
 {
     private static readonly GameDate Day = GameDate.FromCalendarDate(2026, 6, 1);
+
+    [Fact]
+    public void RetirementEvaluation_DoesNotRetireEveryPlayerAtOneFixedAge()
+    {
+        var decisions = Enumerable.Range(0, 25)
+            .Select(slot => Domain.PlayerCareer.PlayerCareer.CreateForSlot(
+                new ClubId(1),
+                slot,
+                currentAbility: 60,
+                potentialAbility: 65,
+                birthYear: 1991))
+            .Select(career => MvpRetirementEvaluator.Evaluate(career, Day, rootSeed: 71).Decision)
+            .ToArray();
+
+        Assert.Contains(RetirementEvaluationDecision.Retire, decisions);
+        Assert.Contains(RetirementEvaluationDecision.ReevaluateLater, decisions);
+        Assert.Equal(decisions, Enumerable.Range(0, 25)
+            .Select(slot => Domain.PlayerCareer.PlayerCareer.CreateForSlot(
+                new ClubId(1),
+                slot,
+                currentAbility: 60,
+                potentialAbility: 65,
+                birthYear: 1991))
+            .Select(career => MvpRetirementEvaluator.Evaluate(career, Day, rootSeed: 71).Decision));
+    }
 
     [Fact]
     public void SeasonRollover_RetiresEligiblePlayerAndSynchronizesSuccessorAcrossContexts()
@@ -53,7 +79,7 @@ public sealed class SeasonPlayerLifecycleTests
             slotIndex: 0,
             currentAbility: 61,
             potentialAbility: 66,
-            birthYear: 1991);
+            birthYear: 1985);
         playerStore.Upsert(eligible);
         contracts.Registration.EnsureClubContracts(clubId, Day);
         team.ClubSquad!.SyncFromActiveContracts(clubId, Day);

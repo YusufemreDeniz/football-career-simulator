@@ -131,7 +131,7 @@ public sealed class WageBudgetGateTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(43, loaded.SchemaVersion);
+        Assert.Equal(44, loaded.SchemaVersion);
         var club = loaded.ClubRegistry.GetClubOrThrow(new ClubId(1));
         Assert.Equal(12_000, club.ReservedWeeklyWage);
         Assert.Equal(Club.DefaultWageBudgetLimit(club.SportiveStrength), club.WageBudgetLimit);
