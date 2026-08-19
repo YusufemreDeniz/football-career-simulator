@@ -17,7 +17,8 @@ public sealed class WeekMoodDigestTests
             PreMatchBriefing.Clear(),
             PrepOk(),
             LeagueOk(),
-            weekStoryActive: true);
+            weekStoryActive: true,
+            formMomentumCode: DressingRoomEchoDigest.MomentumWinningStreak);
 
         Assert.False(mood.IsActive);
     }
@@ -141,7 +142,8 @@ public sealed class WeekMoodDigestTests
             desk,
             PreMatchBriefing.Clear(),
             PrepOk(),
-            LeagueOk());
+            LeagueOk(),
+            formMomentumCode: DressingRoomEchoDigest.MomentumLosingStreak);
 
         Assert.Equal(WeekMoodDigest.MoodDesk, mood.MoodCode);
         Assert.Contains("Yedek kalan forma istiyor", mood.MoodLine, StringComparison.Ordinal);
@@ -169,6 +171,53 @@ public sealed class WeekMoodDigestTests
 
         Assert.Equal(WeekMoodDigest.MoodDesk, mood.MoodCode);
         Assert.Contains("Kırmızı kart — soyunma odasını temizle", mood.MoodLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WinningStreak_ReplacesCalmMoodWithKeepRhythmPrompt()
+    {
+        var mood = WeekMoodDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            formMomentumCode: DressingRoomEchoDigest.MomentumWinningStreak);
+
+        Assert.Equal(WeekMoodDigest.MoodFormRise, mood.MoodCode);
+        Assert.Contains("ritmi koru", mood.MoodLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LosingStreak_ReplacesCalmMoodWithRecoveryPrompt()
+    {
+        var mood = WeekMoodDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            formMomentumCode: DressingRoomEchoDigest.MomentumLosingStreak);
+
+        Assert.Equal(WeekMoodDigest.MoodFormCrisis, mood.MoodCode);
+        Assert.Contains("toparlanma", mood.MoodLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DueMatchPreparation_BeatsLosingStreakMood()
+    {
+        var match = PreMatchBriefing.Compose(
+            new ManagedFixtureSelectionStatusReadModel(
+                1, 1, 1, 2, true, 10, "2026-08-15", IsApproved: false),
+            "Rival",
+            10);
+
+        var mood = WeekMoodDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            match,
+            PrepOk(),
+            LeagueOk(),
+            formMomentumCode: DressingRoomEchoDigest.MomentumLosingStreak);
+
+        Assert.Equal(WeekMoodDigest.MoodMatchDraft, mood.MoodCode);
     }
 
     private static PreparationBriefing PrepOk() =>

@@ -11,9 +11,13 @@ public sealed record DressingRoomEchoDigest(
     string Headline,
     string VoiceLine,
     string MomentumLine,
+    string MomentumCode,
     long FixtureId)
 {
     public const string Brand = "SOYUNMA ODASI NABZI";
+    public const string MomentumWinningStreak = "WinningStreak";
+    public const string MomentumLosingStreak = "LosingStreak";
+    public const string MomentumMixed = "Mixed";
 
     public static DressingRoomEchoDigest? Compose(
         IReadOnlyList<FixtureReadModel> fixtures,
@@ -64,11 +68,18 @@ public sealed record DressingRoomEchoDigest(
             .Select(fixture => ResultCode(fixture, managedClubId))
             .ToArray();
         var displayForm = latestFirstForm.Reverse().ToArray();
-        var momentumLine = latestFirstForm.Length >= 3
-            && latestFirstForm.Take(3).All(code => code == "G")
+        var hasWinningStreak = latestFirstForm.Length >= 3
+            && latestFirstForm.Take(3).All(code => code == "G");
+        var hasLosingStreak = latestFirstForm.Length >= 3
+            && latestFirstForm.Take(3).All(code => code == "M");
+        var momentumCode = hasWinningStreak
+            ? MomentumWinningStreak
+            : hasLosingStreak
+                ? MomentumLosingStreak
+                : MomentumMixed;
+        var momentumLine = hasWinningStreak
                 ? $"Form: {string.Join('-', displayForm)} · 3 maçlık galibiyet serisi"
-                : latestFirstForm.Length >= 3
-                  && latestFirstForm.Take(3).All(code => code == "M")
+                : hasLosingStreak
                     ? $"Form: {string.Join('-', displayForm)} · 3 maçlık mağlubiyet serisi"
                     : $"Form (eski→yeni): {string.Join('-', displayForm)}"
                       + $" · {latestFirstForm.Sum(ResultPoints)}/{latestFirstForm.Length * 3} puan";
@@ -78,6 +89,7 @@ public sealed record DressingRoomEchoDigest(
             $"Son maç: {opponentName} · {goalsFor}-{goalsAgainst} {result}",
             captain.VoiceLine,
             momentumLine,
+            momentumCode,
             latest.FixtureId);
     }
 

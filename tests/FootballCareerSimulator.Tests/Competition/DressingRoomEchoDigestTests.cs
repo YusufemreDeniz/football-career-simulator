@@ -38,6 +38,7 @@ public sealed class DressingRoomEchoDigestTests
         Assert.Contains("3-1 galibiyet", digest.Headline, StringComparison.Ordinal);
         Assert.Contains("sallanarak", digest.VoiceLine, StringComparison.Ordinal);
         Assert.Equal("Form (eski→yeni): G-G · 6/6 puan", digest.MomentumLine);
+        Assert.Equal(DressingRoomEchoDigest.MomentumMixed, digest.MomentumCode);
     }
 
     [Fact]
@@ -81,6 +82,7 @@ public sealed class DressingRoomEchoDigestTests
 
         Assert.NotNull(digest);
         Assert.Equal("Form: G-G-G · 3 maçlık galibiyet serisi", digest!.MomentumLine);
+        Assert.Equal(DressingRoomEchoDigest.MomentumWinningStreak, digest.MomentumCode);
     }
 
     [Fact]
@@ -98,6 +100,7 @@ public sealed class DressingRoomEchoDigestTests
 
         Assert.NotNull(digest);
         Assert.Equal("Form: M-M-M · 3 maçlık mağlubiyet serisi", digest!.MomentumLine);
+        Assert.Equal(DressingRoomEchoDigest.MomentumLosingStreak, digest.MomentumCode);
     }
 
     [Fact]

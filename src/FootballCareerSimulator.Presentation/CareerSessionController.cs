@@ -915,7 +915,15 @@ public sealed class CareerSessionController
         league ??= BuildLeagueWorldBriefing();
         transfer ??= BuildTransferDeskBriefing();
         var storyActive = weekStoryActive ?? BuildWeekStory(match).IsActive;
-        return WeekMoodDigest.Compose(desk, match, prep, league, transfer, storyActive);
+        var formMomentumCode = BuildDressingRoomEcho()?.MomentumCode;
+        return WeekMoodDigest.Compose(
+            desk,
+            match,
+            prep,
+            league,
+            transfer,
+            storyActive,
+            formMomentumCode);
     }
 
     public DecisionDeskDigest BuildDecisionDeskDigest()

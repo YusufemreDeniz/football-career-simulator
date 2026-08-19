@@ -23,6 +23,8 @@ public sealed record WeekMoodDigest(
     public const string MoodPrep = "Prep";
     public const string MoodLeague = "League";
     public const string MoodTransfer = "Transfer";
+    public const string MoodFormRise = "FormRise";
+    public const string MoodFormCrisis = "FormCrisis";
     public const string MoodCalmMatch = "CalmMatch";
     public const string MoodCalm = "Calm";
 
@@ -35,7 +37,8 @@ public sealed record WeekMoodDigest(
         PreparationBriefing prep,
         LeagueWorldBriefing league,
         TransferDeskBriefing? transfer = null,
-        bool weekStoryActive = false)
+        bool weekStoryActive = false,
+        string? formMomentumCode = null)
     {
         ArgumentNullException.ThrowIfNull(desk);
         ArgumentNullException.ThrowIfNull(match);
@@ -115,6 +118,22 @@ public sealed record WeekMoodDigest(
         if (transfer is { IsEmployed: true, DemandsAttention: true })
         {
             return Active($"Transfer masası sıcak — {transfer.Headline}", MoodTransfer);
+        }
+
+        if (string.Equals(
+                formMomentumCode,
+                DressingRoomEchoDigest.MomentumWinningStreak,
+                StringComparison.Ordinal))
+        {
+            return Active("Üç maçlık galibiyet serisi — ritmi koru.", MoodFormRise);
+        }
+
+        if (string.Equals(
+                formMomentumCode,
+                DressingRoomEchoDigest.MomentumLosingStreak,
+                StringComparison.Ordinal))
+        {
+            return Active("Üç maçlık mağlubiyet serisi — haftayı toparlanmaya çevir.", MoodFormCrisis);
         }
 
         if (prep.IsEmployed && match.HasMatch)
