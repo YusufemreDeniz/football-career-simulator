@@ -10,6 +10,11 @@ obj/
 # Godot (bkz. src/FootballCareerSimulator.Presentation, docs/18_SPIKE_EXECUTION_PLAN.md Kart 5)
 .godot/
 .import/
+*.import
+
+# Yerel Godot/Codex inceleme çıktıları; kaynak asset ve .uid dosyaları izlenir.
+.codex-remote-attachments/
+artifacts/
 
 # Test/coverage çıktıları
 TestResults/
