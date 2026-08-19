@@ -23,6 +23,7 @@ public partial class CareerHubScreen : Control
     private Label _prepBriefingLabel = null!;
     private Label _developmentLabel = null!;
     private Label _contractLabel = null!;
+    private Label _dressingRoomEchoLabel = null!;
     private Label _memoryLabel = null!;
     private Label _promiseLabel = null!;
     private Label _relationshipLabel = null!;
@@ -912,6 +913,9 @@ public partial class CareerHubScreen : Control
         _thirdKit = AddKitPreview(kitStrip, "ÜÇÜNCÜ", "Kulübün resmi üçüncü forması");
 
         var teamDynamicsCard = AddCard(page, "SOYUNMA ODASI & SÖZLER");
+        _dressingRoomEchoLabel = BodyLabel("DressingRoomEchoLabel", autowrap: true);
+        _dressingRoomEchoLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        teamDynamicsCard.AddChild(_dressingRoomEchoLabel);
         _memoryLabel = BodyLabel("MemoryLabel", autowrap: true);
         teamDynamicsCard.AddChild(_memoryLabel);
         _promiseLabel = BodyLabel("PromiseLabel", autowrap: true);
@@ -1879,6 +1883,7 @@ public partial class CareerHubScreen : Control
             RefreshTrainingStatus();
             RefreshDevelopmentStatus();
             RefreshContractStatus();
+            RefreshDressingRoomEcho();
             RefreshMemoryStatus();
             RefreshPromiseStatus();
             RefreshRelationshipStatus();
@@ -1918,6 +1923,7 @@ public partial class CareerHubScreen : Control
         RefreshTrainingStatus();
         RefreshDevelopmentStatus();
         RefreshContractStatus();
+        RefreshDressingRoomEcho();
         RefreshMemoryStatus();
         RefreshPromiseStatus();
         RefreshRelationshipStatus();
@@ -2568,6 +2574,13 @@ public partial class CareerHubScreen : Control
         _memoryLabel.Text =
             $"Hafıza: {memories.ActiveCount} aktif"
             + (string.IsNullOrWhiteSpace(preview) ? string.Empty : $" — {preview}");
+    }
+
+    private void RefreshDressingRoomEcho()
+    {
+        var echo = _controller.BuildDressingRoomEcho();
+        _dressingRoomEchoLabel.Visible = echo is not null;
+        _dressingRoomEchoLabel.Text = echo?.ToDisplayText() ?? string.Empty;
     }
 
     private void RefreshPromiseStatus()

@@ -1412,6 +1412,24 @@ public sealed class CareerSessionController
             nextMatch);
     }
 
+    public DressingRoomEchoDigest? BuildDressingRoomEcho()
+    {
+        var employment = Host.ManagerModule.Store.Career.ActiveEmployment;
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        if (employment is null || season is null)
+        {
+            return null;
+        }
+
+        var clubNames = Host.ClubModule.Queries.GetAllClubs()
+            .ToDictionary(club => club.ClubId, club => club.DisplayName);
+        return DressingRoomEchoDigest.Compose(
+            Host.CompetitionModule.Queries.GetSeasonFixtures(season.SeasonId),
+            employment.ClubId.Value,
+            employment.StartedAt.DayNumber,
+            clubNames);
+    }
+
     public PreparationBriefing BuildPreparationBriefing()
     {
         var training = GetTrainingSummary();
