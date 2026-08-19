@@ -64,7 +64,9 @@ public static class MvpAvailabilityAwareSelection
         }
 
         var naiveStarting = candidateSlots.Take(MatchSelection.StartingXiSize).ToArray();
-        var swappedOut = naiveStarting.Where(slot => !preferredStarting.Contains(slot)).ToArray();
+        var swappedOut = naiveStarting
+            .Where(slot => unavailable.Contains(slot) && !preferredStarting.Contains(slot))
+            .ToArray();
         var swappedIn = preferredStarting.Where(slot => !naiveStarting.Contains(slot)).ToArray();
         var count = Math.Min(swappedOut.Length, swappedIn.Length);
         if (count == 0)

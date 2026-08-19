@@ -98,16 +98,33 @@ public sealed class InjuryAvailabilityTests : IDisposable
                 .WithInjury(InjurySeverity.Moderate, Day.AddDays(7)),
         };
 
-        var swaps = MvpAvailabilityAwareSelection.PreviewDefaultAvailabilitySwaps(
+        Assert.True(MvpAvailabilityAwareSelection.TryPreviewPreferredStartingXi(
             clubId,
             Day,
-            physical);
+            physical,
+            clubSquad: null,
+            out var starting,
+            out var swaps));
 
         Assert.Equal(2, swaps.Count);
         Assert.Equal(0, swaps[0].OutSlotIndex);
-        Assert.Equal(11, swaps[0].InSlotIndex);
         Assert.Equal(1, swaps[1].OutSlotIndex);
-        Assert.Equal(12, swaps[1].InSlotIndex);
+        Assert.Equal(2, swaps.Select(swap => swap.InSlotIndex).Distinct().Count());
+        Assert.All(swaps, swap => Assert.Contains(swap.InSlotIndex, starting));
+        Assert.DoesNotContain(swaps, swap => swap.InSlotIndex is 0 or 1);
+    }
+
+    [Fact]
+    public void PreviewDefaultAvailabilitySwaps_DoesNotReportRoleBalancingAsInjurySwap()
+    {
+        var clubId = new ClubId(1);
+
+        var swaps = MvpAvailabilityAwareSelection.PreviewDefaultAvailabilitySwaps(
+            clubId,
+            Day,
+            new Dictionary<(long, int), PlayerPhysicalState>());
+
+        Assert.Empty(swaps);
     }
 
     [Fact]
