@@ -528,11 +528,27 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             return null;
         }
 
-        var map = _playerCareerStore.Careers
+        var activeCareers = _playerCareerStore.Careers
+            .Where(career => !career.IsRetired)
+            .ToArray();
+        var squad = _clubSquadStore?.Get(clubId);
+        if (squad is not null)
+        {
+            var careerByPlayer = activeCareers.ToDictionary(career => career.Id);
+            var squadMap = squad.Members
+                .Where(member => careerByPlayer.ContainsKey(member.PlayerId))
+                .ToDictionary(
+                    member => (clubId.Value, member.SlotIndex),
+                    member => careerByPlayer[member.PlayerId].CurrentAbility);
+            return squadMap.Count == 0 ? null : squadMap;
+        }
+
+        var map = activeCareers
             .Where(career => career.OriginClubId == clubId)
+            .GroupBy(career => career.SlotIndex)
             .ToDictionary(
-                career => (career.OriginClubId.Value, career.SlotIndex),
-                career => career.CurrentAbility);
+                group => (clubId.Value, group.Key),
+                group => group.OrderByDescending(career => career.Generation).First().CurrentAbility);
         return map.Count == 0 ? null : map;
     }
 
