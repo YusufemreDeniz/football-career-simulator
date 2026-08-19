@@ -15,7 +15,8 @@ public sealed record OpponentDossierDigest(
     string ThreatLine,
     OpponentThreatKind ThreatKind,
     bool ManagedIsHome,
-    int StrengthDifference)
+    int StrengthDifference,
+    int WinningStreakLength = 0)
 {
     public const string Brand = "Rakip Dosyası";
 
@@ -45,7 +46,7 @@ public sealed record OpponentDossierDigest(
                 + $" · averaj {FormatSigned(standing.GoalDifference)}"
             : "Lig: henüz sonuç verisi oluşmadı.";
 
-        var recent = fixtures
+        var latestFirstResults = fixtures
             .Where(fixture =>
                 string.Equals(
                     fixture.Status,
@@ -57,11 +58,15 @@ public sealed record OpponentDossierDigest(
                     || fixture.AwayClubId == opponentClubId))
             .OrderByDescending(fixture => fixture.ScheduledDayNumber)
             .ThenByDescending(fixture => fixture.FixtureId)
-            .Take(5)
-            .OrderBy(fixture => fixture.ScheduledDayNumber)
-            .ThenBy(fixture => fixture.FixtureId)
             .Select(fixture => ToFormResult(fixture, opponentClubId))
             .ToArray();
+        var recent = latestFirstResults.Take(5).Reverse().ToArray();
+        var currentWinningStreakLength = latestFirstResults
+            .TakeWhile(result => result > 0)
+            .Count();
+        var winningStreakLength = currentWinningStreakLength >= 3
+            ? currentWinningStreakLength
+            : 0;
         var formPoints = recent.Sum(result => result switch
         {
             > 0 => 3,
@@ -89,7 +94,8 @@ public sealed record OpponentDossierDigest(
             standingIndex.Rank,
             standings.Count,
             standing,
-            recent);
+            recent,
+            winningStreakLength);
 
         return new OpponentDossierDigest(
             Brand,
@@ -102,7 +108,8 @@ public sealed record OpponentDossierDigest(
             threat.Line,
             threat.Kind,
             managedIsHome,
-            strengthDifference);
+            strengthDifference,
+            winningStreakLength);
     }
 
     private static ThreatAssessment ResolveThreat(
@@ -111,16 +118,16 @@ public sealed record OpponentDossierDigest(
         int rank,
         int clubCount,
         StandingEntryReadModel? standing,
-        IReadOnlyList<int> recent)
+        IReadOnlyList<int> recent,
+        int winningStreakLength)
     {
-        var lastThree = recent.TakeLast(3).ToArray();
-        if (lastThree.Length == 3 && lastThree.All(result => result > 0))
+        if (winningStreakLength >= 3)
         {
             return new ThreatAssessment(
                 OpponentThreatKind.WinningStreak,
                 managedIsHome
-                    ? "Tehdit: üç maçlık galibiyet serisi — evde ilk bölümde sabırlı kal."
-                    : "Tehdit: üç maçlık galibiyet serisi — deplasmanda erken baskıya hazırlan.");
+                    ? $"Tehdit: {winningStreakLength} maçlık galibiyet serisi — evde ilk bölümde sabırlı kal."
+                    : $"Tehdit: {winningStreakLength} maçlık galibiyet serisi — deplasmanda erken baskıya hazırlan.");
         }
 
         if (standing is { Played: >= 3 }

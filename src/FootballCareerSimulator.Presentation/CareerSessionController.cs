@@ -1141,11 +1141,13 @@ public sealed class CareerSessionController
     public Application.Competition.Queries.MatchKickoffMoment BuildMatchKickoffMoment()
     {
         var dressingRoomEcho = BuildDressingRoomEcho();
+        var opponentDossier = BuildOpponentDossier();
         return Application.Competition.Queries.MatchKickoffMoment.Compose(
             BuildNextMatchBriefing(),
             BuildMatchDayTempoFlash(),
             dressingRoomEcho?.MomentumCode,
-            dressingRoomEcho?.MomentumLength ?? 0);
+            dressingRoomEcho?.MomentumLength ?? 0,
+            opponentDossier?.WinningStreakLength ?? 0);
     }
 
     public MatchDayLineupStrip BuildMatchDayLineupStrip()

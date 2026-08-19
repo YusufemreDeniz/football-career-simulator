@@ -126,8 +126,29 @@ public sealed class OpponentDossierDigestTests
         var digest = Compose(fixtures: fixtures, managedIsHome: false);
 
         Assert.Equal(OpponentThreatKind.WinningStreak, digest.ThreatKind);
-        Assert.Contains("üç maçlık galibiyet serisi", digest.ThreatLine, StringComparison.Ordinal);
+        Assert.Contains("3 maçlık galibiyet serisi", digest.ThreatLine, StringComparison.Ordinal);
         Assert.Contains("deplasmanda erken baskı", digest.ThreatLine, StringComparison.Ordinal);
+        Assert.Equal(3, digest.WinningStreakLength);
+    }
+
+    [Fact]
+    public void Threat_LongWinningRunUsesActualLengthBeyondDisplayWindow()
+    {
+        var fixtures = Enumerable.Range(1, 6)
+            .Select(index => Result(
+                index,
+                day: index,
+                home: OpponentId,
+                away: 20 + index,
+                homeGoals: 2,
+                awayGoals: 0))
+            .ToArray();
+
+        var digest = Compose(fixtures: fixtures);
+
+        Assert.Equal(6, digest.WinningStreakLength);
+        Assert.Contains("6 maçlık galibiyet serisi", digest.ThreatLine, StringComparison.Ordinal);
+        Assert.Equal("Form (eski→yeni): G-G-G-G-G · 15/15 puan", digest.FormLine);
     }
 
     [Fact]

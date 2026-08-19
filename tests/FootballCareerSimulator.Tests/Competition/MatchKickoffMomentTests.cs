@@ -144,4 +144,55 @@ public sealed class MatchKickoffMomentTests
             moment.BeatLines,
             beat => beat.Contains("maçlık", StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Compose_BothTeamsOnWinningRuns_FramesAStreakBattle()
+    {
+        var moment = MatchKickoffMoment.Compose(
+            Briefing(approved: true),
+            tempoFlash: null,
+            formMomentumCode: DressingRoomEchoDigest.MomentumWinningStreak,
+            formMomentumLength: 5,
+            opponentWinningStreakLength: 4);
+
+        Assert.Contains(
+            moment.BeatLines,
+            beat => beat.Contains("Seri savaşı", StringComparison.Ordinal));
+        Assert.Contains(
+            moment.BeatLines,
+            beat => beat.Contains("5 maçlık", StringComparison.Ordinal)
+                && beat.Contains("4 maçlık", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compose_OnlyOpponentOnWinningRun_CreatesStopTheRunChallenge()
+    {
+        var moment = MatchKickoffMoment.Compose(
+            Briefing(approved: true),
+            tempoFlash: null,
+            formMomentumCode: DressingRoomEchoDigest.MomentumMixed,
+            opponentWinningStreakLength: 6);
+
+        Assert.Contains(
+            moment.BeatLines,
+            beat => beat.Contains("6 maçlık", StringComparison.Ordinal)
+                && beat.Contains("durdurma sınavı", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compose_LosingRunAgainstWinningOpponent_FramesACrisisMatch()
+    {
+        var moment = MatchKickoffMoment.Compose(
+            Briefing(approved: true),
+            tempoFlash: null,
+            formMomentumCode: DressingRoomEchoDigest.MomentumLosingStreak,
+            formMomentumLength: 4,
+            opponentWinningStreakLength: 5);
+
+        Assert.Contains(
+            moment.BeatLines,
+            beat => beat.Contains("Kriz maçı", StringComparison.Ordinal)
+                && beat.Contains("4 yenilgiyi", StringComparison.Ordinal)
+                && beat.Contains("5 galibiyeti", StringComparison.Ordinal));
+    }
 }

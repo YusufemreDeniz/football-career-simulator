@@ -27,7 +27,8 @@ public sealed record MatchKickoffMoment(
         PreMatchBriefing briefing,
         MatchDayTempoFlash.Flash? tempoFlash = null,
         string? formMomentumCode = null,
-        int formMomentumLength = 0)
+        int formMomentumLength = 0,
+        int opponentWinningStreakLength = 0)
     {
         ArgumentNullException.ThrowIfNull(briefing);
         if (!briefing.HasMatch)
@@ -41,21 +42,45 @@ public sealed record MatchKickoffMoment(
             beats.Add(tempoFlash.BeatLine);
         }
 
-        if (string.Equals(
-                formMomentumCode,
-                DressingRoomEchoDigest.MomentumWinningStreak,
-                StringComparison.Ordinal))
+        var managedWinningStreak = string.Equals(
+            formMomentumCode,
+            DressingRoomEchoDigest.MomentumWinningStreak,
+            StringComparison.Ordinal);
+        var managedLosingStreak = string.Equals(
+            formMomentumCode,
+            DressingRoomEchoDigest.MomentumLosingStreak,
+            StringComparison.Ordinal);
+        var opponentWinningStreak = opponentWinningStreakLength >= 3;
+
+        if (managedWinningStreak && opponentWinningStreak)
+        {
+            var streakLength = Math.Max(3, formMomentumLength);
+            beats.Add(
+                $"Seri savaşı — senin {streakLength} maçlık serin,"
+                + $" rakibin {opponentWinningStreakLength} maçlık serisine karşı.");
+        }
+        else if (managedWinningStreak)
         {
             var streakLength = Math.Max(3, formMomentumLength);
             beats.Add($"{streakLength} maçlık galibiyet serisi sahaya çıktı — {streakLength + 1}. zafer peşinde.");
         }
-        else if (string.Equals(
-                     formMomentumCode,
-                     DressingRoomEchoDigest.MomentumLosingStreak,
-                     StringComparison.Ordinal))
+        else if (managedLosingStreak && opponentWinningStreak)
+        {
+            var streakLength = Math.Max(3, formMomentumLength);
+            beats.Add(
+                $"Kriz maçı — sen {streakLength} yenilgiyi kırmaya,"
+                + $" rakip {opponentWinningStreakLength} galibiyeti sürdürmeye geldi.");
+        }
+        else if (managedLosingStreak)
         {
             var streakLength = Math.Max(3, formMomentumLength);
             beats.Add($"{streakLength} maçlık mağlubiyet serisi — bugün kırılma maçı.");
+        }
+        else if (opponentWinningStreak)
+        {
+            beats.Add(
+                $"Rakip {opponentWinningStreakLength} maçlık galibiyet serisiyle geldi"
+                + " — bugün onu durdurma sınavı.");
         }
 
         foreach (var line in briefing.ToKickoffBridgeLines())
