@@ -1141,7 +1141,8 @@ public sealed class CareerSessionController
     public Application.Competition.Queries.MatchKickoffMoment BuildMatchKickoffMoment() =>
         Application.Competition.Queries.MatchKickoffMoment.Compose(
             BuildNextMatchBriefing(),
-            BuildMatchDayTempoFlash());
+            BuildMatchDayTempoFlash(),
+            BuildDressingRoomEcho()?.MomentumCode);
 
     public MatchDayLineupStrip BuildMatchDayLineupStrip()
     {

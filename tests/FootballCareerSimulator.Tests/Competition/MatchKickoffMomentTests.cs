@@ -100,4 +100,43 @@ public sealed class MatchKickoffMomentTests
         Assert.Contains("Düdük çaldı", text, StringComparison.Ordinal);
         Assert.Contains("· Tempo oturdu", text, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Compose_WinningStreak_PutsFourthWinOnTheLine()
+    {
+        var moment = MatchKickoffMoment.Compose(
+            Briefing(approved: true),
+            tempoFlash: null,
+            formMomentumCode: DressingRoomEchoDigest.MomentumWinningStreak);
+
+        Assert.Contains(
+            moment.BeatLines,
+            beat => beat.Contains("dördüncü zafer", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compose_LosingStreak_FramesKickoffAsBreakingPoint()
+    {
+        var moment = MatchKickoffMoment.Compose(
+            Briefing(approved: true),
+            tempoFlash: null,
+            formMomentumCode: DressingRoomEchoDigest.MomentumLosingStreak);
+
+        Assert.Contains(
+            moment.BeatLines,
+            beat => beat.Contains("kırılma maçı", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compose_MixedForm_DoesNotInventStreakPressure()
+    {
+        var moment = MatchKickoffMoment.Compose(
+            Briefing(approved: true),
+            tempoFlash: null,
+            formMomentumCode: DressingRoomEchoDigest.MomentumMixed);
+
+        Assert.DoesNotContain(
+            moment.BeatLines,
+            beat => beat.Contains("maçlık", StringComparison.Ordinal));
+    }
 }
