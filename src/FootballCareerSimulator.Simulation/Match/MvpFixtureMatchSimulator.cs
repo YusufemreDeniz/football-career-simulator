@@ -91,9 +91,67 @@ public static class MvpFixtureMatchSimulator
 
     private static int RollHalfGoals(SimulationRandomContext rng, int effectiveStrength)
     {
-        var halfBase = Math.Clamp(effectiveStrength / 45, 0, 3);
-        return Math.Clamp(halfBase + rng.NextInt(-1, 2), 0, MaxGoalsPerHalf);
+        // Poisson approximation: λ = effectiveStrength / 30
+        // Gerçekçi yarı gol dağılımı — strength 30 → λ≈1.0, strength 60 → λ≈2.0, strength 90 → λ≈3.0
+        // Knuth algoritması integer versiyonu: 1000 ölçeğinde limit = e^(-λ) * 1000
+        // Math.Exp yerine tablo kullanarak floating-point bağımlılığı yok.
+        var lambdaTimes10 = Math.Clamp(effectiveStrength / 3, 1, 33); // λ*10 ∈ [0.1, 3.3]
+        var limit = PoissonLimit(lambdaTimes10);                       // e^(-λ) * 10_000 (tamsayı)
+        var product = 10_000;
+        var k = 0;
+        while (product > limit && k < MaxGoalsPerHalf + 2)
+        {
+            // uniform [0,1) → [1, 10_000] arasında tamsayı çekimi
+            product = (product * rng.NextInt(1, 10_001)) / 10_000;
+            k++;
+        }
+
+        return Math.Clamp(k - 1, 0, MaxGoalsPerHalf);
     }
+
+    /// <summary>
+    /// e^(-λ) * 10_000 değerini tamsayı olarak döner.
+    /// λ = <paramref name="lambdaTimes10"/> / 10 (örn. 15 → λ=1.5).
+    /// Tablo değerleri: Python'da round(math.exp(-x/10) * 10_000) ile üretildi.
+    /// Aralık: λ*10 ∈ [1..33] → strength ∈ [3..99]
+    /// </summary>
+    private static int PoissonLimit(int lambdaTimes10) => lambdaTimes10 switch
+    {
+        1  => 9048,
+        2  => 8187,
+        3  => 7408,
+        4  => 6703,
+        5  => 6065,
+        6  => 5488,
+        7  => 4966,
+        8  => 4493,
+        9  => 4066,
+        10 => 3679,
+        11 => 3329,
+        12 => 3012,
+        13 => 2725,
+        14 => 2466,
+        15 => 2231,
+        16 => 2019,
+        17 => 1827,
+        18 => 1653,
+        19 => 1496,
+        20 => 1353,
+        21 => 1225,
+        22 => 1108,
+        23 => 1003,
+        24 =>  907,
+        25 =>  821,
+        26 =>  743,
+        27 =>  672,
+        28 =>  608,
+        29 =>  550,
+        30 =>  498,
+        31 =>  450,
+        32 =>  407,
+        33 =>  368,
+        _  =>  368, // λ > 3.3 için alt sınır (güçlü takımlar zaten MaxGoalsPerHalf ile kırpılıyor)
+    };
 
     private static MatchStatistics BuildStatistics(
         SimulationRandomContext rng,
