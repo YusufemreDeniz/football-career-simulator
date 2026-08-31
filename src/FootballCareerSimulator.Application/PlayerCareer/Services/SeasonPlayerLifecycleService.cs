@@ -21,6 +21,7 @@ public sealed class SeasonPlayerLifecycleService
     private readonly ClubSquadService _squads;
     private readonly ITrainingPhysicalStateStore _training;
     private readonly IWorldTimelineStore _timeline;
+    private readonly IYouthAcademySuccessorProvider? _academySuccessors;
 
     public SeasonPlayerLifecycleService(
         IPlayerCareerStore store,
@@ -28,7 +29,8 @@ public sealed class SeasonPlayerLifecycleService
         ContractRegistrationService contracts,
         ClubSquadService squads,
         ITrainingPhysicalStateStore training,
-        IWorldTimelineStore timeline)
+        IWorldTimelineStore timeline,
+        IYouthAcademySuccessorProvider? academySuccessors = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _development = development ?? throw new ArgumentNullException(nameof(development));
@@ -36,6 +38,7 @@ public sealed class SeasonPlayerLifecycleService
         _squads = squads ?? throw new ArgumentNullException(nameof(squads));
         _training = training ?? throw new ArgumentNullException(nameof(training));
         _timeline = timeline ?? throw new ArgumentNullException(nameof(timeline));
+        _academySuccessors = academySuccessors;
     }
 
     public SeasonPlayerLifecycleResult ApplySeasonRollover(GameDate day)
@@ -64,7 +67,13 @@ public sealed class SeasonPlayerLifecycleService
                 .Distinct()
                 .OrderBy(value => value)
                 .ToArray();
-            SyncClubs(continuityClubIds, day, Array.Empty<(Domain.PlayerCareer.PlayerCareer Retired, Domain.PlayerCareer.PlayerCareer Successor)>());
+            SyncClubs(
+                continuityClubIds,
+                day,
+                Array.Empty<(
+                    Domain.PlayerCareer.PlayerCareer Retired,
+                    Domain.PlayerCareer.PlayerCareer Successor,
+                    bool FromAcademy)>());
             return new SeasonPlayerLifecycleResult(
                 agedCount,
                 0,
@@ -74,6 +83,7 @@ public sealed class SeasonPlayerLifecycleService
                 continuityClubIds);
         }
 
+        var reservedAcademyIds = new HashSet<Domain.PlayerCareer.PlayerId>();
         var transitions = candidates.Select(candidate =>
         {
             var career = candidate.Career;
@@ -81,15 +91,26 @@ public sealed class SeasonPlayerLifecycleService
                 .Where(existing => existing.OriginClubId == career.OriginClubId)
                 .Where(existing => existing.SlotIndex == career.SlotIndex)
                 .Max(existing => existing.Generation) + 1;
-            var successor = MvpGeneratedPlayerFactory.CreateSuccessor(
+            var academySuccessor = _academySuccessors?.CreateSuccessor(
                 career.OriginClubId,
                 career.SlotIndex,
                 generation,
                 day,
-                _timeline.Timeline.RootSeed);
+                reservedAcademyIds);
+            if (academySuccessor is not null)
+            {
+                reservedAcademyIds.Add(academySuccessor.Id);
+            }
+            var successor = academySuccessor ?? MvpGeneratedPlayerFactory.CreateSuccessor(
+                    career.OriginClubId,
+                    career.SlotIndex,
+                    generation,
+                    day,
+                    _timeline.Timeline.RootSeed);
             return (
                 Retired: career.Retire(day, candidate.Evaluation.Reason!.Value),
-                Successor: successor);
+                Successor: successor,
+                FromAcademy: academySuccessor is not null);
         }).ToArray();
 
         foreach (var transition in transitions)
@@ -116,13 +137,14 @@ public sealed class SeasonPlayerLifecycleService
             transitions.Length,
             continuity.RenewedPlayerCount,
             continuity.RetainedFreeAgentCount,
-            affectedClubIds);
+            affectedClubIds,
+            transitions.Count(transition => transition.FromAcademy));
     }
 
     private void SyncClubs(
         IReadOnlyList<long> affectedClubIds,
         GameDate day,
-        IReadOnlyList<(Domain.PlayerCareer.PlayerCareer Retired, Domain.PlayerCareer.PlayerCareer Successor)> transitions)
+        IReadOnlyList<(Domain.PlayerCareer.PlayerCareer Retired, Domain.PlayerCareer.PlayerCareer Successor, bool FromAcademy)> transitions)
     {
         foreach (var clubIdValue in affectedClubIds)
         {
@@ -151,7 +173,8 @@ public sealed record SeasonPlayerLifecycleResult(
     int GeneratedPlayerCount,
     int RenewedContractCount,
     int ActiveFreeAgentCount,
-    IReadOnlyList<long> AffectedClubIds)
+    IReadOnlyList<long> AffectedClubIds,
+    int PromotedAcademyPlayerCount = 0)
 {
     public static SeasonPlayerLifecycleResult Empty { get; } =
         new(0, 0, 0, 0, 0, Array.Empty<long>());

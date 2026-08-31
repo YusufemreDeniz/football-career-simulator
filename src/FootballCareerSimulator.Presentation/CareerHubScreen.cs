@@ -3,6 +3,7 @@ using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Application.PlayerCareer.Queries;
 using Godot;
 using System.Text.RegularExpressions;
@@ -85,6 +86,11 @@ public partial class CareerHubScreen : Control
     private Button _academyRejectButton = null!;
     private IReadOnlyList<YouthAcademyCandidateReadModel> _academyCandidates = [];
     private long? _selectedAcademyCandidateId;
+    private Label _academyLifecycleLabel = null!;
+    private ItemList _academyLifecycleList = null!;
+    private Button _academyPromoteButton = null!;
+    private IReadOnlyList<YouthAcademyPlayerReadModel> _academyLifecyclePlayers = [];
+    private long? _selectedAcademyLifecyclePlayerId;
     private TextureRect _clubCrest = null!;
     private TextureRect _homeKit = null!;
     private TextureRect _awayKit = null!;
@@ -989,6 +995,22 @@ public partial class CareerHubScreen : Control
         _academyRejectButton = SecondaryButton("Değerlendirmeyi Kapat");
         _academyRejectButton.Pressed += () => ApplySelectedAcademyCandidate(accept: false);
         academyRow.AddChild(_academyRejectButton);
+
+        var academyDevelopmentCard = AddCard(page, "AKADEMİ GELİŞİM MERKEZİ", emphasized: true);
+        _academyLifecycleLabel = BodyLabel("AcademyLifecycleLabel", autowrap: true);
+        academyDevelopmentCard.AddChild(_academyLifecycleLabel);
+        _academyLifecycleList = new ItemList
+        {
+            Name = "AcademyLifecycleList",
+            CustomMinimumSize = new Vector2(0, 220),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StyleList(_academyLifecycleList);
+        _academyLifecycleList.ItemSelected += OnAcademyLifecyclePlayerSelected;
+        academyDevelopmentCard.AddChild(_academyLifecycleList);
+        _academyPromoteButton = PrimaryButton("A Takıma Çıkar");
+        _academyPromoteButton.Pressed += PromoteSelectedAcademyPlayer;
+        academyDevelopmentCard.AddChild(_academyPromoteButton);
 
         var teamDynamicsCard = AddCard(page, "SOYUNMA ODASI & SÖZLER");
         _dressingRoomEchoLabel = BodyLabel("DressingRoomEchoLabel", autowrap: true);
@@ -1913,6 +1935,28 @@ public partial class CareerHubScreen : Control
         Apply(accept
             ? _controller.AcceptYouthAcademyCandidate(playerId)
             : _controller.RejectYouthAcademyCandidate(playerId));
+    }
+
+    private void OnAcademyLifecyclePlayerSelected(long index)
+    {
+        if (index < 0 || index >= _academyLifecyclePlayers.Count)
+        {
+            return;
+        }
+
+        _selectedAcademyLifecyclePlayerId = _academyLifecyclePlayers[(int)index].PlayerId;
+        UpdateAcademyPromotionButton();
+    }
+
+    private void PromoteSelectedAcademyPlayer()
+    {
+        if (_selectedAcademyLifecyclePlayerId is not long playerId)
+        {
+            Apply(UiActionResult.Fail("Önce gelişim merkezinden bir oyuncu seç."));
+            return;
+        }
+
+        Apply(_controller.PromoteYouthAcademyCandidate(playerId));
     }
 
     private void OnSquadPlayerClicked(long index, Vector2 atPosition, long mouseButtonIndex)
@@ -3421,6 +3465,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshYouthAcademy()
     {
+        RefreshYouthAcademyLifecycle();
         _academyCandidateList.Clear();
         var intake = _controller.BuildYouthAcademyIntake();
         if (intake is null)
@@ -3491,6 +3536,65 @@ public partial class CareerHubScreen : Control
         var canDecide = selected?.DecisionStatus == YouthAcademyCandidateDecisionStatus.Pending;
         _academyAcceptButton.Disabled = !canDecide;
         _academyRejectButton.Disabled = !canDecide;
+    }
+
+    private void RefreshYouthAcademyLifecycle()
+    {
+        _academyLifecycleList.Clear();
+        var lifecycle = _controller.BuildYouthAcademyLifecycle();
+        if (lifecycle is null || lifecycle.Players.Count == 0)
+        {
+            _academyLifecyclePlayers = [];
+            _selectedAcademyLifecyclePlayerId = null;
+            _academyLifecycleLabel.Text =
+                "Akademide tutulan oyuncular sezon geçişleriyle gelişim raporuna girecek.";
+            UpdateAcademyPromotionButton();
+            return;
+        }
+
+        _academyLifecyclePlayers = lifecycle.Players;
+        _academyLifecycleLabel.Text =
+            $"Gelişen {lifecycle.DevelopingCount} · terfiye hazır {lifecycle.PromotionEligibleCount} "
+            + $"· A takıma çıkan {lifecycle.PromotedCount}. "
+            + "Dolu kadroda terfiye hazır en iyi genç, ilk emeklilik slotunda otomatik öncelik alır.";
+        foreach (var player in lifecycle.Players)
+        {
+            var status = player.Status switch
+            {
+                YouthAcademyLifecycleStatus.Developing => "GELİŞİYOR",
+                YouthAcademyLifecycleStatus.PromotionEligible => "TERFİYE HAZIR",
+                YouthAcademyLifecycleStatus.PromotedToFirstTeam => "A TAKIMDA",
+                _ => player.Status.ToString(),
+            };
+            _academyLifecycleList.AddItem(
+                $"{player.DisplayName} · {player.Age} · {player.PositionCode} · "
+                + $"güç {player.CurrentAbility} / pot. {player.PotentialAbility} · {status}");
+        }
+
+        if (_selectedAcademyLifecyclePlayerId is not long selected
+            || !lifecycle.Players.Any(player => player.PlayerId == selected))
+        {
+            _selectedAcademyLifecyclePlayerId = lifecycle.Players
+                .FirstOrDefault(player => player.Status == YouthAcademyLifecycleStatus.PromotionEligible)
+                ?.PlayerId
+                ?? lifecycle.Players.First().PlayerId;
+        }
+
+        var selectedIndex = lifecycle.Players
+            .Select((player, index) => (player, index))
+            .First(item => item.player.PlayerId == _selectedAcademyLifecyclePlayerId)
+            .index;
+        _academyLifecycleList.Select(selectedIndex);
+        UpdateAcademyPromotionButton();
+    }
+
+    private void UpdateAcademyPromotionButton()
+    {
+        var selected = _selectedAcademyLifecyclePlayerId is long id
+            ? _academyLifecyclePlayers.FirstOrDefault(player => player.PlayerId == id)
+            : null;
+        _academyPromoteButton.Disabled =
+            selected?.Status != YouthAcademyLifecycleStatus.PromotionEligible;
     }
 
     private void RefreshFixtureList()

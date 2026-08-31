@@ -36,3 +36,43 @@ public sealed record YouthAcademyIntakeReadModel(
 
     public bool IsComplete => IsRevealed && PendingCount == 0;
 }
+
+public sealed record YouthAcademyPlayerReadModel(
+    long PlayerId,
+    long ClubId,
+    long IntakeSeasonId,
+    string DisplayName,
+    string PositionCode,
+    string PositionName,
+    int Age,
+    int CurrentAbility,
+    int PotentialAbility,
+    int CompletedAcademySeasons,
+    Domain.PlayerCareer.YouthAcademyLifecycleStatus Status,
+    bool HasCareerSlot,
+    int? FirstTeamSlot,
+    int? ContractEndDayNumber,
+    int? WeeklyWage);
+
+public sealed record YouthAcademyLifecycleReadModel(
+    long ClubId,
+    IReadOnlyList<YouthAcademyPlayerReadModel> Players)
+{
+    public int DevelopingCount => Players.Count(player =>
+        player.Status == Domain.PlayerCareer.YouthAcademyLifecycleStatus.Developing);
+
+    public int PromotionEligibleCount => Players.Count(player =>
+        player.Status == Domain.PlayerCareer.YouthAcademyLifecycleStatus.PromotionEligible);
+
+    public int PromotedCount => Players.Count(player =>
+        player.Status == Domain.PlayerCareer.YouthAcademyLifecycleStatus.PromotedToFirstTeam);
+}
+
+public sealed record YouthAcademyPromotionResult(
+    long PlayerId,
+    long ClubId,
+    int SquadSlot,
+    int WeeklyWage,
+    int ContractEndDayNumber,
+    int CurrentAbility,
+    int PotentialAbility);

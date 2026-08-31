@@ -3,6 +3,7 @@ using FootballCareerSimulator.Application.ContractRegistration.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Composition;
 using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
+using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
@@ -93,12 +94,14 @@ public sealed class SeasonPlayerLifecycleTests
             contracts.Registration,
             team.ClubSquad,
             training,
-            world.TimelineStore);
+            world.TimelineStore,
+            new AcademySuccessorStub());
 
         var result = service.ApplySeasonRollover(Day);
 
         Assert.Equal(1, result.RetiredPlayerCount);
         Assert.Equal(1, result.GeneratedPlayerCount);
+        Assert.Equal(1, result.PromotedAcademyPlayerCount);
         Assert.Equal([1L], result.AffectedClubIds);
 
         var retired = playerStore.Careers.Single(career => career.Id == eligible.Id);
@@ -106,6 +109,7 @@ public sealed class SeasonPlayerLifecycleTests
         Assert.Equal(Day, retired.RetiredOn);
         var successor = playerStore.Get(clubId, 0)!;
         Assert.NotEqual(retired.Id, successor.Id);
+        Assert.Equal(7_000_000_000_000_000_001L, successor.Id.Value);
         Assert.Equal(1, successor.Generation);
         Assert.InRange(successor.AgeYears(Day), 17, 20);
 
@@ -182,5 +186,26 @@ public sealed class SeasonPlayerLifecycleTests
         Assert.Equal(
             playerStore.Careers.Count,
             playerStore.Careers.Select(career => career.Id).Distinct().Count());
+    }
+
+    private sealed class AcademySuccessorStub : IYouthAcademySuccessorProvider
+    {
+        public Domain.PlayerCareer.PlayerCareer CreateSuccessor(
+            ClubId clubId,
+            int slotIndex,
+            int generation,
+            GameDate day,
+            IReadOnlySet<Domain.PlayerCareer.PlayerId> excludedPlayerIds) =>
+            Domain.PlayerCareer.PlayerCareer.Rehydrate(
+                new Domain.PlayerCareer.PlayerId(7_000_000_000_000_000_001L),
+                clubId,
+                slotIndex,
+                currentAbility: 58,
+                potentialAbility: 82,
+                developmentPoints: 0,
+                lastDevelopedOn: null,
+                birthYear: day.Year - 18,
+                lastAgedCalendarYear: null,
+                generation: generation);
     }
 }

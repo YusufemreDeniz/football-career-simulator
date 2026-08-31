@@ -45,6 +45,7 @@ public sealed class CareerPresentationHost
         TransferModule transferModule,
         SocialContinuityModule socialContinuityModule,
         InteractionModule interactionModule,
+        YouthAcademyLifecycleService youthAcademyLifecycle,
         CareerGameSessionService gameSession,
         string defaultSavePath)
     {
@@ -62,6 +63,8 @@ public sealed class CareerPresentationHost
         SocialContinuityModule = socialContinuityModule
             ?? throw new ArgumentNullException(nameof(socialContinuityModule));
         InteractionModule = interactionModule ?? throw new ArgumentNullException(nameof(interactionModule));
+        YouthAcademyLifecycle = youthAcademyLifecycle
+            ?? throw new ArgumentNullException(nameof(youthAcademyLifecycle));
         GameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
         DefaultSavePath = defaultSavePath ?? throw new ArgumentNullException(nameof(defaultSavePath));
     }
@@ -77,6 +80,7 @@ public sealed class CareerPresentationHost
     public TransferModule TransferModule { get; }
     public SocialContinuityModule SocialContinuityModule { get; }
     public InteractionModule InteractionModule { get; }
+    public YouthAcademyLifecycleService YouthAcademyLifecycle { get; }
     public CareerGameSessionService GameSession { get; }
     public string DefaultSavePath { get; }
 
@@ -147,6 +151,15 @@ public sealed class CareerPresentationHost
             playerCareer.Development,
             teamPreparation.ClubSquad,
             teamPreparation.SelectionStore);
+        var youthAcademyLifecycle = new YouthAcademyLifecycleService(
+            clubModule.Store,
+            competitionStore,
+            managerModule.Store,
+            worldModule.TimelineStore,
+            decisionStore,
+            playerCareer.Store,
+            contractModule.Store,
+            teamPreparation.SquadStore);
         var seasonPlayerLifecycle = new SeasonPlayerLifecycleService(
             playerCareer.Store,
             playerCareer.Development,
@@ -154,7 +167,8 @@ public sealed class CareerPresentationHost
             teamPreparation.ClubSquad
                 ?? throw new InvalidOperationException("ClubSquad service is required for season lifecycle."),
             training.Store,
-            worldModule.TimelineStore);
+            worldModule.TimelineStore,
+            youthAcademyLifecycle);
         var socialContinuity = SocialContinuityModule.Create();
         teamPreparation.BindPromiseStore(socialContinuity.PromiseStore);
         clubModule.BindWageBudget(contractModule.Store);
@@ -307,6 +321,7 @@ public sealed class CareerPresentationHost
             transferModule,
             socialContinuity,
             interactionModule,
+            youthAcademyLifecycle,
             gameSession,
             savePath);
     }

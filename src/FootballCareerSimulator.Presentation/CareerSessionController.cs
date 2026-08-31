@@ -53,6 +53,7 @@ public sealed class CareerSessionController
     private bool _weekStoryClosureDismissOnNextAdvance;
     private readonly List<MatchupPlanNotebookEntry> _matchupPlanHistory = [];
     private readonly YouthAcademyIntakeService _youthAcademy;
+    private readonly YouthAcademyLifecycleService _youthAcademyLifecycle;
     private readonly ClubEconomyQueryService _clubEconomy;
 
     public CareerSessionController(CareerPresentationHost host)
@@ -64,6 +65,7 @@ public sealed class CareerSessionController
             host.ManagerModule.Store,
             host.WorldModule.TimelineStore,
             host.InteractionModule.DecisionRequestStore);
+        _youthAcademyLifecycle = host.YouthAcademyLifecycle;
         _clubEconomy = new ClubEconomyQueryService(
             host.ClubModule.Store,
             host.ContractModule.Store,
@@ -1638,6 +1640,25 @@ public sealed class CareerSessionController
 
     public YouthAcademyIntakeReadModel? BuildYouthAcademyIntake() =>
         _youthAcademy.GetManagedClubIntake();
+
+    public YouthAcademyLifecycleReadModel? BuildYouthAcademyLifecycle() =>
+        _youthAcademyLifecycle.GetManagedAcademy();
+
+    public UiActionResult PromoteYouthAcademyCandidate(long playerId)
+    {
+        try
+        {
+            var promoted = _youthAcademyLifecycle.PromoteManagedCandidate(playerId);
+            return UiActionResult.Ok(
+                $"Akademi terfisi tamamlandı: {GetPlayerDisplayName(playerId)} · "
+                + $"A takım slotu {promoted.SquadSlot + 1} · "
+                + $"3 yıllık genç sözleşmesi {promoted.WeeklyWage:N0} TRY/hafta.");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Akademi terfisi uygulanamadı: {ex.Message}");
+        }
+    }
 
     public UiActionResult AcceptYouthAcademyCandidate(long playerId) =>
         DecideYouthAcademyCandidate(playerId, accept: true);
