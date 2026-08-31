@@ -159,6 +159,101 @@ public static class MvpAvailabilityAwareSelection
         return MatchSelection.Approve(fixtureId, clubId, starting, bench, clubSquad);
     }
 
+    public static MatchSelection ApproveReusingPreviousPreferringAvailable(
+        FixtureId fixtureId,
+        ClubId clubId,
+        GameDate day,
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot,
+        IReadOnlyList<int> previousStartingSlotIndices,
+        IReadOnlyList<int> previousBenchSlotIndices,
+        ClubSquad? clubSquad = null)
+    {
+        ArgumentNullException.ThrowIfNull(physicalBySlot);
+        ArgumentNullException.ThrowIfNull(previousStartingSlotIndices);
+        ArgumentNullException.ThrowIfNull(previousBenchSlotIndices);
+
+        var candidateSlots = ResolveCandidateSlots(clubSquad);
+        var candidateSet = candidateSlots.ToHashSet();
+        var available = new List<int>();
+        var unavailable = new List<int>();
+        PartitionByAvailability(clubId, day, candidateSlots, physicalBySlot, available, unavailable);
+        var availableSet = available.ToHashSet();
+
+        if (available.Count < MatchSelection.StartingXiSize)
+        {
+            throw new TeamPreparationInvariantViolationException(
+                $"Not enough available players for starting XI ({available.Count}/{MatchSelection.StartingXiSize}; "
+                + $"squad {candidateSlots.Length}, unavailable {unavailable.Count}, "
+                + $"club {clubId.Value}, day {day.DayNumber}).");
+        }
+
+        var starting = new List<int>(MatchSelection.StartingXiSize);
+        foreach (var slot in previousStartingSlotIndices)
+        {
+            if (starting.Count >= MatchSelection.StartingXiSize)
+            {
+                break;
+            }
+
+            if (availableSet.Contains(slot) && candidateSet.Contains(slot) && !starting.Contains(slot))
+            {
+                starting.Add(slot);
+            }
+        }
+
+        foreach (var slot in previousBenchSlotIndices.Concat(available))
+        {
+            if (starting.Count >= MatchSelection.StartingXiSize)
+            {
+                break;
+            }
+
+            if (availableSet.Contains(slot) && candidateSet.Contains(slot) && !starting.Contains(slot))
+            {
+                starting.Add(slot);
+            }
+        }
+
+        var used = starting.ToHashSet();
+        var bench = previousBenchSlotIndices
+            .Concat(previousStartingSlotIndices)
+            .Concat(available)
+            .Concat(unavailable)
+            .Where(slot => candidateSet.Contains(slot) && !used.Contains(slot))
+            .Distinct()
+            .Take(MatchSelection.MaxBenchSize)
+            .ToArray();
+
+        EnsureStartingXiAvailable(clubId, starting, day, physicalBySlot);
+        return MatchSelection.Approve(fixtureId, clubId, starting, bench, clubSquad);
+    }
+
+    public static IReadOnlyList<AvailabilityAutoSwap> DiffStartingSlots(
+        IReadOnlyList<int> previousStartingSlotIndices,
+        IReadOnlyList<int> nextStartingSlotIndices)
+    {
+        ArgumentNullException.ThrowIfNull(previousStartingSlotIndices);
+        ArgumentNullException.ThrowIfNull(nextStartingSlotIndices);
+
+        var previous = previousStartingSlotIndices.ToHashSet();
+        var next = nextStartingSlotIndices.ToHashSet();
+        var swappedOut = previousStartingSlotIndices.Where(slot => !next.Contains(slot)).ToArray();
+        var swappedIn = nextStartingSlotIndices.Where(slot => !previous.Contains(slot)).ToArray();
+        var count = Math.Min(swappedOut.Length, swappedIn.Length);
+        if (count == 0)
+        {
+            return Array.Empty<AvailabilityAutoSwap>();
+        }
+
+        var swaps = new AvailabilityAutoSwap[count];
+        for (var i = 0; i < count; i++)
+        {
+            swaps[i] = new AvailabilityAutoSwap(swappedOut[i], swappedIn[i]);
+        }
+
+        return swaps;
+    }
+
     private static int[] ResolveCandidateSlots(ClubSquad? clubSquad) =>
         clubSquad is not null && clubSquad.Members.Count > 0
             ? clubSquad.Members.Select(m => m.SlotIndex).OrderBy(s => s).ToArray()

@@ -183,6 +183,12 @@ public partial class CareerHubScreen : Control
     private Button _approachBalancedButton = null!;
     private Button _approachAttackingButton = null!;
     private Button _approachDefensiveButton = null!;
+    private Button _pressingLowButton = null!;
+    private Button _pressingBalancedButton = null!;
+    private Button _pressingHighButton = null!;
+    private Button _lineDeepButton = null!;
+    private Button _lineStandardButton = null!;
+    private Button _lineHighButton = null!;
     private readonly List<Button> _dualPhaseTacticButtons = [];
     private Button _playButton = null!;
     private Button _seasonTransitionButton = null!;
@@ -1569,10 +1575,36 @@ public partial class CareerHubScreen : Control
         _approachDefensiveButton.Pressed += () => Apply(_controller.SetTacticApproach(TacticalApproach.Defensive));
         approachRow.AddChild(_approachDefensiveButton);
 
+        var pressingRow = ActionFlow();
+        tacticsCard.AddChild(pressingRow);
+        _pressingLowButton = SecondaryButton("Pres: Geri");
+        _pressingLowButton.Pressed += () => Apply(_controller.SetTacticPressing(PressingIntensity.LowBlock));
+        pressingRow.AddChild(_pressingLowButton);
+        _pressingBalancedButton = SecondaryButton("Pres: Dengeli");
+        _pressingBalancedButton.Pressed += () => Apply(_controller.SetTacticPressing(PressingIntensity.Balanced));
+        pressingRow.AddChild(_pressingBalancedButton);
+        _pressingHighButton = SecondaryButton("Pres: Önde");
+        _pressingHighButton.Pressed += () => Apply(_controller.SetTacticPressing(PressingIntensity.HighPress));
+        pressingRow.AddChild(_pressingHighButton);
+
+        var lineRow = ActionFlow();
+        tacticsCard.AddChild(lineRow);
+        _lineDeepButton = SecondaryButton("Hat: Derin");
+        _lineDeepButton.Pressed += () => Apply(_controller.SetTacticDefensiveLine(DefensiveLine.Deep));
+        lineRow.AddChild(_lineDeepButton);
+        _lineStandardButton = SecondaryButton("Hat: Standart");
+        _lineStandardButton.Pressed += () => Apply(_controller.SetTacticDefensiveLine(DefensiveLine.Standard));
+        lineRow.AddChild(_lineStandardButton);
+        _lineHighButton = SecondaryButton("Hat: Yüksek");
+        _lineHighButton.Pressed += () => Apply(_controller.SetTacticDefensiveLine(DefensiveLine.High));
+        lineRow.AddChild(_lineHighButton);
+
         foreach (var option in new[]
                  {
                      _formation442Button, _formation433Button, _formation352Button,
                      _approachBalancedButton, _approachAttackingButton, _approachDefensiveButton,
+                     _pressingLowButton, _pressingBalancedButton, _pressingHighButton,
+                     _lineDeepButton, _lineStandardButton, _lineHighButton,
                  })
         {
             option.ToggleMode = true;
@@ -3068,6 +3100,7 @@ public partial class CareerHubScreen : Control
 
         _tacticLabel.Text =
             $"Taktik: {tactic.FormationName} · {tactic.ApproachName}"
+            + $" · {tactic.PressingName} · {tactic.DefensiveLineName}"
             + $" · maç {_controller.GetManagedTacticModifierLabel()}";
         var phase = _controller.BuildDualPhaseTacticDigest();
         _dualPhaseTacticLabel.Text = phase is null
@@ -3086,6 +3119,12 @@ public partial class CareerHubScreen : Control
         _approachBalancedButton.Disabled = !employed;
         _approachAttackingButton.Disabled = !employed;
         _approachDefensiveButton.Disabled = !employed;
+        _pressingLowButton.Disabled = !employed;
+        _pressingBalancedButton.Disabled = !employed;
+        _pressingHighButton.Disabled = !employed;
+        _lineDeepButton.Disabled = !employed;
+        _lineStandardButton.Disabled = !employed;
+        _lineHighButton.Disabled = !employed;
         foreach (var button in _dualPhaseTacticButtons)
         {
             button.Disabled = !employed;
@@ -3101,6 +3140,18 @@ public partial class CareerHubScreen : Control
             tactic.ClubId is not null && tactic.Approach == TacticalApproach.Attacking;
         _approachDefensiveButton.ButtonPressed =
             tactic.ClubId is not null && tactic.Approach == TacticalApproach.Defensive;
+        _pressingLowButton.ButtonPressed =
+            tactic.ClubId is not null && tactic.Pressing == PressingIntensity.LowBlock;
+        _pressingBalancedButton.ButtonPressed =
+            tactic.ClubId is not null && tactic.Pressing == PressingIntensity.Balanced;
+        _pressingHighButton.ButtonPressed =
+            tactic.ClubId is not null && tactic.Pressing == PressingIntensity.HighPress;
+        _lineDeepButton.ButtonPressed =
+            tactic.ClubId is not null && tactic.DefensiveLine == DefensiveLine.Deep;
+        _lineStandardButton.ButtonPressed =
+            tactic.ClubId is not null && tactic.DefensiveLine == DefensiveLine.Standard;
+        _lineHighButton.ButtonPressed =
+            tactic.ClubId is not null && tactic.DefensiveLine == DefensiveLine.High;
     }
 
     private void RefreshDevelopmentStatus()

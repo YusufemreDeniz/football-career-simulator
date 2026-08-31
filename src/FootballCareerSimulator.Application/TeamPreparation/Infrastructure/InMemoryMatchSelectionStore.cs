@@ -8,6 +8,7 @@ namespace FootballCareerSimulator.Application.TeamPreparation.Infrastructure;
 public sealed class InMemoryMatchSelectionStore : IMatchSelectionStore
 {
     private readonly Dictionary<(long FixtureId, long ClubId), MatchSelection> _selections = new();
+    private readonly Dictionary<long, ClubLineupTemplate> _templates = new();
 
     public IReadOnlyList<MatchSelection> Selections =>
         _selections.Values
@@ -20,10 +21,19 @@ public sealed class InMemoryMatchSelectionStore : IMatchSelectionStore
             ? selection
             : null;
 
+    public ClubLineupTemplate? GetLineupTemplate(ClubId clubId) =>
+        _templates.TryGetValue(clubId.Value, out var template)
+            ? template
+            : null;
+
     public void Upsert(MatchSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);
         _selections[(selection.FixtureId.Value, selection.ClubId.Value)] = selection;
+        _templates[selection.ClubId.Value] = new ClubLineupTemplate(
+            selection.ClubId,
+            selection.StartingSlotIndices.ToArray(),
+            selection.BenchSlotIndices.ToArray());
     }
 
     public void Remove(FixtureId fixtureId, ClubId clubId) =>
@@ -45,6 +55,7 @@ public sealed class InMemoryMatchSelectionStore : IMatchSelectionStore
     {
         ArgumentNullException.ThrowIfNull(selections);
         _selections.Clear();
+        _templates.Clear();
         foreach (var selection in selections)
         {
             Upsert(selection);

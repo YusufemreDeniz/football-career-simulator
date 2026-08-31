@@ -68,6 +68,7 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
         }
 
         var clubSquad = _squadStore?.Get(clubId);
+        var previous = _selectionStore.GetLineupTemplate(clubId);
 
         MatchSelection selection;
         string? autoSwapSummary = null;
@@ -75,25 +76,52 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
         {
             var day = _timelineStore.Timeline.CurrentDate;
             var physical = _trainingStore.PhysicalBySlot;
-            var swaps = MvpAvailabilityAwareSelection.PreviewDefaultAvailabilitySwaps(
-                clubId,
-                day,
-                physical,
-                clubSquad);
-            if (swaps.Count > 0)
+            IReadOnlyList<MvpAvailabilityAwareSelection.AvailabilityAutoSwap> swaps;
+            if (previous is ClubLineupTemplate template)
             {
-                var names = MvpSquadRosterGenerator.GeneratePlayerNames(
+                selection = MvpAvailabilityAwareSelection.ApproveReusingPreviousPreferringAvailable(
+                    fixtureId,
                     clubId,
-                    _timelineStore.Timeline.RootSeed);
-                autoSwapSummary = SelectionAutoSwapWarning.FormatToastSuffix(swaps, names);
+                    day,
+                    physical,
+                    template.StartingSlotIndices,
+                    template.BenchSlotIndices,
+                    clubSquad);
+                swaps = MvpAvailabilityAwareSelection.DiffStartingSlots(
+                    template.StartingSlotIndices,
+                    selection.StartingSlotIndices);
+                autoSwapSummary = swaps.Count == 0
+                    ? "önceki XI korundu"
+                    : SelectionAutoSwapWarning.FormatToastSuffix(swaps, ResolvePlayerNames(clubId));
             }
-
-            selection = MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+            else
+            {
+                swaps = MvpAvailabilityAwareSelection.PreviewDefaultAvailabilitySwaps(
+                    clubId,
+                    day,
+                    physical,
+                    clubSquad);
+                selection = MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+                    fixtureId,
+                    clubId,
+                    day,
+                    physical,
+                    clubSquad);
+                if (swaps.Count > 0)
+                {
+                    autoSwapSummary = SelectionAutoSwapWarning.FormatToastSuffix(swaps, ResolvePlayerNames(clubId));
+                }
+            }
+        }
+        else if (previous is ClubLineupTemplate template)
+        {
+            selection = MatchSelection.Approve(
                 fixtureId,
                 clubId,
-                day,
-                physical,
+                template.StartingSlotIndices,
+                template.BenchSlotIndices,
                 clubSquad);
+            autoSwapSummary = "önceki XI korundu";
         }
         else
         {
@@ -137,6 +165,11 @@ public sealed class ApproveDefaultMatchSelectionHandler : ICommandIdempotencyRes
     }
 
     public void ResetIdempotencyCache() => _completedCommands.Clear();
+
+    private IReadOnlyList<string> ResolvePlayerNames(ClubId clubId) =>
+        MvpSquadRosterGenerator.GeneratePlayerNames(
+            clubId,
+            _timelineStore?.Timeline.RootSeed ?? 0);
 
     private Fixture FindFixtureOrThrow(FixtureId fixtureId)
     {

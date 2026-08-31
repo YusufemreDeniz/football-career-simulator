@@ -211,7 +211,7 @@ public sealed class CareerSessionController
         }
         catch (Exception ex)
         {
-            return UiActionResult.Fail($"Kadro onaylanamadı: {ex.Message}");
+            return UiActionResult.Fail($"Kadro onaylanamadı: {FormatLineupFailure(ex)}");
         }
     }
 
@@ -280,8 +280,45 @@ public sealed class CareerSessionController
         }
         catch (Exception ex)
         {
-            return UiActionResult.Fail($"Kadro değişim hatası: {ex.Message}");
+            return UiActionResult.Fail($"Kadro değişim hatası: {FormatLineupFailure(ex)}");
         }
+    }
+
+    private static string FormatLineupFailure(Exception ex)
+    {
+        var message = ex.Message;
+        if (message.Contains("unavailable slot", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Sakat veya o gün müsait olmayan oyuncu ilk 11'e alınamaz.";
+        }
+
+        if (message.Contains("exactly 11", StringComparison.OrdinalIgnoreCase))
+        {
+            return "İlk 11 tam 11 oyuncu olmalı.";
+        }
+
+        if (message.Contains("must be unique", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Aynı oyuncu hem ilk 11'de hem yedekte olamaz.";
+        }
+
+        if (message.Contains("not in club", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("out of range", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Kadro dışı veya geçersiz oyuncu seçilemez.";
+        }
+
+        if (message.Contains("Bench cannot exceed", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Yedek sayısı 7'yi aşamaz.";
+        }
+
+        if (message.Contains("Not enough available players", StringComparison.OrdinalIgnoreCase))
+        {
+            return "İlk 11 için yeterli müsait oyuncu yok.";
+        }
+
+        return message;
     }
 
     public UiActionResult GenerateJobOffer()
