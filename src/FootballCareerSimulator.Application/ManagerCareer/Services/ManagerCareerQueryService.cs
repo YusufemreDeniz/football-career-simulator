@@ -36,6 +36,7 @@ public sealed class ManagerCareerQueryService
             offer?.ClubId.Value,
             offer?.Status.ToString(),
             career.Reputation.Value,
-            career.LastReputationReasonCode);
+            career.LastReputationReasonCode,
+            career.StartingBackground?.ToString());
     }
 }

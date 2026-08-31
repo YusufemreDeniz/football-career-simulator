@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using System.Security.Cryptography;
 
@@ -7,13 +8,15 @@ public sealed record CareerStartConfiguration(
     string ManagerName,
     long StartingClubId,
     GameDate StartingDate,
-    int RootSeed)
+    int RootSeed,
+    StartingBackground? StartingBackground = null)
 {
     public static CareerStartConfiguration Create(
         string managerName,
         long startingClubId,
         GameDate? startingDate = null,
-        int? rootSeed = null)
+        int? rootSeed = null,
+        StartingBackground? startingBackground = null)
     {
         var normalizedName = managerName?.Trim() ?? string.Empty;
         if (normalizedName.Length is < 2 or > 48)
@@ -30,6 +33,7 @@ public sealed record CareerStartConfiguration(
             normalizedName,
             startingClubId,
             startingDate ?? ProductionCareerWorldConstraints.DefaultOpeningDate,
-            rootSeed ?? RandomNumberGenerator.GetInt32(1, int.MaxValue));
+            rootSeed ?? RandomNumberGenerator.GetInt32(1, int.MaxValue),
+            startingBackground);
     }
 }

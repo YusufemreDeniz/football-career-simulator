@@ -96,6 +96,12 @@ public sealed class CareerPresentationHost
             .Queries
             .GetAllClubs();
 
+    public static IReadOnlyList<StartingClubOfferDigest> GetStartingJobOffers(
+        int rootSeed,
+        Domain.ManagerCareer.StartingBackground background,
+        GameDate? startingDate = null) =>
+        StartingCareerOfferService.Preview(rootSeed, background, startingDate);
+
     public static CareerPresentationHost CreateDefault(string? defaultSavePath = null) =>
         CreateNewCareer(
             CareerStartConfiguration.Create("Teknik Direktor", startingClubId: 1),
@@ -131,13 +137,23 @@ public sealed class CareerPresentationHost
             ],
             timelineStore: timelineStore);
 
-        var managerModule = ManagerCareerModule.CreateForCareer(
-            startDate,
-            clubModule.Store,
-            worldModule.TimelineStore,
-            displayName: configuration.ManagerName,
-            startingClubId: startingClubId,
-            clubSportiveStrength: startingStrength);
+        var managerModule = configuration.StartingBackground is { } background
+            ? ManagerCareerModule.CreateFromAcceptedStartingOffer(
+                startDate,
+                clubModule.Store,
+                worldModule.TimelineStore,
+                background,
+                configuration.RootSeed,
+                startingClubId,
+                displayName: configuration.ManagerName,
+                clubSportiveStrength: startingStrength)
+            : ManagerCareerModule.CreateForCareer(
+                startDate,
+                clubModule.Store,
+                worldModule.TimelineStore,
+                displayName: configuration.ManagerName,
+                startingClubId: startingClubId,
+                clubSportiveStrength: startingStrength);
 
         var trainingStore = new InMemoryTrainingPhysicalStateStore();
         var playerStore = new InMemoryPlayerCareerStore();

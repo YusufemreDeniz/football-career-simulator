@@ -19,4 +19,5 @@ public sealed record ManagerCareerReadModel(
     long? PendingOfferClubId,
     string? PendingOfferStatus,
     int ManagerReputation,
-    string? LastReputationReasonCode);
+    string? LastReputationReasonCode,
+    string? StartingBackground);

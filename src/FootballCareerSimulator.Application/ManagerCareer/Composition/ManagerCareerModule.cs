@@ -1,5 +1,6 @@
 namespace FootballCareerSimulator.Application.ManagerCareer.Composition;
 
+using FootballCareerSimulator.Application.CareerWorld;
 using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ManagerCareer.Infrastructure;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
@@ -93,5 +94,36 @@ public sealed class ManagerCareerModule
             timelineStore);
 
         return new ManagerCareerModule(module.Store, module.Queries, generate, accept);
+    }
+
+    public static ManagerCareerModule CreateFromAcceptedStartingOffer(
+        GameDate startDate,
+        IClubRegistryStore clubRegistryStore,
+        IWorldTimelineStore timelineStore,
+        StartingBackground startingBackground,
+        int rootSeed,
+        long acceptedClubId,
+        string displayName = "Teknik Direktör",
+        long managerId = 1,
+        int clubSportiveStrength = 50)
+    {
+        var offers = StartingCareerOfferService.Preview(rootSeed, startingBackground, startDate);
+        if (!StartingCareerOfferService.ContainsClub(offers, acceptedClubId))
+        {
+            throw new ManagerCareerInvariantViolationException(
+                "Accepted club is not in the starting job offer set.");
+        }
+
+        var career = StartingCareerOfferService.ActivateAcceptedOffer(
+            new ManagerId(managerId),
+            displayName,
+            new ClubId(acceptedClubId),
+            startingBackground,
+            startDate,
+            clubSportiveStrength);
+        var store = new InMemoryManagerCareerStore(career);
+        var generate = new GenerateUnemployedJobOfferHandler(store, clubRegistryStore, timelineStore);
+        var accept = new AcceptPendingJobOfferHandler(store, clubRegistryStore, timelineStore);
+        return new ManagerCareerModule(store, new ManagerCareerQueryService(store), generate, accept);
     }
 }

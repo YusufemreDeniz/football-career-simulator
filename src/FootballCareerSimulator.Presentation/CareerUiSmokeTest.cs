@@ -6,6 +6,7 @@ using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using Godot;
+using System.Linq;
 
 namespace FootballCareerSimulator.Presentation;
 
@@ -135,6 +136,16 @@ public static class CareerUiSmokeTest
             == ProductionCareerWorldConstraints.ClubCount
             && host.PlayerCareerModule.Store.Careers.Count
             == ProductionCareerWorldConstraints.TargetActivePlayerCount);
+        var openingOffers = CareerPresentationHost.GetStartingJobOffers(
+            741852,
+            Domain.ManagerCareer.StartingBackground.LowerLeagueYouthManager,
+            startDate);
+        passed &= LogCheck(
+            "Sinirli baslangic teklifleri",
+            openingOffers.Count >= 1
+            && openingOffers.Count <= Domain.ManagerCareer.StartingBackgroundCatalog.OfferCount
+            && openingOffers.Count < ProductionCareerWorldConstraints.ClubCount
+            && openingOffers.Select(offer => offer.ClubId).Distinct().Count() == openingOffers.Count);
 
         var result = world.AdvanceSimulationTime.Handle(
             new AdvanceSimulationTimeCommand(Guid.NewGuid(), before.DayNumber + 1));

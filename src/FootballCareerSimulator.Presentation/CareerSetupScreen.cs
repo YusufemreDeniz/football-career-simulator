@@ -1,5 +1,5 @@
 using FootballCareerSimulator.Application.CareerWorld;
-using FootballCareerSimulator.Application.ClubGovernance.Queries;
+using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using Godot;
 
@@ -7,16 +7,19 @@ namespace FootballCareerSimulator.Presentation;
 
 public partial class CareerSetupScreen : Control
 {
-    private IReadOnlyList<ClubReadModel> _clubs = Array.Empty<ClubReadModel>();
     private ProductionCareerWorldSummary? _worldSummary;
     private GameDate _worldDate = ProductionCareerWorldConstraints.DefaultOpeningDate;
+    private StartingBackground? _selectedBackground;
+    private StartingClubOfferDigest? _selectedOffer;
+    private IReadOnlyList<StartingClubOfferDigest> _offers = Array.Empty<StartingClubOfferDigest>();
+
     private LineEdit _managerNameInput = null!;
     private LineEdit _seedInput = null!;
     private Label _worldSummaryLabel = null!;
-    private OptionButton _clubSelector = null!;
-    private TextureRect _crest = null!;
-    private Label _clubName = null!;
-    private Label _clubSummary = null!;
+    private VBoxContainer _backgroundList = null!;
+    private Label _backgroundPitch = null!;
+    private VBoxContainer _offerList = null!;
+    private Label _offerHint = null!;
     private Button _startButton = null!;
 
     public event Action<CareerStartConfiguration>? CareerConfirmed;
@@ -89,7 +92,7 @@ public partial class CareerSetupScreen : Control
 
         var intro = new Label
         {
-            Text = "Bir ulke, bir lig, yirmi kulup. Ayni seed ayni dunyayi uretir.",
+            Text = "Adini ve gecmisini sec. Yirmi kulubun hepsi kapini calmaz; yalniz uygun tekliflerden birini kabul edersin.",
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
@@ -99,12 +102,13 @@ public partial class CareerSetupScreen : Control
 
         content.AddChild(BuildWorldSection());
         content.AddChild(BuildManagerSection());
-        content.AddChild(BuildClubSection());
+        content.AddChild(BuildBackgroundSection());
+        content.AddChild(BuildOfferSection());
 
         _startButton = new Button
         {
-            Text = "Kariyeri Baslat",
-            TooltipText = "Uretilen dunyada teknik direktor kariyerini baslat",
+            Text = "Teklifi Kabul Et",
+            TooltipText = "Secilen kulup teklifini kabul edip ClubEmployment baslat",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Disabled = true,
         };
@@ -125,6 +129,7 @@ public partial class CareerSetupScreen : Control
 
         _seedInput.Text = System.Security.Cryptography.RandomNumberGenerator.GetInt32(1, int.MaxValue).ToString();
         RebuildWorldFromSeed();
+        RefreshBackgroundCards();
         UpdateStartAvailability();
     }
 
@@ -188,55 +193,57 @@ public partial class CareerSetupScreen : Control
         return section;
     }
 
-    private Control BuildClubSection()
+    private Control BuildBackgroundSection()
     {
         var section = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         section.AddThemeConstantOverride("separation", 8);
 
-        var label = new Label { Text = "BASLANGIC KULUBU" };
+        var label = new Label { Text = "BASLANGIC GECMISI" };
         CareerUiTheme.StyleSection(label);
         section.AddChild(label);
 
-        _clubSelector = new OptionButton
+        var hint = new Label
         {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 52),
-            TooltipText = "Kariyerine baslayacagin kulubu sec",
+            Text = "Gecmisin hangi kuluplerin kapisini calacagini belirler. Kalici bir super guc degildir.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        CareerUiTheme.StyleOptionSelector(_clubSelector);
-        _clubSelector.ItemSelected += selected => UpdateClubPreview((int)selected);
-        section.AddChild(_clubSelector);
+        CareerUiTheme.StyleBody(hint, muted: true);
+        hint.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        section.AddChild(hint);
 
-        var detail = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        detail.AddThemeConstantOverride("separation", 12);
-        section.AddChild(detail);
+        _backgroundList = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _backgroundList.AddThemeConstantOverride("separation", 6);
+        section.AddChild(_backgroundList);
 
-        _crest = new TextureRect
+        _backgroundPitch = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        CareerUiTheme.StyleBody(_backgroundPitch, muted: true);
+        _backgroundPitch.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        section.AddChild(_backgroundPitch);
+
+        return section;
+    }
+
+    private Control BuildOfferSection()
+    {
+        var section = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        section.AddThemeConstantOverride("separation", 8);
+
+        var label = new Label { Text = "IS TEKLIFLERI" };
+        CareerUiTheme.StyleSection(label);
+        section.AddChild(label);
+
+        _offerHint = new Label
         {
-            CustomMinimumSize = new Vector2(72, 72),
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            MouseFilter = MouseFilterEnum.Ignore,
+            Text = "Once bir baslangic gecmisi sec. Ligdeki yirmi kulubu listeden sahiplenemezsin.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        detail.AddChild(_crest);
+        CareerUiTheme.StyleBody(_offerHint, muted: true);
+        _offerHint.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        section.AddChild(_offerHint);
 
-        var information = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
-        };
-        information.AddThemeConstantOverride("separation", 3);
-        detail.AddChild(information);
-
-        _clubName = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        CareerUiTheme.StyleHeadline(_clubName);
-        _clubName.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(19));
-        information.AddChild(_clubName);
-
-        _clubSummary = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
-        CareerUiTheme.StyleBody(_clubSummary, muted: true);
-        _clubSummary.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
-        information.AddChild(_clubSummary);
+        _offerList = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _offerList.AddThemeConstantOverride("separation", 8);
+        section.AddChild(_offerList);
 
         return section;
     }
@@ -246,9 +253,8 @@ public partial class CareerSetupScreen : Control
         if (!int.TryParse(_seedInput.Text.Trim(), out var seed) || seed <= 0)
         {
             _worldSummary = null;
-            _clubs = Array.Empty<ClubReadModel>();
             _worldSummaryLabel.Text = "Gecerli bir seed gir. Bos birakma; ayni sayi ayni dunyayi acar.";
-            RefreshClubSelector();
+            RefreshOffers();
             UpdateStartAvailability();
             return;
         }
@@ -256,95 +262,163 @@ public partial class CareerSetupScreen : Control
         var world = ProductionCareerWorldBootstrap.Create(seed);
         _worldDate = world.WorldDate;
         _worldSummary = ProductionCareerWorldBootstrap.ToSummary(world);
-        _clubs = CareerPresentationHost.GetNewCareerClubs(seed);
         _worldSummaryLabel.Text =
             $"{_worldSummary.CountryName} · {_worldSummary.LeagueName}\n" +
             $"{_worldSummary.ClubCount} kulup · {_worldSummary.ActivePlayerCount} futbolcu " +
             $"({_worldSummary.ContractedPlayerCount} kadrolu, {_worldSummary.FreeAgentCount} serbest)\n" +
             $"Sezon acilisi: {_worldSummary.OpeningDateDisplay} · Seed {_worldSummary.RootSeed}";
-        RefreshClubSelector();
+        RefreshOffers();
         UpdateStartAvailability();
     }
 
-    private void RefreshClubSelector()
+    private void RefreshBackgroundCards()
     {
-        var previousId = _clubSelector.GetSelectedId();
-        _clubSelector.Clear();
-        foreach (var club in _clubs)
+        foreach (var child in _backgroundList.GetChildren())
         {
-            _clubSelector.AddItem(club.DisplayName, (int)club.ClubId);
+            child.QueueFree();
         }
 
-        if (_clubs.Count == 0)
+        foreach (var background in StartingBackgroundCatalog.All)
         {
-            _clubName.Text = string.Empty;
-            _clubSummary.Text = string.Empty;
-            _crest.Texture = null;
+            var selected = _selectedBackground == background;
+            var button = new Button
+            {
+                Text = StartingBackgroundCatalog.DisplayName(background),
+                TooltipText = StartingBackgroundCatalog.Pitch(background),
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            };
+            button.CustomMinimumSize = new Vector2(0, 48);
+            if (selected)
+            {
+                CareerUiTheme.StylePrimaryButton(button);
+            }
+            else
+            {
+                CareerUiTheme.StyleSecondaryButton(button);
+            }
+
+            var captured = background;
+            button.Pressed += () => SelectBackground(captured);
+            _backgroundList.AddChild(button);
+        }
+
+        _backgroundPitch.Text = _selectedBackground is { } chosen
+            ? StartingBackgroundCatalog.Pitch(chosen)
+            : "Bir gecmis sec; ilk tekliflerin o yoldan gelir.";
+    }
+
+    private void SelectBackground(StartingBackground background)
+    {
+        _selectedBackground = background;
+        _selectedOffer = null;
+        RefreshBackgroundCards();
+        RefreshOffers();
+        UpdateStartAvailability();
+    }
+
+    private void RefreshOffers()
+    {
+        foreach (var child in _offerList.GetChildren())
+        {
+            child.QueueFree();
+        }
+
+        if (_worldSummary is null || _selectedBackground is not { } background)
+        {
+            _offers = Array.Empty<StartingClubOfferDigest>();
+            _offerHint.Text = _worldSummary is null
+                ? "Gecerli bir dunya seed'i olmadan teklif uretilmez."
+                : "Once bir baslangic gecmisi sec. Ligdeki yirmi kulubu listeden sahiplenemezsin.";
             return;
         }
 
-        var index = 0;
-        for (var i = 0; i < _clubs.Count; i++)
+        _offers = CareerPresentationHost.GetStartingJobOffers(_worldSummary.RootSeed, background, _worldDate);
+        if (_selectedOffer is { } previous
+            && !_offers.Any(offer => offer.ClubId == previous.ClubId))
         {
-            if (_clubs[i].ClubId == previousId)
-            {
-                index = i;
-                break;
-            }
+            _selectedOffer = null;
         }
 
-        _clubSelector.Select(index);
-        UpdateClubPreview(index);
+        _offerHint.Text = _offers.Count == 0
+            ? "Bu gecmis icin teklif uretilemedi."
+            : $"{_offers.Count} kulup kapini caldi. Yildiz kulup her zaman teklif vermez.";
+
+        foreach (var offer in _offers)
+        {
+            _offerList.AddChild(BuildOfferCard(offer));
+        }
+    }
+
+    private Control BuildOfferCard(StartingClubOfferDigest offer)
+    {
+        var selected = _selectedOffer?.ClubId == offer.ClubId;
+        var button = new Button
+        {
+            Text =
+                (selected ? $"{offer.DisplayName}  ·  secildi\n" : $"{offer.DisplayName}\n") +
+                $"{offer.LeagueLevelSummary} · guc {offer.SportiveStrength}/100\n" +
+                $"{offer.SquadSummary}\n" +
+                $"Yonetim beklentisi: {offer.BoardExpectation}\n" +
+                $"Transfer butcesi: EUR {offer.TransferBudget:N0}\n" +
+                offer.WhyOffered,
+            TooltipText = "Bu teklifi kabul etmek icin sec",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            Alignment = HorizontalAlignment.Left,
+        };
+        if (selected)
+        {
+            CareerUiTheme.StylePrimaryButton(button);
+        }
+        else
+        {
+            CareerUiTheme.StyleSecondaryButton(button);
+        }
+
+        button.CustomMinimumSize = new Vector2(0, 128);
+        button.Pressed += () => SelectOffer(offer);
+        return button;
+    }
+
+    private void SelectOffer(StartingClubOfferDigest offer)
+    {
+        _selectedOffer = offer;
+        RefreshOffers();
+        UpdateStartAvailability();
     }
 
     private void UpdateContentWidth(Control content)
     {
         var available = Mathf.Max(288f, Size.X - 32f);
-        content.CustomMinimumSize = new Vector2(Mathf.Min(460f, available), 0);
+        content.CustomMinimumSize = new Vector2(Mathf.Min(520f, available), 0);
     }
 
     private void UpdateContentWidthDeferred(Control content) => UpdateContentWidth(content);
-
-    private void UpdateClubPreview(int index)
-    {
-        if (_clubs.Count == 0)
-        {
-            return;
-        }
-
-        var club = _clubs[Mathf.Clamp(index, 0, _clubs.Count - 1)];
-        _clubName.Text = club.DisplayName;
-        _clubSummary.Text =
-            $"Guc {club.SportiveStrength}/100\n" +
-            $"Transfer butcesi: EUR {club.AvailableTransferFunds:N0}\n" +
-            $"Haftalik maas limiti: EUR {club.WageBudgetLimit:N0}";
-
-        _crest.Texture = !string.IsNullOrWhiteSpace(club.CrestResourcePath)
-            && ResourceLoader.Exists(club.CrestResourcePath)
-            ? GD.Load<Texture2D>(club.CrestResourcePath)
-            : null;
-    }
 
     private void UpdateStartAvailability()
     {
         _startButton.Disabled =
             _worldSummary is null
-            || _clubs.Count == 0
+            || _selectedBackground is null
+            || _selectedOffer is null
             || _managerNameInput.Text.Trim().Length < 2;
     }
 
     private void ConfirmCareer()
     {
-        if (_worldSummary is null || _clubs.Count == 0)
+        if (_worldSummary is null
+            || _selectedBackground is not { } background
+            || _selectedOffer is not { } offer)
         {
             return;
         }
 
-        var selected = _clubs[Mathf.Clamp(_clubSelector.Selected, 0, _clubs.Count - 1)];
         CareerConfirmed?.Invoke(CareerStartConfiguration.Create(
             _managerNameInput.Text,
-            selected.ClubId,
+            offer.ClubId,
             _worldDate,
-            _worldSummary.RootSeed));
+            _worldSummary.RootSeed,
+            background));
     }
 }

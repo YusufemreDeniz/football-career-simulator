@@ -18,7 +18,8 @@ public sealed class ManagerCareer
         JobOffer? pendingJobOffer,
         ManagerReputation reputation,
         string? lastReputationReasonCode,
-        IReadOnlyList<EmploymentHistoryEntry> employmentHistory)
+        IReadOnlyList<EmploymentHistoryEntry> employmentHistory,
+        StartingBackground? startingBackground)
     {
         ManagerId = managerId;
         DisplayName = displayName;
@@ -32,6 +33,7 @@ public sealed class ManagerCareer
         Reputation = reputation;
         LastReputationReasonCode = lastReputationReasonCode;
         EmploymentHistory = employmentHistory;
+        StartingBackground = startingBackground;
     }
 
     public ManagerId ManagerId { get; }
@@ -57,6 +59,8 @@ public sealed class ManagerCareer
     public string? LastReputationReasonCode { get; }
 
     public IReadOnlyList<EmploymentHistoryEntry> EmploymentHistory { get; }
+
+    public StartingBackground? StartingBackground { get; }
 
     public bool IsEmployed =>
         EmploymentStatus == ManagerEmploymentStatus.Employed && ActiveEmployment is not null;
@@ -90,7 +94,39 @@ public sealed class ManagerCareer
             pendingJobOffer: null,
             new ManagerReputation(ManagerReputation.DefaultInitialValue),
             lastReputationReasonCode: null,
-            Array.Empty<EmploymentHistoryEntry>());
+            Array.Empty<EmploymentHistoryEntry>(),
+            startingBackground: null);
+    }
+
+    public static ManagerCareer CreateAwaitingInitialEmployment(
+        ManagerId managerId,
+        string displayName,
+        StartingBackground startingBackground)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            throw new ManagerCareerInvariantViolationException("Manager display name cannot be empty.");
+        }
+
+        if (!Enum.IsDefined(startingBackground))
+        {
+            throw new ManagerCareerInvariantViolationException("Starting background is not a defined authored path.");
+        }
+
+        return new ManagerCareer(
+            managerId,
+            displayName.Trim(),
+            activeEmployment: null,
+            ManagerEmploymentStatus.Unemployed,
+            terminationReason: null,
+            lastClubId: null,
+            dismissedDueToFixtureId: null,
+            dismissedAt: null,
+            pendingJobOffer: null,
+            new ManagerReputation(StartingBackgroundCatalog.InitialReputation(startingBackground)),
+            StartingBackgroundCatalog.ReasonCode(startingBackground),
+            Array.Empty<EmploymentHistoryEntry>(),
+            startingBackground);
     }
 
     public static ManagerCareer StartNewCareerForClubStrength(
@@ -120,7 +156,8 @@ public sealed class ManagerCareer
         JobOffer? pendingJobOffer = null,
         ManagerReputation? reputation = null,
         string? lastReputationReasonCode = null,
-        IReadOnlyList<EmploymentHistoryEntry>? employmentHistory = null)
+        IReadOnlyList<EmploymentHistoryEntry>? employmentHistory = null,
+        StartingBackground? startingBackground = null)
     {
         if (employmentStatus == ManagerEmploymentStatus.Employed && activeEmployment is null)
         {
@@ -162,7 +199,8 @@ public sealed class ManagerCareer
             pendingJobOffer,
             reputation ?? new ManagerReputation(ManagerReputation.DefaultInitialValue),
             lastReputationReasonCode,
-            history);
+            history,
+            ResolveStartingBackground(startingBackground, lastReputationReasonCode));
     }
 
     public static ManagerCareer Rehydrate(
@@ -226,7 +264,8 @@ public sealed class ManagerCareer
             pendingJobOffer: null,
             Reputation,
             LastReputationReasonCode,
-            EmploymentHistory);
+            EmploymentHistory,
+            StartingBackground);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
     }
@@ -271,7 +310,8 @@ public sealed class ManagerCareer
             pendingJobOffer: null,
             Reputation,
             LastReputationReasonCode,
-            EmploymentHistory);
+            EmploymentHistory,
+            StartingBackground);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
     }
@@ -308,7 +348,8 @@ public sealed class ManagerCareer
             PendingJobOffer,
             nextReputation,
             reasonCode,
-            EmploymentHistory);
+            EmploymentHistory,
+            StartingBackground);
 
         return ManagerReputationChangeResult.Applied(updatedCareer, delta, reasonCode);
     }
@@ -351,7 +392,8 @@ public sealed class ManagerCareer
             pendingJobOffer: null,
             Reputation,
             LastReputationReasonCode,
-            history);
+            history,
+            StartingBackground);
 
         return DismissalResult.Applied(unemployed, ActiveEmployment.ClubId, causationFixtureId);
     }
@@ -395,7 +437,8 @@ public sealed class ManagerCareer
             offer,
             Reputation,
             LastReputationReasonCode,
-            EmploymentHistory);
+            EmploymentHistory,
+            StartingBackground);
 
         return JobOfferReceiveResult.Received(updated, offer);
     }
@@ -435,9 +478,24 @@ public sealed class ManagerCareer
             pendingJobOffer: null,
             Reputation,
             LastReputationReasonCode,
-            EmploymentHistory);
+            EmploymentHistory,
+            StartingBackground);
 
         return JobOfferAcceptResult.Accepted(employed, offer.Id, employment.ClubId);
+    }
+
+    private static StartingBackground? ResolveStartingBackground(
+        StartingBackground? startingBackground,
+        string? lastReputationReasonCode)
+    {
+        if (startingBackground is { } explicitBackground && Enum.IsDefined(explicitBackground))
+        {
+            return explicitBackground;
+        }
+
+        return StartingBackgroundCatalog.TryParseReason(lastReputationReasonCode, out var parsed)
+            ? parsed
+            : null;
     }
 
     private static (int Delta, string ReasonCode) ComputeDelta(
