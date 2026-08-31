@@ -1,14 +1,18 @@
 ﻿[CmdletBinding()]
 param(
     [string]$WorkspaceRoot = (Split-Path -Parent $PSScriptRoot),
-    [switch]$SkipAssets
+    [switch]$SkipAssets,
+    [switch]$CheckOnly,
+    [switch]$AsJson
 )
 
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 
 $headers = @{ 'User-Agent' = 'Mozilla/5.0' }
 $seasonAssetRoot = Join-Path $WorkspaceRoot 'src/FootballCareerSimulator.Presentation/assets/clubs/turkey/super-lig-2026-27'
 $generatedFile = Join-Path $WorkspaceRoot 'src/FootballCareerSimulator.Simulation/DataPacks/TurkeySuperLig202627DataPack.Generated.cs'
+$snapshotDate = (Get-Date).ToString('yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
 
 $clubs = @(
     [pscustomobject]@{ Id = 1;  Name = 'GALATASARAY A.Ş.';              Slug = 'galatasaray';          TffClubId = 3604; Supplements = @() },
@@ -30,6 +34,19 @@ $clubs = @(
     [pscustomobject]@{ Id = 17; Name = 'AMED SPORTİF FAALİYETLER';     Slug = 'amed-sk';                 TffClubId = 3678; Supplements = @() },
     [pscustomobject]@{ Id = 18; Name = 'ÇORUM FK';                     Slug = 'corum-fk';                TffClubId = 3199; Supplements = @() }
 )
+
+$leagueSource = 'https://www.fussballeuropa.com/liga/super-lig'
+$leagueHtml = (Invoke-WebRequest -Uri $leagueSource -Headers $headers -UseBasicParsing -TimeoutSec 30).Content
+$liveTeamSlugs = @(
+    [regex]::Matches($leagueHtml, 'href="/team/(?<slug>[^"/?]+)', 'IgnoreCase') |
+        ForEach-Object { $_.Groups['slug'].Value } |
+        Sort-Object -Unique
+)
+$expectedLiveTeamSlugs = @($clubs | ForEach-Object {
+    if ($_.Slug -eq 'corum-fk') { 'corum-belediyespor' } else { $_.Slug }
+})
+$newTeams = @($liveTeamSlugs | Where-Object { $expectedLiveTeamSlugs -notcontains $_ })
+$missingTeams = @($expectedLiveTeamSlugs | Where-Object { $liveTeamSlugs -notcontains $_ })
 
 $supplementPositions = @{
     'Habil Ozbakir' = 'Defender'
@@ -212,7 +229,7 @@ foreach ($club in $clubs) {
         $players = @($corumRoster | ForEach-Object {
             [pscustomobject]@{ Name = $_; Group = $corumPositions[$_]; Role = $null }
         })
-        $verifiedOn = '2026-08-10'
+        $verifiedOn = $snapshotDate
         $rosterSource = 'https://www.transfermarkt.co.uk/corum-fk/kader/verein/37951/saison_id/2026'
     }
     else {
@@ -241,7 +258,7 @@ foreach ($club in $clubs) {
                 Group-Object Name |
                 ForEach-Object { $_.Group[0] }
         )
-        $verifiedOn = '2026-08-10'
+        $verifiedOn = $snapshotDate
     }
 
     foreach ($supplement in $club.Supplements) {
@@ -279,7 +296,7 @@ foreach ($club in $clubs) {
     }
 
     $clubAssetDirectory = Join-Path $seasonAssetRoot $club.Slug
-    if (-not $SkipAssets) {
+    if (-not $SkipAssets -and -not $CheckOnly) {
         Save-RemoteAsset $crestUrl (Join-Path $clubAssetDirectory 'crest.png')
         Save-RemoteAsset $homeKitUrl (Join-Path $clubAssetDirectory 'kit-home.png')
         Save-RemoteAsset $awayKitUrl (Join-Path $clubAssetDirectory 'kit-away.png')
@@ -311,7 +328,7 @@ $builder = [System.Text.StringBuilder]::new()
 [void]$builder.AppendLine('{')
 [void]$builder.AppendLine('    public const string CompetitionName = "Trendyol Süper Lig";')
 [void]$builder.AppendLine('    public const string SeasonName = "2026-2027";')
-[void]$builder.AppendLine('    public const string SnapshotDate = "2026-08-10";')
+[void]$builder.AppendLine("    public const string SnapshotDate = `"$snapshotDate`";")
 [void]$builder.AppendLine()
 [void]$builder.AppendLine('    private static readonly IReadOnlyDictionary<long, TurkeySuperLigClubData> Clubs =')
 [void]$builder.AppendLine('        new Dictionary<long, TurkeySuperLigClubData>')
@@ -368,10 +385,77 @@ foreach ($entry in $generatedClubs) {
 [void]$builder.AppendLine('    public IReadOnlyList<string> PlayerNames => Players.Select(player => player.DisplayName).ToArray();')
 [void]$builder.AppendLine('}')
 
-[System.IO.File]::WriteAllText(
-    $generatedFile,
-    $builder.ToString(),
-    [System.Text.UTF8Encoding]::new($false))
+$generatedContent = $builder.ToString()
+$existingContent = if (Test-Path -LiteralPath $generatedFile) {
+    [System.IO.File]::ReadAllText($generatedFile)
+}
+else {
+    ''
+}
+
+function Get-ComparableDataPackContent([string]$Content) {
+    return [regex]::Replace(
+        [regex]::Replace($Content, 'SnapshotDate = "[^"]+"', 'SnapshotDate = "<date>"'),
+        'RosterVerifiedOn: "[^"]+"',
+        'RosterVerifiedOn: "<date>"')
+}
+
+$existingPlayers = @(
+    [regex]::Matches($existingContent, 'new\("(?<name>(?:\\.|[^"])*)", MvpSquadPosition') |
+        ForEach-Object { $_.Groups['name'].Value.Replace('\"', '"').Replace('\\', '\') } |
+        Sort-Object -Unique
+)
+$livePlayers = @(
+    [regex]::Matches($generatedContent, 'new\("(?<name>(?:\\.|[^"])*)", MvpSquadPosition') |
+        ForEach-Object { $_.Groups['name'].Value.Replace('\"', '"').Replace('\\', '\') } |
+        Sort-Object -Unique
+)
+$newPlayers = @($livePlayers | Where-Object { $existingPlayers -notcontains $_ })
+$removedPlayers = @($existingPlayers | Where-Object { $livePlayers -notcontains $_ })
+$rosterUpdateRequired = (Get-ComparableDataPackContent $existingContent) -cne
+    (Get-ComparableDataPackContent $generatedContent)
+$updateRequired = $rosterUpdateRequired -or $newTeams.Count -gt 0 -or $missingTeams.Count -gt 0
+
+$status = [ordered]@{
+    Competition = 'Trendyol Süper Lig'
+    Season = '2026-2027'
+    CheckedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
+    CurrentSnapshotDate = if ($existingContent -match 'SnapshotDate = "(?<date>[^"]+)"') { $Matches['date'] } else { $null }
+    LiveSnapshotDate = $snapshotDate
+    ClubCount = $generatedClubs.Count
+    LiveTeamCount = $liveTeamSlugs.Count
+    PlayerCount = $livePlayers.Count
+    UpdateRequired = $updateRequired
+    NewTeams = $newTeams
+    MissingTeams = $missingTeams
+    NewPlayers = $newPlayers
+    RemovedPlayers = $removedPlayers
+    Message = if ($updateRequired) {
+        'Canlı kadrolar değişti; veri paketi güncellenmeli.'
+    }
+    else {
+        'Veri paketi canlı kadrolarla güncel.'
+    }
+    UpdateCommand = 'powershell -ExecutionPolicy Bypass -File tools/Update-TurkeySuperLig202627DataPack.ps1 -SkipAssets'
+}
+
+if (-not $CheckOnly) {
+    [System.IO.File]::WriteAllText(
+        $generatedFile,
+        $generatedContent,
+        [System.Text.UTF8Encoding]::new($false))
+}
+
+if ($AsJson) {
+    $status | ConvertTo-Json -Depth 4
+    return
+}
+
+if ($CheckOnly) {
+    Write-Output $status.Message
+    Write-Output "UpdateRequired=$($status.UpdateRequired); NewPlayers=$($newPlayers.Count); RemovedPlayers=$($removedPlayers.Count)"
+    return
+}
 
 Write-Output "Generated $generatedFile"
 if ($SkipAssets) {

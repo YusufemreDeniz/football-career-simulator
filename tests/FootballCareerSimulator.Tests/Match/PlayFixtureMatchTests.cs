@@ -33,6 +33,51 @@ public sealed class MvpFixtureMatchSimulatorTests
     }
 
     [Fact]
+    public void SimulateAcrossSeeds_HigherStrengthProducesMoreGoalsOnAverage()
+    {
+        var lowStrengthGoals = 0;
+        var highStrengthGoals = 0;
+
+        for (var seed = 1; seed <= 300; seed++)
+        {
+            lowStrengthGoals += MvpFixtureMatchSimulator
+                .Simulate(seed, fixtureId: 5, homeStrength: 30, awayStrength: 60)
+                .HomeGoals;
+            highStrengthGoals += MvpFixtureMatchSimulator
+                .Simulate(seed, fixtureId: 5, homeStrength: 90, awayStrength: 60)
+                .HomeGoals;
+        }
+
+        Assert.True(
+            highStrengthGoals > lowStrengthGoals,
+            $"Expected stronger teams to score more across the deterministic sample, but totals were {highStrengthGoals} and {lowStrengthGoals}.");
+    }
+
+    [Fact]
+    public void SimulateAcrossSeeds_NeverExceedsPerHalfGoalCap()
+    {
+        for (var seed = 1; seed <= 300; seed++)
+        {
+            var outcome = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
+                seed,
+                fixtureId: 5,
+                homeStrength: 100,
+                awayStrength: 100);
+
+            Assert.InRange(outcome.HalfTimeScore.HomeGoals, 0, MvpFixtureMatchSimulator.MaxGoalsPerHalf);
+            Assert.InRange(outcome.HalfTimeScore.AwayGoals, 0, MvpFixtureMatchSimulator.MaxGoalsPerHalf);
+            Assert.InRange(
+                outcome.Score.HomeGoals - outcome.HalfTimeScore.HomeGoals,
+                0,
+                MvpFixtureMatchSimulator.MaxGoalsPerHalf);
+            Assert.InRange(
+                outcome.Score.AwayGoals - outcome.HalfTimeScore.AwayGoals,
+                0,
+                MvpFixtureMatchSimulator.MaxGoalsPerHalf);
+        }
+    }
+
+    [Fact]
     public void SimulateWithKeyMoments_IsDeterministic_AndMatchesScore()
     {
         var first = MvpFixtureMatchSimulator.SimulateWithKeyMoments(

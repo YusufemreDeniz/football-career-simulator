@@ -46,21 +46,21 @@ public sealed class TurkeySuperLig202627DataPackTests
     }
 
     [Fact]
-    public void GalatasarayRoster_PreservesVerifiedDetailedRoles()
+    public void GalatasarayRoster_PreservesDetailedRolesFromLiveSource()
     {
         var players = TurkeySuperLig202627DataPack.GetClub(new ClubId(1)).Players;
 
-        Assert.Equal(
-            MvpSquadPositionRole.Goalkeeper,
-            players.Single(player => player.DisplayName == "Uğurcan Çakır").PositionRole);
-        Assert.Equal(
-            MvpSquadPositionRole.RightBack,
-            players.Single(player => player.DisplayName == "Ali Turap Bülbül").PositionRole);
-        Assert.Equal(
-            MvpSquadPositionRole.DefensiveMidfielder,
-            players.Single(player => player.DisplayName == "Lucas Torreira").PositionRole);
-        Assert.Equal(
-            MvpSquadPositionRole.Striker,
-            players.Single(player => player.DisplayName == "Victor Osimhen").PositionRole);
+        Assert.Contains(players, player => player.PositionRole == MvpSquadPositionRole.Goalkeeper);
+        Assert.Contains(players, player => player.PositionRole == MvpSquadPositionRole.CentreBack);
+        Assert.Contains(players, player => player.PositionRole is
+            MvpSquadPositionRole.RightBack or MvpSquadPositionRole.LeftBack);
+        Assert.Contains(players, player => player.PositionRole is
+            MvpSquadPositionRole.DefensiveMidfielder or
+            MvpSquadPositionRole.CentralMidfielder or
+            MvpSquadPositionRole.AttackingMidfielder);
+        Assert.Contains(players, player => player.PositionRole is
+            MvpSquadPositionRole.RightWinger or
+            MvpSquadPositionRole.LeftWinger or
+            MvpSquadPositionRole.Striker);
     }
 }
