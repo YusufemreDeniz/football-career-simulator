@@ -194,7 +194,7 @@ public partial class CareerAppRoot : Control
             var results = controller.PlayDueMatches();
             if (results.Succeeded && results.MatchLines.Count > 0)
             {
-                ShowMatchResults(controller, results);
+                ShowLiveMatch(controller, results);
                 return;
             }
 
@@ -228,7 +228,7 @@ public partial class CareerAppRoot : Control
                 halfTimeSubstitutionLabel: substitutionBridge);
             if (results.Succeeded && results.MatchLines.Count > 0)
             {
-                ShowMatchResults(controller, results);
+                ShowLiveMatch(controller, results);
                 return;
             }
 
@@ -245,6 +245,19 @@ public partial class CareerAppRoot : Control
             results.MatchSequenceSeed);
         var panel = new MatchResultScreen(results, _audioDirector);
         panel.ContinueRequested += () => ReturnFromMatchNight(controller, results);
+        ReplaceScreen(panel);
+    }
+
+    private void ShowLiveMatch(CareerSessionController controller, PlayMatchesUiResult results)
+    {
+        if (results.KeyMoments is not { Count: > 0 })
+        {
+            ShowMatchResults(controller, results);
+            return;
+        }
+
+        var panel = new LiveMatchTimelineScreen(results, _audioDirector);
+        panel.ResultsRequested += () => ShowMatchResults(controller, results);
         ReplaceScreen(panel);
     }
 

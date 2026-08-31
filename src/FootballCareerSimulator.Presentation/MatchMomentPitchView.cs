@@ -261,6 +261,18 @@ public sealed partial class MatchMomentPitchView : Control
         return true;
     }
 
+    public bool Retreat()
+    {
+        if (_frameIndex <= 0)
+        {
+            return false;
+        }
+
+        _elapsed = 0;
+        PresentFrame(_frameIndex - 1);
+        return true;
+    }
+
     private void PresentFrame(int frameIndex)
     {
         _frameIndex = frameIndex;
