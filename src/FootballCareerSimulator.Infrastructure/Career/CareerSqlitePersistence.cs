@@ -53,7 +53,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null,
         IReadOnlyList<string>? eventEffectProcessingKeys = null,
         IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null,
-        HubNarrativeUiState? hubNarrativeUiState = null)
+        HubNarrativeUiState? hubNarrativeUiState = null,
+        IReadOnlyList<ClubFinanceLedger>? clubFinanceLedgers = null,
+        IReadOnlyList<DualPhaseTacticPlan>? dualPhaseTacticPlans = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -83,7 +85,12 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         eventEffectProcessingKeys ??= Array.Empty<string>();
         scheduledEvaluations ??= Array.Empty<ScheduledEvaluation>();
         hubNarrativeUiState ??= HubNarrativeUiState.Empty;
-        var hubNarrativeCanonical = BuildHubNarrativeCanonicalText(hubNarrativeUiState);
+        clubFinanceLedgers ??= Array.Empty<ClubFinanceLedger>();
+        dualPhaseTacticPlans ??= Array.Empty<DualPhaseTacticPlan>();
+        var supplementalCanonical = BuildSupplementalCanonicalText(
+            hubNarrativeUiState,
+            clubFinanceLedgers,
+            dualPhaseTacticPlans);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -112,7 +119,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             disciplinaryActions,
             eventEffectProcessingKeys,
             scheduledEvaluations,
-            hubNarrativeCanonical);
+            supplementalCanonical);
         var tempPath = filePath + ".tmp";
 
         if (File.Exists(tempPath))
@@ -156,6 +163,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertScheduledEvaluations(connection, transaction, scheduledEvaluations);
             InsertHubNarrativeUiState(connection, transaction, hubNarrativeUiState);
             InsertMatchupPlanHistory(connection, transaction, hubNarrativeUiState.MatchupPlanHistory);
+            InsertClubFinanceLedgers(connection, transaction, clubFinanceLedgers);
+            InsertDualPhaseTacticPlans(connection, transaction, dualPhaseTacticPlans);
 
             transaction.Commit();
         }
@@ -502,6 +511,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             WorldCalendarSqliteMigrator.MigrateV45ToV46InPlace(filePath);
             wasMigrated = true;
             version = 46;
+        }
+
+        if (version == 46 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 47)
+        {
+            WorldCalendarSqliteMigrator.MigrateV46ToV47InPlace(filePath);
+            wasMigrated = true;
+            version = 47;
         }
 
         if (wasMigrated)
@@ -963,6 +979,35 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 PlanSignal INTEGER NOT NULL,
                 OutcomeSignal INTEGER NOT NULL,
                 VerdictLine TEXT NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE ClubFinanceLedgerState (
+                ClubId INTEGER PRIMARY KEY,
+                OpeningBalance INTEGER NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE ClubFinanceLedgerEntryState (
+                EntryId TEXT PRIMARY KEY,
+                ClubId INTEGER NOT NULL,
+                OccurredDayNumber INTEGER NOT NULL,
+                Category INTEGER NOT NULL,
+                SignedAmount INTEGER NOT NULL,
+                Reference TEXT NOT NULL
+            );
+            """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE DualPhaseTacticPlanState (
+                ClubId INTEGER PRIMARY KEY,
+                InPossessionFormation INTEGER NOT NULL,
+                OutOfPossessionFormation INTEGER NOT NULL,
+                InPossessionRole INTEGER NOT NULL,
+                OutOfPossessionRole INTEGER NOT NULL,
+                LastUpdatedDayNumber INTEGER NOT NULL
             );
             """);
     }
@@ -1945,6 +1990,70 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
     }
 
+    private static void InsertClubFinanceLedgers(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<ClubFinanceLedger> ledgers)
+    {
+        foreach (var ledger in ledgers.OrderBy(item => item.ClubId.Value))
+        {
+            using (var ledgerCommand = connection.CreateCommand())
+            {
+                ledgerCommand.Transaction = transaction;
+                ledgerCommand.CommandText = """
+                    INSERT INTO ClubFinanceLedgerState (ClubId, OpeningBalance)
+                    VALUES ($clubId, $openingBalance);
+                    """;
+                ledgerCommand.Parameters.AddWithValue("$clubId", ledger.ClubId.Value);
+                ledgerCommand.Parameters.AddWithValue("$openingBalance", ledger.OpeningBalance);
+                ledgerCommand.ExecuteNonQuery();
+            }
+
+            foreach (var entry in ledger.Entries.OrderBy(item => item.Id.Value, StringComparer.Ordinal))
+            {
+                using var entryCommand = connection.CreateCommand();
+                entryCommand.Transaction = transaction;
+                entryCommand.CommandText = """
+                    INSERT INTO ClubFinanceLedgerEntryState (
+                        EntryId, ClubId, OccurredDayNumber, Category, SignedAmount, Reference)
+                    VALUES ($entryId, $clubId, $day, $category, $amount, $reference);
+                    """;
+                entryCommand.Parameters.AddWithValue("$entryId", entry.Id.Value);
+                entryCommand.Parameters.AddWithValue("$clubId", entry.ClubId.Value);
+                entryCommand.Parameters.AddWithValue("$day", entry.OccurredOn.DayNumber);
+                entryCommand.Parameters.AddWithValue("$category", (int)entry.Category);
+                entryCommand.Parameters.AddWithValue("$amount", entry.SignedAmount);
+                entryCommand.Parameters.AddWithValue("$reference", entry.Reference);
+                entryCommand.ExecuteNonQuery();
+            }
+        }
+    }
+
+    private static void InsertDualPhaseTacticPlans(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        IReadOnlyList<DualPhaseTacticPlan> plans)
+    {
+        foreach (var plan in plans.OrderBy(item => item.ClubId.Value))
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO DualPhaseTacticPlanState (
+                    ClubId, InPossessionFormation, OutOfPossessionFormation,
+                    InPossessionRole, OutOfPossessionRole, LastUpdatedDayNumber)
+                VALUES ($clubId, $inFormation, $outFormation, $inRole, $outRole, $day);
+                """;
+            command.Parameters.AddWithValue("$clubId", plan.ClubId.Value);
+            command.Parameters.AddWithValue("$inFormation", (int)plan.InPossessionFormation);
+            command.Parameters.AddWithValue("$outFormation", (int)plan.OutOfPossessionFormation);
+            command.Parameters.AddWithValue("$inRole", (int)plan.InPossessionRole);
+            command.Parameters.AddWithValue("$outRole", (int)plan.OutOfPossessionRole);
+            command.Parameters.AddWithValue("$day", plan.LastUpdatedOn.DayNumber);
+            command.ExecuteNonQuery();
+        }
+    }
+
     private static void InsertScheduledEvaluations(
         SqliteConnection connection,
         SqliteTransaction transaction,
@@ -2102,6 +2211,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var eventEffectProcessingKeys = ReadEventEffectProcessingKeys(connection);
         var scheduledEvaluations = ReadScheduledEvaluations(connection);
         var hubNarrativeUiState = ReadHubNarrativeUiState(connection);
+        var clubFinanceLedgers = ReadClubFinanceLedgers(connection);
+        var dualPhaseTacticPlans = ReadDualPhaseTacticPlans(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -2129,7 +2240,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             disciplinaryActions,
             eventEffectProcessingKeys,
             scheduledEvaluations,
-            BuildHubNarrativeCanonicalText(hubNarrativeUiState));
+            BuildSupplementalCanonicalText(
+                hubNarrativeUiState,
+                clubFinanceLedgers,
+                dualPhaseTacticPlans));
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -2179,6 +2293,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<string> eventEffectProcessingKeys;
             IReadOnlyList<ScheduledEvaluation> scheduledEvaluations;
             HubNarrativeUiState hubNarrativeUiState;
+            IReadOnlyList<ClubFinanceLedger> clubFinanceLedgers;
+            IReadOnlyList<DualPhaseTacticPlan> dualPhaseTacticPlans;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -2217,6 +2333,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 eventEffectProcessingKeys = ReadEventEffectProcessingKeys(connection);
                 scheduledEvaluations = ReadScheduledEvaluations(connection);
                 hubNarrativeUiState = ReadHubNarrativeUiState(connection);
+                clubFinanceLedgers = ReadClubFinanceLedgers(connection);
+                dualPhaseTacticPlans = ReadDualPhaseTacticPlans(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -2248,7 +2366,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 disciplinaryActions,
                 eventEffectProcessingKeys,
                 scheduledEvaluations,
-                BuildHubNarrativeCanonicalText(hubNarrativeUiState));
+                BuildSupplementalCanonicalText(
+                    hubNarrativeUiState,
+                    clubFinanceLedgers,
+                    dualPhaseTacticPlans));
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -2284,7 +2405,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 wasMigrated,
                 eventEffectProcessingKeys,
                 scheduledEvaluations,
-                hubNarrativeUiState);
+                hubNarrativeUiState,
+                clubFinanceLedgers,
+                dualPhaseTacticPlans);
         }
         catch (SaveIntegrityException)
         {
@@ -3461,6 +3584,108 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                     (int)entry.OutcomeSignal,
                     entry.VerdictLine)));
         return $"{baseText}|notebook|{notebook}";
+    }
+
+    private static string BuildSupplementalCanonicalText(
+        HubNarrativeUiState hubState,
+        IReadOnlyList<ClubFinanceLedger> ledgers,
+        IReadOnlyList<DualPhaseTacticPlan> phasePlans)
+    {
+        var ledgerText = string.Join(
+            "||",
+            ledgers.OrderBy(ledger => ledger.ClubId.Value).Select(ledger =>
+                $"{ledger.ClubId.Value}:{ledger.OpeningBalance}:" + string.Join(
+                    ';',
+                    ledger.Entries.OrderBy(entry => entry.Id.Value, StringComparer.Ordinal).Select(entry =>
+                        $"{entry.Id.Value},{entry.OccurredOn.DayNumber},{(int)entry.Category},{entry.SignedAmount},{entry.Reference}"))));
+        var tacticText = string.Join(
+            "||",
+            phasePlans.OrderBy(plan => plan.ClubId.Value).Select(plan =>
+                $"{plan.ClubId.Value}:{(int)plan.InPossessionFormation}:{(int)plan.OutOfPossessionFormation}:"
+                + $"{(int)plan.InPossessionRole}:{(int)plan.OutOfPossessionRole}:{plan.LastUpdatedOn.DayNumber}"));
+        return $"{BuildHubNarrativeCanonicalText(hubState)}|finance|{ledgerText}|dualphase|{tacticText}";
+    }
+
+    private static IReadOnlyList<ClubFinanceLedger> ReadClubFinanceLedgers(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "ClubFinanceLedgerState"))
+        {
+            return Array.Empty<ClubFinanceLedger>();
+        }
+
+        var entriesByClub = new Dictionary<long, List<ClubLedgerEntry>>();
+        if (TableExists(connection, "ClubFinanceLedgerEntryState"))
+        {
+            using var entryCommand = connection.CreateCommand();
+            entryCommand.CommandText = """
+                SELECT EntryId, ClubId, OccurredDayNumber, Category, SignedAmount, Reference
+                FROM ClubFinanceLedgerEntryState
+                ORDER BY ClubId, EntryId;
+                """;
+            using var entryReader = entryCommand.ExecuteReader();
+            while (entryReader.Read())
+            {
+                var clubId = entryReader.GetInt64(1);
+                if (!entriesByClub.TryGetValue(clubId, out var entries))
+                {
+                    entries = [];
+                    entriesByClub[clubId] = entries;
+                }
+
+                entries.Add(ClubLedgerEntry.Create(
+                    new ClubLedgerEntryId(entryReader.GetString(0)),
+                    new ClubId(clubId),
+                    GameDate.FromDayNumber(entryReader.GetInt32(2)),
+                    (ClubLedgerCategory)entryReader.GetInt32(3),
+                    entryReader.GetInt64(4),
+                    entryReader.GetString(5)));
+            }
+        }
+
+        var ledgers = new List<ClubFinanceLedger>();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT ClubId, OpeningBalance FROM ClubFinanceLedgerState ORDER BY ClubId;";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            var clubId = new ClubId(reader.GetInt64(0));
+            ledgers.Add(ClubFinanceLedger.Restore(
+                clubId,
+                reader.GetInt64(1),
+                entriesByClub.GetValueOrDefault(clubId.Value) ?? []));
+        }
+
+        return ledgers;
+    }
+
+    private static IReadOnlyList<DualPhaseTacticPlan> ReadDualPhaseTacticPlans(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "DualPhaseTacticPlanState"))
+        {
+            return Array.Empty<DualPhaseTacticPlan>();
+        }
+
+        var plans = new List<DualPhaseTacticPlan>();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT ClubId, InPossessionFormation, OutOfPossessionFormation,
+                   InPossessionRole, OutOfPossessionRole, LastUpdatedDayNumber
+            FROM DualPhaseTacticPlanState
+            ORDER BY ClubId;
+            """;
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            plans.Add(DualPhaseTacticPlan.Set(
+                new ClubId(reader.GetInt64(0)),
+                (Formation)reader.GetInt32(1),
+                (Formation)reader.GetInt32(2),
+                (TacticalPhaseRole)reader.GetInt32(3),
+                (TacticalPhaseRole)reader.GetInt32(4),
+                GameDate.FromDayNumber(reader.GetInt32(5))));
+        }
+
+        return plans;
     }
 
     private static IReadOnlyList<string> SplitCsv(string? csv) =>

@@ -47,6 +47,8 @@ public sealed class CareerGameSessionService
     private readonly IReadOnlyList<ICommandIdempotencyReset> _idempotencyResets;
     private readonly IEventEffectIdempotencyRegistry? _eventEffectRegistry;
     private readonly IScheduledEvaluationStore? _scheduledEvaluationStore;
+    private readonly IClubFinanceLedgerStore? _clubFinanceLedgerStore;
+    private readonly IDualPhaseTacticPlanStore? _dualPhaseTacticPlanStore;
 
     public CareerGameSessionService(
         IWorldTimelineStore timelineStore,
@@ -75,7 +77,9 @@ public sealed class CareerGameSessionService
         ICareerPersistence persistence,
         IEnumerable<ICommandIdempotencyReset> idempotencyResets,
         IEventEffectIdempotencyRegistry? eventEffectRegistry = null,
-        IScheduledEvaluationStore? scheduledEvaluationStore = null)
+        IScheduledEvaluationStore? scheduledEvaluationStore = null,
+        IClubFinanceLedgerStore? clubFinanceLedgerStore = null,
+        IDualPhaseTacticPlanStore? dualPhaseTacticPlanStore = null)
     {
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
@@ -109,6 +113,8 @@ public sealed class CareerGameSessionService
             ?? throw new ArgumentNullException(nameof(idempotencyResets));
         _eventEffectRegistry = eventEffectRegistry;
         _scheduledEvaluationStore = scheduledEvaluationStore;
+        _clubFinanceLedgerStore = clubFinanceLedgerStore;
+        _dualPhaseTacticPlanStore = dualPhaseTacticPlanStore;
     }
 
     public SaveCareerGameResult Save(
@@ -150,7 +156,9 @@ public sealed class CareerGameSessionService
             _disciplinaryActionStore.Actions,
             _eventEffectRegistry?.SnapshotKeys(),
             _scheduledEvaluationStore?.Items,
-            hubNarrativeUiState);
+            hubNarrativeUiState,
+            _clubFinanceLedgerStore?.Ledgers,
+            _dualPhaseTacticPlanStore?.Plans);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -189,6 +197,10 @@ public sealed class CareerGameSessionService
         _decisionRequestStore.ReplaceAll(loaded.DecisionRequests);
         _dialogueSessionStore.ReplaceAll(loaded.DialogueSessions);
         _disciplinaryActionStore.ReplaceAll(loaded.DisciplinaryActions);
+        _clubFinanceLedgerStore?.ReplaceAll(
+            loaded.ClubFinanceLedgers ?? Array.Empty<FootballCareerSimulator.Domain.ClubGovernance.ClubFinanceLedger>());
+        _dualPhaseTacticPlanStore?.ReplaceAll(
+            loaded.DualPhaseTacticPlans ?? Array.Empty<FootballCareerSimulator.Domain.TeamPreparation.DualPhaseTacticPlan>());
 
         foreach (var reset in _idempotencyResets)
         {

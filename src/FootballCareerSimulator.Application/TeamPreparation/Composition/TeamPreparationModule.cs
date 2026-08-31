@@ -17,8 +17,10 @@ public sealed class TeamPreparationModule
         IMatchSelectionStore selectionStore,
         IClubSquadStore squadStore,
         ITacticPlanStore tacticPlanStore,
+        IDualPhaseTacticPlanStore dualPhaseTacticPlanStore,
         ClubSquadService? clubSquadService,
         TacticPlanService tacticPlans,
+        DualPhaseTacticPlanService dualPhaseTacticPlans,
         ApproveDefaultMatchSelectionHandler approveDefaultSelection,
         ApproveMatchSelectionHandler approveSelection,
         SwapStarterWithBenchHandler swapStarterWithBench,
@@ -30,8 +32,10 @@ public sealed class TeamPreparationModule
         SelectionStore = selectionStore;
         SquadStore = squadStore;
         TacticPlanStore = tacticPlanStore;
+        DualPhaseTacticPlanStore = dualPhaseTacticPlanStore;
         ClubSquad = clubSquadService;
         TacticPlans = tacticPlans;
+        DualPhaseTacticPlans = dualPhaseTacticPlans;
         ApproveDefaultSelection = approveDefaultSelection;
         ApproveSelection = approveSelection;
         SwapStarterWithBench = swapStarterWithBench;
@@ -53,9 +57,13 @@ public sealed class TeamPreparationModule
 
     public ITacticPlanStore TacticPlanStore { get; }
 
+    public IDualPhaseTacticPlanStore DualPhaseTacticPlanStore { get; }
+
     public ClubSquadService? ClubSquad { get; }
 
     public TacticPlanService TacticPlans { get; }
+
+    public DualPhaseTacticPlanService DualPhaseTacticPlans { get; }
 
     public ApproveDefaultMatchSelectionHandler ApproveDefaultSelection { get; }
 
@@ -91,11 +99,13 @@ public sealed class TeamPreparationModule
         IPlayerCareerStore? playerCareerStore = null,
         IClubSquadStore? squadStore = null,
         ITacticPlanStore? tacticPlanStore = null,
-        IPromiseStore? promiseStore = null)
+        IPromiseStore? promiseStore = null,
+        IDualPhaseTacticPlanStore? dualPhaseTacticPlanStore = null)
     {
         var store = selectionStore ?? new InMemoryMatchSelectionStore();
         var clubSquadStore = squadStore ?? new InMemoryClubSquadStore();
         var tactics = tacticPlanStore ?? new InMemoryTacticPlanStore();
+        var dualPhaseTactics = dualPhaseTacticPlanStore ?? new InMemoryDualPhaseTacticPlanStore();
         ClubSquadService? clubSquadService = null;
         if (contractStore is not null && playerCareerStore is not null)
         {
@@ -116,8 +126,10 @@ public sealed class TeamPreparationModule
             store,
             clubSquadStore,
             tactics,
+            dualPhaseTactics,
             clubSquadService,
             new TacticPlanService(tactics),
+            new DualPhaseTacticPlanService(dualPhaseTactics, tactics),
             new ApproveDefaultMatchSelectionHandler(
                 store,
                 competitionStore,

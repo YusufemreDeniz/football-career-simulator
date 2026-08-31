@@ -1,5 +1,7 @@
 using FootballCareerSimulator.Application.Career.Services;
 using FootballCareerSimulator.Application.ClubGovernance.Composition;
+using FootballCareerSimulator.Application.ClubGovernance.Infrastructure;
+using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.Competition.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Services;
@@ -46,6 +48,7 @@ public sealed class CareerPresentationHost
         SocialContinuityModule socialContinuityModule,
         InteractionModule interactionModule,
         YouthAcademyLifecycleService youthAcademyLifecycle,
+        ClubFinanceLedgerService clubFinanceLedger,
         CareerGameSessionService gameSession,
         string defaultSavePath)
     {
@@ -65,6 +68,8 @@ public sealed class CareerPresentationHost
         InteractionModule = interactionModule ?? throw new ArgumentNullException(nameof(interactionModule));
         YouthAcademyLifecycle = youthAcademyLifecycle
             ?? throw new ArgumentNullException(nameof(youthAcademyLifecycle));
+        ClubFinanceLedger = clubFinanceLedger
+            ?? throw new ArgumentNullException(nameof(clubFinanceLedger));
         GameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
         DefaultSavePath = defaultSavePath ?? throw new ArgumentNullException(nameof(defaultSavePath));
     }
@@ -81,6 +86,7 @@ public sealed class CareerPresentationHost
     public SocialContinuityModule SocialContinuityModule { get; }
     public InteractionModule InteractionModule { get; }
     public YouthAcademyLifecycleService YouthAcademyLifecycle { get; }
+    public ClubFinanceLedgerService ClubFinanceLedger { get; }
     public CareerGameSessionService GameSession { get; }
     public string DefaultSavePath { get; }
 
@@ -103,6 +109,8 @@ public sealed class CareerPresentationHost
         var competitionStore = new InMemoryLeagueCompetitionStore(
             new LeagueCompetition(new CompetitionId(MvpLeagueIdentity.DefaultCompetitionId)));
         var clubModule = ClubGovernanceModule.CreateMvpLeague();
+        var clubFinanceLedgerStore = new InMemoryClubFinanceLedgerStore();
+        var clubFinanceLedger = new ClubFinanceLedgerService(clubFinanceLedgerStore);
         var startingClubId = configuration.StartingClubId;
         var startingStrength = clubModule.Queries.GetClub(startingClubId)?.SportiveStrength ?? 50;
         var decisionStore = new InMemoryDecisionRequestStore();
@@ -259,7 +267,8 @@ public sealed class CareerPresentationHost
             interactionModule.PostMatchPlayingTimeDemand,
             interactionModule.PostMatchBoardDemand,
             interactionModule.PostMatchDiscipline,
-            playerLifecycle: seasonPlayerLifecycle);
+            playerLifecycle: seasonPlayerLifecycle,
+            dualPhaseTacticPlanStore: teamPreparation.DualPhaseTacticPlanStore);
         var persistence = new CareerSqlitePersistence();
 
         var eventRule = worldModule.EventRuleEvaluation
@@ -306,7 +315,9 @@ public sealed class CareerPresentationHost
             persistence,
             idempotencyResets,
             eventRule.Registry,
-            eventRule.ScheduledEvaluationStore);
+            eventRule.ScheduledEvaluationStore,
+            clubFinanceLedgerStore,
+            teamPreparation.DualPhaseTacticPlanStore);
 
         var savePath = defaultSavePath ?? Path.Combine(OS.GetUserDataDir(), "career_save.db");
         return new CareerPresentationHost(
@@ -322,6 +333,7 @@ public sealed class CareerPresentationHost
             socialContinuity,
             interactionModule,
             youthAcademyLifecycle,
+            clubFinanceLedger,
             gameSession,
             savePath);
     }

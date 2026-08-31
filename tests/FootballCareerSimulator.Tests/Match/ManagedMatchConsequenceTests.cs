@@ -29,6 +29,7 @@ public sealed class ManagedMatchConsequenceTests
         var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
         var selectionStore = new InMemoryMatchSelectionStore();
         var tacticStore = new InMemoryTacticPlanStore();
+        var dualPhaseTacticStore = new InMemoryDualPhaseTacticPlanStore();
         var training = TrainingPhysicalStateModule.Create(
             manager.Store,
             world.TimelineStore,
@@ -39,14 +40,16 @@ public sealed class ManagedMatchConsequenceTests
             manager.Store,
             selectionStore,
             training.Store,
-            tacticPlanStore: tacticStore);
+            tacticPlanStore: tacticStore,
+            dualPhaseTacticPlanStore: dualPhaseTacticStore);
         var teamPrep = TeamPreparationModule.Create(
             competition.Store,
             manager.Store,
             selectionStore,
             training.Store,
             world.TimelineStore,
-            tacticPlanStore: tacticStore);
+            tacticPlanStore: tacticStore,
+            dualPhaseTacticPlanStore: dualPhaseTacticStore);
 
         competition.CreateSeason.Handle(new CreateSeasonCommand(Guid.NewGuid(), 1, Day.DayNumber));
         for (var club = 1L; club <= CompetitionMvpConstraints.LeagueTeamCount; club++)
@@ -77,11 +80,18 @@ public sealed class ManagedMatchConsequenceTests
             new ClubId(1),
             TacticalApproach.Attacking,
             Day);
+        teamPrep.DualPhaseTacticPlans.SetPlan(
+            new ClubId(1),
+            Formation.F433,
+            Formation.F442,
+            TacticalPhaseRole.WideOverloads,
+            TacticalPhaseRole.CompactBlock,
+            Day);
         var selection = selectionStore.Get(new FixtureId(fixtureId), new ClubId(1));
         var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(new ClubId(1), rootSeed: 21);
         var selectedProfiles = selection!.StartingSlotIndices.Select(slot => profiles[slot]).ToArray();
         var expectedLineupModifier = MvpLineupRoleFitCalculator
-            .Evaluate(Formation.F442, selectedProfiles)
+            .Evaluate(Formation.F433, selectedProfiles)
             .MatchStrengthModifier;
 
         var commandId = Guid.NewGuid();
@@ -101,7 +111,7 @@ public sealed class ManagedMatchConsequenceTests
         Assert.True(first.Consequences!.IsManagedMatch);
         Assert.True(substitution.Succeeded);
         Assert.False(string.IsNullOrWhiteSpace(substitution.HalfTimeBridgeLine));
-        Assert.Equal(2, first.ManagedTacticModifier);
+        Assert.Equal(4, first.ManagedTacticModifier);
         Assert.Equal(expectedLineupModifier, first.ManagedLineupRoleModifier);
         Assert.NotNull(first.Consequences.BoardConfidenceDelta);
         Assert.NotNull(first.Consequences.BoardConfidenceAfter);

@@ -29,6 +29,7 @@ using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.Match;
+using FootballCareerSimulator.Simulation.ClubGovernance;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
@@ -55,6 +56,7 @@ public sealed class CareerSessionController
     private readonly YouthAcademyIntakeService _youthAcademy;
     private readonly YouthAcademyLifecycleService _youthAcademyLifecycle;
     private readonly ClubEconomyQueryService _clubEconomy;
+    private readonly ClubFinanceLedgerService _clubFinanceLedger;
 
     public CareerSessionController(CareerPresentationHost host)
     {
@@ -71,6 +73,7 @@ public sealed class CareerSessionController
             host.ContractModule.Store,
             host.CompetitionModule.Store,
             host.ManagerModule.Store);
+        _clubFinanceLedger = host.ClubFinanceLedger;
     }
 
     public CareerPresentationHost Host { get; }
@@ -1687,6 +1690,37 @@ public sealed class CareerSessionController
     public ClubEconomyReadModel? BuildClubEconomy() =>
         _clubEconomy.GetManagedClub(Host.WorldModule.TimelineStore.Timeline.CurrentDate);
 
+    public ClubFinanceSnapshot? BuildRealizedClubFinance()
+    {
+        var economy = BuildClubEconomy();
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        if (economy is null || season is null)
+        {
+            return null;
+        }
+
+        return _clubFinanceLedger.RecordMonthlySettlement(
+            new ClubId(economy.ClubId),
+            season.SeasonId,
+            Host.WorldModule.TimelineStore.Timeline.CurrentDate,
+            ToEconomyProjection(economy),
+            openingBalance: economy.TransferBudgetLimit);
+    }
+
+    private static MvpClubEconomyProjection ToEconomyProjection(ClubEconomyReadModel economy) =>
+        new(
+            economy.StadiumCapacity,
+            economy.AttendancePercent,
+            economy.ProjectedAverageAttendance,
+            economy.AverageTicketPrice,
+            economy.ProjectedMatchdayRevenue,
+            economy.ProjectedSponsorRevenue,
+            economy.ProjectedAnnualWageSpend,
+            economy.ProjectedFootballOperationsCost,
+            economy.ProjectedOperatingCosts,
+            economy.ProjectedOperatingRevenue,
+            economy.ProjectedOperatingBalance);
+
     public MatchTrainingPriorityDigest BuildMatchTrainingPriorityDigest()
     {
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
@@ -2848,6 +2882,23 @@ public sealed class CareerSessionController
                             : null,
                         ManagedPreparationModifier: preparationModifier));
 
+                if (result.Succeeded
+                    && managedClubId is long financeClubId
+                    && fixture.HomeClubId == financeClubId)
+                {
+                    var economy = BuildClubEconomy();
+                    if (economy is not null)
+                    {
+                        _clubFinanceLedger.RecordHomeMatchday(
+                            new ClubId(financeClubId),
+                            season.SeasonId,
+                            new FixtureId(fixture.FixtureId),
+                            Host.WorldModule.TimelineStore.Timeline.CurrentDate,
+                            ToEconomyProjection(economy),
+                            openingBalance: economy.TransferBudgetLimit);
+                    }
+                }
+
                 var home = GetClubDisplayName(fixture.HomeClubId);
                 var away = GetClubDisplayName(fixture.AwayClubId);
                 var scoreline = $"{home} {result.HomeGoals}-{result.AwayGoals} {away}";
@@ -3375,6 +3426,8 @@ public sealed class CareerSessionController
                 Host.TeamPreparationModule.ClubSquad?.SyncFromActiveContracts(id, day);
                 Host.TeamPreparationModule.TacticPlans.EnsureDefault(id, day);
             }
+
+            _ = BuildRealizedClubFinance();
 
             RecoverManagedInjuriesToCurrentDate();
             UpdateInjuryClearedCelebration(injuredBefore, SnapshotInjuredPlayerNames());
@@ -4132,6 +4185,59 @@ public sealed class CareerSessionController
         {
             TemporaryMatchModifier = Math.Clamp(modifier, -4, 4),
         };
+    }
+
+    public Application.TeamPreparation.Queries.DualPhaseTacticStaffDigest? BuildDualPhaseTacticDigest()
+    {
+        var clubValue = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
+        if (clubValue is null)
+        {
+            return null;
+        }
+
+        var clubId = new Domain.Shared.ClubId(clubValue.Value);
+        var legacy = Host.TeamPreparationModule.TacticPlanStore.Get(clubId);
+        if (legacy is null)
+        {
+            return null;
+        }
+
+        var phase = Host.TeamPreparationModule.DualPhaseTacticPlans.EnsureFromLegacy(
+            clubId,
+            Host.WorldModule.TimelineStore.Timeline.CurrentDate);
+        return Application.TeamPreparation.Queries.DualPhaseTacticStaffDigest.Compose(legacy, phase);
+    }
+
+    public UiActionResult SetDualPhaseTactic(
+        Formation inPossessionFormation,
+        Formation outOfPossessionFormation,
+        TacticalPhaseRole inPossessionRole,
+        TacticalPhaseRole outOfPossessionRole)
+    {
+        try
+        {
+            var clubValue = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+            var clubId = new Domain.Shared.ClubId(clubValue);
+            var legacy = Host.TeamPreparationModule.TacticPlanStore.Get(clubId)
+                ?? Host.TeamPreparationModule.TacticPlans.SetFormation(
+                    clubId,
+                    inPossessionFormation,
+                    Host.WorldModule.TimelineStore.Timeline.CurrentDate);
+            var plan = Host.TeamPreparationModule.DualPhaseTacticPlans.SetPlan(
+                clubId,
+                inPossessionFormation,
+                outOfPossessionFormation,
+                inPossessionRole,
+                outOfPossessionRole,
+                Host.WorldModule.TimelineStore.Timeline.CurrentDate);
+            var digest = Application.TeamPreparation.Queries.DualPhaseTacticStaffDigest.Compose(legacy, plan);
+            return UiActionResult.Ok($"Çift fazlı plan kaydedildi. {digest.Headline}\n{digest.StaffNote}");
+        }
+        catch (Exception ex) when (ex is TeamPreparationInvariantViolationException or InvalidOperationException)
+        {
+            return UiActionResult.Fail($"Çift fazlı taktik ayarlanamadı: {ex.Message}");
+        }
     }
 
     public CareerResumeDigest BuildCareerResumeDigest(bool wasMigrated)

@@ -2815,6 +2815,65 @@ internal static class WorldCalendarSqliteMigrator
         updateTransaction.Commit();
     }
 
+    public static void MigrateV46ToV47InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+        try
+        {
+            MigrateV46ToV47(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V46 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV46ToV47(string workingCopyPath)
+    {
+        using var connection = OpenMigrationConnection(workingCopyPath);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS ClubFinanceLedgerState (
+                ClubId INTEGER PRIMARY KEY,
+                OpeningBalance INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS ClubFinanceLedgerEntryState (
+                EntryId TEXT PRIMARY KEY,
+                ClubId INTEGER NOT NULL,
+                OccurredDayNumber INTEGER NOT NULL,
+                Category INTEGER NOT NULL,
+                SignedAmount INTEGER NOT NULL,
+                Reference TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS DualPhaseTacticPlanState (
+                ClubId INTEGER PRIMARY KEY,
+                InPossessionFormation INTEGER NOT NULL,
+                OutOfPossessionFormation INTEGER NOT NULL,
+                InPossessionRole INTEGER NOT NULL,
+                OutOfPossessionRole INTEGER NOT NULL,
+                LastUpdatedDayNumber INTEGER NOT NULL
+            );
+            UPDATE ProductionSaveManifest SET SchemaVersion = 47;
+            """);
+        transaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

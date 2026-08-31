@@ -34,6 +34,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly IPlayerCareerStore? _playerCareerStore;
     private readonly PlayerCareerDevelopmentService? _playerDevelopment;
     private readonly ITacticPlanStore? _tacticPlanStore;
+    private readonly IDualPhaseTacticPlanStore? _dualPhaseTacticPlanStore;
     private readonly IClubSquadStore? _clubSquadStore;
     private readonly StartingOpportunityPromiseService? _startingOpportunityPromises;
     private readonly PlayingTimePromiseService? _playingTimePromises;
@@ -73,7 +74,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         MatchSelectionAvailabilityRevalidationService? selectionRevalidation = null,
         PostMatchPlayingTimeDemandTrigger? postMatchPlayingTimeDemand = null,
         PostMatchBoardDemandTrigger? postMatchBoardDemand = null,
-        PostMatchDisciplineDecisionTrigger? postMatchDiscipline = null)
+        PostMatchDisciplineDecisionTrigger? postMatchDiscipline = null,
+        IDualPhaseTacticPlanStore? dualPhaseTacticPlanStore = null)
     {
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
         _clubRegistryStore = clubRegistryStore ?? throw new ArgumentNullException(nameof(clubRegistryStore));
@@ -84,6 +86,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         _playerCareerStore = playerCareerStore;
         _playerDevelopment = playerDevelopment;
         _tacticPlanStore = tacticPlanStore;
+        _dualPhaseTacticPlanStore = dualPhaseTacticPlanStore;
         _clubSquadStore = clubSquadStore;
         _startingOpportunityPromises = startingOpportunityPromises;
         _selectionMemory = selectionMemory;
@@ -615,8 +618,17 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             day);
     }
 
-    private int ResolveTacticModifier(ClubId clubId) =>
-        MvpTacticMatchModifier.ComputeTacticModifier(_tacticPlanStore?.Get(clubId));
+    private int ResolveTacticModifier(ClubId clubId)
+    {
+        var legacyPlan = _tacticPlanStore?.Get(clubId);
+        return Math.Clamp(
+            MvpTacticMatchModifier.ComputeTacticModifier(legacyPlan)
+            + DualPhaseTacticMatchModifier.Compute(
+                legacyPlan,
+                _dualPhaseTacticPlanStore?.Get(clubId)),
+            -3,
+            6);
+    }
 
     private int ResolveLineupRoleModifier(FixtureId fixtureId, ClubId clubId, int rootSeed)
     {
@@ -626,7 +638,9 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             .Where(slot => slot >= 0 && slot < profiles.Count)
             .Select(slot => profiles[slot])
             .ToArray();
-        var formation = _tacticPlanStore?.Get(clubId)?.Formation ?? Formation.F442;
+        var formation = _dualPhaseTacticPlanStore?.Get(clubId)?.InPossessionFormation
+            ?? _tacticPlanStore?.Get(clubId)?.Formation
+            ?? Formation.F442;
         return MvpLineupRoleFitCalculator.Evaluate(formation, selected).MatchStrengthModifier;
     }
 

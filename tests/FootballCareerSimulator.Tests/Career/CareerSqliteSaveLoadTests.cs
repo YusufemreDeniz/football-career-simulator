@@ -7,6 +7,7 @@ using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Infrastructure.Career;
 using FootballCareerSimulator.Simulation.Career;
 using FootballCareerSimulator.Simulation.Competition;
@@ -150,6 +151,50 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
     }
 
     [Fact]
+    public void SaveAndLoad_RoundTrip_PreservesFinanceLedgerAndDualPhaseTactic()
+    {
+        var (world, competition) = CreateCareerState();
+        var clubId = new ClubId(1);
+        var entry = ClubLedgerEntry.Create(
+            new ClubLedgerEntryId("fixture:1:ticket"),
+            clubId,
+            world.TimelineStore.Timeline.CurrentDate,
+            ClubLedgerCategory.MatchdayTicketRevenue,
+            750_000,
+            "İç saha bilet geliri");
+        var ledger = ClubFinanceLedger.Restore(clubId, 10_000_000, [entry]);
+        var phasePlan = DualPhaseTacticPlan.Set(
+            clubId,
+            Formation.F433,
+            Formation.F442,
+            TacticalPhaseRole.WideOverloads,
+            TacticalPhaseRole.CompactBlock,
+            world.TimelineStore.Timeline.CurrentDate);
+        var path = GetSavePath("career-v47-roundtrip.db");
+
+        _persistence.Save(
+            path,
+            world.TimelineStore.Timeline,
+            competition.Store.League,
+            LeagueClubRegistry.CreateMvpLeague(),
+            DefaultManager(world.TimelineStore.Timeline.CurrentDate),
+            [], [], [], [], [], [], [], [], [], [], [], [], [], [], [], [],
+            clubFinanceLedgers: [ledger],
+            dualPhaseTacticPlans: [phasePlan]);
+
+        var loaded = _persistence.Load(path);
+
+        Assert.Equal(47, loaded.SchemaVersion);
+        var loadedLedger = Assert.Single(loaded.ClubFinanceLedgers!);
+        Assert.Equal(10_750_000, loadedLedger.Balance);
+        Assert.Equal("fixture:1:ticket", Assert.Single(loadedLedger.Entries).Id.Value);
+        var loadedPhase = Assert.Single(loaded.DualPhaseTacticPlans!);
+        Assert.Equal(Formation.F433, loadedPhase.InPossessionFormation);
+        Assert.Equal(Formation.F442, loadedPhase.OutOfPossessionFormation);
+        Assert.Equal(TacticalPhaseRole.CompactBlock, loadedPhase.OutOfPossessionRole);
+    }
+
+    [Fact]
     public void Load_LegacyV2Save_MigratesToV3WithEmptyCompetition()
     {
         var timeline = WorldTimeline.Rehydrate(
@@ -174,7 +219,7 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         var loaded = _persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(46, loaded.SchemaVersion);
+        Assert.Equal(47, loaded.SchemaVersion);
         Assert.Empty(loaded.League.Seasons);
         Assert.Equal(1, loaded.League.CompetitionId.Value);
         Assert.Equal(

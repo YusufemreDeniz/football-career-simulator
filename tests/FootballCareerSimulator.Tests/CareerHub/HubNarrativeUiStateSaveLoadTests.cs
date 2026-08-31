@@ -57,7 +57,7 @@ public sealed class HubNarrativeUiStateSaveLoadTests : IDisposable
         Save(path, hub);
 
         var loaded = _persistence.Load(path);
-        Assert.Equal(46, loaded.SchemaVersion);
+        Assert.Equal(47, loaded.SchemaVersion);
         Assert.NotNull(loaded.HubNarrativeUiState);
         Assert.Equal("Dönenler işe yaradı — Kurt", loaded.HubNarrativeUiState!.WeekStoryClosureBeat);
         Assert.True(loaded.HubNarrativeUiState.WeekStoryDismissOnNextAdvance);
@@ -101,7 +101,7 @@ public sealed class HubNarrativeUiStateSaveLoadTests : IDisposable
         var loaded = _persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(46, loaded.SchemaVersion);
+        Assert.Equal(47, loaded.SchemaVersion);
         Assert.Empty(loaded.HubNarrativeUiState!.MatchupPlanHistory);
     }
 

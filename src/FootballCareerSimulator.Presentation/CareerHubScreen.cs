@@ -78,6 +78,7 @@ public partial class CareerHubScreen : Control
     private Label _shortlistTargetLabel = null!;
     private Label _transferProcessLabel = null!;
     private Label _tacticLabel = null!;
+    private Label _dualPhaseTacticLabel = null!;
     private Label _squadStatusLabel = null!;
     private Label _squadCapacityLabel = null!;
     private Label _academyIntakeLabel = null!;
@@ -180,6 +181,7 @@ public partial class CareerHubScreen : Control
     private Button _approachBalancedButton = null!;
     private Button _approachAttackingButton = null!;
     private Button _approachDefensiveButton = null!;
+    private readonly List<Button> _dualPhaseTacticButtons = [];
     private Button _playButton = null!;
     private Button _seasonTransitionButton = null!;
     private Button _advanceDayButton = null!;
@@ -1537,7 +1539,58 @@ public partial class CareerHubScreen : Control
         {
             option.ToggleMode = true;
         }
+
+        _dualPhaseTacticLabel = BodyLabel("DualPhaseTacticLabel", autowrap: true);
+        tacticsCard.AddChild(_dualPhaseTacticLabel);
+        var phaseRow = ActionFlow();
+        tacticsCard.AddChild(phaseRow);
+        AddDualPhasePreset(
+            phaseRow,
+            "Dengeli Geçiş",
+            Formation.F442,
+            Formation.F442,
+            TacticalPhaseRole.Balanced,
+            TacticalPhaseRole.Balanced);
+        AddDualPhasePreset(
+            phaseRow,
+            "Kanat + Kompakt",
+            Formation.F433,
+            Formation.F442,
+            TacticalPhaseRole.WideOverloads,
+            TacticalPhaseRole.CompactBlock);
+        AddDualPhasePreset(
+            phaseRow,
+            "Merkez + Pres",
+            Formation.F352,
+            Formation.F442,
+            TacticalPhaseRole.CentralOverloads,
+            TacticalPhaseRole.AggressivePress);
+        AddDualPhasePreset(
+            phaseRow,
+            "Direkt + Blok",
+            Formation.F442,
+            Formation.F442,
+            TacticalPhaseRole.DirectRunners,
+            TacticalPhaseRole.CompactBlock);
         return page;
+    }
+
+    private void AddDualPhasePreset(
+        Control row,
+        string label,
+        Formation inFormation,
+        Formation outFormation,
+        TacticalPhaseRole inRole,
+        TacticalPhaseRole outRole)
+    {
+        var button = SecondaryButton(label);
+        button.Pressed += () => Apply(_controller.SetDualPhaseTactic(
+            inFormation,
+            outFormation,
+            inRole,
+            outRole));
+        row.AddChild(button);
+        _dualPhaseTacticButtons.Add(button);
     }
 
     private Control BuildWorldPage()
@@ -2285,6 +2338,13 @@ public partial class CareerHubScreen : Control
         }
 
         var balanceTone = economy.ProjectedOperatingBalance >= 0 ? "fazla" : "açık";
+        var realized = _controller.BuildRealizedClubFinance();
+        var realizedLine = realized is null
+            ? "Gerçekleşen muhasebe henüz başlamadı."
+            : $"Gerçekleşen: gelir {realized.Revenue:N0} · gider {realized.Expenses:N0} "
+              + $"· bakiye {realized.Balance:N0} {realized.CurrencyCode} "
+              + $"· yönetim {FormatBoardFinancialStatus(realized.BoardOutcome.Status)}\n"
+              + realized.BoardOutcome.Summary;
         var objectives = string.Join(
             "\n",
             economy.BoardObjectives.Select(objective =>
@@ -2298,6 +2358,7 @@ public partial class CareerHubScreen : Control
             + $"· doluluk %{economy.AttendancePercent} · bilet {economy.AverageTicketPrice:N0}\n"
             + $"Gelir: {economy.ProjectedOperatingRevenue:N0} · gider {economy.ProjectedOperatingCosts:N0} "
             + $"· {balanceTone} {Math.Abs(economy.ProjectedOperatingBalance):N0} {economy.CurrencyCode}\n"
+            + realizedLine + "\n"
             + objectives;
     }
 
@@ -2310,6 +2371,15 @@ public partial class CareerHubScreen : Control
             Application.ClubGovernance.Queries.BoardObjectiveStatus.OffTrack => "Geride",
             Application.ClubGovernance.Queries.BoardObjectiveStatus.Achieved => "Tamamlandı",
             Application.ClubGovernance.Queries.BoardObjectiveStatus.Failed => "Başarısız",
+            _ => status.ToString(),
+        };
+
+    private static string FormatBoardFinancialStatus(
+        Application.ClubGovernance.Services.BoardFinancialStatus status) => status switch
+        {
+            Application.ClubGovernance.Services.BoardFinancialStatus.Healthy => "Sağlıklı",
+            Application.ClubGovernance.Services.BoardFinancialStatus.Watch => "Takipte",
+            Application.ClubGovernance.Services.BoardFinancialStatus.Critical => "Kritik",
             _ => status.ToString(),
         };
 
@@ -2948,6 +3018,10 @@ public partial class CareerHubScreen : Control
         _tacticLabel.Text =
             $"Taktik: {tactic.FormationName} · {tactic.ApproachName}"
             + $" · maç {_controller.GetManagedTacticModifierLabel()}";
+        var phase = _controller.BuildDualPhaseTacticDigest();
+        _dualPhaseTacticLabel.Text = phase is null
+            ? "Faz planı: klasik yerleşim kullanılıyor."
+            : $"Faz planı: {phase.Headline}\n{phase.StaffNote}";
         RefreshPreparationBriefing();
     }
 
@@ -2961,6 +3035,10 @@ public partial class CareerHubScreen : Control
         _approachBalancedButton.Disabled = !employed;
         _approachAttackingButton.Disabled = !employed;
         _approachDefensiveButton.Disabled = !employed;
+        foreach (var button in _dualPhaseTacticButtons)
+        {
+            button.Disabled = !employed;
+        }
 
         var tactic = _controller.Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
         _formation442Button.ButtonPressed = tactic.ClubId is not null && tactic.Formation == Formation.F442;

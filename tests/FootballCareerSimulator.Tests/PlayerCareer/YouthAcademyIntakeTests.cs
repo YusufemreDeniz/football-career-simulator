@@ -197,7 +197,7 @@ public sealed class YouthAcademyIntakeTests : IDisposable
 
         var loaded = persistence.Load(path);
 
-        Assert.Equal(46, loaded.SchemaVersion);
+        Assert.Equal(47, loaded.SchemaVersion);
         var request = Assert.Single(loaded.DecisionRequests);
         Assert.Equal(DecisionRequestKind.YouthAcademyCandidate, request.Kind);
         Assert.Equal(acceptedId, request.SubjectPlayerId.Value);
@@ -217,7 +217,7 @@ public sealed class YouthAcademyIntakeTests : IDisposable
     }
 
     [Fact]
-    public void Load_V45SaveWithAcademyDecision_MigratesToV46Contract()
+    public void Load_V45SaveWithAcademyDecision_MigratesToCurrentContract()
     {
         var context = CreateContext();
         var acceptedId = context.Service.GetManagedClubIntake()!.Candidates[0].PlayerId;
@@ -260,7 +260,7 @@ public sealed class YouthAcademyIntakeTests : IDisposable
         var loaded = persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(46, loaded.SchemaVersion);
+        Assert.Equal(47, loaded.SchemaVersion);
         var request = Assert.Single(loaded.DecisionRequests);
         Assert.Equal(DecisionRequestKind.YouthAcademyCandidate, request.Kind);
         Assert.Equal(acceptedId, request.SubjectPlayerId.Value);

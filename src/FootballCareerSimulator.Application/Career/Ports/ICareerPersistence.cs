@@ -45,7 +45,9 @@ public interface ICareerPersistence
         IReadOnlyList<DisciplinaryAction>? disciplinaryActions = null,
         IReadOnlyList<string>? eventEffectProcessingKeys = null,
         IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null,
-        HubNarrativeUiState? hubNarrativeUiState = null);
+        HubNarrativeUiState? hubNarrativeUiState = null,
+        IReadOnlyList<ClubFinanceLedger>? clubFinanceLedgers = null,
+        IReadOnlyList<DualPhaseTacticPlan>? dualPhaseTacticPlans = null);
 
     CareerLoadResult Load(string filePath);
 }
@@ -79,4 +81,6 @@ public sealed record CareerLoadResult(
     bool WasMigrated,
     IReadOnlyList<string>? EventEffectProcessingKeys = null,
     IReadOnlyList<ScheduledEvaluation>? ScheduledEvaluations = null,
-    HubNarrativeUiState? HubNarrativeUiState = null);
+    HubNarrativeUiState? HubNarrativeUiState = null,
+    IReadOnlyList<ClubFinanceLedger>? ClubFinanceLedgers = null,
+    IReadOnlyList<DualPhaseTacticPlan>? DualPhaseTacticPlans = null);
