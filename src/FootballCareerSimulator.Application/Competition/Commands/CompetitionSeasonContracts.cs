@@ -91,7 +91,15 @@ public sealed record PlayFixtureMatchResult(
     IReadOnlyList<MatchKeyMomentReadModel>? KeyMoments = null,
     MatchStatisticsReadModel? Statistics = null,
     int? ManagedLineupRoleModifier = null,
-    int? ManagedPreparationModifier = null);
+    int? ManagedPreparationModifier = null,
+    OpponentMatchPlanReadModel? OpponentMatchPlan = null);
+
+public sealed record OpponentMatchPlanReadModel(
+    string Priority,
+    string TacticalIntent,
+    int RotationCount,
+    int MatchStrengthModifier,
+    string Headline);
 
 public sealed record MatchStatisticsReadModel(
     int HomePossessionPercent,

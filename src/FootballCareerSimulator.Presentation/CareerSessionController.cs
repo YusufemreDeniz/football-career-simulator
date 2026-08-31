@@ -2848,6 +2848,7 @@ public sealed class CareerSessionController
             var heroSequenceSeed = 0;
             var heroManagedGoals = 0;
             var heroOpponentGoals = 0;
+            OpponentMatchPlanReadModel? heroOpponentMatchPlan = null;
             TechnicalAreaDigest? technicalArea = null;
             MatchupPlanOutcomeDigest? matchupPlanOutcome = null;
 
@@ -2944,6 +2945,7 @@ public sealed class CareerSessionController
                     heroSequenceSeed = unchecked((int)fixture.FixtureId);
                     heroManagedGoals = heroManagedIsHome ? result.HomeGoals : result.AwayGoals;
                     heroOpponentGoals = heroManagedIsHome ? result.AwayGoals : result.HomeGoals;
+                    heroOpponentMatchPlan = result.OpponentMatchPlan;
                     heroTacticNote = matchImpact.Length == 0
                         ? null
                         : string.Join(" · ", matchImpact);
@@ -3138,7 +3140,8 @@ public sealed class CareerSessionController
                 heroKeyMoments,
                 heroSequenceSeed,
                 heroManagedGoals,
-                heroOpponentGoals);
+                heroOpponentGoals,
+                heroOpponentMatchPlan);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -4441,4 +4444,5 @@ public sealed record PlayMatchesUiResult(
     IReadOnlyList<MatchKeyMomentReadModel>? KeyMoments = null,
     int MatchSequenceSeed = 0,
     int ManagedGoals = 0,
-    int OpponentGoals = 0);
+    int OpponentGoals = 0,
+    OpponentMatchPlanReadModel? OpponentMatchPlan = null);

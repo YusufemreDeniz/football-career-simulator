@@ -113,6 +113,9 @@ public sealed class ManagedMatchConsequenceTests
         Assert.False(string.IsNullOrWhiteSpace(substitution.HalfTimeBridgeLine));
         Assert.Equal(4, first.ManagedTacticModifier);
         Assert.Equal(expectedLineupModifier, first.ManagedLineupRoleModifier);
+        Assert.NotNull(first.OpponentMatchPlan);
+        Assert.False(string.IsNullOrWhiteSpace(first.OpponentMatchPlan!.Headline));
+        Assert.InRange(first.OpponentMatchPlan.MatchStrengthModifier, -1, 2);
         Assert.NotNull(first.Consequences.BoardConfidenceDelta);
         Assert.NotNull(first.Consequences.BoardConfidenceAfter);
         Assert.False(string.IsNullOrWhiteSpace(first.Consequences.BoardRiskBand));

@@ -50,6 +50,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private readonly PostMatchDisciplineDecisionTrigger? _postMatchDiscipline;
     private readonly MatchSelectionAvailabilityRevalidationService? _selectionRevalidation;
     private readonly Dictionary<Guid, PlayFixtureMatchResult> _completedCommands = new();
+    private readonly Dictionary<(long FixtureId, long ClubId), IReadOnlyList<int>> _resolvedAiStartingSlots = new();
 
     public PlayFixtureMatchHandler(
         ILeagueCompetitionStore competitionStore,
@@ -137,11 +138,17 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         var homeTactic = ResolveTacticModifier(fixture.HomeClubId);
         var awayTactic = ResolveTacticModifier(fixture.AwayClubId);
-        var homeLineupRole = ResolveLineupRoleModifier(fixture.Id, fixture.HomeClubId, rootSeed);
-        var awayLineupRole = ResolveLineupRoleModifier(fixture.Id, fixture.AwayClubId, rootSeed);
         var managedClubBefore = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
         var isManagedMatch = managedClubBefore is ClubId managedPre
             && (fixture.HomeClubId == managedPre || fixture.AwayClubId == managedPre);
+        var homeAiPlan = managedClubBefore != fixture.HomeClubId
+            ? ResolveOpponentMatchPlan(season, fixture, fixture.HomeClubId, homeClub.SportiveStrength, awayClub.SportiveStrength, occurredAt)
+            : null;
+        var awayAiPlan = managedClubBefore != fixture.AwayClubId
+            ? ResolveOpponentMatchPlan(season, fixture, fixture.AwayClubId, awayClub.SportiveStrength, homeClub.SportiveStrength, occurredAt)
+            : null;
+        var homeLineupRole = ResolveLineupRoleModifier(fixture.Id, fixture.HomeClubId, rootSeed);
+        var awayLineupRole = ResolveLineupRoleModifier(fixture.Id, fixture.AwayClubId, rootSeed);
         var managedTacticModifier = isManagedMatch && managedClubBefore is ClubId managedClub
             ? fixture.HomeClubId == managedClub ? homeTactic : awayTactic
             : (int?)null;
@@ -152,11 +159,13 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
             + homeTactic
-            + homeLineupRole;
+            + homeLineupRole
+            + (homeAiPlan?.MatchStrengthModifier ?? 0);
         var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
             + awayTactic
-            + awayLineupRole;
+            + awayLineupRole
+            + (awayAiPlan?.MatchStrengthModifier ?? 0);
 
         var managedPreparationModifier = isManagedMatch
             ? Math.Clamp(command.ManagedPreparationModifier, -4, 4)
@@ -327,13 +336,22 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             keyMomentArray,
             statistics,
             managedLineupRoleModifier,
-            isManagedMatch ? managedPreparationModifier : null);
+            isManagedMatch ? managedPreparationModifier : null,
+            MapOpponentPlan(isManagedMatch
+                ? managedClubBefore is ClubId managedForPlan && fixture.HomeClubId == managedForPlan
+                    ? awayAiPlan
+                    : homeAiPlan
+                : null));
 
         _completedCommands[command.CommandId] = result;
         return result;
     }
 
-    public void ResetIdempotencyCache() => _completedCommands.Clear();
+    public void ResetIdempotencyCache()
+    {
+        _completedCommands.Clear();
+        _resolvedAiStartingSlots.Clear();
+    }
 
     private (bool FormerClubEncounter, int FormerPlayerCount) ApplyFormerEncounters(
         Fixture fixture,
@@ -537,7 +555,11 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 abilities);
         }
 
-        return MvpSquadStrengthCalculator.ComputeDefaultLineupBonus(clubId, rootSeed, abilities);
+        return MvpSquadStrengthCalculator.ComputeLineupBonus(
+            clubId,
+            rootSeed,
+            ResolveStartingSlots(fixtureId, clubId),
+            abilities);
     }
 
     private IReadOnlyDictionary<(long ClubId, int SlotIndex), int>? BuildAbilityMap(ClubId clubId)
@@ -600,16 +622,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             return 0;
         }
 
-        IReadOnlyList<int> startingSlots;
-        var selection = _matchSelectionStore?.Get(fixtureId, clubId);
-        if (selection is not null)
-        {
-            startingSlots = selection.StartingSlotIndices;
-        }
-        else
-        {
-            startingSlots = Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
-        }
+        var startingSlots = ResolveStartingSlots(fixtureId, clubId);
 
         return MvpPhysicalMatchModifier.ComputeLineupModifier(
             clubId,
@@ -701,10 +714,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             return;
         }
 
-        IReadOnlyList<int> startingSlots;
-        var selection = _matchSelectionStore?.Get(fixtureId, clubId);
-        startingSlots = selection?.StartingSlotIndices
-            ?? Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
+        var startingSlots = ResolveStartingSlots(fixtureId, clubId);
 
         foreach (var slot in startingSlots)
         {
@@ -1052,8 +1062,79 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     {
         var selection = _matchSelectionStore?.Get(fixtureId, clubId);
         return selection?.StartingSlotIndices
+            ?? _resolvedAiStartingSlots.GetValueOrDefault((fixtureId.Value, clubId.Value))
             ?? Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
     }
+
+    private OpponentMatchPlan ResolveOpponentMatchPlan(
+        CompetitionSeason season,
+        Fixture fixture,
+        ClubId clubId,
+        int clubStrength,
+        int opponentStrength,
+        GameDate day)
+    {
+        var standings = season.Standings.Entries;
+        var positionIndex = Array.FindIndex(
+            standings.ToArray(),
+            entry => entry.ClubId == clubId);
+        var position = positionIndex >= 0
+            ? positionIndex + 1
+            : Math.Max(1, season.Participants.Count / 2);
+
+        var previous = season.Fixtures
+            .Where(candidate => candidate.Status == FixtureStatus.ResultAccepted)
+            .Where(candidate => candidate.HomeClubId == clubId || candidate.AwayClubId == clubId)
+            .Where(candidate => candidate.ScheduledDate.DayNumber < day.DayNumber)
+            .OrderByDescending(candidate => candidate.ScheduledDate.DayNumber)
+            .FirstOrDefault();
+        var daysSincePrevious = previous is null
+            ? 7
+            : day.DayNumber - previous.ScheduledDate.DayNumber;
+        var rosterSlots = _clubSquadStore?.Get(clubId)?.Members.Select(member => member.SlotIndex)
+            ?? Enumerable.Range(0, 25);
+        var physicalBySlot = _trainingStore?.PhysicalStates
+            .Where(state => state.ClubId == clubId)
+            .ToDictionary(state => state.SlotIndex);
+        var availableSlots = rosterSlots
+            .Where(slot => physicalBySlot is null
+                || !physicalBySlot.TryGetValue(slot, out var physical)
+                || physical.IsAvailableOn(day))
+            .Distinct()
+            .OrderBy(slot => slot)
+            .ToArray();
+        if (availableSlots.Length < MatchSelection.StartingXiSize)
+        {
+            availableSlots = Enumerable.Range(0, 25)
+                .Where(slot => physicalBySlot is null
+                    || !physicalBySlot.TryGetValue(slot, out var physical)
+                    || physical.IsAvailableOn(day))
+                .ToArray();
+        }
+        var plan = OpponentMatchPlanResolver.Resolve(new OpponentMatchPlanInput(
+            clubId.Value,
+            fixture.Id.Value,
+            fixture.Round.Value,
+            Math.Max(2, season.Participants.Count),
+            position,
+            clubStrength,
+            opponentStrength,
+            daysSincePrevious,
+            _timelineStore.Timeline.RootSeed,
+            availableSlots));
+        _resolvedAiStartingSlots[(fixture.Id.Value, clubId.Value)] = plan.StartingSlots;
+        return plan;
+    }
+
+    private static OpponentMatchPlanReadModel? MapOpponentPlan(OpponentMatchPlan? plan) =>
+        plan is null
+            ? null
+            : new OpponentMatchPlanReadModel(
+                plan.Priority.ToString(),
+                plan.Intent.ToString(),
+                plan.RotationCount,
+                plan.MatchStrengthModifier,
+                plan.Headline);
 
     private static string ResolveXiPlayerName(
         IReadOnlyList<int> startingSlots,

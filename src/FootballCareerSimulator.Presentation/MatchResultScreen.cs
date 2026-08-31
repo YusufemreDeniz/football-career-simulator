@@ -258,6 +258,18 @@ public partial class MatchResultScreen : Control
             technicalStack.AddChild(verdict);
         }
 
+        if (_results.MatchLines.Count > 0 && _results.Narrative is not null
+            && _results.OpponentMatchPlan is { } opponentPlan)
+        {
+            content.AddChild(MatchScreenUi.SectionTitle("RAKİP KULÜBESİ", "AI maç planı"));
+            var opponentPanel = MatchScreenUi.Card();
+            content.AddChild(opponentPanel);
+            opponentPanel.AddChild(MatchScreenUi.BodyLine(
+                $"{opponentPlan.Headline} · maç etkisi {FormatSigned(opponentPlan.MatchStrengthModifier)}",
+                muted: true,
+                alignment: HorizontalAlignment.Center));
+        }
+
         if (_narrative.BeatLines.Count > 0)
         {
             content.AddChild(MatchScreenUi.SectionTitle("MAÇ AKIŞI", "Kritik anlar"));
@@ -431,4 +443,6 @@ public partial class MatchResultScreen : Control
         label.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(42));
         label.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
     }
+
+    private static string FormatSigned(int value) => value > 0 ? $"+{value}" : value.ToString();
 }
