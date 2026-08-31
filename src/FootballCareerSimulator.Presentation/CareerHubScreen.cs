@@ -99,6 +99,7 @@ public partial class CareerHubScreen : Control
     private Label _careerLegacyRecordLabel = null!;
     private Label _careerLegacyDevelopmentLabel = null!;
     private Label _deviceAcceptanceLabel = null!;
+    private Label _runtimeTelemetryLabel = null!;
     private Label _experienceSettingsLabel = null!;
     private Label _clubEconomyLabel = null!;
     private ItemList _careerSeasonList = null!;
@@ -1624,6 +1625,8 @@ public partial class CareerHubScreen : Control
         var experienceCard = AddCard(page, "OYUN DENEYİMİ & CİHAZ", emphasized: true);
         _deviceAcceptanceLabel = BodyLabel("DeviceAcceptanceLabel", autowrap: true);
         experienceCard.AddChild(_deviceAcceptanceLabel);
+        _runtimeTelemetryLabel = BodyLabel("RuntimeTelemetryLabel", autowrap: true);
+        experienceCard.AddChild(_runtimeTelemetryLabel);
         _experienceSettingsLabel = BodyLabel("ExperienceSettingsLabel", muted: true, autowrap: true);
         experienceCard.AddChild(_experienceSettingsLabel);
 
@@ -1643,8 +1646,17 @@ public partial class CareerHubScreen : Control
         soundRow.AddChild(_crowdSettingButton);
         _hapticsSettingButton = SecondaryButton("Titreşim");
         _hapticsSettingButton.Pressed += () => UpdateExperienceSettings(
-            current => current with { HapticsEnabled = !current.HapticsEnabled });
+            current => current.CycleHapticsStrength());
         soundRow.AddChild(_hapticsSettingButton);
+
+        var deviceTestRow = ActionFlow();
+        experienceCard.AddChild(deviceTestRow);
+        var hapticTestButton = SecondaryButton("Titreşimi Dene");
+        hapticTestButton.Pressed += TestHapticFeedback;
+        deviceTestRow.AddChild(hapticTestButton);
+        var resetTelemetryButton = SecondaryButton("Ölçümü Sıfırla");
+        resetTelemetryButton.Pressed += ResetRuntimeTelemetry;
+        deviceTestRow.AddChild(resetTelemetryButton);
 
         var accessibilityRow = ActionFlow();
         experienceCard.AddChild(accessibilityRow);
@@ -1838,9 +1850,11 @@ public partial class CareerHubScreen : Control
     private void Apply(UiActionResult result)
     {
         PulseStatus(result.Message, result.Succeeded);
-        if (OS.HasFeature("mobile") && GameExperienceSettingsStore.Current.HapticsEnabled)
+        var haptics = GameExperienceSettingsStore.Current.EffectiveHapticsStrengthPercent;
+        if (OS.HasFeature("mobile") && haptics > 0)
         {
-            Input.VibrateHandheld(result.Succeeded ? 18 : 34);
+            var baseDuration = result.Succeeded ? 18 : 34;
+            Input.VibrateHandheld(Math.Max(1, baseDuration * haptics / 100));
         }
         RefreshUi();
         // Toparlanma onayı gibi ofis köprüleri nabız metninin üstüne yazılır.
@@ -2278,12 +2292,16 @@ public partial class CareerHubScreen : Control
             touchInputAvailable: OS.HasFeature("mobile"));
 
         _deviceAcceptanceLabel.Text = acceptance.ToDisplayText();
+        var telemetry = MobileRuntimeTelemetryMonitor.Active?.Snapshot();
+        _runtimeTelemetryLabel.Text = telemetry is null
+            ? "Canlı cihaz ölçümü henüz başlamadı."
+            : $"{telemetry.Headline}\n{telemetry.DetailLine}";
         _experienceSettingsLabel.Text =
             "Otomatik eşikler gerçek cihaz sürükleme, titreşim, ses dengesi ve ısınma testinin yerine geçmez.";
         _soundSettingButton.Text = $"Ses: {OnOff(preferences.SoundEnabled)}";
         _musicSettingButton.Text = $"Müzik: {OnOff(preferences.MusicEnabled)}";
         _crowdSettingButton.Text = $"Tribün: {OnOff(preferences.CrowdEnabled)}";
-        _hapticsSettingButton.Text = $"Titreşim: {OnOff(preferences.HapticsEnabled)}";
+        _hapticsSettingButton.Text = $"Titreşim: {HapticsLabel(preferences)}";
         _motionSettingButton.Text = $"Hareketi azalt: {OnOff(preferences.ReducedMotion)}";
         _contrastSettingButton.Text = $"Yüksek kontrast: {OnOff(preferences.HighContrast)}";
         _textScaleSettingButton.Text = $"Yazı: %{preferences.TextScalePercent}";
@@ -2307,6 +2325,40 @@ public partial class CareerHubScreen : Control
     }
 
     private static string OnOff(bool enabled) => enabled ? "Açık" : "Kapalı";
+
+    private static string HapticsLabel(GameExperiencePreferences preferences) =>
+        preferences.EffectiveHapticsStrengthPercent switch
+        {
+            0 => "Kapalı",
+            50 => "Düşük",
+            _ => "Yüksek",
+        };
+
+    private void TestHapticFeedback()
+    {
+        var strength = GameExperienceSettingsStore.Current.EffectiveHapticsStrengthPercent;
+        if (!OS.HasFeature("mobile"))
+        {
+            PulseStatus("Titreşim testi yalnız fiziksel mobil cihazda çalışır.");
+            return;
+        }
+
+        if (strength == 0)
+        {
+            PulseStatus("Titreşim kapalı; önce Düşük veya Yüksek seviyeyi seç.");
+            return;
+        }
+
+        Input.VibrateHandheld(strength == 50 ? 25 : 50);
+        PulseStatus($"{HapticsLabel(GameExperienceSettingsStore.Current)} titreşim darbesi gönderildi.");
+    }
+
+    private void ResetRuntimeTelemetry()
+    {
+        MobileRuntimeTelemetryMonitor.Active?.ResetMeasurement();
+        RefreshExperienceSettings();
+        PulseStatus("Cihaz frame ölçümü sıfırlandı; 30 saniyelik yeni örnek başladı.");
+    }
 
     private FirstWeekGuideDigest BuildFirstWeekGuide()
     {

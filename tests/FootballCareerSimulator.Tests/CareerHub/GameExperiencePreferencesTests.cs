@@ -69,5 +69,19 @@ public sealed class GameExperiencePreferencesTests
 
         Assert.NotNull(restored);
         Assert.True(restored.MusicEnabled);
+        Assert.Equal(100, restored.HapticsStrengthPercent);
+    }
+
+    [Fact]
+    public void CycleHapticsStrength_UsesOffLowHighSequence()
+    {
+        var high = GameExperiencePreferences.Default;
+        var off = high.CycleHapticsStrength();
+        var low = off.CycleHapticsStrength();
+        var highAgain = low.CycleHapticsStrength();
+
+        Assert.Equal(0, off.EffectiveHapticsStrengthPercent);
+        Assert.Equal(50, low.EffectiveHapticsStrengthPercent);
+        Assert.Equal(100, highAgain.EffectiveHapticsStrengthPercent);
     }
 }

@@ -17,11 +17,21 @@ public sealed record GameExperiencePreferences(
 
     public int FirstWeekGuideStep { get; init; }
 
+    /// <summary>
+    /// Cihaz titreşim gücü için kullanıcı seviyesi. Android API'sinde gerçek genlik
+    /// her cihazda aynı davranmadığı için Presentation bunu kısa/daha uzun darbe
+    /// süresine dönüştürür.
+    /// </summary>
+    public int HapticsStrengthPercent { get; init; } = 100;
+
     public bool EffectiveMusicEnabled => SoundEnabled && MusicEnabled;
 
     public bool EffectiveCrowdEnabled => SoundEnabled && CrowdEnabled;
 
     public bool EffectiveSfxEnabled => SoundEnabled;
+
+    public int EffectiveHapticsStrengthPercent =>
+        HapticsEnabled ? Normalize().HapticsStrengthPercent : 0;
 
     public static GameExperiencePreferences Default { get; } = new(
         SoundEnabled: true,
@@ -41,6 +51,12 @@ public sealed record GameExperiencePreferences(
             _ => 130,
         },
         FirstWeekGuideStep = Math.Clamp(FirstWeekGuideStep, 0, FirstWeekGuideDigest.TotalSteps),
+        HapticsStrengthPercent = HapticsStrengthPercent switch
+        {
+            <= 0 => 0,
+            <= 75 => 50,
+            _ => 100,
+        },
     };
 
     public GameExperiencePreferences CycleTextScale() => this with
@@ -52,6 +68,17 @@ public sealed record GameExperiencePreferences(
             _ => 100,
         },
     };
+
+    public GameExperiencePreferences CycleHapticsStrength()
+    {
+        var current = EffectiveHapticsStrengthPercent;
+        return current switch
+        {
+            0 => this with { HapticsEnabled = true, HapticsStrengthPercent = 50 },
+            50 => this with { HapticsEnabled = true, HapticsStrengthPercent = 100 },
+            _ => this with { HapticsEnabled = false, HapticsStrengthPercent = 0 },
+        };
+    }
 
     public int ScaleFont(int baseSize) =>
         Math.Max(1, (int)Math.Round(baseSize * (Normalize().TextScalePercent / 100d)));

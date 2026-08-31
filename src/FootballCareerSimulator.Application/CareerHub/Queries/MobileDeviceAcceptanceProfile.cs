@@ -51,7 +51,7 @@ public sealed record MobileDeviceAcceptanceProfile(
             $"Ana dokunma hedefi {minimumTouchTarget} px — {(targetOk ? "uygun" : "48 px altı")}",
             $"Yazı ölçeği %{prefs.TextScalePercent}; gövde {scaledBody} px — {(typeOk ? "okunabilir taban" : "büyütülmeli")}",
             $"Ses {OnOff(prefs.SoundEnabled)}; müzik {OnOff(prefs.EffectiveMusicEnabled)}; tribün {OnOff(prefs.EffectiveCrowdEnabled)}",
-            $"Titreşim tercihi {OnOff(prefs.HapticsEnabled)}{(physicalPending ? " — motor kanıtı cihazda" : "")}",
+            $"Titreşim tercihi {HapticsLabel(prefs)}{(physicalPending ? " — motor kanıtı cihazda" : "")}",
             $"Kontrast {(prefs.HighContrast ? "yüksek" : "standart")}; hareket {(prefs.ReducedMotion ? "azaltılmış" : "tam")}",
             physicalPending
                 ? "Masaüstü/başsız koşu; hoparlör, titreşim motoru ve ısınma fiziksel release soak'tır."
@@ -74,4 +74,12 @@ public sealed record MobileDeviceAcceptanceProfile(
     }
 
     private static string OnOff(bool value) => value ? "açık" : "kapalı";
+
+    private static string HapticsLabel(GameExperiencePreferences preferences) =>
+        preferences.EffectiveHapticsStrengthPercent switch
+        {
+            0 => "kapalı",
+            50 => "düşük",
+            _ => "yüksek",
+        };
 }

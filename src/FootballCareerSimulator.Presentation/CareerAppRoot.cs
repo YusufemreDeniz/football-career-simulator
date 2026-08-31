@@ -10,10 +10,13 @@ public partial class CareerAppRoot : Control
     private Control? _currentScreen;
     private Tween? _screenTransition;
     private ProceduralMatchAudioDirector _audioDirector = null!;
+    private MobileRuntimeTelemetryMonitor _runtimeTelemetry = null!;
 
     public override void _Ready()
     {
         CareerUiTheme.Configure(GameExperienceSettingsStore.Current);
+        _runtimeTelemetry = new MobileRuntimeTelemetryMonitor();
+        AddChild(_runtimeTelemetry);
         _audioDirector = new ProceduralMatchAudioDirector();
         _audioDirector.ApplySettings(ToAudioSettings(GameExperienceSettingsStore.Current));
         AddChild(_audioDirector);
