@@ -8,6 +8,7 @@ public enum TrainingFocus
     General = 1,
     Fitness = 2,
     Recovery = 3,
+    Tactical = 4,
 }
 
 public enum TrainingIntensity

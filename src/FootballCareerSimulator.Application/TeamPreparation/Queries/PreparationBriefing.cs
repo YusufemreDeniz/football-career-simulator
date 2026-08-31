@@ -314,9 +314,10 @@ public sealed record PreparationBriefing(
 
     private static string NameFocus(int? value) => value switch
     {
-        (int)TrainingFocus.General => "Genel",
+        (int)TrainingFocus.General => "Dengeli",
         (int)TrainingFocus.Fitness => "Kondisyon",
         (int)TrainingFocus.Recovery => "Toparlanma",
+        (int)TrainingFocus.Tactical => "Taktik",
         _ => "-",
     };
 
@@ -362,6 +363,7 @@ public sealed record PrepPlanSuggestion(
             {
                 (int)TrainingFocus.Fitness => TrainingFocus.Fitness,
                 (int)TrainingFocus.Recovery => TrainingFocus.Recovery,
+                (int)TrainingFocus.Tactical => TrainingFocus.Tactical,
                 _ => TrainingFocus.General,
             },
             RestApproach.Heavy);

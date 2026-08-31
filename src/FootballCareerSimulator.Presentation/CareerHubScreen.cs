@@ -173,6 +173,7 @@ public partial class CareerHubScreen : Control
     private Button _focusGeneralButton = null!;
     private Button _focusFitnessButton = null!;
     private Button _focusRecoveryButton = null!;
+    private Button _focusTacticalButton = null!;
     private Button _restLightButton = null!;
     private Button _restNormalButton = null!;
     private Button _restHeavyButton = null!;
@@ -1464,7 +1465,7 @@ public partial class CareerHubScreen : Control
         var focusRow = ActionFlow();
         trainingCard.AddChild(focusRow);
 
-        _focusGeneralButton = SecondaryButton("Odak: Genel");
+        _focusGeneralButton = SecondaryButton("Odak: Dengeli");
         _focusGeneralButton.Pressed += () =>
             Apply(_controller.SetWeeklyTrainingFocus(TrainingFocus.General));
         focusRow.AddChild(_focusGeneralButton);
@@ -1473,6 +1474,11 @@ public partial class CareerHubScreen : Control
         _focusFitnessButton.Pressed += () =>
             Apply(_controller.SetWeeklyTrainingFocus(TrainingFocus.Fitness));
         focusRow.AddChild(_focusFitnessButton);
+
+        _focusTacticalButton = SecondaryButton("Taktik");
+        _focusTacticalButton.Pressed += () =>
+            Apply(_controller.SetWeeklyTrainingFocus(TrainingFocus.Tactical));
+        focusRow.AddChild(_focusTacticalButton);
 
         _focusRecoveryButton = SecondaryButton("Toparlanma");
         _focusRecoveryButton.Pressed += () =>
@@ -1500,7 +1506,7 @@ public partial class CareerHubScreen : Control
         foreach (var option in new[]
                  {
                      _trainLowButton, _trainMediumButton, _trainHighButton,
-                     _focusGeneralButton, _focusFitnessButton, _focusRecoveryButton,
+                     _focusGeneralButton, _focusFitnessButton, _focusTacticalButton, _focusRecoveryButton,
                      _restLightButton, _restNormalButton, _restHeavyButton,
                  })
         {
@@ -2986,9 +2992,10 @@ public partial class CareerHubScreen : Control
     private static string FormatStoredFocus(int? focus) =>
         focus switch
         {
-            (int)TrainingFocus.General => "Genel",
+            (int)TrainingFocus.General => "Dengeli",
             (int)TrainingFocus.Fitness => "Kondisyon",
             (int)TrainingFocus.Recovery => "Toparlanma",
+            (int)TrainingFocus.Tactical => "Taktik",
             _ => focus?.ToString() ?? "-",
         };
 
@@ -3019,6 +3026,7 @@ public partial class CareerHubScreen : Control
         _trainHighButton.Disabled = !employed;
         _focusGeneralButton.Disabled = !employed;
         _focusFitnessButton.Disabled = !employed;
+        _focusTacticalButton.Disabled = !employed;
         _focusRecoveryButton.Disabled = !employed;
         _restLightButton.Disabled = !employed;
         _restNormalButton.Disabled = !employed;
@@ -3034,6 +3042,7 @@ public partial class CareerHubScreen : Control
         _trainHighButton.ButtonPressed = training.Intensity == (int)TrainingIntensity.High;
         _focusGeneralButton.ButtonPressed = training.Focus == (int)TrainingFocus.General;
         _focusFitnessButton.ButtonPressed = training.Focus == (int)TrainingFocus.Fitness;
+        _focusTacticalButton.ButtonPressed = training.Focus == (int)TrainingFocus.Tactical;
         _focusRecoveryButton.ButtonPressed = training.Focus == (int)TrainingFocus.Recovery;
         _restLightButton.ButtonPressed = training.RestApproach == (int)RestApproach.Light;
         _restNormalButton.ButtonPressed = training.RestApproach == (int)RestApproach.Normal;

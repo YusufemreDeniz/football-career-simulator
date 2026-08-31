@@ -1024,6 +1024,15 @@ public sealed class CareerSessionController
     public string GetPlayerDisplayName(long playerId) =>
         DescribeManagedPlayer(playerId).Name ?? "kenar oyuncu";
 
+    private IReadOnlyList<MvpSquadPlayerProfile> GetSquadProfiles(ClubId clubId)
+    {
+        var name = Host.ClubModule.Queries.GetClub(clubId.Value)?.DisplayName;
+        return MvpSquadRosterGenerator.GeneratePlayerProfiles(
+            clubId,
+            Host.WorldModule.TimelineStore.Timeline.RootSeed,
+            name);
+    }
+
     private (string? Name, string? Detail) DescribeManagedPlayer(long? playerId)
     {
         if (playerId is not long id)
@@ -1189,7 +1198,7 @@ public sealed class CareerSessionController
         var timeline = Host.WorldModule.TimelineStore.Timeline;
         var clubId = new Domain.Shared.ClubId(pending.ManagedClubId);
         var squad = Host.TeamPreparationModule.SquadStore.Get(clubId);
-        var playerProfiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(clubId, timeline.RootSeed);
+        var playerProfiles = GetSquadProfiles(clubId);
         var names = playerProfiles.Select(player => player.DisplayName).ToArray();
         var positions = playerProfiles.Select(player => player.PositionCode).ToArray();
 
@@ -1249,7 +1258,7 @@ public sealed class CareerSessionController
         var timeline = Host.WorldModule.TimelineStore.Timeline;
         var plan = Host.TeamPreparationModule.TacticPlanStore.Get(id)
             ?? Domain.TeamPreparation.TacticPlan.CreateDefault(id, timeline.CurrentDate);
-        var squad = MvpSquadRosterGenerator.GeneratePlayerProfiles(id, timeline.RootSeed);
+        var squad = GetSquadProfiles(id);
 
         return LineupCompatibilityDigest.Compose(
             plan.Formation,
@@ -1269,7 +1278,7 @@ public sealed class CareerSessionController
 
         var timeline = Host.WorldModule.TimelineStore.Timeline;
         var clubId = new Domain.Shared.ClubId(pending.ManagedClubId);
-        var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(clubId, timeline.RootSeed);
+        var profiles = GetSquadProfiles(clubId);
         var ratings = Host.TeamPreparationModule.SquadQueries
             .GetClubSquad(clubId.Value, timeline.RootSeed)
             .ToDictionary(player => player.SlotIndex, player => player.Rating);
@@ -1589,7 +1598,7 @@ public sealed class CareerSessionController
 
         var timeline = Host.WorldModule.TimelineStore.Timeline;
         var managedId = new Domain.Shared.ClubId(clubId);
-        var managedProfiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(managedId, timeline.RootSeed);
+        var managedProfiles = GetSquadProfiles(managedId);
         var managedRatings = Host.TeamPreparationModule.SquadQueries
             .GetClubSquad(clubId, timeline.RootSeed)
             .ToDictionary(player => player.SlotIndex, player => player.Rating);
@@ -1606,7 +1615,7 @@ public sealed class CareerSessionController
         foreach (var club in Host.ClubModule.Queries.GetAllClubs().Where(club => club.ClubId != clubId))
         {
             var sourceId = new Domain.Shared.ClubId(club.ClubId);
-            var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(sourceId, timeline.RootSeed);
+            var profiles = GetSquadProfiles(sourceId);
             var ratings = Host.TeamPreparationModule.SquadQueries
                 .GetClubSquad(club.ClubId, timeline.RootSeed)
                 .ToDictionary(player => player.SlotIndex, player => player.Rating);
@@ -2665,9 +2674,10 @@ public sealed class CareerSessionController
     private static string FormatTrainingFocus(TrainingFocus focus) =>
         focus switch
         {
-            TrainingFocus.General => "Genel",
+            TrainingFocus.General => "Dengeli",
             TrainingFocus.Fitness => "Kondisyon",
             TrainingFocus.Recovery => "Toparlanma",
+            TrainingFocus.Tactical => "Taktik",
             _ => focus.ToString(),
         };
 
@@ -3607,7 +3617,7 @@ public sealed class CareerSessionController
             id,
             manager.ManagerId,
             timeline.CurrentDate,
-            MvpSquadRosterGenerator.GeneratePlayerProfiles(id, timeline.RootSeed),
+            GetSquadProfiles(id),
             Host.TeamPreparationModule.SquadQueries.GetClubSquad(clubId, timeline.RootSeed),
             Host.TeamPreparationModule.SquadStore.Get(id),
             Host.PlayerCareerModule.Store.Careers,
@@ -3811,7 +3821,7 @@ public sealed class CareerSessionController
             return Array.Empty<string>();
         }
 
-        var names = MvpSquadRosterGenerator.GeneratePlayerNames(clubId, timeline.RootSeed);
+        var names = GetSquadProfiles(clubId).Select(player => player.DisplayName).ToArray();
         return SelectionAutoSwapWarning.FormatBeatLines(swaps, names);
     }
 

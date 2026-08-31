@@ -68,6 +68,10 @@ public static class MvpPlayerDevelopmentApplier
         {
             points += 1;
         }
+        else if (plan.Focus == TrainingFocus.Tactical)
+        {
+            points += 1;
+        }
         else if (plan.Focus == TrainingFocus.Recovery)
         {
             points = Math.Max(1, points - 2);

@@ -22,14 +22,22 @@ public static class MvpSquadRosterGenerator
         "Kurt", "Polat", "Aslan", "Güneş", "Acar", "Tekin", "Erdoğan", "Bulut", "Taş", "Aksoy",
     ];
 
-    public static IReadOnlyList<string> GeneratePlayerNames(ClubId clubId, int rootSeed)
-        => GeneratePlayerProfiles(clubId, rootSeed)
+    public static IReadOnlyList<string> GeneratePlayerNames(
+        ClubId clubId,
+        int rootSeed,
+        string? clubDisplayName = null)
+        => GeneratePlayerProfiles(clubId, rootSeed, clubDisplayName)
             .Select(player => player.DisplayName)
             .ToArray();
 
-    public static IReadOnlyList<MvpSquadPlayerProfile> GeneratePlayerProfiles(ClubId clubId, int rootSeed)
+    public static IReadOnlyList<MvpSquadPlayerProfile> GeneratePlayerProfiles(
+        ClubId clubId,
+        int rootSeed,
+        string? clubDisplayName = null)
     {
-        if (TurkeySuperLig202627DataPack.TryGetClub(clubId, out var realClub))
+        if (TurkeySuperLig202627DataPack.TryGetClub(clubId, out var realClub)
+            && (clubDisplayName is null
+                || string.Equals(clubDisplayName, realClub.OfficialName, StringComparison.Ordinal)))
         {
             return realClub.Players;
         }

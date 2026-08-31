@@ -79,6 +79,10 @@ public static class MvpTrainingLoadApplier
                 fatigue -= 6;
                 fitness += 2;
                 break;
+            case TrainingFocus.Tactical:
+                fitness += 3;
+                fatigue -= 1;
+                break;
             default:
                 fitness += 3;
                 break;

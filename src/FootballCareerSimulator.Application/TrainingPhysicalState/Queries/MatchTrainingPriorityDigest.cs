@@ -513,9 +513,10 @@ public sealed record MatchTrainingPriorityDigest(
 
     private static string NameFocus(TrainingFocus focus) => focus switch
     {
-        TrainingFocus.General => "Genel",
+        TrainingFocus.General => "Dengeli",
         TrainingFocus.Fitness => "Kondisyon",
         TrainingFocus.Recovery => "Toparlanma",
+        TrainingFocus.Tactical => "Taktik",
         _ => "-",
     };
 
