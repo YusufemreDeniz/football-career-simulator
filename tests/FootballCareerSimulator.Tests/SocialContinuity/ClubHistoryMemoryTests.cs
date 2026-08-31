@@ -177,7 +177,7 @@ public sealed class ClubHistoryMemoryTests : IDisposable
             social.MemoryStore.Memories);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(45, loaded.SchemaVersion);
+        Assert.Equal(46, loaded.SchemaVersion);
         Assert.Equal(2, loaded.Memories.Count(m => m.Category == MemoryCategory.ClubHistory));
     }
 

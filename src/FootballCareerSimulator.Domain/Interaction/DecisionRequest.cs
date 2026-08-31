@@ -7,7 +7,7 @@ namespace FootballCareerSimulator.Domain.Interaction;
 
 /// <summary>
 /// Interaction & Narrative: bekleyen zorunlu/kritik karar isteği
-/// (forma süresi, ilk 11, transfer, disiplin, yönetim, basın).
+/// (forma süresi, ilk 11, transfer, disiplin, yönetim, basın, genç akademisi).
 /// </summary>
 public sealed class DecisionRequest
 {
@@ -26,6 +26,8 @@ public sealed class DecisionRequest
     public const string OptionCounterBoardDemand = "CounterBoardDemand";
     public const string OptionPubliclyDefend = "PubliclyDefend";
     public const string OptionPubliclyCriticize = "PubliclyCriticize";
+    public const string OptionAcceptYouthAcademyCandidate = "AcceptYouthAcademyCandidate";
+    public const string OptionRejectYouthAcademyCandidate = "RejectYouthAcademyCandidate";
     public const string OptionRefuse = "Refuse";
 
     private DecisionRequest(
@@ -251,6 +253,35 @@ public sealed class DecisionRequest
             resolvedOn: null);
     }
 
+    public static DecisionRequest OpenYouthAcademyCandidateRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = false)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.YouthAcademyCandidate,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
     public DecisionRequest Answer(string optionCode, GameDate day)
     {
         EnsureOpen();
@@ -274,6 +305,8 @@ public sealed class DecisionRequest
                 trimmed is OptionAcceptBoardDemand or OptionCounterBoardDemand or OptionRefuse,
             DecisionRequestKind.PressQuestionRequest =>
                 trimmed is OptionPubliclyDefend or OptionPubliclyCriticize,
+            DecisionRequestKind.YouthAcademyCandidate =>
+                trimmed is OptionAcceptYouthAcademyCandidate or OptionRejectYouthAcademyCandidate,
             _ => false,
         };
         if (!supported)

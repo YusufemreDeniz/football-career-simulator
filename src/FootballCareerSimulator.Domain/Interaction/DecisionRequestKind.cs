@@ -8,4 +8,5 @@ public enum DecisionRequestKind
     DisciplineRequest = 4,
     BoardDemandRequest = 5,
     PressQuestionRequest = 6,
+    YouthAcademyCandidate = 7,
 }

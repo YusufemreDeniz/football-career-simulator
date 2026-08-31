@@ -2427,7 +2427,10 @@ internal static class WorldCalendarSqliteMigrator
                     WeekStoryClosureBeat TEXT NULL,
                     WeekStoryDismissOnNextAdvance INTEGER NOT NULL DEFAULT 0,
                     CleanXiNamesCsv TEXT NULL,
-                    InjuryClearedNamesCsv TEXT NULL
+                    InjuryClearedNamesCsv TEXT NULL,
+                    PendingMatchTrainingFixtureId INTEGER NULL,
+                    PendingMatchTrainingPriorityCode TEXT NULL,
+                    PendingMatchTrainingModifier INTEGER NULL
                 );
                 """);
             alterTransaction.Commit();
@@ -2764,6 +2767,50 @@ internal static class WorldCalendarSqliteMigrator
         updateCommand.Transaction = updateTransaction;
         updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
         updateCommand.Parameters.AddWithValue("$version", 45);
+        updateCommand.ExecuteNonQuery();
+        updateTransaction.Commit();
+    }
+
+    public static void MigrateV45ToV46InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+        try
+        {
+            MigrateV45ToV46(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V45 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    // V46: DecisionRequestKind.YouthAcademyCandidate (7) is now in the save contract.
+    // Table shape is unchanged; V45 rows with Kind 1-7 remain valid.
+    private static void MigrateV45ToV46(string workingCopyPath)
+    {
+        using var connection = OpenMigrationConnection(workingCopyPath);
+        connection.Open();
+
+        using var updateTransaction = connection.BeginTransaction();
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = updateTransaction;
+        updateCommand.CommandText = "UPDATE ProductionSaveManifest SET SchemaVersion = $version;";
+        updateCommand.Parameters.AddWithValue("$version", 46);
         updateCommand.ExecuteNonQuery();
         updateTransaction.Commit();
     }

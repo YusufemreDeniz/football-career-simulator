@@ -40,7 +40,20 @@ public sealed class MatchSelectionQueryService
     public bool IsApproved(long fixtureId, long clubId) =>
         _selectionStore.Get(new FixtureId(fixtureId), new ClubId(clubId)) is not null;
 
-    public ManagedFixtureSelectionStatusReadModel? GetNextDueManagedFixture(int currentDayNumber)
+    public ManagedFixtureSelectionStatusReadModel? GetNextDueManagedFixture(int currentDayNumber) =>
+        GetNextManagedFixture(currentDayNumber, dueOnly: true);
+
+    /// <summary>
+    /// Returns the earliest still-planned managed fixture even when it is in the
+    /// future. Pre-match planning screens use this; match execution keeps using
+    /// <see cref="GetNextDueManagedFixture"/>.
+    /// </summary>
+    public ManagedFixtureSelectionStatusReadModel? GetNextPlannedManagedFixture(int currentDayNumber) =>
+        GetNextManagedFixture(currentDayNumber, dueOnly: false);
+
+    private ManagedFixtureSelectionStatusReadModel? GetNextManagedFixture(
+        int currentDayNumber,
+        bool dueOnly)
     {
         var employment = _managerCareerStore.Career.ActiveEmployment;
         if (employment is null)
@@ -62,7 +75,7 @@ public sealed class MatchSelectionQueryService
         var due = season.Fixtures
             .Where(fixture =>
                 fixture.Status == FixtureStatus.Planned
-                && fixture.ScheduledDate.DayNumber <= currentDayNumber
+                && (!dueOnly || fixture.ScheduledDate.DayNumber <= currentDayNumber)
                 && (fixture.HomeClubId == managedClubId || fixture.AwayClubId == managedClubId))
             .OrderBy(fixture => fixture.ScheduledDate.DayNumber)
             .ThenBy(fixture => fixture.Id.Value)

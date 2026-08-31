@@ -75,7 +75,8 @@ public sealed record PlayFixtureMatchCommand(
     int OccurredAtDayNumber,
     int ManagedSecondHalfDelta = 0,
     int? ForcedHalfTimeHomeGoals = null,
-    int? ForcedHalfTimeAwayGoals = null);
+    int? ForcedHalfTimeAwayGoals = null,
+    int ManagedPreparationModifier = 0);
 
 public sealed record PlayFixtureMatchResult(
     bool Succeeded,
@@ -89,7 +90,8 @@ public sealed record PlayFixtureMatchResult(
     ManagedMatchConsequenceSummary? Consequences = null,
     IReadOnlyList<MatchKeyMomentReadModel>? KeyMoments = null,
     MatchStatisticsReadModel? Statistics = null,
-    int? ManagedLineupRoleModifier = null);
+    int? ManagedLineupRoleModifier = null,
+    int? ManagedPreparationModifier = null);
 
 public sealed record MatchStatisticsReadModel(
     int HomePossessionPercent,

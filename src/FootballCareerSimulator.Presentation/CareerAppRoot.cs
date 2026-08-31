@@ -9,9 +9,16 @@ public partial class CareerAppRoot : Control
 {
     private Control? _currentScreen;
     private Tween? _screenTransition;
+    private ProceduralMatchAudioDirector _audioDirector = null!;
 
     public override void _Ready()
     {
+        CareerUiTheme.Configure(GameExperienceSettingsStore.Current);
+        _audioDirector = new ProceduralMatchAudioDirector();
+        _audioDirector.ApplySettings(ToAudioSettings(GameExperienceSettingsStore.Current));
+        AddChild(_audioDirector);
+        GameExperienceSettingsStore.Changed += OnExperienceSettingsChanged;
+
         if (OS.HasFeature("android"))
         {
             DisplayServer.ScreenSetOrientation(DisplayServer.ScreenOrientation.Landscape);
@@ -38,6 +45,11 @@ public partial class CareerAppRoot : Control
         ShowMainMenu();
     }
 
+    public override void _ExitTree()
+    {
+        GameExperienceSettingsStore.Changed -= OnExperienceSettingsChanged;
+    }
+
     private async void CaptureCareerSnapshot(string snapshotPath)
     {
         try
@@ -53,6 +65,14 @@ public partial class CareerAppRoot : Control
             var controller = new CareerSessionController(host);
             controller.EnsureLeagueReady();
             ShowHub(controller);
+
+            // Snapshot QA needs the final readable state, not a partially faded
+            // transition frame. Normal interactive transitions remain unchanged.
+            _screenTransition?.Kill();
+            if (_currentScreen is not null)
+            {
+                _currentScreen.Modulate = Colors.White;
+            }
 
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
@@ -83,6 +103,7 @@ public partial class CareerAppRoot : Control
 
     public void ShowMainMenu()
     {
+        _audioDirector.StopAtmosphere();
         var menu = new MainMenuScreen();
         menu.NewCareerRequested += OnNewCareer;
         menu.ContinueRequested += OnContinueCareer;
@@ -101,11 +122,18 @@ public partial class CareerAppRoot : Control
         CareerSessionController controller,
         string? statusMessage = null,
         Application.Competition.Queries.PostMatchOfficeDigest? officeReturn = null,
-        Application.CareerHub.Queries.CareerResumeDigest? careerResume = null)
+        Application.CareerHub.Queries.CareerResumeDigest? careerResume = null,
+        bool showExperienceSettings = false)
     {
+        _audioDirector.StopAtmosphere();
         var hub = new CareerHubScreen(controller);
         hub.BackToMenuRequested += ShowMainMenu;
         hub.MatchDayRequested += () => ShowMatchDay(controller);
+        hub.ExperienceSettingsChanged += () =>
+            Callable.From(() => ShowHub(
+                controller,
+                "Oyun deneyimi ayarları uygulandı.",
+                showExperienceSettings: true)).CallDeferred();
         ReplaceScreen(hub);
         if (officeReturn is not null)
         {
@@ -119,10 +147,18 @@ public partial class CareerAppRoot : Control
         {
             hub.SetStatus(statusMessage!);
         }
+
+        if (showExperienceSettings)
+        {
+            hub.ShowExperienceSettings();
+        }
     }
 
     public void ShowMatchDay(CareerSessionController controller)
     {
+        var timeline = controller.Host.WorldModule.TimelineStore.Timeline;
+        _audioDirector.StartAtmosphere(
+            unchecked(timeline.RootSeed ^ timeline.CurrentDate.DayNumber));
         var panel = new LandscapeMatchDayScreen(controller);
         panel.BackRequested += () => ShowHub(controller);
         panel.KickoffRequested += () => ShowKickoffMoment(controller);
@@ -144,6 +180,7 @@ public partial class CareerAppRoot : Control
     {
         try
         {
+            _audioDirector.TryPlayCue(MatchAudioCue.Whistle);
             var halfTime = controller.BuildManagedHalfTimeDigest();
             if (halfTime.HasManagedMatch)
             {
@@ -199,7 +236,11 @@ public partial class CareerAppRoot : Control
 
     public void ShowMatchResults(CareerSessionController controller, PlayMatchesUiResult results)
     {
-        var panel = new MatchResultScreen(results);
+        _audioDirector.TryPlayResult(
+            results.ManagedGoals,
+            results.OpponentGoals,
+            results.MatchSequenceSeed);
+        var panel = new MatchResultScreen(results, _audioDirector);
         panel.ContinueRequested += () => ReturnFromMatchNight(controller, results);
         ReplaceScreen(panel);
     }
@@ -228,6 +269,7 @@ public partial class CareerAppRoot : Control
         try
         {
             ClearPreviousCareerSave();
+            GameExperienceSettingsStore.Update(current => current with { FirstWeekGuideStep = 0 });
         }
         catch (Exception ex)
         {
@@ -277,6 +319,7 @@ public partial class CareerAppRoot : Control
         _screenTransition?.Kill();
         if (_currentScreen is not null)
         {
+            _audioDirector.TryPlayCue(MatchAudioCue.Button);
             RemoveChild(_currentScreen);
             _currentScreen.QueueFree();
         }
@@ -289,12 +332,29 @@ public partial class CareerAppRoot : Control
         screen.Modulate = new Color(1f, 1f, 1f, 0f);
         AddChild(screen);
 
+        if (CareerUiTheme.ReducedMotion)
+        {
+            screen.Modulate = Colors.White;
+            return;
+        }
+
         _screenTransition = CreateTween();
         _screenTransition
             .TweenProperty(screen, "modulate:a", 1f, 0.22f)
             .SetTrans(Tween.TransitionType.Cubic)
             .SetEase(Tween.EaseType.Out);
     }
+
+    private void OnExperienceSettingsChanged(
+        Application.CareerHub.Queries.GameExperiencePreferences preferences)
+    {
+        CareerUiTheme.Configure(preferences);
+        _audioDirector.ApplySettings(ToAudioSettings(preferences));
+    }
+
+    private static MatchAudioSettings ToAudioSettings(
+        Application.CareerHub.Queries.GameExperiencePreferences preferences) =>
+        MatchAudioSettings.FromPreferences(preferences);
 
     internal static bool ShouldRunSmokeTest()
     {

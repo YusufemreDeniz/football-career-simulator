@@ -63,7 +63,7 @@ public partial class LandscapeMatchDayScreen : Control
         heading.AddChild(stage);
         _fixtureLabel = new Label();
         CareerUiTheme.StyleHeadline(_fixtureLabel);
-        _fixtureLabel.AddThemeFontSizeOverride("font_size", 22);
+        _fixtureLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(22));
         heading.AddChild(_fixtureLabel);
 
         var body = new HBoxContainer
@@ -149,6 +149,12 @@ public partial class LandscapeMatchDayScreen : Control
     public void SetStatus(string message)
     {
         _statusLabel.Text = message;
+        if (CareerUiTheme.ReducedMotion)
+        {
+            _statusLabel.Modulate = Colors.White;
+            return;
+        }
+
         _statusLabel.Modulate = new Color(1f, 1f, 1f, 0.35f);
         CreateTween().TweenProperty(_statusLabel, "modulate:a", 1f, 0.2f);
     }

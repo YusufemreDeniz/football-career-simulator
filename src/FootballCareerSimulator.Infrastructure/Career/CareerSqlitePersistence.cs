@@ -497,6 +497,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 45;
         }
 
+        if (version == 45 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 46)
+        {
+            WorldCalendarSqliteMigrator.MigrateV45ToV46InPlace(filePath);
+            wasMigrated = true;
+            version = 46;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -939,7 +946,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 WeekStoryClosureBeat TEXT NULL,
                 WeekStoryDismissOnNextAdvance INTEGER NOT NULL DEFAULT 0,
                 CleanXiNamesCsv TEXT NULL,
-                InjuryClearedNamesCsv TEXT NULL
+                InjuryClearedNamesCsv TEXT NULL,
+                PendingMatchTrainingFixtureId INTEGER NULL,
+                PendingMatchTrainingPriorityCode TEXT NULL,
+                PendingMatchTrainingModifier INTEGER NULL
             );
             """);
 
@@ -1872,8 +1882,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         command.CommandText = """
             INSERT INTO HubNarrativeUiState (
                 SingletonId, WeekStoryClosureBeat, WeekStoryDismissOnNextAdvance,
-                CleanXiNamesCsv, InjuryClearedNamesCsv)
-            VALUES (1, $beat, $dismiss, $clean, $cleared);
+                CleanXiNamesCsv, InjuryClearedNamesCsv,
+                PendingMatchTrainingFixtureId, PendingMatchTrainingPriorityCode,
+                PendingMatchTrainingModifier)
+            VALUES (1, $beat, $dismiss, $clean, $cleared, $fixture, $priority, $modifier);
             """;
         command.Parameters.AddWithValue(
             "$beat",
@@ -1889,6 +1901,15 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             state.InjuryClearedNames.Count == 0
                 ? DBNull.Value
                 : string.Join('|', state.InjuryClearedNames));
+        command.Parameters.AddWithValue(
+            "$fixture",
+            (object?)state.PendingMatchTrainingFixtureId ?? DBNull.Value);
+        command.Parameters.AddWithValue(
+            "$priority",
+            (object?)state.PendingMatchTrainingPriorityCode ?? DBNull.Value);
+        command.Parameters.AddWithValue(
+            "$modifier",
+            (object?)state.PendingMatchTrainingModifier ?? DBNull.Value);
         command.ExecuteNonQuery();
     }
 
@@ -3314,14 +3335,28 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 matchupPlanHistory);
         }
 
+        var hasMatchTrainingColumns =
+            ColumnExists(connection, "HubNarrativeUiState", "PendingMatchTrainingFixtureId")
+            && ColumnExists(connection, "HubNarrativeUiState", "PendingMatchTrainingPriorityCode")
+            && ColumnExists(connection, "HubNarrativeUiState", "PendingMatchTrainingModifier");
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT WeekStoryClosureBeat, WeekStoryDismissOnNextAdvance,
-                   CleanXiNamesCsv, InjuryClearedNamesCsv
-            FROM HubNarrativeUiState
-            WHERE SingletonId = 1
-            LIMIT 1;
-            """;
+        command.CommandText = hasMatchTrainingColumns
+            ? """
+                SELECT WeekStoryClosureBeat, WeekStoryDismissOnNextAdvance,
+                       CleanXiNamesCsv, InjuryClearedNamesCsv,
+                       PendingMatchTrainingFixtureId, PendingMatchTrainingPriorityCode,
+                       PendingMatchTrainingModifier
+                FROM HubNarrativeUiState
+                WHERE SingletonId = 1
+                LIMIT 1;
+                """
+            : """
+                SELECT WeekStoryClosureBeat, WeekStoryDismissOnNextAdvance,
+                       CleanXiNamesCsv, InjuryClearedNamesCsv
+                FROM HubNarrativeUiState
+                WHERE SingletonId = 1
+                LIMIT 1;
+                """;
         using var reader = command.ExecuteReader();
         if (!reader.Read())
         {
@@ -3337,12 +3372,24 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var dismiss = !reader.IsDBNull(1) && reader.GetInt32(1) != 0;
         var cleanCsv = reader.IsDBNull(2) ? null : reader.GetString(2);
         var clearedCsv = reader.IsDBNull(3) ? null : reader.GetString(3);
+        var pendingFixture = hasMatchTrainingColumns && !reader.IsDBNull(4)
+            ? reader.GetInt64(4)
+            : (long?)null;
+        var pendingPriority = hasMatchTrainingColumns && !reader.IsDBNull(5)
+            ? reader.GetString(5)
+            : null;
+        var pendingModifier = hasMatchTrainingColumns && !reader.IsDBNull(6)
+            ? reader.GetInt32(6)
+            : (int?)null;
         return HubNarrativeUiState.Compose(
             beat,
             dismiss,
             SplitCsv(cleanCsv),
             SplitCsv(clearedCsv),
-            matchupPlanHistory);
+            matchupPlanHistory,
+            pendingFixture,
+            pendingPriority,
+            pendingModifier);
     }
 
     private static IReadOnlyList<MatchupPlanNotebookEntry> ReadMatchupPlanHistory(
@@ -3390,6 +3437,11 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var clean = string.Join('|', state.CleanXiNames.OrderBy(n => n, StringComparer.Ordinal));
         var cleared = string.Join('|', state.InjuryClearedNames.OrderBy(n => n, StringComparer.Ordinal));
         var baseText = $"hub|{beat}|{dismiss}|{clean}|{cleared}";
+        if (state.PendingMatchTrainingFixtureId is long fixtureId)
+        {
+            baseText += $"|training:{fixtureId}:{state.PendingMatchTrainingPriorityCode}:"
+                + state.PendingMatchTrainingModifier;
+        }
         if (state.MatchupPlanHistory.Count == 0)
         {
             return baseText;
@@ -3492,5 +3544,21 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             """;
         command.Parameters.AddWithValue("$tableName", tableName);
         return command.ExecuteScalar() is not null;
+    }
+
+    private static bool ColumnExists(SqliteConnection connection, string tableName, string columnName)
+    {
+        using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info({tableName});";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

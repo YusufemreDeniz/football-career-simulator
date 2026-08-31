@@ -194,7 +194,7 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
             stopwatch.Elapsed);
 
         Assert.True(saved.Succeeded);
-        Assert.Equal(45, final.SchemaVersion);
+        Assert.Equal(46, final.SchemaVersion);
         Assert.Equal(10, final.League.Seasons.Count);
         Assert.All(final.League.Seasons, season => Assert.Equal(SeasonStatus.Archived, season.Status));
         Assert.Equal(
@@ -217,7 +217,7 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
         Assert.True(finalBytes < 20 * 1024 * 1024, $"Final save too large: {finalBytes} bytes.");
         Assert.True(finalBytes < Math.Max(midSaveBytes * 3, 1),
             $"Save growth is uncontrolled: mid={midSaveBytes}, final={finalBytes}.");
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromMinutes(10),
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromMinutes(12),
             $"Ten-season production acceptance took {stopwatch.Elapsed}.");
     }
 

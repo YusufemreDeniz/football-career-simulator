@@ -65,7 +65,7 @@ public partial class MatchDayScreen : Control
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleBrand(brand);
-        brand.AddThemeFontSizeOverride("font_size", 31);
+        brand.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(31));
         heroContent.AddChild(brand);
 
         _fixtureLabel = new Label
@@ -74,7 +74,7 @@ public partial class MatchDayScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(_fixtureLabel);
-        _fixtureLabel.AddThemeFontSizeOverride("font_size", 24);
+        _fixtureLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(24));
         heroContent.AddChild(_fixtureLabel);
 
         _headlineLabel = new Label
@@ -194,6 +194,12 @@ public partial class MatchDayScreen : Control
     public void SetStatus(string message)
     {
         _statusLabel.Text = message;
+        if (CareerUiTheme.ReducedMotion)
+        {
+            _statusLabel.Modulate = Colors.White;
+            return;
+        }
+
         _statusLabel.Modulate = new Color(1f, 1f, 1f, 0.35f);
         var tween = CreateTween();
         tween.TweenProperty(_statusLabel, "modulate:a", 1f, 0.25f);
@@ -216,11 +222,18 @@ public partial class MatchDayScreen : Control
         if (tempoFlash is not null)
         {
             _tempoFlashLabel.Text = "●  " + tempoFlash.BeatLine;
-            _tempoFlashLabel.Modulate = new Color(1f, 1f, 1f, 0.35f);
-            var flashTween = CreateTween();
-            flashTween.TweenProperty(_tempoFlashLabel, "modulate:a", 1f, 0.4f)
-                .SetTrans(Tween.TransitionType.Sine)
-                .SetEase(Tween.EaseType.Out);
+            if (CareerUiTheme.ReducedMotion)
+            {
+                _tempoFlashLabel.Modulate = Colors.White;
+            }
+            else
+            {
+                _tempoFlashLabel.Modulate = new Color(1f, 1f, 1f, 0.35f);
+                var flashTween = CreateTween();
+                flashTween.TweenProperty(_tempoFlashLabel, "modulate:a", 1f, 0.4f)
+                    .SetTrans(Tween.TransitionType.Sine)
+                    .SetEase(Tween.EaseType.Out);
+            }
         }
 
         MatchScreenUi.ClearChildren(_briefingLines);
@@ -549,11 +562,8 @@ internal static class MatchScreenUi
         margin.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
         margin.GrowHorizontal = Control.GrowDirection.Both;
         margin.GrowVertical = Control.GrowDirection.Both;
-        margin.AddThemeConstantOverride("margin_left", horizontalMargin);
-        margin.AddThemeConstantOverride("margin_top", verticalMargin);
-        margin.AddThemeConstantOverride("margin_right", horizontalMargin);
-        margin.AddThemeConstantOverride("margin_bottom", verticalMargin);
         owner.AddChild(margin);
+        DisplaySafeAreaInsets.ApplyTo(owner, margin, horizontalMargin, verticalMargin);
         return margin;
     }
 
@@ -633,7 +643,7 @@ internal static class MatchScreenUi
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(titleLabel);
-        titleLabel.AddThemeFontSizeOverride("font_size", 19);
+        titleLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(19));
         stack.AddChild(titleLabel);
         return stack;
     }
@@ -666,6 +676,12 @@ internal static class MatchScreenUi
 
     public static void FadeIn(Control content, Node owner)
     {
+        if (CareerUiTheme.ReducedMotion)
+        {
+            content.Modulate = Colors.White;
+            return;
+        }
+
         content.Modulate = new Color(1f, 1f, 1f, 0f);
         var tween = owner.CreateTween();
         tween.TweenProperty(content, "modulate:a", 1f, 0.35f)

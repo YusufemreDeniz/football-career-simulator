@@ -107,6 +107,37 @@ public sealed class TrainingPhysicalStateTests : IDisposable
     }
 
     [Fact]
+    public void SetWeeklyTrainingPlan_SecondChoiceOnSameDay_DoesNotStackPhysicalLoad()
+    {
+        var (_, _, _, _, _, training) = CreateStack();
+
+        var first = training.SetWeeklyPlan.Handle(
+            new SetWeeklyTrainingPlanCommand(
+                Guid.NewGuid(),
+                (int)TrainingFocus.General,
+                (int)TrainingIntensity.High,
+                (int)RestApproach.Light));
+        var afterFirst = training.Store.PhysicalStates
+            .Select(state => (state.SlotIndex, state.Fatigue, state.Fitness, state.InjurySeverity))
+            .ToArray();
+
+        var second = training.SetWeeklyPlan.Handle(
+            new SetWeeklyTrainingPlanCommand(
+                Guid.NewGuid(),
+                (int)TrainingFocus.Recovery,
+                (int)TrainingIntensity.Low,
+                (int)RestApproach.Heavy));
+        var afterSecond = training.Store.PhysicalStates
+            .Select(state => (state.SlotIndex, state.Fatigue, state.Fitness, state.InjurySeverity))
+            .ToArray();
+
+        Assert.True(first.PhysicalLoadApplied);
+        Assert.False(second.PhysicalLoadApplied);
+        Assert.Equal(afterFirst, afterSecond);
+        Assert.Equal(TrainingFocus.Recovery, training.Store.GetPlan(new ClubId(1))!.Focus);
+    }
+
+    [Fact]
     public void HighFatigueLineup_ProducesNegativeMatchModifier()
     {
         var (_, _, _, _, _, training) = CreateStack();
@@ -236,7 +267,7 @@ public sealed class TrainingPhysicalStateTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(45, loaded.SchemaVersion);
+        Assert.Equal(46, loaded.SchemaVersion);
         Assert.Single(loaded.TrainingPlans);
         Assert.Equal(TrainingIntensity.Medium, loaded.TrainingPlans[0].Intensity);
         Assert.Equal(25, loaded.PhysicalStates.Count);

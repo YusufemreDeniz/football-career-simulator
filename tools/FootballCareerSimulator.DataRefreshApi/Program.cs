@@ -2,12 +2,15 @@ using System.Diagnostics;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls("http://127.0.0.1:5287");
 builder.Services.AddSingleton<TurkeySuperLigDataRefreshStatus>();
 
+const string StatusPath = "/api/data-refresh/turkey-super-lig-2026-27/status";
 var app = builder.Build();
 
+app.MapGet("/", () => Results.Redirect(StatusPath));
 app.MapGet(
-    "/api/data-refresh/turkey-super-lig-2026-27/status",
+    StatusPath,
     async (TurkeySuperLigDataRefreshStatus status, CancellationToken cancellationToken) =>
         Results.Text(
             await status.GetAsync(cancellationToken),
@@ -75,8 +78,9 @@ internal sealed class TurkeySuperLigDataRefreshStatus(IConfiguration configurati
 
     private static ProcessStartInfo CreateStartInfo(string scriptPath, string workspaceRoot)
     {
-        var startInfo = new ProcessStartInfo("pwsh.exe")
+        var startInfo = new ProcessStartInfo(ResolvePowerShellExecutable())
         {
+            WorkingDirectory = workspaceRoot,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             StandardOutputEncoding = Encoding.UTF8,
@@ -95,6 +99,51 @@ internal sealed class TurkeySuperLigDataRefreshStatus(IConfiguration configurati
         startInfo.ArgumentList.Add("-CheckOnly");
         startInfo.ArgumentList.Add("-AsJson");
         return startInfo;
+    }
+
+    private static string ResolvePowerShellExecutable()
+    {
+        foreach (var name in new[] { "pwsh.exe", "powershell.exe" })
+        {
+            var resolved = FindOnPath(name);
+            if (resolved is not null)
+            {
+                return resolved;
+            }
+        }
+
+        var windowsPowerShell = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.System),
+            "WindowsPowerShell",
+            "v1.0",
+            "powershell.exe");
+        if (File.Exists(windowsPowerShell))
+        {
+            return windowsPowerShell;
+        }
+
+        throw new FileNotFoundException(
+            "PowerShell bulunamadı. Windows PowerShell veya PowerShell 7 (pwsh) gerekir.");
+    }
+
+    private static string? FindOnPath(string fileName)
+    {
+        var path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var candidate = Path.Combine(directory.Trim('"'), fileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 
     private static string FindWorkspaceRoot(string startPath)

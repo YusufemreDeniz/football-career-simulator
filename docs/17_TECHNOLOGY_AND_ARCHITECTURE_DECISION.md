@@ -1072,7 +1072,7 @@ Kapanan teknik pinler: Godot 4.7-stable mono/.NET, `net9.0`, SDK `9.0.317/latest
 
 ## 20. Sonraki Adım
 
-Altı teknik spike tamamlanmış, üretim implementasyonu başlamış ve araç zinciri D-384 ile pinlenmiştir. V45 üretim kaydı, çok sezon kariyer bütünlüğü ve 10 sezonluk production kabul koşusu D-386–D-394 ile kanıtlanmıştır. Güncel uygulama sırası `docs/19_PRODUCTION_IMPLEMENTATION_PLAN.md` üstündeki uygulama kontrol noktasında izlenir; sıradaki teknik hedef hızlı/long-running kapıları korumak ve gerçek cihaz UX/denge kabulini tamamlamaktır.
+Altı teknik spike tamamlanmış, üretim implementasyonu başlamış ve araç zinciri D-384 ile pinlenmiştir. V46 üretim kaydı, çok sezon kariyer bütünlüğü ve 10 sezonluk production kabul koşusu D-386–D-395 ile kanıtlanmıştır. Güncel uygulama sırası `docs/19_PRODUCTION_IMPLEMENTATION_PLAN.md` üstündeki uygulama kontrol noktasında izlenir; sıradaki teknik hedef hızlı/long-running kapıları korumak ve fiziksel hoparlör/titreşim/ısınma soak'ını tamamlamaktır.
 
 ---
 

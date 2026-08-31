@@ -63,14 +63,27 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
         var rootSeed = _timelineStore.Timeline.RootSeed;
 
         var plan = WeeklyTrainingPlan.Set(clubId, focus, intensity, rest, day);
-        var physical = MvpTrainingLoadApplier.ApplyPlanToSquad(
-            plan,
-            rootSeed,
-            _store.PhysicalBySlot);
+        var existingPlan = _store.GetPlan(clubId);
+        var existingPhysical = _store.PhysicalStates
+            .Where(state => state.ClubId == clubId)
+            .OrderBy(state => state.SlotIndex)
+            .ToArray();
+        var physicalLoadAlreadyApplied = existingPlan?.SetAt.DayNumber == day.DayNumber
+            && existingPhysical.Length > 0;
+        var physical = physicalLoadAlreadyApplied
+            ? existingPhysical
+            : MvpTrainingLoadApplier.ApplyPlanToSquad(
+                plan,
+                rootSeed,
+                _store.PhysicalBySlot);
 
         _store.UpsertPlan(plan);
-        _store.ReplacePhysicalStatesForClub(clubId, physical);
-        _playerDevelopment?.EnsureAndApplyWeeklyTraining(clubId, plan, rootSeed, day);
+        if (!physicalLoadAlreadyApplied)
+        {
+            _store.ReplacePhysicalStatesForClub(clubId, physical);
+            _playerDevelopment?.EnsureAndApplyWeeklyTraining(clubId, plan, rootSeed, day);
+        }
+
         _clubSquadService?.SyncFromActiveContracts(clubId, day);
 
         var invalidated = _selectionRevalidation?.InvalidateUnavailableForClub(clubId, day) ?? 0;
@@ -85,7 +98,8 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
             (int)Math.Round(xi.Average(s => s.Fatigue), MidpointRounding.AwayFromZero),
             (int)Math.Round(xi.Average(s => s.Fitness), MidpointRounding.AwayFromZero),
             physical.Count(s => s.IsInjured),
-            invalidated);
+            invalidated,
+            PhysicalLoadApplied: !physicalLoadAlreadyApplied);
 
         _completed[command.CommandId] = result;
         return result;

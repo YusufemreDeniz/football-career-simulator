@@ -1,4 +1,6 @@
 using FootballCareerSimulator.Application.Competition.Commands;
+using FootballCareerSimulator.Application.Competition.Queries;
+using FootballCareerSimulator.Application.PlayerCareer.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
@@ -15,13 +17,78 @@ public static class CareerUiSmokeTest
     public static bool Run()
     {
         var passed = true;
-        var mobileLayout = Application.CareerHub.Queries.MobileUiLayoutProfile.Resolve(360, 800, 24);
+        var mobileLayout = Application.CareerHub.Queries.MobileUiLayoutProfile.Resolve(
+            360,
+            800,
+            safeLeftInset: 12,
+            safeTopInset: 24,
+            safeRightInset: 8,
+            safeBottomInset: 32);
         passed &= LogCheck(
             "Mobil güvenli alan ve dokunma profili",
             mobileLayout.IsCompact
             && mobileLayout.NavigationColumns == 3
             && mobileLayout.TouchTargetHeight >= 48
-            && mobileLayout.BottomMargin >= 24);
+            && mobileLayout.LeftMargin >= 12
+            && mobileLayout.TopMargin >= 24
+            && mobileLayout.RightMargin >= 8
+            && mobileLayout.BottomMargin >= 32);
+        var scaledSafeArea = DisplaySafeAreaInsets.FromMetrics(
+            new Vector2(844, 390),
+            new Vector2I(2400, 1080),
+            new Rect2I(90, 24, 2220, 1020));
+        passed &= LogCheck(
+            "Fiziksel güvenli alanın dört kenar ölçeği",
+            scaledSafeArea.Left == 32
+            && scaledSafeArea.Top == 9
+            && scaledSafeArea.Right == 32
+            && scaledSafeArea.Bottom == 13);
+        var deviceAcceptance = Application.CareerHub.Queries.MobileDeviceAcceptanceProfile.Evaluate(
+            360,
+            800,
+            12,
+            24,
+            8,
+            32,
+            mobileLayout.TouchTargetHeight,
+            bodyFontSize: 16,
+            touchInputAvailable: false);
+        passed &= LogCheck(
+            "Mobil cihaz kabul ayrımı",
+            deviceAcceptance.IsReady
+            && deviceAcceptance.PhysicalEvidencePending
+            && deviceAcceptance.Checks.Any(check =>
+                check.Contains("fiziksel release soak", StringComparison.OrdinalIgnoreCase)));
+        var guidePreferences = Application.CareerHub.Queries.GameExperiencePreferences.Default with
+        {
+            TextScalePercent = 130,
+            FirstWeekGuideStep = 2,
+        };
+        var firstWeekGuide = Application.CareerHub.Queries.FirstWeekGuideDigest.Compose(
+            guidePreferences.FirstWeekGuideEnabled,
+            guidePreferences.FirstWeekGuideStep,
+            daysSinceCareerStart: 2);
+        passed &= LogCheck(
+            "Erişilebilirlik ve ilk hafta rehberi",
+            guidePreferences.ScaleFont(16) == 21
+            && firstWeekGuide is { IsVisible: true, StepNumber: 3 }
+            && firstWeekGuide.CurrentStep?.TargetPageCode
+                == Application.CareerHub.Queries.FirstWeekGuideDigest.PagePrep);
+        var mutedMix = MatchAudioSettings.FromPreferences(
+            Application.CareerHub.Queries.GameExperiencePreferences.Default with
+            {
+                MusicEnabled = false,
+                CrowdEnabled = false,
+                HapticsEnabled = false,
+                HighContrast = true,
+                ReducedMotion = true,
+            });
+        passed &= LogCheck(
+            "Ses karışımı ve erişilebilirlik sözleşmesi",
+            mutedMix.MasterEnabled
+            && mutedMix.SfxEnabled
+            && !mutedMix.MusicEnabled
+            && !mutedMix.CrowdEnabled);
         passed &= LogCheck(
             "Yatay ve dikey dokunma kaydırması",
             MobileScrollContainer.ResolveDragAxis(new Vector2(20, 2), true, false)
@@ -161,6 +228,7 @@ public static class CareerUiSmokeTest
                 new AdvanceSimulationTimeCommand(Guid.NewGuid(), firstMatchday));
 
             var managedClubId = host.ManagerModule.Queries.GetCareer().EmployedClubId ?? 1;
+            var expectedPreparationModifier = 0;
             var managedRoundOne = roundOne.FirstOrDefault(fixture =>
                 fixture.HomeClubId == managedClubId || fixture.AwayClubId == managedClubId);
             if (managedRoundOne is not null)
@@ -208,6 +276,65 @@ public static class CareerUiSmokeTest
                         && !string.IsNullOrWhiteSpace(candidate.DisplayName)
                         && candidate.EstimatedAbilityLow <= candidate.EstimatedAbilityHigh));
 
+                var trainingPriority = controller.BuildMatchTrainingPriorityDigest();
+                passed &= LogCheck(
+                    "Rakibe göre maç antrenmanı",
+                    trainingPriority.IsAvailable
+                    && trainingPriority.Options.Count == 5
+                    && trainingPriority.RecommendedPriority is not null);
+                var selectedTraining = trainingPriority.Options
+                    .OrderByDescending(option => option.TemporaryMatchModifier)
+                    .ThenBy(option => option.Rank)
+                    .First();
+                expectedPreparationModifier = selectedTraining.TemporaryMatchModifier;
+                var trainingSelection = controller.SelectMatchTrainingPriority(selectedTraining.Priority);
+                passed &= LogCheck(
+                    "Maç antrenmanı seçimi",
+                    trainingSelection.Succeeded
+                    && trainingSelection.Message.Contains(
+                        selectedTraining.Title,
+                        StringComparison.Ordinal));
+                var preparationSavePath = Path.Combine(
+                    OS.GetUserDataDir(),
+                    "career_match_training_selfcheck.db");
+                host.GameSession.Save(
+                    preparationSavePath,
+                    controller.CaptureHubNarrativeUiState());
+                var preparationLoad = host.GameSession.Load(preparationSavePath);
+                controller.ApplyHubNarrativeUiState(preparationLoad.HubNarrativeUiState);
+                passed &= LogCheck(
+                    "Maç antrenmanı save/load",
+                    preparationLoad.HubNarrativeUiState?.PendingMatchTrainingFixtureId
+                        == managedRoundOne.FixtureId
+                    && preparationLoad.HubNarrativeUiState.PendingMatchTrainingModifier
+                        == expectedPreparationModifier);
+
+                var academy = controller.BuildYouthAcademyIntake();
+                passed &= LogCheck(
+                    "Sezonluk genç akademisi",
+                    academy is { IsRevealed: true }
+                    && academy.Candidates.Count is >= 3 and <= 5);
+                if (academy?.Candidates.FirstOrDefault(candidate =>
+                        candidate.DecisionStatus == YouthAcademyCandidateDecisionStatus.Pending)
+                    is { } youthCandidate)
+                {
+                    var youthDecision = controller.AcceptYouthAcademyCandidate(youthCandidate.PlayerId);
+                    var refreshedAcademy = controller.BuildYouthAcademyIntake();
+                    passed &= LogCheck(
+                        "Akademi kararının kalıcılığı",
+                        youthDecision.Succeeded
+                        && refreshedAcademy?.Candidates.Single(candidate =>
+                                candidate.PlayerId == youthCandidate.PlayerId)
+                            .DecisionStatus == YouthAcademyCandidateDecisionStatus.Accepted);
+                }
+
+                var economy = controller.BuildClubEconomy();
+                passed &= LogCheck(
+                    "Kulüp ekonomisi ve yönetim hedefleri",
+                    economy is not null
+                    && economy.WeeklyWageLimit > 0
+                    && economy.BoardObjectives.Count == 3);
+
                 host.TeamPreparationModule.ApproveDefaultSelection.Handle(
                     new ApproveDefaultMatchSelectionCommand(
                         Guid.NewGuid(),
@@ -222,8 +349,18 @@ public static class CareerUiSmokeTest
                     Guid.NewGuid(),
                     CareerSessionController.DefaultSeasonId,
                     playFixture.FixtureId,
-                    firstMatchday));
+                    firstMatchday,
+                    ManagedPreparationModifier: expectedPreparationModifier));
             passed &= LogCheck("Maç oynatma", playResult.Succeeded);
+            passed &= LogCheck(
+                "Maç hazırlığı motor etkisi",
+                playResult.ManagedPreparationModifier == expectedPreparationModifier);
+            var storyboard = MatchMomentStoryboard.Build(
+                playResult.KeyMoments,
+                sequenceSeed: unchecked((int)playFixture.FixtureId));
+            passed &= LogCheck(
+                "Gerçek maç anlarından 2D akış",
+                storyboard.Frames.Count == (playResult.KeyMoments?.Count ?? 0));
             passed &= LogCheck(
                 "Puan durumu güncellendi",
                 competition.Queries.GetStandings(CareerSessionController.DefaultSeasonId)

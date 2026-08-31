@@ -85,7 +85,7 @@ public sealed class EventEffectIdempotencySaveLoadTests : IDisposable
             eventEffectProcessingKeys: keys);
 
         var loaded = _persistence.Load(path);
-        Assert.Equal(45, loaded.SchemaVersion);
+        Assert.Equal(46, loaded.SchemaVersion);
         Assert.Equal(keys, loaded.EventEffectProcessingKeys);
 
         var registry = world.EventRuleEvaluation.Registry;

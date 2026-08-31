@@ -81,7 +81,7 @@ public partial class MainMenuScreen : Control
             MouseFilter = MouseFilterEnum.Ignore,
         };
         CareerUiTheme.StyleEyebrow(footer, CareerUiTheme.Data);
-        footer.AddThemeFontSizeOverride("font_size", 11);
+        footer.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         _content.AddChild(footer);
 
         AnimateEntry(brandLine, emblem, actionCard);
@@ -90,6 +90,12 @@ public partial class MainMenuScreen : Control
     public void SetStatus(string message)
     {
         _statusLabel.Text = message;
+        if (CareerUiTheme.ReducedMotion)
+        {
+            _statusLabel.Modulate = Colors.White;
+            return;
+        }
+
         _statusLabel.Modulate = new Color(1f, 1f, 1f, 0.42f);
         var tween = CreateTween();
         tween.TweenProperty(_statusLabel, "modulate:a", 1f, 0.24f)
@@ -146,7 +152,7 @@ public partial class MainMenuScreen : Control
             VerticalAlignment = VerticalAlignment.Center,
         };
         CareerUiTheme.StyleHeadline(emblemText);
-        emblemText.AddThemeFontSizeOverride("font_size", 19);
+        emblemText.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(19));
         emblemText.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         emblem.AddChild(emblemText);
         hero.AddChild(emblem);
@@ -165,7 +171,7 @@ public partial class MainMenuScreen : Control
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleBrand(brand);
-        brand.AddThemeFontSizeOverride("font_size", 34);
+        brand.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(34));
         hero.AddChild(brand);
 
         var brandSecondLine = new Label
@@ -174,7 +180,7 @@ public partial class MainMenuScreen : Control
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleHeadline(brandSecondLine);
-        brandSecondLine.AddThemeFontSizeOverride("font_size", 20);
+        brandSecondLine.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(20));
         brandSecondLine.AddThemeColorOverride("font_color", CareerUiTheme.InkMuted);
         hero.AddChild(brandSecondLine);
 
@@ -198,7 +204,7 @@ public partial class MainMenuScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(tagline, muted: true);
-        tagline.AddThemeFontSizeOverride("font_size", 14);
+        tagline.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(14));
         hero.AddChild(tagline);
 
         var facts = new HBoxContainer
@@ -236,7 +242,7 @@ public partial class MainMenuScreen : Control
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleHeadline(title);
-        title.AddThemeFontSizeOverride("font_size", 18);
+        title.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(18));
         actions.AddChild(title);
 
         var subtitle = new Label
@@ -246,7 +252,7 @@ public partial class MainMenuScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(subtitle, muted: true);
-        subtitle.AddThemeFontSizeOverride("font_size", 13);
+        subtitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
         actions.AddChild(subtitle);
 
         var newButton = new Button
@@ -292,7 +298,7 @@ public partial class MainMenuScreen : Control
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleBody(_statusLabel, muted: true);
-        _statusLabel.AddThemeFontSizeOverride("font_size", 12);
+        _statusLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
         statusPanel.AddChild(_statusLabel);
 
         return panel;
@@ -313,7 +319,7 @@ public partial class MainMenuScreen : Control
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleEyebrow(label, color);
-        label.AddThemeFontSizeOverride("font_size", 10);
+        label.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
         panel.AddChild(label);
         return panel;
     }
@@ -327,6 +333,12 @@ public partial class MainMenuScreen : Control
         }
 
         glow.Modulate = new Color(1f, 1f, 1f, 0.68f);
+        if (CareerUiTheme.ReducedMotion)
+        {
+            glow.Modulate = Colors.White;
+            return;
+        }
+
         var pulse = CreateTween().SetLoops();
         pulse.TweenProperty(glow, "modulate:a", 1f, 3.2f)
             .SetTrans(Tween.TransitionType.Sine)
@@ -338,6 +350,15 @@ public partial class MainMenuScreen : Control
 
     private void AnimateEntry(ColorRect brandLine, PanelContainer emblem, Control actionCard)
     {
+        if (CareerUiTheme.ReducedMotion)
+        {
+            _content.Modulate = Colors.White;
+            emblem.Scale = Vector2.One;
+            brandLine.CustomMinimumSize = new Vector2(150, brandLine.CustomMinimumSize.Y);
+            actionCard.Modulate = Colors.White;
+            return;
+        }
+
         _content.Modulate = new Color(1f, 1f, 1f, 0f);
         emblem.PivotOffset = new Vector2(32, 32);
         emblem.Scale = new Vector2(0.88f, 0.88f);

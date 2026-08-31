@@ -19,24 +19,27 @@
 
 ---
 
-## Güncel Uygulama Kontrol Noktası — 2026-08-19
+## Güncel Uygulama Kontrol Noktası — 2026-08-21
 
 Bu bölüm güncel repo durumunun authoritative özetidir. Bölüm 2 ve Bölüm 7'deki ayrıntılı spike/Production Kart anlatıları tarihsel planlama kaydı olarak korunur; “henüz başlamadı”, “36 test” ve “Kart 0 bloke” ifadeleri yalnız o tarihteki durumu anlatır ve bu kontrol noktasıyla geçersiz kılınmıştır.
 
 * Araç zinciri: `net9.0`, SDK `9.0.317/latestPatch`, Godot 4.7-stable mono/.NET, `Microsoft.Data.Sqlite 10.0.9` (D-384).
-* Kalite kapısı: 884/884 hızlı saf .NET test (`Category!=LongRunning`), 1/1 production 10 sezon kabul testi, Presentation build 0 hata/uyarı ve `CAREER_UI_SMOKE_TEST_RESULT=PASS`.
+* Kalite kapısı: 929/929 hızlı saf .NET test (`Category!=LongRunning`), Presentation build 0 hata/uyarı, `CAREER_UI_SMOKE_TEST_RESULT=PASS` ve bu oyuncu-deneyimi paketinde yeniden koşulan `LongRunning` 10 sezon kabulü 1/1 (Debug 9:43, bütçe 12 dk, D-397).
 * Üretim kapsamı: 14 bounded context'in production temelleri ile birleşik Career SQLite persistence ve Godot menü → kariyer merkezi → maç günü → maç sonucu akışı depoda mevcuttur.
-* Save/kariyer sürekliliği: V45; açıklanabilir emeklilik, benzersiz generation kimliği, sözleşme/kadro yenileme, employment history ve eski kulüp/futbolcuyla fikstür-temelli yeniden karşılaşma kalıcıdır (D-386–D-393).
+* Oyuncu-deneyimi kapsamı: dört kenarlı mobil güvenli alan/otomatik cihaz kabul özeti, kalıcı erişilebilirlik ve ses tercihleri, prosedürel maç atmosferi, gerçek maç olaylarından deterministik 2D saha anları, ilk hafta rehberi, rakibe göre maça özel antrenman, genç akademisi kararları ve kulüp ekonomisi/yönetim hedefleri gerçek kariyer sayfalarına bağlıdır.
+* Save/kariyer sürekliliği: V46; açıklanabilir emeklilik, benzersiz generation kimliği, sözleşme/kadro yenileme, employment history, eski kulüp/futbolcuyla fikstür-temelli yeniden karşılaşma ve genç akademisi kabul/ret kararları kalıcıdır (D-386–D-393, D-395).
+* Akademi save notu: `DecisionRequestKind.YouthAcademyCandidate` V46 sözleşmesidir. V45 kayıtlar V46'ya taşınır; Kind=7 satırları korunur. Eski V45 binary V46 dosyayı reddeder (D-256, D-395).
+* Cihaz kapısı: okunabilirlik, 48px dokunma, yazı ölçeği ve ses/titreşim/kontrast tercihleri otomatik profildedir (D-396). Hoparlör, titreşim motoru ve ısınma fiziksel release soak'tır.
 * Production Kart 0–6: tamamlandı. Spike placeholder'ları yalnız tarihsel kanıt/uyumluluk amacıyla ayrık namespace'lerde tutulur; oyuncu akışı bunlara dayanmaz.
 
 | MVP kilometre taşı | Güncel durum | Açık ana koşul |
 |---|---|---|
-| 1 — Tek sezonluk dikey kesit | Otomatik kabul tamamlandı | Gerçek cihazda okunabilirlik, dokunma ve denge release onayı |
+| 1 — Tek sezonluk dikey kesit | Yazılım kabulü tamamlandı | D-396: hoparlör / titreşim motoru / ısınma fiziksel release soak |
 | 2 — Aynı kulüpte çok sezon | Tamamlandı | D-386–D-391: emeklilik/generation, contract/squad/population sürekliliği |
 | 3 — İşten çıkarılma ve sınırlı kulüp değiştirme | Tamamlandı | D-392–D-393: V45 employment history ve fixture-temelli yeniden karşılaşma |
-| 4 — 10 sezonluk MVP kabulü | Tamamlandı | D-394: 18 kulüp, 450 aktif oyuncu, 3.060 fikstür, ara save/load, 7:11 Debug koşu |
+| 4 — 10 sezonluk MVP kabulü | Tamamlandı | D-394/D-397: 18 kulüp, 450 aktif oyuncu, 3.060 fikstür, ara save/load; V46 final load; bütçe 12 dk |
 
-Sonraki uygulama sırası: hızlı ve long-running kalite kapılarını korumak → gerçek cihaz UX/denge kabulü → yalnız ölçülmüş oyuncu deneyimi bulgularına göre ürün cilası. Yeni yatay sistem açılması bu kabul durumunun parçası değildir.
+Sonraki uygulama sırası: hızlı ve long-running kalite kapılarını korumak → fiziksel hoparlör/titreşim/ısınma soak → yalnız ölçülmüş oyuncu deneyimi bulgularına göre ürün cilası. Yeni yatay sistem açılması bu kabul durumunun parçası değildir.
 
 ---
 
@@ -756,9 +759,9 @@ Bu plan belgesi, aşağıdaki koşulların TAMAMI karşılandığında tamamlanm
 
 ## 11. Sonraki Adım — Güncel
 
-D-384 ile Production Kart 0 bloku kapanmış, Kart 1–6 gerçek kodda tamamlanmış ve D-385–D-394 ile repository hijyeni ile MVP Kilometre Taşı 2–4 kapatılmıştır. Sıradaki iş yeni yatay özellik açmak değildir:
+D-384 ile Production Kart 0 bloku kapanmış, Kart 1–6 gerçek kodda tamamlanmış ve D-385–D-396 ile repository hijyeni, MVP Kilometre Taşı 2–4, V46 akademi save sözleşmesi ve otomatik cihaz kapısı kapatılmıştır. Sıradaki iş yeni yatay özellik açmak değildir:
 
-1. Hızlı 884 testlik kapıyı ve ayrı production 10 sezon soak testini regressionsız korumak.
-2. Kilometre Taşı 1'in kalan gerçek cihaz okunabilirlik, dokunma, performans ve denge kabulünü yapmak.
+1. Hızlı test kapısını ve ayrı production 10 sezon soak testini regressionsız korumak.
+2. Kilometre Taşı 1'in kalan fiziksel hoparlör, titreşim motoru ve ısınma soak'ını gerçek cihazda yapmak.
 3. Cihaz/oyuncu testinde ölçülen bulguları küçük ürün cilası commitleriyle kapatmak.
-4. Yeni schema veya sistem değişikliğinde V45 migration ve uzun dönem kabulünü yeniden çalıştırmak.
+4. Yeni schema veya sistem değişikliğinde V46 migration ve uzun dönem kabulünü yeniden çalıştırmak.

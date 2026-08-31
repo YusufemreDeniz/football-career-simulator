@@ -258,6 +258,11 @@ public sealed class SeasonTransitionTests
 
         Assert.Empty(selectionStore.Selections);
 
+        Assert.Null(teamPrep.SelectionQueries.GetNextDueManagedFixture(startDay - 5));
+        var nextPlanned = teamPrep.SelectionQueries.GetNextPlannedManagedFixture(startDay - 5);
+        Assert.NotNull(nextPlanned);
+        Assert.Equal(startDay, nextPlanned.ScheduledDayNumber);
+
         var nextDue = teamPrep.SelectionQueries.GetNextDueManagedFixture(startDay);
         Assert.NotNull(nextDue);
         Assert.False(nextDue.IsApproved);

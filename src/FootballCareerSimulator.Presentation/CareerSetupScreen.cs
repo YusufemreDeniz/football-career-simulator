@@ -87,7 +87,7 @@ public partial class CareerSetupScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(title);
-        title.AddThemeFontSizeOverride("font_size", 27);
+        title.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(27));
         content.AddChild(title);
 
         var date = new Label
@@ -96,7 +96,7 @@ public partial class CareerSetupScreen : Control
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleBody(date, muted: true);
-        date.AddThemeFontSizeOverride("font_size", 13);
+        date.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
         content.AddChild(date);
 
         content.AddChild(BuildManagerSection());
@@ -121,7 +121,7 @@ public partial class CareerSetupScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(note, muted: true);
-        note.AddThemeFontSizeOverride("font_size", 12);
+        note.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
         content.AddChild(note);
 
         UpdateClubPreview(0);
@@ -198,12 +198,12 @@ public partial class CareerSetupScreen : Control
 
         _clubName = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
         CareerUiTheme.StyleHeadline(_clubName);
-        _clubName.AddThemeFontSizeOverride("font_size", 19);
+        _clubName.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(19));
         information.AddChild(_clubName);
 
         _clubSummary = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
         CareerUiTheme.StyleBody(_clubSummary, muted: true);
-        _clubSummary.AddThemeFontSizeOverride("font_size", 13);
+        _clubSummary.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
         information.AddChild(_clubSummary);
 
         return section;

@@ -65,7 +65,7 @@ public partial class LandscapeHalfTimeScreen : Control
         scoreBlock.AddChild(fixture);
         var score = new Label { Text = _digest.Scoreline, HorizontalAlignment = HorizontalAlignment.Right };
         CareerUiTheme.StyleBrand(score);
-        score.AddThemeFontSizeOverride("font_size", 34);
+        score.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(34));
         header.AddChild(score);
 
         var body = new HBoxContainer

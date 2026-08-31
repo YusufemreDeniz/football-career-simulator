@@ -155,6 +155,21 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             + awayTactic
             + awayLineupRole;
 
+        var managedPreparationModifier = isManagedMatch
+            ? Math.Clamp(command.ManagedPreparationModifier, -4, 4)
+            : 0;
+        if (managedPreparationModifier != 0 && managedClubBefore is ClubId preparedClub)
+        {
+            if (fixture.HomeClubId == preparedClub)
+            {
+                homeBonus += managedPreparationModifier;
+            }
+            else
+            {
+                awayBonus += managedPreparationModifier;
+            }
+        }
+
         var homeSecondHalfDelta = 0;
         var awaySecondHalfDelta = 0;
         if (isManagedMatch
@@ -308,7 +323,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             consequences,
             keyMomentArray,
             statistics,
-            managedLineupRoleModifier);
+            managedLineupRoleModifier,
+            isManagedMatch ? managedPreparationModifier : null);
 
         _completedCommands[command.CommandId] = result;
         return result;
@@ -1100,7 +1116,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     public MatchHalfTimePreview PreviewHalfTime(
         long seasonId,
         long fixtureId,
-        int occurredAtDayNumber)
+        int occurredAtDayNumber,
+        int managedPreparationModifier = 0)
     {
         var occurredAt = CompetitionSeasonCommandSupport.ToGameDate(occurredAtDayNumber);
         var season = CompetitionSeasonCommandSupport.GetSeasonOrThrow(_competitionStore, seasonId);
@@ -1111,14 +1128,27 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var awayClub = _clubRegistryStore.Registry.GetClubOrThrow(fixture.AwayClubId);
         var rootSeed = _timelineStore.Timeline.RootSeed;
 
+        var managedClubId = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
+        var isManagedMatch = managedClubId is ClubId managed
+            && (fixture.HomeClubId == managed || fixture.AwayClubId == managed);
+        var safePreparationModifier = isManagedMatch
+            ? Math.Clamp(managedPreparationModifier, -4, 4)
+            : 0;
+
         var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
             + ResolveTacticModifier(fixture.HomeClubId)
-            + ResolveLineupRoleModifier(fixture.Id, fixture.HomeClubId, rootSeed);
+            + ResolveLineupRoleModifier(fixture.Id, fixture.HomeClubId, rootSeed)
+            + (managedClubId is ClubId homeManaged && fixture.HomeClubId == homeManaged
+                ? safePreparationModifier
+                : 0);
         var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed, occurredAt)
             + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
             + ResolveTacticModifier(fixture.AwayClubId)
-            + ResolveLineupRoleModifier(fixture.Id, fixture.AwayClubId, rootSeed);
+            + ResolveLineupRoleModifier(fixture.Id, fixture.AwayClubId, rootSeed)
+            + (managedClubId is ClubId awayManaged && fixture.AwayClubId == awayManaged
+                ? safePreparationModifier
+                : 0);
 
         var simulation = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
             rootSeed,
@@ -1138,8 +1168,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             .ThenBy(moment => moment.PrimarySlotIndex)
             .ToArray();
 
-        var managedClubId = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
-        var managedIsHome = managedClubId is ClubId managed && fixture.HomeClubId == managed;
+        var managedIsHome = managedClubId is ClubId managedHome && fixture.HomeClubId == managedHome;
 
         return new MatchHalfTimePreview(
             fixtureId,

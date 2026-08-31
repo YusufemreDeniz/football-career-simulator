@@ -8,6 +8,7 @@ public partial class MatchResultScreen : Control
     private readonly PlayMatchesUiResult _results;
     private readonly MatchNightNarrative _narrative;
     private readonly IReadOnlyList<MatchNightPage> _pages;
+    private readonly ProceduralMatchAudioDirector? _audio;
 
     private int _pageIndex;
     private VBoxContainer _shell = null!;
@@ -17,9 +18,12 @@ public partial class MatchResultScreen : Control
 
     public event Action? ContinueRequested;
 
-    public MatchResultScreen(PlayMatchesUiResult results)
+    public MatchResultScreen(
+        PlayMatchesUiResult results,
+        ProceduralMatchAudioDirector? audio = null)
     {
         _results = results;
+        _audio = audio;
         _narrative = results.Narrative
             ?? MatchNightNarrative.Failure(results.Message);
         _pages = MatchNightPagePlan.Build(
@@ -136,7 +140,7 @@ public partial class MatchResultScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(tone);
-        tone.AddThemeFontSizeOverride("font_size", 24);
+        tone.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(24));
         heroContent.AddChild(tone);
 
         if (!string.IsNullOrWhiteSpace(_narrative.SupportingLine))
@@ -147,7 +151,7 @@ public partial class MatchResultScreen : Control
                 alignment: HorizontalAlignment.Center));
         }
 
-        if (animateHero)
+        if (animateHero && !CareerUiTheme.ReducedMotion)
         {
             score.Modulate = new Color(1f, 1f, 1f, 0f);
             tone.Modulate = new Color(1f, 1f, 1f, 0f);
@@ -195,6 +199,23 @@ public partial class MatchResultScreen : Control
 
     private void BuildMatchPage(VBoxContainer content)
     {
+        if (_results.KeyMoments is { Count: > 0 } keyMoments)
+        {
+            content.AddChild(MatchScreenUi.SectionTitle("2D MAÇ AKIŞI", "Kritik anların sahadaki izi"));
+            var pitchPanel = MatchScreenUi.Card(emphasized: true);
+            content.AddChild(pitchPanel);
+            var pitch = new MatchMomentPitchView
+            {
+                ReducedMotion = GameExperienceSettingsStore.Current.ReducedMotion,
+                SecondsPerMoment = GameExperienceSettingsStore.Current.ReducedMotion ? 2.25f : 1.65f,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            };
+            pitch.MomentChanged += (_, frame) =>
+                _audio?.TryPlayMoment(frame.Kind, frame.Minute, frame.PrimarySlotIndex);
+            pitchPanel.AddChild(pitch);
+            pitch.SetMoments(keyMoments, _results.MatchSequenceSeed, autoplay: true);
+        }
+
         if (_narrative.KickoffLines.Count > 0)
         {
             content.AddChild(MatchScreenUi.SectionTitle("BAŞLAMA ANI", "Maça böyle girdin"));
@@ -396,7 +417,7 @@ public partial class MatchResultScreen : Control
         CareerUiTheme.StyleBody(label, muted);
         if (emphasized)
         {
-            label.AddThemeFontSizeOverride("font_size", 17);
+            label.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(17));
             label.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
         }
 
@@ -407,7 +428,7 @@ public partial class MatchResultScreen : Control
     {
         CareerUiTheme.EnsureLoaded();
         CareerUiTheme.StyleBrand(label);
-        label.AddThemeFontSizeOverride("font_size", 42);
+        label.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(42));
         label.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
     }
 }

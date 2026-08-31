@@ -1,4 +1,5 @@
 using Godot;
+using FootballCareerSimulator.Application.CareerHub.Queries;
 
 namespace FootballCareerSimulator.Presentation;
 
@@ -17,8 +18,15 @@ internal static class CareerUiTheme
     public static readonly Color Stroke = new(0.22f, 0.38f, 0.31f, 0.58f);
 
     // Existing callers treat Ink as foreground, Accent as prestige and Action as primary CTA.
-    public static readonly Color Ink = new(0.92f, 0.97f, 0.94f, 1f);
-    public static readonly Color InkMuted = new(0.60f, 0.70f, 0.65f, 1f);
+    private static GameExperiencePreferences _preferences = GameExperiencePreferences.Default;
+
+    public static Color Ink => _preferences.HighContrast
+        ? Colors.White
+        : new Color(0.92f, 0.97f, 0.94f, 1f);
+
+    public static Color InkMuted => _preferences.HighContrast
+        ? new Color(0.78f, 0.86f, 0.81f, 1f)
+        : new Color(0.60f, 0.70f, 0.65f, 1f);
     public static readonly Color Accent = new(0.85f, 0.68f, 0.27f, 1f);
     public static readonly Color Action = new(0.26f, 0.82f, 0.48f, 1f);
     public static readonly Color ActionBright = new(0.36f, 0.91f, 0.57f, 1f);
@@ -29,6 +37,13 @@ internal static class CareerUiTheme
     private static FontFile? _display;
     private static FontFile? _body;
     private static bool _loaded;
+
+    public static bool ReducedMotion => _preferences.ReducedMotion;
+
+    public static void Configure(GameExperiencePreferences preferences) =>
+        _preferences = (preferences ?? GameExperiencePreferences.Default).Normalize();
+
+    public static int FontSize(int baseSize) => _preferences.ScaleFont(baseSize);
 
     public static void EnsureLoaded()
     {
@@ -69,7 +84,7 @@ internal static class CareerUiTheme
     public static void StyleBrand(Label label)
     {
         ApplyDisplayFont(label);
-        label.AddThemeFontSizeOverride("font_size", 36);
+        label.AddThemeFontSizeOverride("font_size", FontSize(36));
         label.AddThemeColorOverride("font_color", Ink);
         label.AddThemeColorOverride("font_shadow_color", new Color(0f, 0f, 0f, 0.42f));
         label.AddThemeConstantOverride("shadow_offset_x", 0);
@@ -79,35 +94,35 @@ internal static class CareerUiTheme
     public static void StyleHeadline(Label label)
     {
         ApplyDisplayFont(label);
-        label.AddThemeFontSizeOverride("font_size", 22);
+        label.AddThemeFontSizeOverride("font_size", FontSize(22));
         label.AddThemeColorOverride("font_color", Ink);
     }
 
     public static void StyleSection(Label label)
     {
         ApplyDisplayFont(label);
-        label.AddThemeFontSizeOverride("font_size", 14);
+        label.AddThemeFontSizeOverride("font_size", FontSize(14));
         label.AddThemeColorOverride("font_color", Accent);
     }
 
     public static void StyleEyebrow(Label label, Color? color = null)
     {
         ApplyBodyFont(label);
-        label.AddThemeFontSizeOverride("font_size", 12);
+        label.AddThemeFontSizeOverride("font_size", FontSize(12));
         label.AddThemeColorOverride("font_color", color ?? Accent);
     }
 
     public static void StyleBody(Label label, bool muted = false)
     {
         ApplyBodyFont(label);
-        label.AddThemeFontSizeOverride("font_size", 15);
+        label.AddThemeFontSizeOverride("font_size", FontSize(15));
         label.AddThemeColorOverride("font_color", muted ? InkMuted : Ink);
     }
 
     public static void StylePrimaryButton(Button button)
     {
         ApplyBodyFont(button);
-        button.AddThemeFontSizeOverride("font_size", 15);
+        button.AddThemeFontSizeOverride("font_size", FontSize(15));
         button.AddThemeColorOverride("font_color", BackgroundDeep);
         button.AddThemeColorOverride("font_hover_color", BackgroundDeep);
         button.AddThemeColorOverride("font_pressed_color", BackgroundDeep);
@@ -124,7 +139,7 @@ internal static class CareerUiTheme
     public static void StyleSecondaryButton(Button button)
     {
         ApplyBodyFont(button);
-        button.AddThemeFontSizeOverride("font_size", 14);
+        button.AddThemeFontSizeOverride("font_size", FontSize(14));
         button.AddThemeColorOverride("font_color", Ink);
         button.AddThemeColorOverride("font_hover_color", Ink);
         button.AddThemeColorOverride("font_pressed_color", Ink);
@@ -141,7 +156,7 @@ internal static class CareerUiTheme
     public static void StyleTextInput(LineEdit input)
     {
         ApplyBodyFont(input);
-        input.AddThemeFontSizeOverride("font_size", 16);
+        input.AddThemeFontSizeOverride("font_size", FontSize(16));
         input.AddThemeColorOverride("font_color", Ink);
         input.AddThemeColorOverride("font_placeholder_color", InkMuted);
         input.AddThemeStyleboxOverride("normal", InputField(Stroke));
@@ -152,7 +167,7 @@ internal static class CareerUiTheme
     public static void StyleOptionSelector(OptionButton selector)
     {
         ApplyBodyFont(selector);
-        selector.AddThemeFontSizeOverride("font_size", 15);
+        selector.AddThemeFontSizeOverride("font_size", FontSize(15));
         selector.AddThemeColorOverride("font_color", Ink);
         selector.AddThemeColorOverride("font_hover_color", Ink);
         selector.AddThemeColorOverride("font_pressed_color", Ink);
@@ -165,7 +180,7 @@ internal static class CareerUiTheme
     public static void StyleNavButton(Button button, bool selected)
     {
         ApplyBodyFont(button);
-        button.AddThemeFontSizeOverride("font_size", 13);
+        button.AddThemeFontSizeOverride("font_size", FontSize(13));
         button.AddThemeColorOverride("font_color", selected ? BackgroundDeep : InkMuted);
         button.AddThemeColorOverride("font_hover_color", selected ? BackgroundDeep : Ink);
         button.AddThemeColorOverride("font_pressed_color", selected ? BackgroundDeep : Ink);
@@ -189,7 +204,7 @@ internal static class CareerUiTheme
     public static void StyleList(ItemList list)
     {
         ApplyBodyFont(list);
-        list.AddThemeFontSizeOverride("font_size", 16);
+        list.AddThemeFontSizeOverride("font_size", FontSize(16));
         list.AddThemeColorOverride("font_color", Ink);
         list.AddThemeColorOverride("font_hovered_color", ActionHover);
         list.AddThemeColorOverride("font_selected_color", BackgroundDeep);
@@ -205,7 +220,7 @@ internal static class CareerUiTheme
     public static void StylePitchChip(Button button, bool selected)
     {
         ApplyBodyFont(button);
-        button.AddThemeFontSizeOverride("font_size", 12);
+        button.AddThemeFontSizeOverride("font_size", FontSize(12));
         var ink = selected ? BackgroundDeep : Ink;
         button.AddThemeColorOverride("font_color", ink);
         button.AddThemeColorOverride("font_hover_color", ink);
@@ -237,7 +252,7 @@ internal static class CareerUiTheme
     public static void StyleTable(Tree table)
     {
         ApplyBodyFont(table);
-        table.AddThemeFontSizeOverride("font_size", 13);
+        table.AddThemeFontSizeOverride("font_size", FontSize(13));
         table.AddThemeColorOverride("font_color", Ink);
         table.AddThemeColorOverride("font_selected_color", BackgroundDeep);
         table.AddThemeColorOverride("title_button_color", InkMuted);
@@ -330,7 +345,7 @@ internal static class CareerUiTheme
     public static void StyleLineupChip(Label label, bool isIn, bool isOut)
     {
         ApplyBodyFont(label);
-        label.AddThemeFontSizeOverride("font_size", 13);
+        label.AddThemeFontSizeOverride("font_size", FontSize(13));
         label.AddThemeColorOverride(
             "font_color",
             isOut ? DangerSoft : isIn ? ActionHover : Ink);

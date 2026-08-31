@@ -49,12 +49,15 @@ public sealed class HubNarrativeUiStateSaveLoadTests : IDisposable
                 NotebookEntry(11, "B FK"),
                 NotebookEntry(12, "C FK"),
                 NotebookEntry(13, "D FK"),
-            ]);
+            ],
+            pendingMatchTrainingFixtureId: 712,
+            pendingMatchTrainingPriorityCode: "defensive_transitions",
+            pendingMatchTrainingModifier: 2);
 
         Save(path, hub);
 
         var loaded = _persistence.Load(path);
-        Assert.Equal(45, loaded.SchemaVersion);
+        Assert.Equal(46, loaded.SchemaVersion);
         Assert.NotNull(loaded.HubNarrativeUiState);
         Assert.Equal("Dönenler işe yaradı — Kurt", loaded.HubNarrativeUiState!.WeekStoryClosureBeat);
         Assert.True(loaded.HubNarrativeUiState.WeekStoryDismissOnNextAdvance);
@@ -71,6 +74,11 @@ public sealed class HubNarrativeUiStateSaveLoadTests : IDisposable
         Assert.Equal(OpponentThreatKind.ProductiveAttack, latest.ThreatKind);
         Assert.Equal(MatchupPlanSignal.Risk, latest.PlanSignal);
         Assert.Equal(MatchupPlanOutcomeSignal.Warning, latest.OutcomeSignal);
+        Assert.Equal(712, loaded.HubNarrativeUiState.PendingMatchTrainingFixtureId);
+        Assert.Equal(
+            "defensive_transitions",
+            loaded.HubNarrativeUiState.PendingMatchTrainingPriorityCode);
+        Assert.Equal(2, loaded.HubNarrativeUiState.PendingMatchTrainingModifier);
     }
 
     [Fact]
@@ -93,7 +101,7 @@ public sealed class HubNarrativeUiStateSaveLoadTests : IDisposable
         var loaded = _persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(45, loaded.SchemaVersion);
+        Assert.Equal(46, loaded.SchemaVersion);
         Assert.Empty(loaded.HubNarrativeUiState!.MatchupPlanHistory);
     }
 

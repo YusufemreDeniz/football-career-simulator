@@ -15,4 +15,5 @@ public sealed record SetWeeklyTrainingPlanResult(
     int AverageFatigue,
     int AverageFitness,
     int InjuredSlotCount,
-    int InvalidatedSelectionCount = 0);
+    int InvalidatedSelectionCount = 0,
+    bool PhysicalLoadApplied = true);

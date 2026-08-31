@@ -25,4 +25,77 @@ public sealed class MobileUiLayoutProfileTests
         Assert.Equal(bottomMargin, profile.BottomMargin);
         Assert.True(profile.StandingsMinimumWidth >= 920);
     }
+
+    [Fact]
+    public void Resolve_AppliesEverySafeAreaEdgeIndependently()
+    {
+        var profile = MobileUiLayoutProfile.Resolve(
+            844,
+            390,
+            safeLeftInset: 31,
+            safeTopInset: 5,
+            safeRightInset: 17,
+            safeBottomInset: 12);
+
+        Assert.Equal(47, profile.LeftMargin);
+        Assert.Equal(33, profile.RightMargin);
+        Assert.Equal(19, profile.TopMargin);
+        Assert.Equal(22, profile.BottomMargin);
+    }
+
+    [Fact]
+    public void DeviceAcceptance_DistinguishesAutomatedLayoutFromRealTouchEvidence()
+    {
+        var profile = MobileDeviceAcceptanceProfile.Evaluate(
+            844,
+            390,
+            safeLeftInset: 31,
+            safeTopInset: 0,
+            safeRightInset: 17,
+            safeBottomInset: 12,
+            minimumTouchTarget: 48,
+            bodyFontSize: 15,
+            touchInputAvailable: false);
+
+        Assert.True(profile.IsReady);
+        Assert.True(profile.PhysicalEvidencePending);
+        Assert.Equal(796, profile.SafeWidth);
+        Assert.Contains(profile.Checks, check => check.Contains("fiziksel release soak", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void DeviceAcceptance_IncludesAccessibilityAndAudioMixContract()
+    {
+        var preferences = GameExperiencePreferences.Default with
+        {
+            SoundEnabled = true,
+            MusicEnabled = false,
+            CrowdEnabled = false,
+            HapticsEnabled = false,
+            HighContrast = true,
+            ReducedMotion = true,
+            TextScalePercent = 130,
+        };
+
+        var profile = MobileDeviceAcceptanceProfile.Evaluate(
+            360,
+            800,
+            safeLeftInset: 12,
+            safeTopInset: 24,
+            safeRightInset: 8,
+            safeBottomInset: 32,
+            minimumTouchTarget: 52,
+            bodyFontSize: 16,
+            touchInputAvailable: true,
+            preferences);
+
+        Assert.True(profile.IsReady);
+        Assert.False(profile.PhysicalEvidencePending);
+        Assert.Contains(profile.Checks, check => check.Contains("müzik kapalı", StringComparison.Ordinal));
+        Assert.Contains(profile.Checks, check => check.Contains("tribün kapalı", StringComparison.Ordinal));
+        Assert.Contains(profile.Checks, check => check.Contains("Titreşim tercihi kapalı", StringComparison.Ordinal));
+        Assert.Contains(profile.Checks, check => check.Contains("Kontrast yüksek", StringComparison.Ordinal));
+        Assert.Contains(profile.Checks, check => check.Contains("Yazı ölçeği %130", StringComparison.Ordinal));
+        Assert.Contains(profile.Checks, check => check.Contains("Dokunmatik giriş algılandı", StringComparison.Ordinal));
+    }
 }

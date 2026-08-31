@@ -82,7 +82,7 @@ public partial class MatchHalfTimeScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBrand(score);
-        score.AddThemeFontSizeOverride("font_size", 38);
+        score.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(38));
         scoreContent.AddChild(score);
 
         var halfLabel = new Label
@@ -100,7 +100,7 @@ public partial class MatchHalfTimeScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(headline);
-        headline.AddThemeFontSizeOverride("font_size", 23);
+        headline.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(23));
         scoreContent.AddChild(headline);
 
         content.AddChild(MatchScreenUi.SectionTitle("TEKNİK EKİP", "Devre arası notları"));

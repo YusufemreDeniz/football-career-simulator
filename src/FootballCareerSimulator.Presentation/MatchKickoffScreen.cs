@@ -60,7 +60,7 @@ public partial class MatchKickoffScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBrand(brand);
-        brand.AddThemeFontSizeOverride("font_size", 30);
+        brand.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(30));
         heroContent.AddChild(brand);
 
         var fixture = new Label
@@ -87,7 +87,7 @@ public partial class MatchKickoffScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleHeadline(headline);
-        headline.AddThemeFontSizeOverride("font_size", 24);
+        headline.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(24));
         heroContent.AddChild(headline);
 
         content.AddChild(MatchScreenUi.SectionTitle("TÜNEL", "Maçın ilk nefesi"));
@@ -160,6 +160,11 @@ public partial class MatchKickoffScreen : Control
         footer.AddChild(backButton);
 
         MatchScreenUi.FadeIn(content, this);
+        if (CareerUiTheme.ReducedMotion)
+        {
+            return;
+        }
+
         var pulseTween = CreateTween().SetLoops();
         pulseTween.TweenProperty(live, "modulate:a", 0.52f, 0.72f)
             .SetTrans(Tween.TransitionType.Sine)

@@ -1,4 +1,6 @@
 using FootballCareerSimulator.Application.CareerHub.Queries;
+using FootballCareerSimulator.Application.ClubGovernance.Queries;
+using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.Competition.Queries;
@@ -11,6 +13,8 @@ using FootballCareerSimulator.Application.Transfer.Queries;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.Interaction.Queries;
+using FootballCareerSimulator.Application.PlayerCareer.Queries;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
@@ -41,15 +45,30 @@ public sealed class CareerSessionController
     private TrainingFocus _trainingFocus = TrainingFocus.General;
     private TrainingIntensity _trainingIntensity = TrainingIntensity.Medium;
     private RestApproach _trainingRest = RestApproach.Normal;
+    private MatchTrainingPrioritySelectionOutcome? _pendingMatchTrainingPriority;
+    private long? _pendingMatchTrainingFixtureId;
     private IReadOnlyList<string>? _pendingInjuryClearedNames;
     private IReadOnlyList<string>? _pendingCleanXiBridgeNames;
     private string? _pendingWeekStoryClosure;
     private bool _weekStoryClosureDismissOnNextAdvance;
     private readonly List<MatchupPlanNotebookEntry> _matchupPlanHistory = [];
+    private readonly YouthAcademyIntakeService _youthAcademy;
+    private readonly ClubEconomyQueryService _clubEconomy;
 
     public CareerSessionController(CareerPresentationHost host)
     {
         Host = host ?? throw new ArgumentNullException(nameof(host));
+        _youthAcademy = new YouthAcademyIntakeService(
+            host.ClubModule.Store,
+            host.CompetitionModule.Store,
+            host.ManagerModule.Store,
+            host.WorldModule.TimelineStore,
+            host.InteractionModule.DecisionRequestStore);
+        _clubEconomy = new ClubEconomyQueryService(
+            host.ClubModule.Store,
+            host.ContractModule.Store,
+            host.CompetitionModule.Store,
+            host.ManagerModule.Store);
     }
 
     public CareerPresentationHost Host { get; }
@@ -1072,7 +1091,7 @@ public sealed class CareerSessionController
     {
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         var pending = Host.TeamPreparationModule.SelectionQueries
-            .GetNextDueManagedFixture(currentDay);
+            .GetNextPlannedManagedFixture(currentDay);
         var season = Host.CompetitionModule.Queries.GetCurrentSeason();
         if (pending is null || season is null)
         {
@@ -1100,7 +1119,7 @@ public sealed class CareerSessionController
     {
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         var pending = Host.TeamPreparationModule.SelectionQueries
-            .GetNextDueManagedFixture(currentDay);
+            .GetNextPlannedManagedFixture(currentDay);
         if (pending is null)
         {
             return null;
@@ -1616,6 +1635,84 @@ public sealed class CareerSessionController
 
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>
         Host.TrainingModule.Queries.GetManagedClubSummary();
+
+    public YouthAcademyIntakeReadModel? BuildYouthAcademyIntake() =>
+        _youthAcademy.GetManagedClubIntake();
+
+    public UiActionResult AcceptYouthAcademyCandidate(long playerId) =>
+        DecideYouthAcademyCandidate(playerId, accept: true);
+
+    public UiActionResult RejectYouthAcademyCandidate(long playerId) =>
+        DecideYouthAcademyCandidate(playerId, accept: false);
+
+    private UiActionResult DecideYouthAcademyCandidate(long playerId, bool accept)
+    {
+        try
+        {
+            var candidate = accept
+                ? _youthAcademy.AcceptManagedCandidate(playerId)
+                : _youthAcademy.RejectManagedCandidate(playerId);
+            return UiActionResult.Ok(
+                accept
+                    ? $"{candidate.DisplayName} akademi grubunda tutuldu. A takım terfisi ayrı kadro kararıdır."
+                    : $"{candidate.DisplayName} için akademi değerlendirmesi kapatıldı.");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Akademi kararı uygulanamadı: {ex.Message}");
+        }
+    }
+
+    public ClubEconomyReadModel? BuildClubEconomy() =>
+        _clubEconomy.GetManagedClub(Host.WorldModule.TimelineStore.Timeline.CurrentDate);
+
+    public MatchTrainingPriorityDigest BuildMatchTrainingPriorityDigest()
+    {
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var pending = Host.TeamPreparationModule.SelectionQueries
+            .GetNextPlannedManagedFixture(currentDay);
+        var daysUntilMatch = pending is null
+            ? 0
+            : Math.Max(0, pending.ScheduledDayNumber - currentDay);
+        return MatchTrainingPriorityDigest.Compose(
+            GetTrainingSummary(),
+            pending is null ? null : BuildOpponentDossier(),
+            daysUntilMatch,
+            hasPlannedMatch: pending is not null);
+    }
+
+    public UiActionResult SelectMatchTrainingPriority(MatchTrainingPriority priority)
+    {
+        try
+        {
+            var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+            var pending = Host.TeamPreparationModule.SelectionQueries
+                .GetNextPlannedManagedFixture(currentDay)
+                ?? throw new InvalidOperationException("Maça özel çalışma için planlı maç yok.");
+            var digest = BuildMatchTrainingPriorityDigest();
+            var option = digest.Options.Single(candidate => candidate.Priority == priority);
+            var outcome = digest.ResolveSelection(priority);
+
+            _trainingFocus = option.SuggestedFocus;
+            _trainingIntensity = option.SuggestedIntensity;
+            _trainingRest = option.SuggestedRest;
+            var weeklyPlan = ApplyWeeklyTrainingPlan();
+            if (!weeklyPlan.Succeeded)
+            {
+                return weeklyPlan;
+            }
+
+            _pendingMatchTrainingPriority = outcome;
+            _pendingMatchTrainingFixtureId = pending.FixtureId;
+            return UiActionResult.Ok(
+                outcome.OutcomeText + "\n" + weeklyPlan.Message,
+                narrativeBridgeLine: outcome.BoostLine);
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Maça özel antrenman seçilemedi: {ex.Message}");
+        }
+    }
 
     public UiActionResult SetTacticApproach(TacticalApproach approach)
     {
@@ -2464,8 +2561,11 @@ public sealed class CareerSessionController
                 ? $" · kadro onayı düştü ({result.InvalidatedSelectionCount})"
                 : string.Empty;
             var advice = BuildPreparationBriefing().AdviceLine;
+            var applicationLabel = result.PhysicalLoadApplied
+                ? "Antrenman uygulandı"
+                : "Plan güncellendi; bugünkü fizik yükü tekrar uygulanmadı";
             var appliedLine =
-                $"Antrenman uygulandı ({FormatTrainingFocus(_trainingFocus)}/{FormatTrainingIntensity(_trainingIntensity)}/{FormatRestApproach(_trainingRest)}):"
+                $"{applicationLabel} ({FormatTrainingFocus(_trainingFocus)}/{FormatTrainingIntensity(_trainingIntensity)}/{FormatRestApproach(_trainingRest)}):"
                 + $" yorgunluk {result.AverageFatigue}, fitness {result.AverageFitness}{injuryText}{invalidatedText}."
                 + $"\nÖneri: {advice}";
 
@@ -2552,7 +2652,11 @@ public sealed class CareerSessionController
         var preview = playHandler.PreviewHalfTime(
             season.SeasonId,
             pending.FixtureId,
-            currentDay);
+            currentDay,
+            managedPreparationModifier:
+                _pendingMatchTrainingFixtureId == pending.FixtureId
+                    ? _pendingMatchTrainingPriority?.TemporaryMatchModifier ?? 0
+                    : 0);
         var momentLines = preview.FirstHalfMoments
             .Take(4)
             .Select(moment => FormatKeyMomentLine(
@@ -2637,6 +2741,15 @@ public sealed class CareerSessionController
                 kickoffLines.Add(halfTimeSubstitutionLabel);
             }
 
+            if (_pendingMatchTrainingPriority is not null
+                && pendingSelection is not null
+                && _pendingMatchTrainingFixtureId == pendingSelection.FixtureId)
+            {
+                kickoffLines.Add(
+                    $"Maça özel çalışma: {_pendingMatchTrainingPriority.Title} "
+                    + $"({FormatSigned(_pendingMatchTrainingPriority.TemporaryMatchModifier)} güç).");
+            }
+
             // Maç sonrası sakatlık invalidate etmeden önce XI köprüsünü yakala.
             var lineupBridge = pendingSelection is not null
                 ? BuildMatchDayLineupStrip()
@@ -2676,6 +2789,10 @@ public sealed class CareerSessionController
             var afterWhistle = new List<string>();
             var otherScores = new List<string>();
             MatchReportDigest? heroReport = null;
+            IReadOnlyList<MatchKeyMomentReadModel>? heroKeyMoments = null;
+            var heroSequenceSeed = 0;
+            var heroManagedGoals = 0;
+            var heroOpponentGoals = 0;
             TechnicalAreaDigest? technicalArea = null;
             MatchupPlanOutcomeDigest? matchupPlanOutcome = null;
 
@@ -2691,6 +2808,10 @@ public sealed class CareerSessionController
             {
                 var isManagedFixture = managedClubId is long clubId
                     && (fixture.HomeClubId == clubId || fixture.AwayClubId == clubId);
+                var preparationModifier = isManagedFixture
+                    && _pendingMatchTrainingFixtureId == fixture.FixtureId
+                    ? _pendingMatchTrainingPriority?.TemporaryMatchModifier ?? 0
+                    : 0;
                 var result = playHandler.Handle(
                     new PlayFixtureMatchCommand(
                         Guid.NewGuid(),
@@ -2703,7 +2824,8 @@ public sealed class CareerSessionController
                             : null,
                         ForcedHalfTimeAwayGoals: isManagedFixture && halfTime is { HasManagedMatch: true }
                             ? halfTime.AwayGoals
-                            : null));
+                            : null,
+                        ManagedPreparationModifier: preparationModifier));
 
                 var home = GetClubDisplayName(fixture.HomeClubId);
                 var away = GetClubDisplayName(fixture.AwayClubId);
@@ -2715,6 +2837,9 @@ public sealed class CareerSessionController
                             : null,
                         result.ManagedLineupRoleModifier is int lineupMod
                             ? $"kadro {FormatSigned(lineupMod)}"
+                            : null,
+                        result.ManagedPreparationModifier is int preparationMod && preparationMod != 0
+                            ? $"maç hazırlığı {FormatSigned(preparationMod)}"
                             : null,
                     }
                     .Where(note => note is not null)
@@ -2732,11 +2857,21 @@ public sealed class CareerSessionController
 
                 if (isManaged && !hasManaged)
                 {
+                    if (_pendingMatchTrainingFixtureId == fixture.FixtureId)
+                    {
+                        _pendingMatchTrainingFixtureId = null;
+                        _pendingMatchTrainingPriority = null;
+                    }
+
                     hasManaged = true;
                     heroScoreline = scoreline;
                     heroHomeGoals = result.HomeGoals;
                     heroAwayGoals = result.AwayGoals;
                     heroManagedIsHome = fixture.HomeClubId == managedClubId;
+                    heroKeyMoments = result.KeyMoments ?? Array.Empty<MatchKeyMomentReadModel>();
+                    heroSequenceSeed = unchecked((int)fixture.FixtureId);
+                    heroManagedGoals = heroManagedIsHome ? result.HomeGoals : result.AwayGoals;
+                    heroOpponentGoals = heroManagedIsHome ? result.AwayGoals : result.HomeGoals;
                     heroTacticNote = matchImpact.Length == 0
                         ? null
                         : string.Join(" · ", matchImpact);
@@ -2927,7 +3062,11 @@ public sealed class CareerSessionController
                 dressingRoom,
                 technicalArea,
                 matchupPlanOutcome,
-                formStreakVerdict);
+                formStreakVerdict,
+                heroKeyMoments,
+                heroSequenceSeed,
+                heroManagedGoals,
+                heroOpponentGoals);
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
@@ -3925,17 +4064,53 @@ public sealed class CareerSessionController
             _weekStoryClosureDismissOnNextAdvance,
             _pendingCleanXiBridgeNames,
             _pendingInjuryClearedNames,
-            _matchupPlanHistory);
+            _matchupPlanHistory,
+            _pendingMatchTrainingFixtureId,
+            _pendingMatchTrainingPriority?.StableCode,
+            _pendingMatchTrainingPriority?.TemporaryMatchModifier);
 
     public void ApplyHubNarrativeUiState(HubNarrativeUiState? state)
     {
         state ??= HubNarrativeUiState.Empty;
+        _pendingMatchTrainingFixtureId = null;
+        _pendingMatchTrainingPriority = null;
         _pendingWeekStoryClosure = state.WeekStoryClosureBeat;
         _weekStoryClosureDismissOnNextAdvance = state.WeekStoryDismissOnNextAdvance;
         _pendingCleanXiBridgeNames = state.CleanXiNames.Count > 0 ? state.CleanXiNames : null;
         _pendingInjuryClearedNames = state.InjuryClearedNames.Count > 0 ? state.InjuryClearedNames : null;
         _matchupPlanHistory.Clear();
         _matchupPlanHistory.AddRange(state.MatchupPlanHistory);
+
+        if (state.PendingMatchTrainingFixtureId is not long fixtureId
+            || state.PendingMatchTrainingModifier is not int modifier
+            || string.IsNullOrWhiteSpace(state.PendingMatchTrainingPriorityCode))
+        {
+            return;
+        }
+
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var planned = Host.TeamPreparationModule.SelectionQueries
+            .GetNextPlannedManagedFixture(currentDay);
+        if (planned?.FixtureId != fixtureId)
+        {
+            return;
+        }
+
+        var digest = BuildMatchTrainingPriorityDigest();
+        var option = digest.Options.FirstOrDefault(candidate => string.Equals(
+            candidate.StableCode,
+            state.PendingMatchTrainingPriorityCode,
+            StringComparison.Ordinal));
+        if (option is null)
+        {
+            return;
+        }
+
+        _pendingMatchTrainingFixtureId = fixtureId;
+        _pendingMatchTrainingPriority = digest.ResolveSelection(option.Priority) with
+        {
+            TemporaryMatchModifier = Math.Clamp(modifier, -4, 4),
+        };
     }
 
     public CareerResumeDigest BuildCareerResumeDigest(bool wasMigrated)
@@ -4135,4 +4310,8 @@ public sealed record PlayMatchesUiResult(
     CaptainReactionDigest? DressingRoom = null,
     TechnicalAreaDigest? TechnicalArea = null,
     MatchupPlanOutcomeDigest? MatchupPlanOutcome = null,
-    FormStreakVerdictDigest? FormStreakVerdict = null);
+    FormStreakVerdictDigest? FormStreakVerdict = null,
+    IReadOnlyList<MatchKeyMomentReadModel>? KeyMoments = null,
+    int MatchSequenceSeed = 0,
+    int ManagedGoals = 0,
+    int OpponentGoals = 0);
