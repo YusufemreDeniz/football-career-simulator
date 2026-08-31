@@ -115,7 +115,7 @@ public partial class CareerAppRoot : Control
 
     private void ShowNewCareerSetup()
     {
-        var setup = new CareerSetupScreen(CareerPresentationHost.GetNewCareerClubs());
+        var setup = new CareerSetupScreen();
         setup.CancelRequested += ShowMainMenu;
         setup.CareerConfirmed += StartNewCareer;
         ReplaceScreen(setup);

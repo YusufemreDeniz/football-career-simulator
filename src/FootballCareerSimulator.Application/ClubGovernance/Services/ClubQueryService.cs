@@ -35,7 +35,26 @@ public sealed class ClubQueryService
 
     private static ClubReadModel ToReadModel(Club club)
     {
-        var data = TurkeySuperLig202627DataPack.GetClub(club.Id);
+        if (TurkeySuperLig202627DataPack.TryGetClub(club.Id, out var data)
+            && string.Equals(data.OfficialName, club.DisplayName, StringComparison.Ordinal))
+        {
+            return new(
+                club.Id.Value,
+                club.DisplayName,
+                club.Code.Value,
+                club.SportiveStrength,
+                club.TransferBudgetLimit,
+                club.ReservedTransferFunds,
+                club.SpentTransferFunds,
+                club.AvailableTransferFunds,
+                club.WageBudgetLimit,
+                club.ReservedWeeklyWage,
+                data.CrestResourcePath,
+                data.HomeKitResourcePath,
+                data.AwayKitResourcePath,
+                data.ThirdKitResourcePath,
+                TurkeySuperLig202627DataPack.SnapshotDate);
+        }
 
         return new(
             club.Id.Value,
@@ -48,11 +67,11 @@ public sealed class ClubQueryService
             club.AvailableTransferFunds,
             club.WageBudgetLimit,
             club.ReservedWeeklyWage,
-            data.CrestResourcePath,
-            data.HomeKitResourcePath,
-            data.AwayKitResourcePath,
-            data.ThirdKitResourcePath,
-            TurkeySuperLig202627DataPack.SnapshotDate);
+            CrestResourcePath: string.Empty,
+            HomeKitResourcePath: string.Empty,
+            AwayKitResourcePath: string.Empty,
+            ThirdKitResourcePath: string.Empty,
+            DataSnapshotDate: string.Empty);
     }
 }
 

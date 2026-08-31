@@ -29,13 +29,7 @@ public sealed record CareerStartConfiguration(
         return new CareerStartConfiguration(
             normalizedName,
             startingClubId,
-            startingDate ?? Today(),
+            startingDate ?? ProductionCareerWorldConstraints.DefaultOpeningDate,
             rootSeed ?? RandomNumberGenerator.GetInt32(1, int.MaxValue));
-    }
-
-    public static GameDate Today()
-    {
-        var today = DateTime.Today;
-        return GameDate.FromCalendarDate(today.Year, today.Month, today.Day);
     }
 }

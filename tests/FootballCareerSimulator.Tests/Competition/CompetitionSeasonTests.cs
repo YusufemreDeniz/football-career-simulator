@@ -53,12 +53,16 @@ public class CompetitionSeasonTests
     }
 
     [Fact]
-    public void RegisterParticipant_RejectsMoreThanLeagueTeamCount()
+    public void RegisterParticipant_RejectsMoreThanMaxLeagueTeamCount()
     {
         var season = CreateSeason();
-        RegisterFullLeague(season);
+        for (var club = 1L; club <= CompetitionMvpConstraints.MaxLeagueTeamCount; club++)
+        {
+            season.RegisterParticipant(new ClubId(club));
+        }
 
-        Assert.Throws<CompetitionInvariantViolationException>(() => season.RegisterParticipant(new ClubId(21)));
+        Assert.Throws<CompetitionInvariantViolationException>(() =>
+            season.RegisterParticipant(new ClubId(CompetitionMvpConstraints.MaxLeagueTeamCount + 1)));
     }
 
     [Fact]

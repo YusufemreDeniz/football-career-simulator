@@ -44,15 +44,25 @@ public sealed class LeagueClubRegistry
 
     private void Validate()
     {
-        if (_clubs.Count > CompetitionMvpConstraints.LeagueTeamCount)
+        if (_clubs.Count > CompetitionMvpConstraints.MaxLeagueTeamCount)
         {
             throw new ClubGovernanceInvariantViolationException(
-                $"MVP league cannot contain more than {CompetitionMvpConstraints.LeagueTeamCount} clubs.");
+                $"MVP league cannot contain more than {CompetitionMvpConstraints.MaxLeagueTeamCount} clubs.");
         }
 
         if (_clubs.Select(club => club.Id).Distinct().Count() != _clubs.Count)
         {
             throw new ClubGovernanceInvariantViolationException("Duplicate club ids are not allowed.");
+        }
+
+        if (_clubs.Select(club => club.DisplayName).Distinct(StringComparer.Ordinal).Count() != _clubs.Count)
+        {
+            throw new ClubGovernanceInvariantViolationException("Duplicate club names are not allowed.");
+        }
+
+        if (_clubs.Select(club => club.Code.Value).Distinct(StringComparer.Ordinal).Count() != _clubs.Count)
+        {
+            throw new ClubGovernanceInvariantViolationException("Duplicate club codes are not allowed.");
         }
     }
 }

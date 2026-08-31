@@ -28,7 +28,7 @@ public class CompetitionValueObjectTests
 
     [Theory]
     [InlineData(1)]
-    [InlineData(34)]
+    [InlineData(38)]
     public void FixtureRound_AcceptsMvpLeagueRange(int round)
     {
         var fixtureRound = new FixtureRound(round);
@@ -38,7 +38,7 @@ public class CompetitionValueObjectTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(35)]
+    [InlineData(39)]
     public void FixtureRound_RejectsOutOfRangeValues(int round)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new FixtureRound(round));
@@ -46,7 +46,7 @@ public class CompetitionValueObjectTests
 
     [Theory]
     [InlineData(1)]
-    [InlineData(18)]
+    [InlineData(20)]
     public void CompetitionPosition_AcceptsMvpLeagueRange(int position)
     {
         var competitionPosition = new CompetitionPosition(position);
@@ -56,7 +56,7 @@ public class CompetitionValueObjectTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(19)]
+    [InlineData(21)]
     public void CompetitionPosition_RejectsOutOfRangeValues(int position)
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => new CompetitionPosition(position));
@@ -66,6 +66,8 @@ public class CompetitionValueObjectTests
     public void MvpConstraints_MatchLeagueSpecification()
     {
         Assert.Equal(18, CompetitionMvpConstraints.LeagueTeamCount);
+        Assert.Equal(20, CompetitionMvpConstraints.MaxLeagueTeamCount);
         Assert.Equal(34, CompetitionMvpConstraints.LeagueMatchesPerTeam);
+        Assert.Equal(38, CompetitionMvpConstraints.MaxLeagueFixtureRound);
     }
 }

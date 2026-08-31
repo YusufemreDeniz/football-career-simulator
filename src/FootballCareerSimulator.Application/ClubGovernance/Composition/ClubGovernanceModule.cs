@@ -37,13 +37,16 @@ public sealed class ClubGovernanceModule
         WageBudget = new ClubWageBudgetService(Store, contractStore);
     }
 
-    public static ClubGovernanceModule CreateMvpLeague()
+    public static ClubGovernanceModule Create(LeagueClubRegistry registry)
     {
-        var registry = LeagueClubRegistry.CreateMvpLeague();
+        ArgumentNullException.ThrowIfNull(registry);
         var store = new InMemoryClubRegistryStore(registry);
         return new ClubGovernanceModule(
             store,
             new ClubQueryService(store),
             new ClubTransferBudgetService(store));
     }
+
+    public static ClubGovernanceModule CreateMvpLeague() =>
+        Create(LeagueClubRegistry.CreateMvpLeague());
 }

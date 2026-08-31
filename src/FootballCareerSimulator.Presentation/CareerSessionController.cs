@@ -104,17 +104,17 @@ public sealed class CareerSessionController
                 return UiActionResult.Fail("Sezon oluşturulamadı.");
             }
 
-            if (season.ParticipantCount < CompetitionMvpConstraints.LeagueTeamCount)
+            if (season.ParticipantCount < Host.ClubModule.Store.Registry.Clubs.Count)
             {
-                for (var participantClubId = season.ParticipantCount + 1L;
-                     participantClubId <= CompetitionMvpConstraints.LeagueTeamCount;
-                     participantClubId++)
+                foreach (var club in Host.ClubModule.Store.Registry.Clubs
+                             .OrderBy(club => club.Id.Value)
+                             .Skip(season.ParticipantCount))
                 {
                     competition.RegisterSeasonParticipant.Handle(
                         new RegisterSeasonParticipantCommand(
                             Guid.NewGuid(),
                             DefaultSeasonId,
-                            participantClubId));
+                            club.Id.Value));
                 }
 
                 season = competition.Queries.GetCurrentSeason()!;
@@ -4383,8 +4383,10 @@ public sealed class CareerSessionController
     /// </summary>
     public static void SetupLeagueSeasonForSelfCheck(
         CompetitionModule competition,
-        WorldCalendarModule world)
+        WorldCalendarModule world,
+        int teamCount)
     {
+        CompetitionMvpConstraints.EnsureSupportedLeagueSize(teamCount);
         var currentDay = world.Queries.GetCurrentGameDate().DayNumber;
 
         if (competition.Queries.GetCurrentSeason() is null)
@@ -4393,7 +4395,7 @@ public sealed class CareerSessionController
                 new CreateSeasonCommand(Guid.NewGuid(), DefaultSeasonId, currentDay));
         }
 
-        for (var clubId = 1L; clubId <= CompetitionMvpConstraints.LeagueTeamCount; clubId++)
+        for (var clubId = 1L; clubId <= teamCount; clubId++)
         {
             competition.RegisterSeasonParticipant.Handle(
                 new RegisterSeasonParticipantCommand(Guid.NewGuid(), DefaultSeasonId, clubId));

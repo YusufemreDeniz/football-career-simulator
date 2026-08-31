@@ -3,6 +3,7 @@ using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.PlayerCareer.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using Godot;
 
@@ -128,8 +129,12 @@ public static class CareerUiSmokeTest
             && host.WorldModule.TimelineStore.Timeline.RootSeed == 741852);
         passed &= LogCheck(
             "Kulup secim listesi",
-            CareerPresentationHost.GetNewCareerClubs().Count
-            == CompetitionMvpConstraints.LeagueTeamCount);
+            CareerPresentationHost.GetNewCareerClubs(741852).Count
+            == ProductionCareerWorldConstraints.ClubCount
+            && host.ClubModule.Store.Registry.Clubs.Count
+            == ProductionCareerWorldConstraints.ClubCount
+            && host.PlayerCareerModule.Store.Careers.Count
+            == ProductionCareerWorldConstraints.TargetActivePlayerCount);
 
         var result = world.AdvanceSimulationTime.Handle(
             new AdvanceSimulationTimeCommand(Guid.NewGuid(), before.DayNumber + 1));
@@ -188,19 +193,20 @@ public static class CareerUiSmokeTest
 
         try
         {
-            CareerSessionController.SetupLeagueSeasonForSelfCheck(competition, world);
+            var teamCount = host.ClubModule.Store.Registry.Clubs.Count;
+            CareerSessionController.SetupLeagueSeasonForSelfCheck(competition, world, teamCount);
             var season = competition.Queries.GetCurrentSeason();
             passed &= LogCheck(
                 "Lig sezonu kurulumu",
                 season is not null
-                && season.ParticipantCount == CompetitionMvpConstraints.LeagueTeamCount
-                && season.FixtureCount == CompetitionMvpConstraints.TotalLeagueFixtures);
+                && season.ParticipantCount == teamCount
+                && season.FixtureCount == CompetitionMvpConstraints.TotalFixturesFor(teamCount));
 
             var leagueSavePath = Path.Combine(OS.GetUserDataDir(), "career_league_selfcheck.db");
             var saveResult = host.GameSession.Save(leagueSavePath);
             passed &= LogCheck(
                 "Lig kayıt fixture sayısı",
-                saveResult.SavedFixtureCount == CompetitionMvpConstraints.TotalLeagueFixtures);
+                saveResult.SavedFixtureCount == CompetitionMvpConstraints.TotalFixturesFor(teamCount));
 
             world.AdvanceSimulationTime.Handle(
                 new AdvanceSimulationTimeCommand(
@@ -210,18 +216,18 @@ public static class CareerUiSmokeTest
             var loadResult = host.GameSession.Load(leagueSavePath);
             passed &= LogCheck(
                 "Lig yükleme fixture sayısı",
-                loadResult.LoadedFixtureCount == CompetitionMvpConstraints.TotalLeagueFixtures);
+                loadResult.LoadedFixtureCount == CompetitionMvpConstraints.TotalFixturesFor(teamCount));
             passed &= LogCheck(
                 "Yükleme sonrası sezon query",
                 competition.Queries.GetCurrentSeason()?.FixtureCount
-                == CompetitionMvpConstraints.TotalLeagueFixtures);
+                == CompetitionMvpConstraints.TotalFixturesFor(teamCount));
 
             var roundOne = competition.Queries.GetFixturesByRound(
                 CareerSessionController.DefaultSeasonId,
                 round: 1);
             passed &= LogCheck(
                 "1. hafta maç sayısı",
-                roundOne.Count == CompetitionMvpConstraints.LeagueFixturesPerRound);
+                roundOne.Count == CompetitionMvpConstraints.FixturesPerRoundFor(teamCount));
 
             var firstMatchday = roundOne[0].ScheduledDayNumber;
             world.AdvanceSimulationTime.Handle(
@@ -369,7 +375,7 @@ public static class CareerUiSmokeTest
             passed &= LogCheck(
                 "Lig ve istatistik merkezi",
                 leagueStatistics.HasData
-                && leagueStatistics.Teams.Count == CompetitionMvpConstraints.LeagueTeamCount
+                && leagueStatistics.Teams.Count == ProductionCareerWorldConstraints.ClubCount
                 && leagueStatistics.Teams.Count(team => team.LastFiveForm != "—") == 2);
             var careerLegacy = new CareerSessionController(host).BuildCareerLegacyDigest();
             passed &= LogCheck(

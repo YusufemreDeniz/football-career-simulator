@@ -18,11 +18,7 @@ public static class LeagueFixtureGenerator
     {
         ArgumentNullException.ThrowIfNull(participants);
 
-        if (participants.Count != CompetitionMvpConstraints.LeagueTeamCount)
-        {
-            throw new CompetitionInvariantViolationException(
-                $"League fixture generation requires exactly {CompetitionMvpConstraints.LeagueTeamCount} participants.");
-        }
+        CompetitionMvpConstraints.EnsureSupportedLeagueSize(participants.Count);
 
         if (daysBetweenRounds < 1)
         {
@@ -40,7 +36,9 @@ public static class LeagueFixtureGenerator
 
         var orderedClubs = participants.OrderBy(club => club.Value).ToArray();
         var firstLegRounds = GenerateSingleRoundRobinRounds(orderedClubs);
-        var fixtures = new List<Fixture>(CompetitionMvpConstraints.LeagueTeamCount * (CompetitionMvpConstraints.LeagueTeamCount - 1));
+        var teamCount = orderedClubs.Length;
+        var singleLegRounds = teamCount - 1;
+        var fixtures = new List<Fixture>(CompetitionMvpConstraints.TotalFixturesFor(teamCount));
         var nextFixtureId = startingFixtureId.Value;
 
         AppendLegFixtures(
@@ -54,8 +52,7 @@ public static class LeagueFixtureGenerator
             swapHomeAway: false,
             ref nextFixtureId);
 
-        var secondLegStartDate = firstMatchdayDate.AddDays(
-            CompetitionMvpConstraints.SingleLegRoundCount * daysBetweenRounds);
+        var secondLegStartDate = firstMatchdayDate.AddDays(singleLegRounds * daysBetweenRounds);
 
         AppendLegFixtures(
             fixtures,
@@ -64,7 +61,7 @@ public static class LeagueFixtureGenerator
             firstLegRounds,
             secondLegStartDate,
             daysBetweenRounds,
-            startingRound: CompetitionMvpConstraints.SingleLegRoundCount + 1,
+            startingRound: singleLegRounds + 1,
             swapHomeAway: true,
             ref nextFixtureId);
 
@@ -74,7 +71,7 @@ public static class LeagueFixtureGenerator
     private static List<IReadOnlyList<(ClubId Home, ClubId Away)>> GenerateSingleRoundRobinRounds(ClubId[] clubs)
     {
         var rotating = clubs.ToList();
-        var rounds = new List<IReadOnlyList<(ClubId Home, ClubId Away)>>(CompetitionMvpConstraints.SingleLegRoundCount);
+        var rounds = new List<IReadOnlyList<(ClubId Home, ClubId Away)>>(clubs.Length - 1);
 
         for (var roundIndex = 0; roundIndex < clubs.Length - 1; roundIndex++)
         {

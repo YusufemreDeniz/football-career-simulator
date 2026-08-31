@@ -1,4 +1,5 @@
 using FootballCareerSimulator.Application.Career.Services;
+using FootballCareerSimulator.Application.CareerWorld;
 using FootballCareerSimulator.Application.ClubGovernance.Composition;
 using FootballCareerSimulator.Application.ClubGovernance.Infrastructure;
 using FootballCareerSimulator.Application.ClubGovernance.Services;
@@ -24,7 +25,6 @@ using FootballCareerSimulator.Application.Transfer.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
-using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Infrastructure.Career;
@@ -90,8 +90,11 @@ public sealed class CareerPresentationHost
     public CareerGameSessionService GameSession { get; }
     public string DefaultSavePath { get; }
 
-    public static IReadOnlyList<Application.ClubGovernance.Queries.ClubReadModel> GetNewCareerClubs() =>
-        ClubGovernanceModule.CreateMvpLeague().Queries.GetAllClubs();
+    public static IReadOnlyList<Application.ClubGovernance.Queries.ClubReadModel> GetNewCareerClubs(int rootSeed) =>
+        ClubGovernanceModule
+            .Create(ProductionCareerWorldBootstrap.Create(rootSeed).ClubRegistry)
+            .Queries
+            .GetAllClubs();
 
     public static CareerPresentationHost CreateDefault(string? defaultSavePath = null) =>
         CreateNewCareer(
@@ -103,12 +106,15 @@ public sealed class CareerPresentationHost
         string? defaultSavePath = null)
     {
         ArgumentNullException.ThrowIfNull(configuration);
-        var startDate = configuration.StartingDate;
+        var world = ProductionCareerWorldBootstrap.Create(
+            configuration.RootSeed,
+            configuration.StartingDate);
+        var startDate = world.WorldDate;
         var timelineStore = new InMemoryWorldTimelineStore(
             WorldTimeline.Create(startDate, configuration.RootSeed, SimulationRandomContext.Version));
         var competitionStore = new InMemoryLeagueCompetitionStore(
-            new LeagueCompetition(new CompetitionId(MvpLeagueIdentity.DefaultCompetitionId)));
-        var clubModule = ClubGovernanceModule.CreateMvpLeague();
+            new LeagueCompetition(world.CompetitionId));
+        var clubModule = ClubGovernanceModule.Create(world.ClubRegistry);
         var clubFinanceLedgerStore = new InMemoryClubFinanceLedgerStore();
         var clubFinanceLedger = new ClubFinanceLedgerService(clubFinanceLedgerStore);
         var startingClubId = configuration.StartingClubId;
@@ -139,6 +145,10 @@ public sealed class CareerPresentationHost
             playerStore,
             managerModule.Store,
             worldModule.TimelineStore);
+        ProductionCareerWorldBootstrap.HydratePeople(
+            world,
+            playerStore,
+            contractModule.FreeAgentStore);
         var playerCareer = PlayerCareerModule.Create(
             managerModule.Store,
             worldModule.TimelineStore,

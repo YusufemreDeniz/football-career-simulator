@@ -96,7 +96,7 @@ public class LeagueFixtureGeneratorTests
             daysBetweenRounds: 7,
             startingFixtureId: new FixtureId(1));
 
-        for (var round = 1; round <= CompetitionMvpConstraints.MaxLeagueFixtureRound; round++)
+        for (var round = 1; round <= CompetitionMvpConstraints.LeagueMatchesPerTeam; round++)
         {
             var roundFixtures = fixtures.Where(fixture => fixture.Round.Value == round).ToArray();
 
@@ -157,5 +157,29 @@ public class LeagueFixtureGeneratorTests
         Assert.Equal(
             first.Select(fixture => (fixture.HomeClubId, fixture.AwayClubId, fixture.Round.Value, fixture.ScheduledDate.DayNumber)),
             second.Select(fixture => (fixture.HomeClubId, fixture.AwayClubId, fixture.Round.Value, fixture.ScheduledDate.DayNumber)));
+    }
+
+    [Fact]
+    public void GenerateDoubleRoundRobin_TwentyTeams_ProducesThreeHundredEightyFixtures()
+    {
+        var participants = Enumerable.Range(1, CompetitionMvpConstraints.MaxLeagueTeamCount)
+            .Select(index => new ClubId(index))
+            .ToArray();
+
+        var fixtures = LeagueFixtureGenerator.GenerateDoubleRoundRobin(
+            Competition,
+            Season,
+            participants,
+            FirstMatchday,
+            daysBetweenRounds: 7,
+            startingFixtureId: new FixtureId(1));
+
+        Assert.Equal(
+            CompetitionMvpConstraints.TotalFixturesFor(CompetitionMvpConstraints.MaxLeagueTeamCount),
+            fixtures.Count);
+        Assert.Equal(new FixtureId(380), fixtures[^1].Id);
+        Assert.Equal(
+            CompetitionMvpConstraints.FixturesPerRoundFor(CompetitionMvpConstraints.MaxLeagueTeamCount),
+            fixtures.Count(fixture => fixture.Round.Value == 1));
     }
 }

@@ -1,26 +1,23 @@
+using FootballCareerSimulator.Application.CareerWorld;
 using FootballCareerSimulator.Application.ClubGovernance.Queries;
+using FootballCareerSimulator.Domain.WorldCalendar;
 using Godot;
 
 namespace FootballCareerSimulator.Presentation;
 
 public partial class CareerSetupScreen : Control
 {
-    private readonly IReadOnlyList<ClubReadModel> _clubs;
+    private IReadOnlyList<ClubReadModel> _clubs = Array.Empty<ClubReadModel>();
+    private ProductionCareerWorldSummary? _worldSummary;
+    private GameDate _worldDate = ProductionCareerWorldConstraints.DefaultOpeningDate;
     private LineEdit _managerNameInput = null!;
+    private LineEdit _seedInput = null!;
+    private Label _worldSummaryLabel = null!;
     private OptionButton _clubSelector = null!;
     private TextureRect _crest = null!;
     private Label _clubName = null!;
     private Label _clubSummary = null!;
     private Button _startButton = null!;
-
-    public CareerSetupScreen(IReadOnlyList<ClubReadModel> clubs)
-    {
-        _clubs = clubs ?? throw new ArgumentNullException(nameof(clubs));
-        if (_clubs.Count == 0)
-        {
-            throw new ArgumentException("At least one club is required.", nameof(clubs));
-        }
-    }
 
     public event Action<CareerStartConfiguration>? CareerConfirmed;
 
@@ -82,7 +79,7 @@ public partial class CareerSetupScreen : Control
 
         var title = new Label
         {
-            Text = "Teknik direktorlugu kur",
+            Text = "Kariyerine basla",
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
@@ -90,22 +87,24 @@ public partial class CareerSetupScreen : Control
         title.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(27));
         content.AddChild(title);
 
-        var date = new Label
+        var intro = new Label
         {
-            Text = $"Baslangic tarihi: {DateTime.Today:dd.MM.yyyy}",
+            Text = "Bir ulke, bir lig, yirmi kulup. Ayni seed ayni dunyayi uretir.",
             HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
-        CareerUiTheme.StyleBody(date, muted: true);
-        date.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
-        content.AddChild(date);
+        CareerUiTheme.StyleBody(intro, muted: true);
+        intro.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
+        content.AddChild(intro);
 
+        content.AddChild(BuildWorldSection());
         content.AddChild(BuildManagerSection());
         content.AddChild(BuildClubSection());
 
         _startButton = new Button
         {
             Text = "Kariyeri Baslat",
-            TooltipText = "Menajerini ve kulubunu onaylayarak kariyeri baslat",
+            TooltipText = "Uretilen dunyada teknik direktor kariyerini baslat",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Disabled = true,
         };
@@ -124,8 +123,46 @@ public partial class CareerSetupScreen : Control
         note.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
         content.AddChild(note);
 
-        UpdateClubPreview(0);
+        _seedInput.Text = System.Security.Cryptography.RandomNumberGenerator.GetInt32(1, int.MaxValue).ToString();
+        RebuildWorldFromSeed();
         UpdateStartAvailability();
+    }
+
+    private Control BuildWorldSection()
+    {
+        var section = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        section.AddThemeConstantOverride("separation", 6);
+
+        var label = new Label { Text = "DUNYA SEED" };
+        CareerUiTheme.StyleSection(label);
+        section.AddChild(label);
+
+        _seedInput = new LineEdit
+        {
+            PlaceholderText = "Ornek: 741852",
+            MaxLength = 10,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 50),
+            TooltipText = "Ayni seed ayni ligi, kulupleri ve futbolculari uretir",
+        };
+        CareerUiTheme.StyleTextInput(_seedInput);
+        _seedInput.TextChanged += _ => RebuildWorldFromSeed();
+        section.AddChild(_seedInput);
+
+        var summaryPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        summaryPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel());
+        section.AddChild(summaryPanel);
+
+        _worldSummaryLabel = new Label
+        {
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.StyleBody(_worldSummaryLabel, muted: true);
+        _worldSummaryLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
+        summaryPanel.AddChild(_worldSummaryLabel);
+
+        return section;
     }
 
     private Control BuildManagerSection()
@@ -133,7 +170,7 @@ public partial class CareerSetupScreen : Control
         var section = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         section.AddThemeConstantOverride("separation", 6);
 
-        var label = new Label { Text = "MENAJER ADI" };
+        var label = new Label { Text = "TEKNIK DIREKTOR ADI" };
         CareerUiTheme.StyleSection(label);
         section.AddChild(label);
 
@@ -156,7 +193,7 @@ public partial class CareerSetupScreen : Control
         var section = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         section.AddThemeConstantOverride("separation", 8);
 
-        var label = new Label { Text = "KULUP SECIMI" };
+        var label = new Label { Text = "BASLANGIC KULUBU" };
         CareerUiTheme.StyleSection(label);
         section.AddChild(label);
 
@@ -167,11 +204,6 @@ public partial class CareerSetupScreen : Control
             TooltipText = "Kariyerine baslayacagin kulubu sec",
         };
         CareerUiTheme.StyleOptionSelector(_clubSelector);
-        foreach (var club in _clubs)
-        {
-            _clubSelector.AddItem(club.DisplayName, (int)club.ClubId);
-        }
-
         _clubSelector.ItemSelected += selected => UpdateClubPreview((int)selected);
         section.AddChild(_clubSelector);
 
@@ -209,6 +241,62 @@ public partial class CareerSetupScreen : Control
         return section;
     }
 
+    private void RebuildWorldFromSeed()
+    {
+        if (!int.TryParse(_seedInput.Text.Trim(), out var seed) || seed <= 0)
+        {
+            _worldSummary = null;
+            _clubs = Array.Empty<ClubReadModel>();
+            _worldSummaryLabel.Text = "Gecerli bir seed gir. Bos birakma; ayni sayi ayni dunyayi acar.";
+            RefreshClubSelector();
+            UpdateStartAvailability();
+            return;
+        }
+
+        var world = ProductionCareerWorldBootstrap.Create(seed);
+        _worldDate = world.WorldDate;
+        _worldSummary = ProductionCareerWorldBootstrap.ToSummary(world);
+        _clubs = CareerPresentationHost.GetNewCareerClubs(seed);
+        _worldSummaryLabel.Text =
+            $"{_worldSummary.CountryName} · {_worldSummary.LeagueName}\n" +
+            $"{_worldSummary.ClubCount} kulup · {_worldSummary.ActivePlayerCount} futbolcu " +
+            $"({_worldSummary.ContractedPlayerCount} kadrolu, {_worldSummary.FreeAgentCount} serbest)\n" +
+            $"Sezon acilisi: {_worldSummary.OpeningDateDisplay} · Seed {_worldSummary.RootSeed}";
+        RefreshClubSelector();
+        UpdateStartAvailability();
+    }
+
+    private void RefreshClubSelector()
+    {
+        var previousId = _clubSelector.GetSelectedId();
+        _clubSelector.Clear();
+        foreach (var club in _clubs)
+        {
+            _clubSelector.AddItem(club.DisplayName, (int)club.ClubId);
+        }
+
+        if (_clubs.Count == 0)
+        {
+            _clubName.Text = string.Empty;
+            _clubSummary.Text = string.Empty;
+            _crest.Texture = null;
+            return;
+        }
+
+        var index = 0;
+        for (var i = 0; i < _clubs.Count; i++)
+        {
+            if (_clubs[i].ClubId == previousId)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        _clubSelector.Select(index);
+        UpdateClubPreview(index);
+    }
+
     private void UpdateContentWidth(Control content)
     {
         var available = Mathf.Max(288f, Size.X - 32f);
@@ -219,6 +307,11 @@ public partial class CareerSetupScreen : Control
 
     private void UpdateClubPreview(int index)
     {
+        if (_clubs.Count == 0)
+        {
+            return;
+        }
+
         var club = _clubs[Mathf.Clamp(index, 0, _clubs.Count - 1)];
         _clubName.Text = club.DisplayName;
         _clubSummary.Text =
@@ -226,21 +319,32 @@ public partial class CareerSetupScreen : Control
             $"Transfer butcesi: EUR {club.AvailableTransferFunds:N0}\n" +
             $"Haftalik maas limiti: EUR {club.WageBudgetLimit:N0}";
 
-        _crest.Texture = ResourceLoader.Exists(club.CrestResourcePath)
+        _crest.Texture = !string.IsNullOrWhiteSpace(club.CrestResourcePath)
+            && ResourceLoader.Exists(club.CrestResourcePath)
             ? GD.Load<Texture2D>(club.CrestResourcePath)
             : null;
     }
 
     private void UpdateStartAvailability()
     {
-        _startButton.Disabled = _managerNameInput.Text.Trim().Length < 2;
+        _startButton.Disabled =
+            _worldSummary is null
+            || _clubs.Count == 0
+            || _managerNameInput.Text.Trim().Length < 2;
     }
 
     private void ConfirmCareer()
     {
+        if (_worldSummary is null || _clubs.Count == 0)
+        {
+            return;
+        }
+
         var selected = _clubs[Mathf.Clamp(_clubSelector.Selected, 0, _clubs.Count - 1)];
         CareerConfirmed?.Invoke(CareerStartConfiguration.Create(
             _managerNameInput.Text,
-            selected.ClubId));
+            selected.ClubId,
+            _worldDate,
+            _worldSummary.RootSeed));
     }
 }

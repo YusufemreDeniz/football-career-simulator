@@ -88,10 +88,10 @@ public sealed class CompetitionSeason
                 "The same club cannot be registered twice in the same season.");
         }
 
-        if (_participants.Count >= CompetitionMvpConstraints.LeagueTeamCount)
+        if (_participants.Count >= CompetitionMvpConstraints.MaxLeagueTeamCount)
         {
             throw new CompetitionInvariantViolationException(
-                $"A league season cannot have more than {CompetitionMvpConstraints.LeagueTeamCount} participants.");
+                $"A league season cannot have more than {CompetitionMvpConstraints.MaxLeagueTeamCount} participants.");
         }
 
         _participants.Add(new SeasonParticipant(clubId));
@@ -106,10 +106,10 @@ public sealed class CompetitionSeason
                 "Only a preseason season can transition to active.");
         }
 
-        if (_participants.Count != CompetitionMvpConstraints.LeagueTeamCount)
+        if (!CompetitionMvpConstraints.IsSupportedLeagueSize(_participants.Count))
         {
             throw new CompetitionInvariantViolationException(
-                $"Active season requires exactly {CompetitionMvpConstraints.LeagueTeamCount} participants.");
+                $"Active season requires {CompetitionMvpConstraints.LeagueTeamCount} or {CompetitionMvpConstraints.MaxLeagueTeamCount} participants.");
         }
 
         Status = SeasonStatus.Active;
