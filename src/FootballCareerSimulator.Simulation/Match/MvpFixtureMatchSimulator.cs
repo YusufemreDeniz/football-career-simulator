@@ -14,7 +14,7 @@ public static class MvpFixtureMatchSimulator
     public const int MaxGoalMinute = MaxMomentMinute;
     public const int StartingXiSize = 11;
     public const int MaxCardsPerMatch = 3;
-    public const int MaxGoalsPerHalf = 4;
+    public const int MaxGoalsPerHalf = 3;
 
     public static MatchScore Simulate(
         int simulationSeed,
@@ -91,11 +91,10 @@ public static class MvpFixtureMatchSimulator
 
     private static int RollHalfGoals(SimulationRandomContext rng, int effectiveStrength)
     {
-        // Poisson approximation: λ = effectiveStrength / 30
-        // Gerçekçi yarı gol dağılımı — strength 30 → λ≈1.0, strength 60 → λ≈2.0, strength 90 → λ≈3.0
-        // Knuth algoritması integer versiyonu: 1000 ölçeğinde limit = e^(-λ) * 1000
-        // Math.Exp yerine tablo kullanarak floating-point bağımlılığı yok.
-        var lambdaTimes10 = Math.Clamp(effectiveStrength / 3, 1, 33); // λ*10 ∈ [0.1, 3.3]
+        // Poisson: λ = effectiveStrength / 90  (yarı başına)
+        // Gerçekçi 90 dk: orta güç ~1.3 gol/takım; strength 60 → λ≈0.67/yarı.
+        // Knuth tamsayı: 10_000 ölçeğinde limit = e^(-λ) * 10_000
+        var lambdaTimes10 = Math.Clamp(effectiveStrength / 9, 1, 15);
         var limit = PoissonLimit(lambdaTimes10);                       // e^(-λ) * 10_000 (tamsayı)
         var product = 10_000;
         var k = 0;
@@ -150,7 +149,7 @@ public static class MvpFixtureMatchSimulator
         31 =>  450,
         32 =>  407,
         33 =>  368,
-        _  =>  368, // λ > 3.3 için alt sınır (güçlü takımlar zaten MaxGoalsPerHalf ile kırpılıyor)
+        _  =>  368, // λ > 1.5 (tablo üstü) — MaxGoalsPerHalf ile kırpılır
     };
 
     private static MatchStatistics BuildStatistics(
