@@ -128,6 +128,24 @@ public sealed class AiClubTransferSimulationTests
     }
 
     [Fact]
+    public void RepeatedClubSales_PreserveEighteenPlayerSellerFloor()
+    {
+        var modules = CreateBase(seed: 19);
+        SeedUnmanagedClubSquadsWithSpace(modules);
+
+        for (var tick = 0; tick < 30; tick++)
+        {
+            _ = modules.Transfer.AiSimulation.RunWindowTick(Day, worldSeed: 100 + tick);
+        }
+
+        var activeCounts = Enumerable.Range(2, 5)
+            .Select(clubId => modules.Contracts.Store.GetForClub(new ClubId(clubId))
+                .Count(contract => contract.IsActiveOn(Day)))
+            .ToArray();
+        Assert.All(activeCounts, count => Assert.True(count >= 18, $"AI seller squad fell to {count}."));
+    }
+
+    [Fact]
     public void TrySellManagedClubPlayer_CompletesWhenBuyerHasSpace()
     {
         var modules = CreateBase(seed: 13);

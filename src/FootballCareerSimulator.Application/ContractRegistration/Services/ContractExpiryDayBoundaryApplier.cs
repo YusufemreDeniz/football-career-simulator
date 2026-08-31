@@ -58,13 +58,23 @@ public sealed class ContractExpiryDayBoundaryApplier : IContractExpiryDayBoundar
 
             var outcome = _registration.ExpireDueContracts(
                 GameDate.FromDayNumber(intent.OccurredAtDayNumber));
+            if (outcome.ExpiredCount > 0)
+            {
+                // Sözleşme bitişi sezon ortasında da olabilir. İnce bir kulübü
+                // oynanabilir 18 kişilik tabanın altına düşürmeden serbest
+                // oyuncu çeşitliliğini mümkün olduğunca koru.
+                _registration.RestorePopulationContinuity(
+                    GameDate.FromDayNumber(intent.OccurredAtDayNumber));
+            }
             expired += outcome.ExpiredCount;
             foreach (var clubId in outcome.AffectedClubIds)
             {
                 clubs.Add(clubId);
             }
 
-            freeAgents.AddRange(outcome.FreeAgentPlayerIds);
+            freeAgents.AddRange(outcome.FreeAgentPlayerIds.Where(playerId =>
+                _registration.IsFreeAgent(
+                    new FootballCareerSimulator.Domain.PlayerCareer.PlayerId(playerId))));
             applied = true;
         }
 

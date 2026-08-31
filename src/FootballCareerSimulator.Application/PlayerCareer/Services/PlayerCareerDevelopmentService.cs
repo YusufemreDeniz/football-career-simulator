@@ -80,7 +80,11 @@ public sealed class PlayerCareerDevelopmentService
 
         _store.ReplaceClub(clubId, updated);
         _contracts?.EnsureClubContracts(clubId, day);
-        _ = _contracts?.ExpireDueContracts(day);
+        var expiry = _contracts?.ExpireDueContracts(day);
+        if (expiry is { ExpiredCount: > 0 })
+        {
+            _contracts!.RestorePopulationContinuity(day);
+        }
     }
 
     public void EnsureAndApplyMatchAppearances(

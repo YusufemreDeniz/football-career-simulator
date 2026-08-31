@@ -208,11 +208,17 @@ public sealed class ContractRegistrationService
 
     public ContractPopulationContinuityResult RestorePopulationContinuity(
         GameDate day,
-        int retainedFreeAgentsPerClub = 2)
+        int retainedFreeAgentsPerClub = 2,
+        int minimumActiveContractsPerClub = 18)
     {
         if (retainedFreeAgentsPerClub < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(retainedFreeAgentsPerClub));
+        }
+
+        if (minimumActiveContractsPerClub < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(minimumActiveContractsPerClub));
         }
 
         var renewed = 0;
@@ -231,7 +237,13 @@ public sealed class ContractRegistrationService
                 .ThenBy(item => item.FreeAgent.PlayerId.Value)
                 .ToArray();
 
-            foreach (var item in activeFreeAgents.Skip(retainedFreeAgentsPerClub))
+            var activeContractCount = _store.GetForClub(clubGroup.Key)
+                .Count(contract => contract.IsActiveOn(day));
+            var requiredToReachFloor = Math.Max(0, minimumActiveContractsPerClub - activeContractCount);
+            var retainCount = Math.Min(
+                retainedFreeAgentsPerClub,
+                Math.Max(0, activeFreeAgents.Length - requiredToReachFloor));
+            foreach (var item in activeFreeAgents.Skip(retainCount))
             {
                 SignFreeAgentToLastClub(
                     item.FreeAgent.PlayerId,

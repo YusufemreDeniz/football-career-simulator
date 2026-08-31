@@ -143,7 +143,9 @@ public static class MvpAvailabilityAwareSelection
         if (available.Count < MatchSelection.StartingXiSize)
         {
             throw new TeamPreparationInvariantViolationException(
-                $"Not enough available players for starting XI ({available.Count}/{MatchSelection.StartingXiSize}).");
+                $"Not enough available players for starting XI ({available.Count}/{MatchSelection.StartingXiSize}; "
+                + $"squad {candidateSlots.Length}, unavailable {unavailable.Count}, "
+                + $"club {clubId.Value}, day {day.DayNumber}).");
         }
 
         var starting = SelectBalancedStartingSlots(clubId, available);

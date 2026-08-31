@@ -141,10 +141,13 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var managedClubBefore = _managerCareerStore?.Career.ActiveEmployment?.ClubId;
         var isManagedMatch = managedClubBefore is ClubId managedPre
             && (fixture.HomeClubId == managedPre || fixture.AwayClubId == managedPre);
-        var homeAiPlan = managedClubBefore != fixture.HomeClubId
+        // Adaptif plan yalnızca insan menajere karşı görünür ve anlamlıdır.
+        // AI-AI maçlarını klasik hızlı yolda tutmak, uzun sezon simülasyonunu
+        // binlerce gereksiz kadro/fitness taramasından korur.
+        var homeAiPlan = isManagedMatch && managedClubBefore != fixture.HomeClubId
             ? ResolveOpponentMatchPlan(season, fixture, fixture.HomeClubId, homeClub.SportiveStrength, awayClub.SportiveStrength, occurredAt)
             : null;
-        var awayAiPlan = managedClubBefore != fixture.AwayClubId
+        var awayAiPlan = isManagedMatch && managedClubBefore != fixture.AwayClubId
             ? ResolveOpponentMatchPlan(season, fixture, fixture.AwayClubId, awayClub.SportiveStrength, homeClub.SportiveStrength, occurredAt)
             : null;
         var homeLineupRole = ResolveLineupRoleModifier(fixture.Id, fixture.HomeClubId, rootSeed);

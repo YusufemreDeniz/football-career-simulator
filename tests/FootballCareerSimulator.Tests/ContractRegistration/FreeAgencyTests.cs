@@ -126,6 +126,59 @@ public sealed class FreeAgencyTests : IDisposable
     }
 
     [Fact]
+    public void RestorePopulationContinuity_ReSignsEnoughPlayersForEighteenPlayerFloor()
+    {
+        var world = WorldCalendarModule.Create(Day, rootSeed: 77);
+        var manager = ManagerCareerModule.CreateNewCareer(Day, startingClubId: 1);
+        var trainingStore = new InMemoryTrainingPhysicalStateStore();
+        var players = PlayerCareerModule.Create(manager.Store, world.TimelineStore, trainingStore);
+        var contracts = ContractRegistrationModule.Create(
+            players.Store,
+            manager.Store,
+            world.TimelineStore);
+        players = PlayerCareerModule.Create(
+            manager.Store,
+            world.TimelineStore,
+            trainingStore,
+            players.Store,
+            contracts.Registration);
+        players.Development.EnsureClub(new ClubId(1), 77, Day);
+
+        for (var slot = 0; slot < 7; slot++)
+        {
+            var playerId = PlayerId.FromClubSlot(1, slot);
+            contracts.Store.Upsert(PlayerContract.Activate(
+                playerId,
+                new ClubId(2),
+                Day,
+                Day.AddDays(365),
+                1_000));
+        }
+
+        for (var slot = 7; slot < 9; slot++)
+        {
+            var playerId = PlayerId.FromClubSlot(1, slot);
+            contracts.Store.Upsert(PlayerContract.Activate(
+                playerId,
+                new ClubId(1),
+                Day,
+                Day.AddDays(1),
+                1_000));
+        }
+
+        var rolloverDay = Day.AddDays(2);
+        contracts.Registration.ExpireDueContracts(rolloverDay);
+        Assert.Equal(16, contracts.Store.GetForClub(new ClubId(1)).Count(c => c.IsActiveOn(rolloverDay)));
+        Assert.Equal(2, contracts.FreeAgentStore.FreeAgents.Count(f => f.LastClubId == new ClubId(1)));
+
+        var restored = contracts.Registration.RestorePopulationContinuity(rolloverDay);
+
+        Assert.Equal(2, restored.RenewedPlayerCount);
+        Assert.Equal(18, contracts.Store.GetForClub(new ClubId(1)).Count(c => c.IsActiveOn(rolloverDay)));
+        Assert.DoesNotContain(contracts.FreeAgentStore.FreeAgents, f => f.LastClubId == new ClubId(1));
+    }
+
+    [Fact]
     public void SaveLoad_PreservesFreeAgencyAtSchemaV17()
     {
         var world = WorldCalendarModule.Create(Day, rootSeed: 4);
