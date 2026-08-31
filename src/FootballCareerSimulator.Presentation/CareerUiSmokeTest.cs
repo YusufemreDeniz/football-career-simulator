@@ -212,6 +212,25 @@ public static class CareerUiSmokeTest
                 season is not null
                 && season.ParticipantCount == teamCount
                 && season.FixtureCount == CompetitionMvpConstraints.TotalFixturesFor(teamCount));
+            var currentDayNumber = world.Queries.GetCurrentGameDate().DayNumber;
+            var plannedDays = competition.Queries.GetSeasonFixtures(season!.SeasonId)
+                .Where(fixture => fixture.Status == "Planned")
+                .Select(fixture => fixture.ScheduledDayNumber)
+                .Distinct()
+                .ToArray();
+            var upcomingDays = plannedDays.Where(day => day >= currentDayNumber).ToArray();
+            var nextPoint = Application.WorldCalendar.Queries.NextMeaningfulCalendarPointResolver.Resolve(
+                currentDayNumber,
+                hasHardBlocker: false,
+                hasPendingDecision: false,
+                plannedDays,
+                Array.Empty<int>());
+            passed &= LogCheck(
+                "Sonraki anlamli takvim noktasi",
+                nextPoint.TargetDayNumber >= currentDayNumber
+                && (upcomingDays.Length == 0
+                    || nextPoint.AlreadyAtPoint
+                    || nextPoint.TargetDayNumber == upcomingDays.Min()));
 
             var leagueSavePath = Path.Combine(OS.GetUserDataDir(), "career_league_selfcheck.db");
             var saveResult = host.GameSession.Save(leagueSavePath);

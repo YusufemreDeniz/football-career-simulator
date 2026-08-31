@@ -21,6 +21,7 @@ public static class OfficeNextStepGuide
     public const string ActionApproveSelection = "ApproveSelection";
     public const string ActionOpenMatchDay = "OpenMatchDay";
     public const string ActionAdvanceDay = "AdvanceDay";
+    public const string ActionAdvanceToNext = "AdvanceToNext";
     public const string ActionTransitionSeason = "TransitionSeason";
     public const string ActionApplyPrepSuggestion = "ApplyPrepSuggestion";
     public const string ActionSellFringe = "SellFringe";
@@ -257,10 +258,10 @@ public static class OfficeNextStepGuide
             && canAdvanceDay)
         {
             return new OfficeNextStep(
-                "1 Gün İlerlet",
+                "Devam — sonraki noktaya ilerlet",
                 TargetToday,
                 TodayPulseDigest.FocusCalm,
-                ActionAdvanceDay);
+                ActionAdvanceToNext);
         }
 
         return Resolve(focusCode);

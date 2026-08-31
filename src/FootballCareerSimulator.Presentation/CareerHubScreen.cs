@@ -350,7 +350,10 @@ public partial class CareerHubScreen : Control
                 OnPlayMatches();
                 return;
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceDay:
-                Apply(_controller.AdvanceDays(1));
+                Apply(_controller.AdvanceToNextMeaningfulPoint());
+                return;
+            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceToNext:
+                Apply(_controller.AdvanceToNextMeaningfulPoint());
                 return;
             case Application.CareerHub.Queries.OfficeNextStepGuide.ActionTransitionSeason:
                 Apply(_controller.TransitionToNextSeason());
@@ -3502,10 +3505,9 @@ public partial class CareerHubScreen : Control
             && canAdvance
             && pendingMatch is null
             && (!_officeNextStepButton.Visible
-                || !string.Equals(
-                    _officeNextStepAction,
-                    Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceDay,
-                    StringComparison.Ordinal));
+                || (_officeNextStepAction
+                    is not Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceDay
+                    and not Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceToNext));
     }
 
     private void RefreshSquadList()

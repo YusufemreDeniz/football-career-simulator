@@ -105,7 +105,7 @@ public sealed class OfficeNextStepGuideTests
     }
 
     [Fact]
-    public void CalmPulse_CanAdvance_AdvancesDay()
+    public void CalmPulse_CanAdvance_AdvancesToNextMeaningfulPoint()
     {
         var step = OfficeNextStepGuide.ResolveFromPulse(
             TodayPulseDigest.FocusCalm,
@@ -113,8 +113,8 @@ public sealed class OfficeNextStepGuideTests
             hasDuePlayableMatch: false,
             canAdvanceDay: true);
 
-        Assert.Equal(OfficeNextStepGuide.ActionAdvanceDay, step!.ActionCode);
-        Assert.Contains("İlerlet", step.ButtonLabel, StringComparison.Ordinal);
+        Assert.Equal(OfficeNextStepGuide.ActionAdvanceToNext, step!.ActionCode);
+        Assert.Contains("Devam", step.ButtonLabel, StringComparison.Ordinal);
     }
 
     [Fact]

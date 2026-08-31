@@ -30,7 +30,11 @@ public sealed record TimeAdvanceDigest(
         int requestedDayCount,
         string? nextMatchHint = null)
     {
-        var brand = requestedDayCount >= 7 ? "Hafta Özeti" : "Gün Özeti";
+        var brand = requestedDayCount >= 7
+            ? "Hafta Özeti"
+            : requestedDayCount > 1
+                ? "Takvim atladı"
+                : "Gün Özeti";
         var from = Domain.WorldCalendar.GameDate.ToDisplayDateString(result.PreviousDayNumber);
         var to = Domain.WorldCalendar.GameDate.ToDisplayDateString(result.NewDayNumber);
         var span = string.Equals(from, to, StringComparison.Ordinal)

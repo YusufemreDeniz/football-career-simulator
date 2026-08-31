@@ -3397,6 +3397,60 @@ public sealed class CareerSessionController
         }
     }
 
+    public NextMeaningfulCalendarPoint BuildNextMeaningfulCalendarPoint()
+    {
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var eligibility = Host.WorldModule.Queries.GetTimeAdvanceEligibility();
+        var desk = BuildDecisionDeskDigest();
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        var fixtureDays = season is null
+            ? Array.Empty<int>()
+            : Host.CompetitionModule.Queries.GetSeasonFixtures(season.SeasonId)
+                .Where(fixture => string.Equals(fixture.Status, "Planned", StringComparison.Ordinal))
+                .Select(fixture => fixture.ScheduledDayNumber)
+                .Distinct()
+                .ToArray();
+        var window = Host.WorldModule.Queries.GetTransferWindow();
+        var windowDays = new List<int>(2);
+        if (window.OpenedOnDayNumber is int opened)
+        {
+            windowDays.Add(opened);
+        }
+
+        if (window.ClosesOnDayNumber is int closes)
+        {
+            windowDays.Add(closes);
+        }
+
+        return NextMeaningfulCalendarPointResolver.Resolve(
+            currentDay,
+            hasHardBlocker: !eligibility.CanAdvance,
+            hasPendingDecision: desk.HasOpenDecision || desk.IsHardBlocker,
+            fixtureDays,
+            windowDays);
+    }
+
+    public UiActionResult AdvanceToNextMeaningfulPoint()
+    {
+        var point = BuildNextMeaningfulCalendarPoint();
+        if (point.AlreadyAtPoint)
+        {
+            return UiActionResult.Ok(point.PlayerFacingReason);
+        }
+
+        var advanced = AdvanceDays(point.DaysToAdvance);
+        if (!advanced.Succeeded)
+        {
+            return advanced;
+        }
+
+        return UiActionResult.Ok(
+            $"{point.PlayerFacingReason}\n{advanced.Message}",
+            advanced.Digest,
+            narrativeBridgeLine: advanced.NarrativeBridgeLine,
+            nextFocusCode: advanced.NextFocusCode);
+    }
+
     public UiActionResult AdvanceDays(int dayCount)
     {
         try
