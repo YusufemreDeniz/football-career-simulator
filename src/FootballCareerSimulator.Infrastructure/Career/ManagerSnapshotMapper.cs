@@ -29,7 +29,8 @@ internal static class ManagerSnapshotMapper
         int? pendingOfferCreatedDayNumber = null,
         int? managerReputation = null,
         string? lastReputationReasonCode = null,
-        IReadOnlyList<EmploymentHistoryEntry>? employmentHistory = null)
+        IReadOnlyList<EmploymentHistoryEntry>? employmentHistory = null,
+        int? startingBackground = null)
     {
         JobOffer? pendingOffer = null;
         if (pendingOfferId is long offerId
@@ -46,6 +47,10 @@ internal static class ManagerSnapshotMapper
 
         var reputation = new ManagerReputation(
             managerReputation ?? ManagerReputation.DefaultInitialValue);
+        StartingBackground? background = startingBackground is int backgroundValue
+            && Enum.IsDefined((StartingBackground)backgroundValue)
+            ? (StartingBackground)backgroundValue
+            : null;
 
         var status = employmentStatus is int statusValue
             ? (ManagerEmploymentStatus)statusValue
@@ -73,7 +78,8 @@ internal static class ManagerSnapshotMapper
                 pendingJobOffer: pendingOffer,
                 reputation: reputation,
                 lastReputationReasonCode: lastReputationReasonCode,
-                employmentHistory: employmentHistory);
+                employmentHistory: employmentHistory,
+                startingBackground: background);
         }
 
         if (employmentStartedDayNumber is null)
@@ -118,6 +124,7 @@ internal static class ManagerSnapshotMapper
             pendingJobOffer: null,
             reputation: reputation,
             lastReputationReasonCode: lastReputationReasonCode,
-            employmentHistory: employmentHistory);
+            employmentHistory: employmentHistory,
+            startingBackground: background);
     }
 }

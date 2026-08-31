@@ -2874,6 +2874,81 @@ internal static class WorldCalendarSqliteMigrator
         transaction.Commit();
     }
 
+    public static void MigrateV47ToV48InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+        try
+        {
+            MigrateV47ToV48(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V47 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV47ToV48(string workingCopyPath)
+    {
+        using var connection = OpenMigrationConnection(workingCopyPath);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        if (TableExists(connection, "ManagerCareerState")
+            && !ColumnExists(connection, "ManagerCareerState", "StartingBackground"))
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(
+                connection,
+                transaction,
+                "ALTER TABLE ManagerCareerState ADD COLUMN StartingBackground INTEGER NULL;");
+        }
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+            CREATE TABLE IF NOT EXISTS ClubLineupTemplateState (
+                ClubId INTEGER PRIMARY KEY,
+                StartingSlotsCsv TEXT NOT NULL,
+                BenchSlotsCsv TEXT NOT NULL
+            );
+            """);
+
+        if (TableExists(connection, "ManagerCareerState")
+            && ColumnExists(connection, "ManagerCareerState", "StartingBackground"))
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+                UPDATE ManagerCareerState
+                SET StartingBackground = CASE LastReputationReasonCode
+                    WHEN 'StartBackground:AmateurHeadCoach' THEN 1
+                    WHEN 'StartBackground:YouthAcademyCoach' THEN 2
+                    WHEN 'StartBackground:AssistantCoach' THEN 3
+                    WHEN 'StartBackground:LowerLeagueYouthManager' THEN 4
+                    WHEN 'StartBackground:RecentlyRetiredPlayer' THEN 5
+                    WHEN 'StartBackground:TacticalSpecialist' THEN 6
+                    ELSE StartingBackground
+                END
+                WHERE StartingBackground IS NULL;
+                """);
+        }
+
+        ProductionSqliteCommands.ExecuteNonQuery(
+            connection,
+            transaction,
+            "UPDATE ProductionSaveManifest SET SchemaVersion = 48;");
+        transaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

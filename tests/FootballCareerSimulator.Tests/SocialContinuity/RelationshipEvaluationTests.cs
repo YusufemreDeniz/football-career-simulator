@@ -277,7 +277,7 @@ public sealed class RelationshipEvaluationTests : IDisposable
             social.RelationshipStore.Relationships);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(47, loaded.SchemaVersion);
+        Assert.Equal(48, loaded.SchemaVersion);
         Assert.Single(loaded.Relationships);
         Assert.Equal(52, loaded.Relationships[0].Respect);
     }

@@ -9,6 +9,7 @@ using FootballCareerSimulator.Domain.EventRuleEvaluation;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.SocialContinuity;
+using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.Transfer;
@@ -47,7 +48,8 @@ public interface ICareerPersistence
         IReadOnlyList<ScheduledEvaluation>? scheduledEvaluations = null,
         HubNarrativeUiState? hubNarrativeUiState = null,
         IReadOnlyList<ClubFinanceLedger>? clubFinanceLedgers = null,
-        IReadOnlyList<DualPhaseTacticPlan>? dualPhaseTacticPlans = null);
+        IReadOnlyList<DualPhaseTacticPlan>? dualPhaseTacticPlans = null,
+        IReadOnlyList<ClubLineupTemplate>? lineupTemplates = null);
 
     CareerLoadResult Load(string filePath);
 }
@@ -83,4 +85,5 @@ public sealed record CareerLoadResult(
     IReadOnlyList<ScheduledEvaluation>? ScheduledEvaluations = null,
     HubNarrativeUiState? HubNarrativeUiState = null,
     IReadOnlyList<ClubFinanceLedger>? ClubFinanceLedgers = null,
-    IReadOnlyList<DualPhaseTacticPlan>? DualPhaseTacticPlans = null);
+    IReadOnlyList<DualPhaseTacticPlan>? DualPhaseTacticPlans = null,
+    IReadOnlyList<ClubLineupTemplate>? LineupTemplates = null);

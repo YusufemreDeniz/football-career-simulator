@@ -197,7 +197,7 @@ public sealed class YouthAcademyIntakeTests : IDisposable
 
         var loaded = persistence.Load(path);
 
-        Assert.Equal(47, loaded.SchemaVersion);
+        Assert.Equal(48, loaded.SchemaVersion);
         var request = Assert.Single(loaded.DecisionRequests);
         Assert.Equal(DecisionRequestKind.YouthAcademyCandidate, request.Kind);
         Assert.Equal(acceptedId, request.SubjectPlayerId.Value);
@@ -260,7 +260,7 @@ public sealed class YouthAcademyIntakeTests : IDisposable
         var loaded = persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(47, loaded.SchemaVersion);
+        Assert.Equal(48, loaded.SchemaVersion);
         var request = Assert.Single(loaded.DecisionRequests);
         Assert.Equal(DecisionRequestKind.YouthAcademyCandidate, request.Kind);
         Assert.Equal(acceptedId, request.SubjectPlayerId.Value);

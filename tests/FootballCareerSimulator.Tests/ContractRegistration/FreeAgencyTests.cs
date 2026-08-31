@@ -232,7 +232,7 @@ public sealed class FreeAgencyTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(47, loaded.SchemaVersion);
+        Assert.Equal(48, loaded.SchemaVersion);
         Assert.Single(loaded.FreeAgents);
         Assert.Equal(playerId, loaded.FreeAgents[0].PlayerId);
         Assert.Equal(1, loaded.FreeAgents[0].LastClubId.Value);

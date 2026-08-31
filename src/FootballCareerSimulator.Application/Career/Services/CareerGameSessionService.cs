@@ -158,7 +158,8 @@ public sealed class CareerGameSessionService
             _scheduledEvaluationStore?.Items,
             hubNarrativeUiState,
             _clubFinanceLedgerStore?.Ledgers,
-            _dualPhaseTacticPlanStore?.Plans);
+            _dualPhaseTacticPlanStore?.Plans,
+            _matchSelectionStore.LineupTemplates);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -179,6 +180,10 @@ public sealed class CareerGameSessionService
         _clubRegistryStore.Replace(loaded.ClubRegistry);
         _managerCareerStore.Replace(loaded.ManagerCareer);
         _matchSelectionStore.ReplaceAll(loaded.MatchSelections);
+        if (loaded.LineupTemplates is { Count: > 0 })
+        {
+            _matchSelectionStore.ReplaceLineupTemplates(loaded.LineupTemplates);
+        }
         _trainingStore.ReplaceAll(loaded.TrainingPlans, loaded.PhysicalStates);
         _playerCareerStore.ReplaceAll(loaded.PlayerCareers);
         _contractStore.ReplaceAll(loaded.Contracts);

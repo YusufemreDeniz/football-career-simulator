@@ -29,6 +29,9 @@ public static class ManagerCareerCanonicalStateHasher
         builder.Append("LastReputationReasonCode=")
             .Append(career.LastReputationReasonCode ?? string.Empty)
             .Append(';');
+        builder.Append("StartingBackground=")
+            .Append(career.StartingBackground is { } background ? ((int)background).ToString() : string.Empty)
+            .Append(';');
 
         if (career.PendingJobOffer is { } offer)
         {

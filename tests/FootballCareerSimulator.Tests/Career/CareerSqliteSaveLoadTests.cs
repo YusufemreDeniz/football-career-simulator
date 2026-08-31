@@ -184,7 +184,7 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
 
         var loaded = _persistence.Load(path);
 
-        Assert.Equal(47, loaded.SchemaVersion);
+        Assert.Equal(48, loaded.SchemaVersion);
         var loadedLedger = Assert.Single(loaded.ClubFinanceLedgers!);
         Assert.Equal(10_750_000, loadedLedger.Balance);
         Assert.Equal("fixture:1:ticket", Assert.Single(loadedLedger.Entries).Id.Value);
@@ -219,7 +219,7 @@ public sealed class CareerSqliteSaveLoadTests : IDisposable
         var loaded = _persistence.Load(path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(47, loaded.SchemaVersion);
+        Assert.Equal(48, loaded.SchemaVersion);
         Assert.Empty(loaded.League.Seasons);
         Assert.Equal(1, loaded.League.CompetitionId.Value);
         Assert.Equal(

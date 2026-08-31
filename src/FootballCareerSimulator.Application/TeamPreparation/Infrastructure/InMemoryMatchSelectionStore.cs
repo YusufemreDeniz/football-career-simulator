@@ -26,6 +26,22 @@ public sealed class InMemoryMatchSelectionStore : IMatchSelectionStore
             ? template
             : null;
 
+    public IReadOnlyList<ClubLineupTemplate> LineupTemplates =>
+        _templates.Values.OrderBy(template => template.ClubId.Value).ToArray();
+
+    public void ReplaceLineupTemplates(IEnumerable<ClubLineupTemplate> templates)
+    {
+        ArgumentNullException.ThrowIfNull(templates);
+        _templates.Clear();
+        foreach (var template in templates)
+        {
+            _templates[template.ClubId.Value] = new ClubLineupTemplate(
+                template.ClubId,
+                template.StartingSlotIndices.ToArray(),
+                template.BenchSlotIndices.ToArray());
+        }
+    }
+
     public void Upsert(MatchSelection selection)
     {
         ArgumentNullException.ThrowIfNull(selection);

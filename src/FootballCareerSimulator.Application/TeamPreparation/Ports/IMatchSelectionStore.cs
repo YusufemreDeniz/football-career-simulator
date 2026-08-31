@@ -17,6 +17,10 @@ public interface IMatchSelectionStore
 
     ClubLineupTemplate? GetLineupTemplate(ClubId clubId);
 
+    IReadOnlyList<ClubLineupTemplate> LineupTemplates { get; }
+
+    void ReplaceLineupTemplates(IEnumerable<ClubLineupTemplate> templates);
+
     void Upsert(MatchSelection selection);
 
     void Remove(FixtureId fixtureId, ClubId clubId);
