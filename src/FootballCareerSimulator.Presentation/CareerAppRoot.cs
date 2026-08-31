@@ -347,6 +347,10 @@ public partial class CareerAppRoot : Control
         screen.GrowVertical = GrowDirection.Both;
         screen.Modulate = new Color(1f, 1f, 1f, 0f);
         AddChild(screen);
+        Callable.From(() => UiFocusCoordinator.Prepare(
+            screen,
+            grabInitialFocus: GameExperienceSettingsStore.Current.GamepadNavigationHintsEnabled))
+            .CallDeferred();
 
         if (CareerUiTheme.ReducedMotion)
         {

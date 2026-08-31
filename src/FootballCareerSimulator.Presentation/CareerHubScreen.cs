@@ -120,6 +120,7 @@ public partial class CareerHubScreen : Control
     private Button _contrastSettingButton = null!;
     private Button _textScaleSettingButton = null!;
     private Button _guideSettingButton = null!;
+    private Button _gamepadSettingButton = null!;
     private SpinBox _roundSelector = null!;
     private ItemList _fixtureList = null!;
     private ItemList _squadList = null!;
@@ -240,6 +241,34 @@ public partial class CareerHubScreen : Control
         {
             ApplyResponsiveLayout();
         }
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!GameExperienceSettingsStore.Current.GamepadNavigationHintsEnabled
+            || @event is not InputEventJoypadButton { Pressed: true } joy)
+        {
+            return;
+        }
+
+        // Godot standard mapping: L1/R1. Directional pad continues to use
+        // the engine's native spatial focus navigation.
+        var direction = (int)joy.ButtonIndex switch
+        {
+            9 => -1,
+            10 => 1,
+            _ => 0,
+        };
+        if (direction == 0)
+        {
+            return;
+        }
+
+        var pageCount = Enum.GetValues<HubPage>().Length;
+        var next = ((int)_currentPage + direction + pageCount) % pageCount;
+        ShowPage((HubPage)next);
+        _navButtons[next].GrabFocus();
+        GetViewport().SetInputAsHandled();
     }
 
     public void SetStatus(string message) => PulseStatus(message);
@@ -1750,6 +1779,13 @@ public partial class CareerHubScreen : Control
         _guideSettingButton.Pressed += () => UpdateExperienceSettings(
             current => current with { FirstWeekGuideEnabled = !current.FirstWeekGuideEnabled });
         accessibilityRow.AddChild(_guideSettingButton);
+        _gamepadSettingButton = SecondaryButton("Gamepad ipuçları");
+        _gamepadSettingButton.Pressed += () => UpdateExperienceSettings(
+            current => current with
+            {
+                GamepadNavigationHintsEnabled = !current.GamepadNavigationHintsEnabled,
+            });
+        accessibilityRow.AddChild(_gamepadSettingButton);
 
         // Ayar değişiminde Hub yeniden kurulduğunda aynı Dosya sayfasının üstünde
         // kalınır; oyuncu peş peşe tercih değiştirmek için yeniden kaydırmaz.
@@ -2411,7 +2447,8 @@ public partial class CareerHubScreen : Control
             ? "Canlı cihaz ölçümü henüz başlamadı."
             : $"{telemetry.Headline}\n{telemetry.DetailLine}";
         _experienceSettingsLabel.Text =
-            "Otomatik eşikler gerçek cihaz sürükleme, titreşim, ses dengesi ve ısınma testinin yerine geçmez.";
+            "Gamepad: yön tuşlarıyla odak, A ile seçim, L1/R1 ile sayfa değişimi. "
+            + "Otomatik eşikler gerçek cihaz sürükleme, titreşim, ses dengesi ve ısınma testinin yerine geçmez.";
         _soundSettingButton.Text = $"Ses: {OnOff(preferences.SoundEnabled)}";
         _musicSettingButton.Text = $"Müzik: {OnOff(preferences.MusicEnabled)}";
         _crowdSettingButton.Text = $"Tribün: {OnOff(preferences.CrowdEnabled)}";
@@ -2420,6 +2457,8 @@ public partial class CareerHubScreen : Control
         _contrastSettingButton.Text = $"Yüksek kontrast: {OnOff(preferences.HighContrast)}";
         _textScaleSettingButton.Text = $"Yazı: %{preferences.TextScalePercent}";
         _guideSettingButton.Text = $"İlk hafta rehberi: {OnOff(preferences.FirstWeekGuideEnabled)}";
+        _gamepadSettingButton.Text =
+            $"Gamepad ipuçları: {OnOff(preferences.GamepadNavigationHintsEnabled)}";
     }
 
     private void UpdateExperienceSettings(

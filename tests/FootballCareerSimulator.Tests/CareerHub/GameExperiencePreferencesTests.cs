@@ -69,6 +69,7 @@ public sealed class GameExperiencePreferencesTests
 
         Assert.NotNull(restored);
         Assert.True(restored.MusicEnabled);
+        Assert.True(restored.GamepadNavigationHintsEnabled);
         Assert.Equal(100, restored.HapticsStrengthPercent);
     }
 

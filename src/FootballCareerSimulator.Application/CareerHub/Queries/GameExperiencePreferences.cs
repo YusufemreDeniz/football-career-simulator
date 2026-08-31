@@ -24,6 +24,9 @@ public sealed record GameExperiencePreferences(
     /// </summary>
     public int HapticsStrengthPercent { get; init; } = 100;
 
+    /// <summary>Shows controller navigation hints and enables automatic initial focus.</summary>
+    public bool GamepadNavigationHintsEnabled { get; init; } = true;
+
     public bool EffectiveMusicEnabled => SoundEnabled && MusicEnabled;
 
     public bool EffectiveCrowdEnabled => SoundEnabled && CrowdEnabled;
