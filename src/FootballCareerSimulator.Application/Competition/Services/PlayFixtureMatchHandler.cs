@@ -16,6 +16,7 @@ using FootballCareerSimulator.Domain.Match;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.Match;
 using FootballCareerSimulator.Simulation.TeamPreparation;
@@ -714,24 +715,38 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
 
         if (existing.Count == 0)
         {
-            return;
+            for (var slot = MatchSelection.MinSquadSlot; slot <= MatchSelection.MaxSquadSlot; slot++)
+            {
+                existing[slot] = PlayerPhysicalState.CreateRested(clubId, slot);
+            }
         }
 
         var startingSlots = ResolveStartingSlots(fixtureId, clubId);
+        var matchdaySlots = ResolveMatchdaySlots(fixtureId, clubId).ToHashSet();
+        var startingSet = startingSlots.ToHashSet();
 
-        foreach (var slot in startingSlots)
+        foreach (var slot in existing.Keys.ToArray())
         {
             if (!existing.TryGetValue(slot, out var state) || !state.IsAvailableOn(day))
             {
                 continue;
             }
 
-            existing[slot] = MvpInjuryRiskEvaluator.MaybeInjureFromMatch(
-                state,
-                rootSeed,
-                fixtureId.Value,
-                day,
-                riskBonusPercent);
+            if (startingSet.Contains(slot))
+            {
+                existing[slot] = MvpInjuryRiskEvaluator.MaybeInjureFromMatch(
+                    state,
+                    rootSeed,
+                    fixtureId.Value,
+                    day,
+                    riskBonusPercent);
+            }
+            else if (matchdaySlots.Contains(slot))
+            {
+                existing[slot] = state.WithLevels(
+                    Math.Clamp(state.Fatigue + 4, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel),
+                    Math.Clamp(state.Fitness - 1, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel));
+            }
         }
 
         _trainingStore.ReplacePhysicalStatesForClub(
