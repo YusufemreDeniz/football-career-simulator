@@ -293,7 +293,7 @@ public partial class MainMenuScreen : Control
             Name = "StatusLabel",
             Text = continueButton.Disabled
                 ? "Kayıt yok — Yeni Menajer Kariyeri ile başla."
-                : $"Kayıt bulundu:\n{savePath}",
+                : "Yerel kayıt mevcut — Kariyere Devam Et.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             HorizontalAlignment = HorizontalAlignment.Center,
         };

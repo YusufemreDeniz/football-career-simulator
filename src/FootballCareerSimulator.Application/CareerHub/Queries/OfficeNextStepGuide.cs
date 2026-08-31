@@ -42,7 +42,7 @@ public static class OfficeNextStepGuide
         return focusCode switch
         {
             TodayPulseDigest.FocusDesk => new OfficeNextStep(
-                "Masada'ya Git",
+                "Karar Masasına Git",
                 TargetToday,
                 TodayPulseDigest.FocusDesk,
                 ActionNavigate),

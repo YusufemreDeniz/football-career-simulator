@@ -68,7 +68,7 @@ public partial class CareerSetupScreen : Control
         var back = new Button
         {
             Text = "Geri",
-            TooltipText = "Ana menuye don",
+            TooltipText = "Ana menüye dön",
             SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
         };
         CareerUiTheme.StyleSecondaryButton(back);
@@ -76,13 +76,13 @@ public partial class CareerSetupScreen : Control
         back.Pressed += () => CancelRequested?.Invoke();
         content.AddChild(back);
 
-        var eyebrow = new Label { Text = "YENI KARIYER", HorizontalAlignment = HorizontalAlignment.Center };
+        var eyebrow = new Label { Text = "YENİ KARİYER", HorizontalAlignment = HorizontalAlignment.Center };
         CareerUiTheme.StyleEyebrow(eyebrow, CareerUiTheme.Accent);
         content.AddChild(eyebrow);
 
         var title = new Label
         {
-            Text = "Kariyerine basla",
+            Text = "Kariyerine başla",
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
@@ -92,7 +92,7 @@ public partial class CareerSetupScreen : Control
 
         var intro = new Label
         {
-            Text = "Adini ve gecmisini sec. Yirmi kulubun hepsi kapini calmaz; yalniz uygun tekliflerden birini kabul edersin.",
+            Text = "Adını ve geçmişini seç. Yirmi kulübün hepsi kapını çalmaz; yalnız uygun tekliflerden birini kabul edersin.",
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
@@ -108,7 +108,7 @@ public partial class CareerSetupScreen : Control
         _startButton = new Button
         {
             Text = "Teklifi Kabul Et",
-            TooltipText = "Secilen kulup teklifini kabul edip ClubEmployment baslat",
+            TooltipText = "Önce bir başlangıç geçmişi ve kulüp teklifi seç.",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Disabled = true,
         };
@@ -119,7 +119,7 @@ public partial class CareerSetupScreen : Control
 
         var note = new Label
         {
-            Text = "Yeni kariyer, onceki yerel kaydi temizleyerek farkli bir sezon akisi baslatir.",
+            Text = "Yeni kariyer, önceki yerel kaydı temizleyerek farklı bir sezon akışı başlatır.",
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
@@ -138,17 +138,17 @@ public partial class CareerSetupScreen : Control
         var section = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         section.AddThemeConstantOverride("separation", 6);
 
-        var label = new Label { Text = "DUNYA SEED" };
+        var label = new Label { Text = "DÜNYA SEED" };
         CareerUiTheme.StyleSection(label);
         section.AddChild(label);
 
         _seedInput = new LineEdit
         {
-            PlaceholderText = "Ornek: 741852",
+            PlaceholderText = "Örnek: 741852",
             MaxLength = 10,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 50),
-            TooltipText = "Ayni seed ayni ligi, kulupleri ve futbolculari uretir",
+            TooltipText = "Aynı seed aynı ligi, kulüpleri ve futbolcuları üretir",
         };
         CareerUiTheme.StyleTextInput(_seedInput);
         _seedInput.TextChanged += _ => RebuildWorldFromSeed();
@@ -175,13 +175,13 @@ public partial class CareerSetupScreen : Control
         var section = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         section.AddThemeConstantOverride("separation", 6);
 
-        var label = new Label { Text = "TEKNIK DIREKTOR ADI" };
+        var label = new Label { Text = "TEKNİK DİREKTÖR ADI" };
         CareerUiTheme.StyleSection(label);
         section.AddChild(label);
 
         _managerNameInput = new LineEdit
         {
-            PlaceholderText = "Ornek: Yusuf Deniz",
+            PlaceholderText = "Örnek: Yusuf Deniz",
             MaxLength = 48,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 50),
@@ -198,13 +198,13 @@ public partial class CareerSetupScreen : Control
         var section = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         section.AddThemeConstantOverride("separation", 8);
 
-        var label = new Label { Text = "BASLANGIC GECMISI" };
+        var label = new Label { Text = "BAŞLANGIÇ GEÇMİŞİ" };
         CareerUiTheme.StyleSection(label);
         section.AddChild(label);
 
         var hint = new Label
         {
-            Text = "Gecmisin hangi kuluplerin kapisini calacagini belirler. Kalici bir super guc degildir.",
+            Text = "Geçmişin hangi kulüplerin kapısını çalacağını belirler. Kalıcı bir süper güç değildir.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(hint, muted: true);
@@ -228,13 +228,13 @@ public partial class CareerSetupScreen : Control
         var section = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         section.AddThemeConstantOverride("separation", 8);
 
-        var label = new Label { Text = "IS TEKLIFLERI" };
+        var label = new Label { Text = "İŞ TEKLİFLERİ" };
         CareerUiTheme.StyleSection(label);
         section.AddChild(label);
 
         _offerHint = new Label
         {
-            Text = "Once bir baslangic gecmisi sec. Ligdeki yirmi kulubu listeden sahiplenemezsin.",
+            Text = "Önce bir başlangıç geçmişi seç. Ligdeki yirmi kulübü listeden sahiplenemezsin.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(_offerHint, muted: true);
@@ -253,7 +253,7 @@ public partial class CareerSetupScreen : Control
         if (!int.TryParse(_seedInput.Text.Trim(), out var seed) || seed <= 0)
         {
             _worldSummary = null;
-            _worldSummaryLabel.Text = "Gecerli bir seed gir. Bos birakma; ayni sayi ayni dunyayi acar.";
+            _worldSummaryLabel.Text = "Geçerli bir seed gir. Boş bırakma; aynı sayı aynı dünyayı açar.";
             RefreshOffers();
             UpdateStartAvailability();
             return;
@@ -264,9 +264,9 @@ public partial class CareerSetupScreen : Control
         _worldSummary = ProductionCareerWorldBootstrap.ToSummary(world);
         _worldSummaryLabel.Text =
             $"{_worldSummary.CountryName} · {_worldSummary.LeagueName}\n" +
-            $"{_worldSummary.ClubCount} kulup · {_worldSummary.ActivePlayerCount} futbolcu " +
+            $"{_worldSummary.ClubCount} kulüp · {_worldSummary.ActivePlayerCount} futbolcu " +
             $"({_worldSummary.ContractedPlayerCount} kadrolu, {_worldSummary.FreeAgentCount} serbest)\n" +
-            $"Sezon acilisi: {_worldSummary.OpeningDateDisplay} · Seed {_worldSummary.RootSeed}";
+            $"Sezon açılışı: {_worldSummary.OpeningDateDisplay} · Seed {_worldSummary.RootSeed}";
         RefreshOffers();
         UpdateStartAvailability();
     }
@@ -328,8 +328,8 @@ public partial class CareerSetupScreen : Control
         {
             _offers = Array.Empty<StartingClubOfferDigest>();
             _offerHint.Text = _worldSummary is null
-                ? "Gecerli bir dunya seed'i olmadan teklif uretilmez."
-                : "Once bir baslangic gecmisi sec. Ligdeki yirmi kulubu listeden sahiplenemezsin.";
+                ? "Geçerli bir dünya seed'i olmadan teklif üretilmez."
+                : "Önce bir başlangıç geçmişi seç. Ligdeki yirmi kulübü listeden sahiplenemezsin.";
             return;
         }
 
@@ -341,8 +341,8 @@ public partial class CareerSetupScreen : Control
         }
 
         _offerHint.Text = _offers.Count == 0
-            ? "Bu gecmis icin teklif uretilemedi."
-            : $"{_offers.Count} kulup kapini caldi. Yildiz kulup her zaman teklif vermez.";
+            ? "Bu geçmiş için teklif üretilemedi."
+            : $"{_offers.Count} kulüp kapını çaldı. Yıldız kulüp her zaman teklif vermez.";
 
         foreach (var offer in _offers)
         {
@@ -356,13 +356,13 @@ public partial class CareerSetupScreen : Control
         var button = new Button
         {
             Text =
-                (selected ? $"{offer.DisplayName}  ·  secildi\n" : $"{offer.DisplayName}\n") +
-                $"{offer.LeagueLevelSummary} · guc {offer.SportiveStrength}/100\n" +
+                (selected ? $"{offer.DisplayName}  ·  seçildi\n" : $"{offer.DisplayName}\n") +
+                $"{offer.LeagueLevelSummary} · güç {offer.SportiveStrength}/100\n" +
                 $"{offer.SquadSummary}\n" +
-                $"Yonetim beklentisi: {offer.BoardExpectation}\n" +
-                $"Transfer butcesi: EUR {offer.TransferBudget:N0}\n" +
+                $"Yönetim beklentisi: {offer.BoardExpectation}\n" +
+                $"Transfer bütçesi: EUR {offer.TransferBudget:N0}\n" +
                 offer.WhyOffered,
-            TooltipText = "Bu teklifi kabul etmek icin sec",
+            TooltipText = "Bu teklifi kabul etmek için seç",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             Alignment = HorizontalAlignment.Left,
@@ -398,11 +398,18 @@ public partial class CareerSetupScreen : Control
 
     private void UpdateStartAvailability()
     {
+        var nameTooShort = _managerNameInput.Text.Trim().Length < 2;
         _startButton.Disabled =
             _worldSummary is null
             || _selectedBackground is null
             || _selectedOffer is null
-            || _managerNameInput.Text.Trim().Length < 2;
+            || nameTooShort;
+        _startButton.TooltipText =
+            _worldSummary is null ? "Önce geçerli bir dünya seed'i gir."
+            : nameTooShort ? "Teknik direktör adını en az iki karakter yaz."
+            : _selectedBackground is null ? "Önce bir başlangıç geçmişi seç."
+            : _selectedOffer is null ? "Önce bir kulüp teklifi seç."
+            : "Seçilen teklifi kabul edip kariyeri başlat.";
     }
 
     private void ConfirmCareer()

@@ -61,7 +61,7 @@ public partial class MatchDayScreen : Control
 
         var brand = new Label
         {
-            Text = "MATCHDAY",
+            Text = "MAÇ GÜNÜ",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleBrand(brand);

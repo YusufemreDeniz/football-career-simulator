@@ -58,7 +58,7 @@ public partial class LandscapeMatchDayScreen : Control
 
         var heading = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         header.AddChild(heading);
-        var stage = new Label { Text = "MAC GUNU  /  TAKTIK TAHTASI" };
+        var stage = new Label { Text = "MAÇ GÜNÜ  /  TAKTİK TAHTASI" };
         CareerUiTheme.StyleEyebrow(stage, CareerUiTheme.Data);
         heading.AddChild(stage);
         _fixtureLabel = new Label();

@@ -57,7 +57,7 @@ public partial class LandscapeHalfTimeScreen : Control
         header.AddChild(back);
         var scoreBlock = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         header.AddChild(scoreBlock);
-        var stage = new Label { Text = "DEVRE ARASI  /  MAC KOMUTA MERKEZI" };
+        var stage = new Label { Text = "DEVRE ARASI  /  MAÇ KOMUTA MERKEZİ" };
         CareerUiTheme.StyleEyebrow(stage, CareerUiTheme.Accent);
         scoreBlock.AddChild(stage);
         var fixture = new Label { Text = _digest.FixtureLine };
@@ -113,12 +113,12 @@ public partial class LandscapeHalfTimeScreen : Control
         _benchHost = MatchScreenUi.VerticalStack(0);
         deskStack.AddChild(_benchHost);
 
-        var tacticTitle = new Label { Text = "IKINCI YARI PLANI" };
+        var tacticTitle = new Label { Text = "İKİNCİ YARI PLANI" };
         CareerUiTheme.StyleEyebrow(tacticTitle, CareerUiTheme.Data);
         deskStack.AddChild(tacticTitle);
-        deskStack.AddChild(DecisionButton("Ayni plan", MatchHalfTimeDigest.DecisionContinue, primary: false));
-        deskStack.AddChild(DecisionButton("Hucuma gec", MatchHalfTimeDigest.DecisionAttack, primary: true));
-        deskStack.AddChild(DecisionButton("Savunmaya cek", MatchHalfTimeDigest.DecisionDefend, primary: false));
+        deskStack.AddChild(DecisionButton("Aynı Planla Devam Et", MatchHalfTimeDigest.DecisionContinue, primary: false));
+        deskStack.AddChild(DecisionButton("Hücuma Geç", MatchHalfTimeDigest.DecisionAttack, primary: true));
+        deskStack.AddChild(DecisionButton("Savunmaya Çek", MatchHalfTimeDigest.DecisionDefend, primary: false));
 
         _statusLabel = MatchScreenUi.BodyLine(string.Empty, muted: true);
         var status = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };

@@ -884,7 +884,7 @@ public partial class CareerHubScreen : Control
         _approveSelectionButton = PrimaryButton("Kadro Onayla");
         _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
         primaryRow.AddChild(_approveSelectionButton);
-        _playButton = PrimaryButton("Maç Merkezine Git");
+        _playButton = PrimaryButton("Maç Gününe Git");
         _playButton.Pressed += OnPlayMatches;
         primaryRow.AddChild(_playButton);
         _swapSelectionButton = SecondaryButton("XI↔Yedek");
@@ -1149,7 +1149,7 @@ public partial class CareerHubScreen : Control
             Apply(_controller.OpenPressQuestionDecisionForOldestSquadPlayer());
         decisionRow.AddChild(_openPressQuestionDecisionButton);
 
-        var clubDetailsToggle = SecondaryButton("Kadro ayrintilari");
+        var clubDetailsToggle = SecondaryButton("Kadro ayrıntıları");
         squadCard.AddChild(clubDetailsToggle);
         var optionalClubCards = new[]
         {
@@ -1167,7 +1167,7 @@ public partial class CareerHubScreen : Control
             {
                 card.Visible = visible;
             }
-            clubDetailsToggle.Text = visible ? "Kadro ayrintilarini gizle" : "Kadro ayrintilari";
+            clubDetailsToggle.Text = visible ? "Kadro ayrıntılarını gizle" : "Kadro ayrıntıları";
         };
         return page;
     }
@@ -1184,7 +1184,7 @@ public partial class CareerHubScreen : Control
         _transferNextStepButton.Pressed += OnTransferNextStepPressed;
         overviewCard.AddChild(_transferNextStepButton);
 
-        _transferScoutToggle = SecondaryButton("Scout raporu al");
+        _transferScoutToggle = SecondaryButton("Gözlemci raporu al");
         _transferScoutToggle.Pressed += ToggleTransferScoutDetails;
         overviewCard.AddChild(_transferScoutToggle);
 
@@ -2217,7 +2217,7 @@ public partial class CareerHubScreen : Control
                 ? _controller.GetClubDisplayName(lastClubId)
                 : "—";
             var offerText = manager.PendingOfferClubId is long offerClubId
-                ? $"Aktif teklif: {GetClubDisplayNameSafe(offerClubId)} (#{manager.PendingOfferId})"
+                ? $"Aktif teklif: {GetClubDisplayNameSafe(offerClubId)}"
                 : "Aktif teklif yok · Kadro ekranından iş ara";
             _managerLabel.Text = "SERBEST MENAJER";
             _seasonLabel.Text = $"{manager.DisplayName} · Son kulüp: {lastClub} · İtibar {manager.ManagerReputation}";
@@ -2694,7 +2694,7 @@ public partial class CareerHubScreen : Control
     {
         var visible = !_transferScoutDetails.Visible;
         _transferScoutDetails.Visible = visible;
-        _transferScoutToggle.Text = visible ? "Scout raporunu gizle" : "Scout raporu al";
+        _transferScoutToggle.Text = visible ? "Gözlemci raporunu gizle" : "Gözlemci raporu al";
     }
 
     private void RefreshTransferBudgetStatus()
@@ -2816,13 +2816,13 @@ public partial class CareerHubScreen : Control
         var view = _controller.Host.TransferModule.Queries.GetManagedClubShortlistTargets();
         if (view.ClubId is null)
         {
-            _shortlistTargetLabel.Text = "Shortlist/hedef: işsiz — kayıt yok.";
+            _shortlistTargetLabel.Text = "Kısa liste/hedef: işsiz — kayıt yok.";
             return;
         }
 
         if (view.ActiveShortlistCount == 0 && view.ListedTargetCount == 0)
         {
-            _shortlistTargetLabel.Text = "Shortlist/hedef: boş — hedef öner (Process açılmaz).";
+            _shortlistTargetLabel.Text = "Kısa liste/hedef: boş — hedef öner (süreç açılmaz).";
             return;
         }
 
@@ -2830,7 +2830,7 @@ public partial class CareerHubScreen : Control
             .Select(t => _controller.GetPlayerDisplayName(t.PlayerId))
             .ToArray();
         _shortlistTargetLabel.Text =
-            $"Shortlist {view.ActiveShortlistCount} · hedef {view.ListedTargetCount}"
+            $"Kısa liste {view.ActiveShortlistCount} · hedef {view.ListedTargetCount}"
             + (targetPreview.Length == 0 ? string.Empty : $" · {string.Join(" · ", targetPreview)}");
     }
 
@@ -3288,7 +3288,7 @@ public partial class CareerHubScreen : Control
 
         if (pending.OpenCount == 0)
         {
-            _decisionLabel.Text = "Kararlar: masada bekleyen yok (cevaplar Bugün → Masada).";
+            _decisionLabel.Text = "Kararlar: masada bekleyen yok — Karar Masası kartından yanıtla.";
             _grantDecisionButton.Disabled = true;
             _refuseDecisionButton.Disabled = true;
             _disciplineWarningButton.Disabled = true;
@@ -3368,7 +3368,7 @@ public partial class CareerHubScreen : Control
         _pressCriticizeButton.Disabled = criticize is null || !criticize.IsEligible;
 
         _decisionLabel.Text =
-            $"Kararlar: {pending.OpenCount} açık — cevaplar Bugün → Masada. {desk.SupportingLine}";
+            $"Kararlar: {pending.OpenCount} açık — Karar Masası kartından yanıtla. {desk.SupportingLine}";
 
         var awaiting = _controller.Host.InteractionModule.DialogueSessionStore.Sessions
             .Count(s => s.IsAwaitingPlayer);
@@ -3553,12 +3553,15 @@ public partial class CareerHubScreen : Control
 
         // Bu eylemlerin tamamı OfficeNextStep tarafından zaten kapsanır.
         _approveSelectionButton.Visible = false;
-        _playButton.Visible = false;
         _seasonTransitionButton.Visible = false;
         _advanceWeekButton.Visible = false;
 
         // Açık karar varken aynı kartta yalnızca gerçek diyalog seçenekleri kalır.
         _officeNextStepButton.Visible = _officeNextStepButton.Visible && !hasOpenDecision;
+        _playButton.Visible =
+            !hasOpenDecision
+            && pendingMatch is { IsApproved: true }
+            && !_officeNextStepButton.Visible;
         _swapSelectionButton.Visible = !hasOpenDecision && pendingMatch is not null;
         _advanceDayButton.Visible =
             !hasOpenDecision

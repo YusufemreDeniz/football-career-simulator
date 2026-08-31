@@ -24,7 +24,7 @@ public sealed class OfficeNextStepGuideTests
         var step = OfficeNextStepGuide.Resolve(TodayPulseDigest.FocusDesk);
         Assert.NotNull(step);
         Assert.Equal(OfficeNextStepGuide.TargetToday, step!.TargetPageCode);
-        Assert.Contains("Masada", step.ButtonLabel, StringComparison.Ordinal);
+        Assert.Contains("Karar Masası", step.ButtonLabel, StringComparison.Ordinal);
     }
 
     [Fact]
