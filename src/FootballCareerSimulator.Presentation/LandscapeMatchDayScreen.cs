@@ -51,7 +51,7 @@ public partial class LandscapeMatchDayScreen : Control
         var header = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         header.AddThemeConstantOverride("separation", 10);
         shell.AddChild(header);
-        var back = SecondaryButton("Geri");
+        var back = SecondaryButton("← Geri");
         back.CustomMinimumSize = new Vector2(74, _layout.ActionButtonHeight);
         back.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
         header.AddChild(back);
@@ -165,9 +165,26 @@ public partial class LandscapeMatchDayScreen : Control
         _fixtureLabel.Text = briefing.HasMatch ? briefing.FixtureLine : "Mac bekleniyor";
         _headlineLabel.Text = briefing.Headline;
         _approveButton.Disabled = !briefing.HasMatch || briefing.IsReadyToKickOff;
-        _approveButton.Text = briefing.IsReadyToKickOff ? "Kadro Onaylandi" : "Kadro Onayla";
+        _approveButton.Text = briefing.IsReadyToKickOff ? "✓ Kadro Onaylandı" : "✓ Kadro Onayla";
+        if (briefing.IsReadyToKickOff)
+        {
+            CareerUiTheme.StyleSecondaryButton(_approveButton);
+        }
+        else
+        {
+            CareerUiTheme.StyleAccentButton(_approveButton);
+        }
+
         _kickoffButton.Disabled = !briefing.IsReadyToKickOff;
-        _kickoffButton.Text = briefing.IsReadyToKickOff ? "Dudugu Cal" : "Once kadroyu onayla";
+        _kickoffButton.Text = briefing.IsReadyToKickOff ? "⚽ Düdüğü Çal" : "Önce kadroyu onayla";
+        if (briefing.IsReadyToKickOff)
+        {
+            CareerUiTheme.StylePrimaryButton(_kickoffButton);
+        }
+        else
+        {
+            CareerUiTheme.StyleSecondaryButton(_kickoffButton);
+        }
         RefreshPitch();
         RefreshTactics();
     }

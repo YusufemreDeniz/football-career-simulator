@@ -53,7 +53,7 @@ public partial class MatchResultScreen : Control
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        CareerUiTheme.StylePrimaryButton(_continueButton);
+        CareerUiTheme.StyleAccentButton(_continueButton);
         _continueButton.Pressed += OnContinuePressed;
         _shell.AddChild(_continueButton);
 
