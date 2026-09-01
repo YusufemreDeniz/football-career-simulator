@@ -10,7 +10,8 @@ public sealed class Club
 {
     public const int MinSportiveStrength = 1;
     public const int MaxSportiveStrength = 100;
-    public const int TransferBudgetPerStrengthPoint = 100_000;
+    public const int BaseTransferBudget = 5_000_000;
+    public const int TransferBudgetGrowthFactor = 50_000;
     public const int WageBudgetPerStrengthPoint = 5_000;
 
     private Club(
@@ -56,8 +57,12 @@ public sealed class Club
 
     public int ReservedWeeklyWage { get; }
 
-    public static int DefaultTransferBudgetLimit(int sportiveStrength) =>
-        sportiveStrength * TransferBudgetPerStrengthPoint;
+    public static int DefaultTransferBudgetLimit(int sportiveStrength)
+    {
+        var competitiveStrength = Math.Max(0, sportiveStrength - 50);
+        return BaseTransferBudget
+            + competitiveStrength * competitiveStrength * TransferBudgetGrowthFactor;
+    }
 
     public static int DefaultWageBudgetLimit(int sportiveStrength) =>
         sportiveStrength * WageBudgetPerStrengthPoint;

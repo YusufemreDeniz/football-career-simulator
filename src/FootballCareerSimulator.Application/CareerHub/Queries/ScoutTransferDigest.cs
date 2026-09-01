@@ -12,6 +12,8 @@ public sealed record ScoutCandidateSource(
     int Rating,
     int Age,
     int PotentialAbility,
+    int ManagedClubStrength,
+    int SourceClubStrength,
     int? ShortlistedOnDayNumber,
     bool IsListedTarget);
 
@@ -27,14 +29,28 @@ public sealed record ScoutCandidateLine(
     int PotentialAbility,
     int EstimatedFeeLow,
     int EstimatedFeeHigh,
+    int MarketValue,
+    int SuggestedOpeningFee,
+    int SuggestedWeeklyWage,
+    int InterestPercent,
+    string InterestLabel,
+    string RecommendedSquadRole,
+    bool IsAffordable,
     bool IsShortlisted,
     bool IsListedTarget)
 {
     public string ToListLabel() =>
-        $"{DisplayName} · {PositionCode} · {ClubName} · {Age} yaş\n"
-        + $"Bilgi %{KnowledgePercent} · güç {EstimatedAbilityLow}-{EstimatedAbilityHigh}"
-        + $" · tahmini bedel {EstimatedFeeLow:N0}-{EstimatedFeeHigh:N0}"
+        $"{DisplayName} · {PositionCode} · GÜÇ {EstimatedAbilityLow}-{EstimatedAbilityHigh} · {Age} yaş\n"
+        + $"{ClubName} · İlgi {InterestLabel} · Değer {MarketValue:N0}"
+        + (IsAffordable ? string.Empty : " · BÜTÇE ÜSTÜ")
         + (IsListedTarget ? " · HEDEF" : IsShortlisted ? " · KISA LİSTE" : string.Empty);
+
+    public string ToDetailText() =>
+        $"{DisplayName} · {PositionCode} · {ClubName}\n"
+        + $"Scout bilgisi %{KnowledgePercent} · güç {EstimatedAbilityLow}-{EstimatedAbilityHigh} · potansiyel {PotentialAbility}\n"
+        + $"Piyasa değeri {MarketValue:N0} · beklenen aralık {EstimatedFeeLow:N0}-{EstimatedFeeHigh:N0}\n"
+        + $"Transfer ilgisi %{InterestPercent} ({InterestLabel}) · önerilen rol {RecommendedSquadRole}\n"
+        + $"Açılış teklifi {SuggestedOpeningFee:N0} · önerilen maaş {SuggestedWeeklyWage:N0}/hafta";
 }
 
 public sealed record ScoutTransferDigest(
@@ -61,7 +77,8 @@ public sealed record ScoutTransferDigest(
         int currentDayNumber,
         IReadOnlyList<MvpSquadPlayerProfile> managedProfiles,
         IReadOnlyDictionary<int, int> managedRatingsBySlot,
-        IReadOnlyList<ScoutCandidateSource> candidates)
+        IReadOnlyList<ScoutCandidateSource> candidates,
+        int? transferBudgetAvailable = null)
     {
         ArgumentNullException.ThrowIfNull(managedProfiles);
         ArgumentNullException.ThrowIfNull(managedRatingsBySlot);
@@ -92,7 +109,11 @@ public sealed record ScoutTransferDigest(
             .ThenByDescending(candidate => candidate.Rating)
             .ThenBy(candidate => candidate.Age)
             .Take(8)
-            .Select(candidate => ToLine(candidate, currentDayNumber))
+            .Select(candidate => ToLine(
+                candidate,
+                currentDayNumber,
+                needGroup.Average,
+                transferBudgetAvailable))
             .ToArray();
         var positionCode = GroupCode(needGroup.Group);
 
@@ -106,7 +127,11 @@ public sealed record ScoutTransferDigest(
             lines);
     }
 
-    private static ScoutCandidateLine ToLine(ScoutCandidateSource candidate, int currentDayNumber)
+    private static ScoutCandidateLine ToLine(
+        ScoutCandidateSource candidate,
+        int currentDayNumber,
+        int positionalAverage,
+        int? transferBudgetAvailable)
     {
         var watchedDays = candidate.ShortlistedOnDayNumber is int added
             ? Math.Max(0, currentDayNumber - added)
@@ -117,8 +142,16 @@ public sealed record ScoutTransferDigest(
                 ? Math.Min(95, 55 + watchedDays * 5)
                 : 40;
         var uncertainty = Math.Max(1, (105 - knowledge) / 8);
-        var feeBase = Math.Max(250_000, candidate.Rating * candidate.Rating * 2_000);
-        var feeSpread = Math.Max(100_000, feeBase * (100 - knowledge) / 100);
+        var valuation = ScoutTransferValuationModel.Evaluate(
+            candidate.Rating,
+            candidate.PotentialAbility,
+            candidate.Age,
+            candidate.ManagedClubStrength,
+            candidate.SourceClubStrength,
+            positionalAverage,
+            transferBudgetAvailable);
+        var uncertaintyPercent = Math.Max(5, (110 - knowledge) / 2);
+        var feeSpread = Math.Max(100_000, valuation.MarketValue * uncertaintyPercent / 100);
 
         return new ScoutCandidateLine(
             candidate.PlayerId,
@@ -130,8 +163,15 @@ public sealed record ScoutTransferDigest(
             Math.Max(40, candidate.Rating - uncertainty),
             Math.Min(99, candidate.Rating + uncertainty),
             candidate.PotentialAbility,
-            Math.Max(100_000, feeBase - feeSpread),
-            feeBase + feeSpread,
+            Math.Max(100_000, valuation.MarketValue - feeSpread),
+            valuation.MarketValue + feeSpread,
+            valuation.MarketValue,
+            valuation.SuggestedOpeningFee,
+            valuation.SuggestedWeeklyWage,
+            valuation.InterestPercent,
+            valuation.InterestLabel,
+            valuation.RecommendedSquadRole,
+            valuation.IsAffordable,
             candidate.ShortlistedOnDayNumber is not null,
             candidate.IsListedTarget);
     }
@@ -151,4 +191,90 @@ public sealed record ScoutTransferDigest(
         MvpSquadPositionGroup.Midfielder => "Orta saha",
         _ => "Hücum",
     };
+}
+
+public sealed record ScoutTransferValuation(
+    int MarketValue,
+    int SuggestedOpeningFee,
+    int SuggestedWeeklyWage,
+    int InterestPercent,
+    string InterestLabel,
+    string RecommendedSquadRole,
+    bool IsAffordable);
+
+public static class ScoutTransferValuationModel
+{
+    public static ScoutTransferValuation Evaluate(
+        int currentAbility,
+        int potentialAbility,
+        int age,
+        int managedClubStrength,
+        int sourceClubStrength,
+        int positionalAverage,
+        int? transferBudgetAvailable = null)
+    {
+        var ability = Math.Clamp(currentAbility, 40, 99);
+        var potential = Math.Clamp(potentialAbility, ability, 99);
+        var ageMultiplier = age switch
+        {
+            <= 21 => 1.18,
+            <= 25 => 1.08,
+            <= 29 => 1.00,
+            <= 32 => 0.80,
+            _ => 0.60,
+        };
+        var potentialMultiplier = 1.0 + Math.Min(0.50, (potential - ability) * 0.05);
+        var rawValue = 750_000d
+            * Math.Pow(1.16, ability - 60)
+            * ageMultiplier
+            * potentialMultiplier;
+        var marketValue = RoundTo((int)Math.Clamp(rawValue, 250_000, 90_000_000), 50_000);
+        var suggestedOpeningFee = RoundTo((int)(marketValue * 0.90), 50_000);
+
+        var role = ability switch
+        {
+            _ when ability >= positionalAverage + 6 => "Kilit oyuncu",
+            _ when ability >= positionalAverage + 2 => "İlk 11",
+            _ when ability >= positionalAverage - 3 => "Rotasyon",
+            _ => "Gelecek yatırımı",
+        };
+        var roleWageMultiplier = role switch
+        {
+            "Kilit oyuncu" => 1.25,
+            "İlk 11" => 1.10,
+            "Gelecek yatırımı" => 0.80,
+            _ => 1.00,
+        };
+        var suggestedWage = RoundTo(
+            Math.Max(5_000, (int)(Math.Pow(Math.Max(0, ability - 50), 2) * 35 * roleWageMultiplier)),
+            500);
+
+        var interest = Math.Clamp(
+            55
+            + ((managedClubStrength - sourceClubStrength) * 2)
+            + (role is "Kilit oyuncu" or "İlk 11" ? 10 : 3)
+            - Math.Max(0, ability - managedClubStrength),
+            10,
+            95);
+        var interestLabel = interest switch
+        {
+            >= 80 => "Çok yüksek",
+            >= 65 => "Yüksek",
+            >= 45 => "Orta",
+            >= 25 => "Düşük",
+            _ => "Çok düşük",
+        };
+
+        return new ScoutTransferValuation(
+            marketValue,
+            suggestedOpeningFee,
+            suggestedWage,
+            interest,
+            interestLabel,
+            role,
+            transferBudgetAvailable is null || suggestedOpeningFee <= transferBudgetAvailable.Value);
+    }
+
+    private static int RoundTo(int value, int step) =>
+        Math.Max(step, (int)Math.Round(value / (double)step, MidpointRounding.AwayFromZero) * step);
 }

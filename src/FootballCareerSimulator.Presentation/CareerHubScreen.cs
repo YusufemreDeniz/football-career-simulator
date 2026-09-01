@@ -73,6 +73,7 @@ public partial class CareerHubScreen : Control
     private Label _transferNeedLabel = null!;
     private Label _scoutReportLabel = null!;
     private ItemList _scoutCandidateList = null!;
+    private Label _scoutCandidateDetailLabel = null!;
     private IReadOnlyList<ScoutCandidateLine> _scoutCandidates = Array.Empty<ScoutCandidateLine>();
     private long? _selectedScoutPlayerId;
     private Label _shortlistTargetLabel = null!;
@@ -154,11 +155,14 @@ public partial class CareerHubScreen : Control
     private Button _grantSportingApprovalButton = null!;
     private Button _rejectSportingApprovalButton = null!;
     private Label _clubOfferLabel = null!;
+    private SpinBox _transferFeeInput = null!;
     private Button _submitClubOfferButton = null!;
     private Button _acceptClubOfferButton = null!;
     private Button _rejectClubOfferButton = null!;
     private Button _counterClubOfferButton = null!;
     private Label _contractProposalLabel = null!;
+    private SpinBox _transferWageInput = null!;
+    private SpinBox _contractYearsInput = null!;
     private Button _submitContractProposalButton = null!;
     private Button _acceptContractProposalButton = null!;
     private Button _rejectContractProposalButton = null!;
@@ -1227,6 +1231,9 @@ public partial class CareerHubScreen : Control
         CareerUiTheme.StyleList(_scoutCandidateList);
         _scoutCandidateList.ItemSelected += OnScoutCandidateSelected;
         scoutingCard.AddChild(_scoutCandidateList);
+        _scoutCandidateDetailLabel = BodyLabel("ScoutCandidateDetailLabel", muted: true, autowrap: true);
+        _scoutCandidateDetailLabel.Text = "Bir oyuncu seç; değer, ilgi ve sözleşme beklentisini gör.";
+        scoutingCard.AddChild(_scoutCandidateDetailLabel);
         _transferNeedLabel = BodyLabel("TransferNeedLabel", autowrap: true);
         scoutingCard.AddChild(_transferNeedLabel);
 
@@ -1259,7 +1266,7 @@ public partial class CareerHubScreen : Control
         _dropTargetButton.Pressed += () => Apply(_controller.DropOldestListedTransferTarget());
         targetRow.AddChild(_dropTargetButton);
 
-        var processCard = AddCard(page, "2  SÜREÇ & SPORTİF ONAY");
+        var processCard = AddCard(page, "AKTİF MÜZAKERE");
         _transferProcessLabel = BodyLabel("TransferProcessLabel", autowrap: true);
         processCard.AddChild(_transferProcessLabel);
 
@@ -1275,6 +1282,7 @@ public partial class CareerHubScreen : Control
         processRow.AddChild(_withdrawProcessButton);
 
         var sportingRow = ActionFlow();
+        sportingRow.Visible = false; // Kulüp içi teknik onay tek CTA tarafından yönetilir.
         processCard.AddChild(sportingRow);
 
         _requestSportingApprovalButton = SecondaryButton("Sportif Onay İste");
@@ -1292,57 +1300,108 @@ public partial class CareerHubScreen : Control
             Apply(_controller.RejectSportingApprovalForOldestPendingProcess());
         sportingRow.AddChild(_rejectSportingApprovalButton);
 
-        var offerCard = AddCard(page, "3  KULÜP TEKLİFİ");
+        var offerCard = AddCard(page, "KULÜPLE PAZARLIK");
         _clubOfferLabel = BodyLabel("ClubOfferLabel", autowrap: true);
         offerCard.AddChild(_clubOfferLabel);
+
+        var feeRow = ActionFlow();
+        offerCard.AddChild(feeRow);
+        var feeLabel = BodyLabel("TransferFeeLabel", muted: true);
+        feeLabel.Text = "Bonservis";
+        feeRow.AddChild(feeLabel);
+        _transferFeeInput = new SpinBox
+        {
+            MinValue = 100_000,
+            MaxValue = Domain.Transfer.ClubOffer.MaxFee,
+            Step = 250_000,
+            Value = 5_000_000,
+            Suffix = " TRY",
+            CustomMinimumSize = new Vector2(260, 48),
+        };
+        feeRow.AddChild(_transferFeeInput);
 
         var offerRow = ActionFlow();
         offerCard.AddChild(offerRow);
 
         _submitClubOfferButton = SecondaryButton("Teklif Sun");
-        _submitClubOfferButton.Pressed += () => Apply(_controller.SubmitDefaultClubOffer());
+        _submitClubOfferButton.Pressed += () =>
+            Apply(_controller.SubmitClubOffer((int)_transferFeeInput.Value));
         offerRow.AddChild(_submitClubOfferButton);
 
-        _acceptClubOfferButton = SecondaryButton("Teklifi Kabul");
-        _acceptClubOfferButton.Pressed += () => Apply(_controller.AcceptPendingClubOffer());
+        _acceptClubOfferButton = SecondaryButton("Kulüp Yanıtını Al");
+        _acceptClubOfferButton.Pressed += () => Apply(_controller.ResolvePendingClubResponse());
         offerRow.AddChild(_acceptClubOfferButton);
 
-        _rejectClubOfferButton = SecondaryButton("Teklifi Ret");
+        _rejectClubOfferButton = SecondaryButton("Teklifi Geri Çek");
         _rejectClubOfferButton.Pressed += () => Apply(_controller.RejectPendingClubOffer());
         offerRow.AddChild(_rejectClubOfferButton);
 
-        _counterClubOfferButton = SecondaryButton("Karşı Teklif");
-        _counterClubOfferButton.Pressed += () => Apply(_controller.CounterPendingClubOffer());
+        _counterClubOfferButton = SecondaryButton("Teklifi Güncelle");
+        _counterClubOfferButton.Pressed += () =>
+            Apply(_controller.CounterPendingClubOffer((int)_transferFeeInput.Value));
         offerRow.AddChild(_counterClubOfferButton);
 
-        var contractCard = AddCard(page, "4  OYUNCU SÖZLEŞMESİ");
+        var contractCard = AddCard(page, "OYUNCU & MENAJER PAZARLIĞI");
         _contractProposalLabel = BodyLabel("ContractProposalLabel", autowrap: true);
         contractCard.AddChild(_contractProposalLabel);
+
+        var contractTermsRow = ActionFlow();
+        contractCard.AddChild(contractTermsRow);
+        var wageLabel = BodyLabel("TransferWageLabel", muted: true);
+        wageLabel.Text = "Haftalık maaş";
+        contractTermsRow.AddChild(wageLabel);
+        _transferWageInput = new SpinBox
+        {
+            MinValue = 1_000,
+            MaxValue = Domain.Transfer.PlayerContractProposal.MaxWeeklyWage,
+            Step = 500,
+            Value = 25_000,
+            Suffix = " TRY",
+            CustomMinimumSize = new Vector2(220, 48),
+        };
+        contractTermsRow.AddChild(_transferWageInput);
+        var yearsLabel = BodyLabel("ContractYearsLabel", muted: true);
+        yearsLabel.Text = "Süre";
+        contractTermsRow.AddChild(yearsLabel);
+        _contractYearsInput = new SpinBox
+        {
+            MinValue = Domain.Transfer.PlayerContractProposal.MinContractYears,
+            MaxValue = Domain.Transfer.PlayerContractProposal.MaxContractYears,
+            Step = 1,
+            Value = 3,
+            Suffix = " yıl",
+            CustomMinimumSize = new Vector2(150, 48),
+        };
+        contractTermsRow.AddChild(_contractYearsInput);
 
         var proposalRow = ActionFlow();
         contractCard.AddChild(proposalRow);
 
         _submitContractProposalButton = SecondaryButton("Sözleşme Teklif");
         _submitContractProposalButton.Pressed += () =>
-            Apply(_controller.SubmitDefaultContractProposal());
+            Apply(_controller.SubmitContractProposal(
+                (int)_transferWageInput.Value,
+                (int)_contractYearsInput.Value));
         proposalRow.AddChild(_submitContractProposalButton);
 
-        _acceptContractProposalButton = SecondaryButton("Sözleşme Kabul");
+        _acceptContractProposalButton = SecondaryButton("Menajer Yanıtını Al");
         _acceptContractProposalButton.Pressed += () =>
-            Apply(_controller.AcceptPendingContractProposal());
+            Apply(_controller.ResolvePendingContractResponse());
         proposalRow.AddChild(_acceptContractProposalButton);
 
-        _rejectContractProposalButton = SecondaryButton("Sözleşme Ret");
+        _rejectContractProposalButton = SecondaryButton("Teklifi Geri Çek");
         _rejectContractProposalButton.Pressed += () =>
             Apply(_controller.RejectPendingContractProposal());
         proposalRow.AddChild(_rejectContractProposalButton);
 
-        _counterContractProposalButton = SecondaryButton("Karşı Sözleşme");
+        _counterContractProposalButton = SecondaryButton("Şartları Güncelle");
         _counterContractProposalButton.Pressed += () =>
-            Apply(_controller.CounterPendingContractProposal());
+            Apply(_controller.CounterPendingContractProposal(
+                (int)_transferWageInput.Value,
+                (int)_contractYearsInput.Value));
         proposalRow.AddChild(_counterContractProposalButton);
 
-        var financeCard = AddCard(page, "5  MALİ ONAY & İMZA", emphasized: true);
+        var financeCard = AddCard(page, "İMZA & TAMAMLAMA", emphasized: true);
         var financialRow = ActionFlow();
         financeCard.AddChild(financialRow);
 
@@ -1366,7 +1425,11 @@ public partial class CareerHubScreen : Control
             Apply(_controller.CompleteOldestFinanciallyApprovedProcess());
         financialRow.AddChild(_completeTransferButton);
 
-        _transferNegotiationToggle = SecondaryButton("Muzakere adimlari");
+        _requestFinancialApprovalButton.Visible = false;
+        _grantFinancialApprovalButton.Visible = false;
+        _rejectFinancialApprovalButton.Visible = false;
+
+        _transferNegotiationToggle = SecondaryButton("Teklif ayrıntılarını düzenle");
         overviewCard.AddChild(_transferNegotiationToggle);
         _transferNegotiationCards =
         [
@@ -1438,8 +1501,8 @@ public partial class CareerHubScreen : Control
         }
 
         _transferNegotiationToggle.Text = expanded
-            ? "Muzakere adimlarini gizle"
-            : "Muzakere adimlari";
+            ? "Teklif ayrıntılarını gizle"
+            : "Teklif ayrıntılarını düzenle";
     }
 
     private Control BuildPrepPage()
@@ -2146,8 +2209,24 @@ public partial class CareerHubScreen : Control
         }
 
         _selectedScoutPlayerId = _scoutCandidates[(int)index].PlayerId;
-        _suggestTargetButton.Disabled = _scoutCandidates[(int)index].IsListedTarget;
+        var candidate = _scoutCandidates[(int)index];
+        BindScoutCandidateDetail(candidate);
+        _suggestTargetButton.Disabled = candidate.IsListedTarget;
         _suggestTargetButton.Visible = !_suggestTargetButton.Disabled;
+    }
+
+    private void BindScoutCandidateDetail(ScoutCandidateLine candidate)
+    {
+        _scoutCandidateDetailLabel.Text = candidate.ToDetailText();
+        _transferFeeInput.Value = candidate.SuggestedOpeningFee;
+        _transferWageInput.Value = candidate.SuggestedWeeklyWage;
+        _contractYearsInput.Value = candidate.Age switch
+        {
+            <= 23 => 5,
+            <= 29 => 4,
+            <= 32 => 3,
+            _ => 2,
+        };
     }
 
     private void AddSelectedScoutCandidate()
@@ -2736,8 +2815,13 @@ public partial class CareerHubScreen : Control
 
         var latest = offers.RecentOffers[0];
         _clubOfferLabel.Text =
-            $"Kulüp teklifi: bekleyen {offers.PendingCount}"
-            + $" · son tur {latest.Round} ücret {latest.OfferedFee} ({latest.StatusName})";
+            $"Kulüp görüşmesi · tur {latest.Round} · {latest.OfferedFee:N0} TRY"
+            + $" · {latest.StatusName}"
+            + (offers.PendingCount > 0 ? " · yanıt gerekli" : string.Empty);
+        if (offers.PendingCount > 0)
+        {
+            _transferFeeInput.Value = latest.OfferedFee;
+        }
     }
 
     private void RefreshContractProposalStatus()
@@ -2758,9 +2842,14 @@ public partial class CareerHubScreen : Control
 
         var latest = proposals.RecentProposals[0];
         _contractProposalLabel.Text =
-            $"Sözleşme teklifi: bekleyen {proposals.PendingCount}"
-            + $" · son tur {latest.Round}"
-            + $" maaş {latest.WeeklyWage} × {latest.ContractYears}y ({latest.StatusName})";
+            $"Oyuncu görüşmesi · tur {latest.Round} · {latest.WeeklyWage:N0}/hafta"
+            + $" · {latest.ContractYears} yıl · {latest.StatusName}"
+            + (proposals.PendingCount > 0 ? " · yanıt gerekli" : string.Empty);
+        if (proposals.PendingCount > 0)
+        {
+            _transferWageInput.Value = latest.WeeklyWage;
+            _contractYearsInput.Value = latest.ContractYears;
+        }
     }
 
     private void RefreshTransferProcessStatus()
@@ -2774,15 +2863,56 @@ public partial class CareerHubScreen : Control
 
         if (view.ActiveCount == 0)
         {
-            _transferProcessLabel.Text = "Transfer süreci: aktif yok — hedeften süreç aç (müzakere yok).";
+            _transferProcessLabel.Text = "Aktif müzakere yok · Scout listesinden hedef seç ve görüşme başlat.";
             return;
         }
 
         var preview = string.Join(
-            " · ",
+            "\n",
             view.ActiveProcesses.Take(2).Select(p =>
-                $"{_controller.GetPlayerDisplayName(p.PlayerId)} {p.StatusName}"));
-        _transferProcessLabel.Text = $"Transfer süreci: {view.ActiveCount} aktif · {preview}";
+            {
+                var stage = TransferStage(p.StatusCode);
+                var tension = TransferTension(p.ProcessId, p.StatusCode);
+                return $"{_controller.GetPlayerDisplayName(p.PlayerId)} · Aşama {stage}/5 · {p.StatusName}"
+                    + $"\nGerilim %{tension} · {TensionBar(tension)}";
+            }));
+        _transferProcessLabel.Text = $"{view.ActiveCount} aktif görüşme\n{preview}";
+    }
+
+    private int TransferTension(long processId, int statusCode)
+    {
+        var offerRounds = _controller.Host.TransferModule.OfferStore
+            .GetForProcess(new Domain.Transfer.TransferProcessId(processId))
+            .Select(offer => offer.Round)
+            .DefaultIfEmpty(0)
+            .Max();
+        var contractRounds = _controller.Host.TransferModule.ProposalStore
+            .GetForProcess(new Domain.Transfer.TransferProcessId(processId))
+            .Select(proposal => proposal.Round)
+            .DefaultIfEmpty(0)
+            .Max();
+        var stagePressure = TransferStage(statusCode) * 8;
+        return Math.Clamp(15 + stagePressure + (offerRounds + contractRounds) * 12, 15, 95);
+    }
+
+    private static int TransferStage(int statusCode) =>
+        (Domain.Transfer.TransferProcessStatus)statusCode switch
+        {
+            Domain.Transfer.TransferProcessStatus.UnderEvaluation
+                or Domain.Transfer.TransferProcessStatus.SportingApprovalPending => 1,
+            Domain.Transfer.TransferProcessStatus.SportingApproved
+                or Domain.Transfer.TransferProcessStatus.ClubNegotiation => 2,
+            Domain.Transfer.TransferProcessStatus.ClubAgreementReached
+                or Domain.Transfer.TransferProcessStatus.PlayerNegotiation => 3,
+            Domain.Transfer.TransferProcessStatus.PlayerAgreementReached
+                or Domain.Transfer.TransferProcessStatus.FinancialApprovalPending => 4,
+            _ => 5,
+        };
+
+    private static string TensionBar(int tension)
+    {
+        var filled = Math.Clamp((int)Math.Round(tension / 20d), 1, 5);
+        return new string('●', filled) + new string('○', 5 - filled);
     }
 
     private void RefreshShortlistTargetStatus()
@@ -2811,6 +2941,10 @@ public partial class CareerHubScreen : Control
                 .FirstOrDefault(item => item.candidate.PlayerId == activeId);
             _scoutCandidateList.Select(selected.index);
             _suggestTargetButton.Disabled = selected.candidate?.IsListedTarget ?? true;
+            if (selected.candidate is not null)
+            {
+                BindScoutCandidateDetail(selected.candidate);
+            }
         }
 
         var view = _controller.Host.TransferModule.Queries.GetManagedClubShortlistTargets();
@@ -2950,9 +3084,9 @@ public partial class CareerHubScreen : Control
         _grantFinancialApprovalButton.Disabled = !pendingFinancial;
         _rejectFinancialApprovalButton.Disabled = !pendingFinancial;
         _completeTransferButton.Disabled = !canStartComplete && !canFinishComplete;
-        _requestFinancialApprovalButton.Visible = !_requestFinancialApprovalButton.Disabled;
-        _grantFinancialApprovalButton.Visible = !_grantFinancialApprovalButton.Disabled;
-        _rejectFinancialApprovalButton.Visible = !_rejectFinancialApprovalButton.Disabled;
+        _requestFinancialApprovalButton.Visible = false;
+        _grantFinancialApprovalButton.Visible = false;
+        _rejectFinancialApprovalButton.Visible = false;
         _completeTransferButton.Visible = !_completeTransferButton.Disabled;
     }
 
