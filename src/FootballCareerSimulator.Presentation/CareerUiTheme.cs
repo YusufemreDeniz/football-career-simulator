@@ -34,6 +34,82 @@ internal static class CareerUiTheme
     public static readonly Color DangerSoft = new(1f, 0.42f, 0.39f, 1f);
     public static readonly Color Data = new(0.33f, 0.78f, 0.94f, 1f);
 
+    // ── Semantic Color Tokens ─────────────────────────────────────────────────
+    // Backward-compatible alias layer. Original names remain unchanged.
+
+    /// <summary>En derin arka plan — modal/overlay arkası.</summary>
+    public static Color BgPrimary => BackgroundDeep;
+    /// <summary>Standart sayfa zemini.</summary>
+    public static Color BgSecondary => Background;
+    /// <summary>Navy varyant — header/sidebar arka planı.</summary>
+    public static Color BgTertiary => BackgroundNavy;
+    /// <summary>Varsayılan yüzey paneli.</summary>
+    public static Color SurfaceDefault => Surface;
+    /// <summary>Yükseltilmiş yüzey — hero, modal.</summary>
+    public static Color SurfaceElevated => SurfaceRaised;
+    /// <summary>Hafif yüzey — separator, subtle bg.</summary>
+    public static Color SurfaceMuted => SurfaceSoft;
+    /// <summary>Standart border.</summary>
+    public static Color BorderDefault => Stroke;
+    /// <summary>İnce section separator.</summary>
+    public static Color BorderSubtle => new(Stroke.R, Stroke.G, Stroke.B, 0.32f);
+    /// <summary>Birincil metin.</summary>
+    public static Color TextPrimary => Ink;
+    /// <summary>İkincil metin.</summary>
+    public static Color TextSecondary => InkMuted;
+    /// <summary>Üçüncül metin — disabled, placeholder.</summary>
+    public static Color TextMuted => new(InkMuted.R, InkMuted.G, InkMuted.B, 0.55f);
+    /// <summary>Pozitif/başarı rengi.</summary>
+    public static Color ColorPositive => Action;
+    /// <summary>Bright pozitif — hover, vurgu.</summary>
+    public static Color ColorPositiveBright => ActionBright;
+    /// <summary>Negatif/hata — yaralanma, kayıp.</summary>
+    public static Color ColorNegative => DangerSoft;
+    /// <summary>Uyarı — sarı kart, yüksek yük.</summary>
+    public static readonly Color ColorWarning = new(0.94f, 0.63f, 0.25f, 1f);
+    /// <summary>Kritik — kırmızı kart, kovulma riski.</summary>
+    public static readonly Color ColorCritical = new(0.91f, 0.25f, 0.25f, 1f);
+    /// <summary>Veri/istatistik rengi.</summary>
+    public static Color ColorData => Data;
+    /// <summary>Seçili durum.</summary>
+    public static Color ColorSelected => Action;
+    /// <summary>Hover yüzeyi.</summary>
+    public static Color ColorHover => new(Action.R, Action.G, Action.B, 0.12f);
+    /// <summary>Devre dışı renk.</summary>
+    public static Color ColorDisabled => new(InkMuted.R, InkMuted.G, InkMuted.B, 0.38f);
+
+    // ── Spacing Scale (4-based) ───────────────────────────────────────────────
+
+    public const int SpaceXs = 4;
+    public const int SpaceS = 8;
+    public const int SpaceM = 12;
+    public const int SpaceL = 16;
+    public const int SpaceXl = 24;
+    public const int SpaceXxl = 32;
+    public const int SpaceXxxl = 48;
+
+    public const int SeparationSection = 16;
+    public const int SeparationCard = 10;
+    public const int SeparationAction = 8;
+    public const int SeparationNav = 4;
+    public const int SeparationTight = 6;
+
+    // ── Corner Radius ────────────────────────────────────────────────────────
+
+    public const int RadiusSmall = 6;
+    public const int RadiusMedium = 10;
+    public const int RadiusLarge = 14;
+    public const int RadiusXl = 18;
+    public const int RadiusPill = 999;
+    public const int TouchTargetMin = 48;
+
+    // Legacy spacing aliases (kept for any existing code)
+    public const int SpacingXs = SpaceXs;
+    public const int SpacingSm = SpaceS;
+    public const int SpacingMd = SpaceL;
+    public const int SpacingLg = SpaceXl;
+    public const int SpacingXl = SpaceXxl;
+
     private static FontFile? _display;
     private static FontFile? _body;
     private static bool _loaded;
@@ -340,6 +416,279 @@ internal static class CareerUiTheme
                 : SurfaceSoft;
         var border = isOut ? DangerSoft : isIn ? Action : Stroke;
         return PanelStyle(background, border, radius: 9, contentMargin: 8, shadowSize: 0);
+    }
+
+    // ── NEW: Extended Typography Style Methods ───────────────────────────────
+
+    /// <summary>Büyük sayısal değer: skor, önemli metrik.</summary>
+    public static void StyleStatValue(Label label, Color? color = null)
+    {
+        ApplyDisplayFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(28));
+        label.AddThemeColorOverride("font_color", color ?? Ink);
+    }
+
+    /// <summary>Orta istatistik değeri: form, kondisyon.</summary>
+    public static void StyleStatValueMedium(Label label, Color? color = null)
+    {
+        ApplyDisplayFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(20));
+        label.AddThemeColorOverride("font_color", color ?? Ink);
+    }
+
+    /// <summary>Section title — headline ile eyebrow arası, 18px Syne.</summary>
+    public static void StyleSectionTitle(Label label)
+    {
+        ApplyDisplayFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(18));
+        label.AddThemeColorOverride("font_color", Ink);
+    }
+
+    /// <summary>Card title — 15px Syne, altın tonu.</summary>
+    public static void StyleCardTitle(Label label)
+    {
+        ApplyDisplayFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(15));
+        label.AddThemeColorOverride("font_color", new Color(Accent.R, Accent.G, Accent.B, 0.92f));
+    }
+
+    /// <summary>Tablo metni — 13px Outfit.</summary>
+    public static void StyleTableText(Label label, bool muted = false)
+    {
+        ApplyBodyFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(13));
+        label.AddThemeColorOverride("font_color", muted ? InkMuted : Ink);
+    }
+
+    /// <summary>Tablo kolon başlığı — 11px muted.</summary>
+    public static void StyleTableHeader(Label label)
+    {
+        ApplyBodyFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(11));
+        label.AddThemeColorOverride("font_color", InkMuted);
+    }
+
+    /// <summary>Pozitif değer etiketi — yeşil.</summary>
+    public static void StylePositiveValue(Label label)
+    {
+        ApplyBodyFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(13));
+        label.AddThemeColorOverride("font_color", ActionBright);
+    }
+
+    /// <summary>Negatif değer etiketi — kırmızı.</summary>
+    public static void StyleNegativeValue(Label label)
+    {
+        ApplyBodyFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(13));
+        label.AddThemeColorOverride("font_color", DangerSoft);
+    }
+
+    /// <summary>Uyarı değer etiketi — sarı/turuncu.</summary>
+    public static void StyleWarningValue(Label label)
+    {
+        ApplyBodyFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(13));
+        label.AddThemeColorOverride("font_color", ColorWarning);
+    }
+
+    /// <summary>Mevki tag metni — GK, CB, ST gibi.</summary>
+    public static void StylePositionTag(Label label, Color? color = null)
+    {
+        ApplyBodyFont(label);
+        label.AddThemeFontSizeOverride("font_size", FontSize(11));
+        label.AddThemeColorOverride("font_color", color ?? Data);
+    }
+
+    // ── NEW: Extended Button Styles ───────────────────────────────────────────
+
+    /// <summary>
+    /// Prestige/Continue CTA — altın aksan. Ana loop CTA'sı.
+    /// Normal primary button'dan görsel olarak belirgin biçimde ayrışır.
+    /// </summary>
+    public static void StyleAccentButton(Button button)
+    {
+        ApplyDisplayFont(button);
+        button.AddThemeFontSizeOverride("font_size", FontSize(16));
+        button.AddThemeColorOverride("font_color", BackgroundDeep);
+        button.AddThemeColorOverride("font_hover_color", BackgroundDeep);
+        button.AddThemeColorOverride("font_pressed_color", BackgroundDeep);
+        button.AddThemeColorOverride("font_focus_color", BackgroundDeep);
+        button.AddThemeColorOverride("font_disabled_color", new Color(InkMuted.R, InkMuted.G, InkMuted.B, 0.58f));
+        button.AddThemeStyleboxOverride("normal", SolidButton(Accent));
+        button.AddThemeStyleboxOverride("hover", SolidButton(new Color(Mathf.Min(Accent.R + 0.08f, 1f), Mathf.Min(Accent.G + 0.06f, 1f), Accent.B, 1f)));
+        button.AddThemeStyleboxOverride("pressed", SolidButton(new Color(Mathf.Max(Accent.R - 0.06f, 0f), Mathf.Max(Accent.G - 0.05f, 0f), Accent.B, 1f)));
+        button.AddThemeStyleboxOverride("focus", FocusRing(Accent));
+        button.AddThemeStyleboxOverride("disabled", SolidButton(new Color(0.20f, 0.18f, 0.10f, 0.82f)));
+        button.CustomMinimumSize = new Vector2(0, 52);
+    }
+
+    /// <summary>Ghost/tertiary — sadece hover yüzeyi, minimal görsel ağırlık.</summary>
+    public static void StyleGhostButton(Button button)
+    {
+        ApplyBodyFont(button);
+        button.AddThemeFontSizeOverride("font_size", FontSize(13));
+        button.AddThemeColorOverride("font_color", InkMuted);
+        button.AddThemeColorOverride("font_hover_color", Ink);
+        button.AddThemeColorOverride("font_pressed_color", Ink);
+        button.AddThemeColorOverride("font_focus_color", Ink);
+        button.AddThemeColorOverride("font_disabled_color", ColorDisabled);
+        var transparent = new StyleBoxFlat { BgColor = Colors.Transparent };
+        var hover = new StyleBoxFlat
+        {
+            BgColor = new Color(Ink.R, Ink.G, Ink.B, 0.06f),
+            CornerRadiusTopLeft = RadiusMedium, CornerRadiusTopRight = RadiusMedium,
+            CornerRadiusBottomRight = RadiusMedium, CornerRadiusBottomLeft = RadiusMedium,
+            ContentMarginLeft = SpaceM, ContentMarginRight = SpaceM,
+            ContentMarginTop = SpaceS, ContentMarginBottom = SpaceS,
+        };
+        button.AddThemeStyleboxOverride("normal", transparent);
+        button.AddThemeStyleboxOverride("hover", hover);
+        button.AddThemeStyleboxOverride("pressed", hover);
+        button.AddThemeStyleboxOverride("focus", FocusRing(Data));
+        button.AddThemeStyleboxOverride("disabled", transparent);
+        button.CustomMinimumSize = new Vector2(0, TouchTargetMin);
+    }
+
+    /// <summary>Danger/destructive — kırmızı outline. Geri dönüşü zor işlemler.</summary>
+    public static void StyleDangerButton(Button button)
+    {
+        ApplyBodyFont(button);
+        button.AddThemeFontSizeOverride("font_size", FontSize(14));
+        button.AddThemeColorOverride("font_color", Ink);
+        button.AddThemeColorOverride("font_hover_color", Ink);
+        button.AddThemeColorOverride("font_pressed_color", Ink);
+        button.AddThemeColorOverride("font_focus_color", Ink);
+        button.AddThemeColorOverride("font_disabled_color", ColorDisabled);
+        button.AddThemeStyleboxOverride("normal", OutlineButton(new Color(DangerSoft.R, DangerSoft.G, DangerSoft.B, 0.72f)));
+        button.AddThemeStyleboxOverride("hover", SolidButton(new Color(DangerSoft.R, DangerSoft.G, DangerSoft.B, 0.22f)));
+        button.AddThemeStyleboxOverride("pressed", SolidButton(new Color(DangerSoft.R, DangerSoft.G, DangerSoft.B, 0.32f)));
+        button.AddThemeStyleboxOverride("focus", FocusRing(DangerSoft));
+        button.AddThemeStyleboxOverride("disabled", OutlineButton(new Color(Stroke.R, Stroke.G, Stroke.B, 0.28f)));
+        button.CustomMinimumSize = new Vector2(0, TouchTargetMin);
+    }
+
+    /// <summary>
+    /// Sidebar nav item — sol kenarda renkli indicator şeridi, seçili/seçilmemiş durum.
+    /// </summary>
+    public static void StyleSidebarNavButton(Button button, bool selected)
+    {
+        ApplyBodyFont(button);
+        button.AddThemeFontSizeOverride("font_size", FontSize(13));
+        button.AddThemeColorOverride("font_color", selected ? Ink : InkMuted);
+        button.AddThemeColorOverride("font_hover_color", Ink);
+        button.AddThemeColorOverride("font_pressed_color", Ink);
+        button.AddThemeColorOverride("font_focus_color", Ink);
+
+        if (selected)
+        {
+            var sel = new StyleBoxFlat
+            {
+                BgColor = new Color(Action.R, Action.G, Action.B, 0.16f),
+                BorderColor = Action,
+                BorderWidthLeft = 3, BorderWidthTop = 0, BorderWidthRight = 0, BorderWidthBottom = 0,
+                CornerRadiusTopLeft = 0, CornerRadiusTopRight = RadiusMedium,
+                CornerRadiusBottomRight = RadiusMedium, CornerRadiusBottomLeft = 0,
+                ContentMarginLeft = SpaceL - 3, ContentMarginRight = SpaceM,
+                ContentMarginTop = SpaceM, ContentMarginBottom = SpaceM,
+            };
+            button.AddThemeStyleboxOverride("normal", sel);
+            button.AddThemeStyleboxOverride("hover", sel);
+            button.AddThemeStyleboxOverride("pressed", sel);
+        }
+        else
+        {
+            var norm = new StyleBoxFlat
+            {
+                BgColor = Colors.Transparent,
+                CornerRadiusTopLeft = RadiusMedium, CornerRadiusTopRight = RadiusMedium,
+                CornerRadiusBottomRight = RadiusMedium, CornerRadiusBottomLeft = RadiusMedium,
+                ContentMarginLeft = SpaceL, ContentMarginRight = SpaceM,
+                ContentMarginTop = SpaceM, ContentMarginBottom = SpaceM,
+            };
+            var hov = new StyleBoxFlat
+            {
+                BgColor = new Color(Ink.R, Ink.G, Ink.B, 0.06f),
+                CornerRadiusTopLeft = RadiusMedium, CornerRadiusTopRight = RadiusMedium,
+                CornerRadiusBottomRight = RadiusMedium, CornerRadiusBottomLeft = RadiusMedium,
+                ContentMarginLeft = SpaceL, ContentMarginRight = SpaceM,
+                ContentMarginTop = SpaceM, ContentMarginBottom = SpaceM,
+            };
+            button.AddThemeStyleboxOverride("normal", norm);
+            button.AddThemeStyleboxOverride("hover", hov);
+            button.AddThemeStyleboxOverride("pressed", hov);
+        }
+
+        button.AddThemeStyleboxOverride("focus", FocusRing(Data));
+        button.CustomMinimumSize = new Vector2(0, TouchTargetMin);
+    }
+
+    // ── NEW: StyleBox Factories ───────────────────────────────────────────────
+
+    /// <summary>Status badge — inline yeşil/kırmızı/sarı etiket.</summary>
+    public static StyleBoxFlat StatusBadge(Color signalColor) =>
+        PanelStyle(
+            new Color(signalColor.R, signalColor.G, signalColor.B, 0.14f),
+            new Color(signalColor.R, signalColor.G, signalColor.B, 0.52f),
+            radius: RadiusPill, contentMargin: SpaceS, shadowSize: 0);
+
+    /// <summary>Mevki tag — GK, CB, ST etiketi.</summary>
+    public static StyleBoxFlat PositionTagPanel() =>
+        PanelStyle(
+            new Color(Data.R, Data.G, Data.B, 0.10f),
+            new Color(Data.R, Data.G, Data.B, 0.42f),
+            radius: RadiusSmall, contentMargin: SpaceXs, shadowSize: 0);
+
+    /// <summary>Tablo satırı arka planı — seçili/normal/zebra.</summary>
+    public static StyleBoxFlat TableRowPanel(bool isSelected = false, bool isAlternate = false)
+    {
+        if (isSelected)
+        {
+            return new StyleBoxFlat
+            {
+                BgColor = new Color(Action.R, Action.G, Action.B, 0.18f),
+                BorderColor = new Color(Action.R, Action.G, Action.B, 0.48f),
+                BorderWidthLeft = 3, BorderWidthTop = 0, BorderWidthRight = 0, BorderWidthBottom = 0,
+                ContentMarginLeft = SpaceM - 3, ContentMarginRight = SpaceM,
+                ContentMarginTop = SpaceS, ContentMarginBottom = SpaceS,
+            };
+        }
+
+        return new StyleBoxFlat
+        {
+            BgColor = isAlternate ? new Color(Ink.R, Ink.G, Ink.B, 0.022f) : Colors.Transparent,
+            ContentMarginLeft = SpaceM, ContentMarginRight = SpaceM,
+            ContentMarginTop = SpaceS, ContentMarginBottom = SpaceS,
+        };
+    }
+
+    /// <summary>Alert/vurgu panel — kritik karar, önemli gelişme.</summary>
+    public static StyleBoxFlat AlertPanel(Color signalColor) =>
+        PanelStyle(
+            new Color(signalColor.R, signalColor.G, signalColor.B, 0.08f),
+            new Color(signalColor.R, signalColor.G, signalColor.B, 0.55f),
+            radius: RadiusMedium, contentMargin: SpaceM, shadowSize: 0);
+
+    /// <summary>Metric hero — büyük sayı gösterimi.</summary>
+    public static StyleBoxFlat MetricHeroPanel() =>
+        PanelStyle(
+            new Color(Accent.R, Accent.G, Accent.B, 0.06f),
+            new Color(Accent.R, Accent.G, Accent.B, 0.24f),
+            radius: RadiusLarge, contentMargin: SpaceXl, shadowSize: 8);
+
+    public static StyleBoxFlat GhostPanel() =>
+        PanelStyle(Colors.Transparent, Stroke, radius: RadiusMedium, contentMargin: SpaceS, shadowSize: 0);
+
+    public static StyleBoxFlat GlassPanel() =>
+        PanelStyle(new Color(Surface.R, Surface.G, Surface.B, 0.4f), Colors.Transparent,
+            radius: RadiusLarge, contentMargin: SpaceM, shadowSize: 0);
+
+    // Legacy style aliases
+    public static void StyleHeaderLabel(Label label) => StyleHeadline(label);
+    public static void StyleSubtleLabel(Label label)
+    {
+        ApplyBodyFont(label);
+        label.AddThemeColorOverride("font_color", InkMuted);
     }
 
     public static void StyleLineupChip(Label label, bool isIn, bool isOut)
