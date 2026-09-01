@@ -6,6 +6,7 @@ using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.CareerWorld;
+using FootballCareerSimulator.Simulation.DataPacks;
 
 namespace FootballCareerSimulator.Tests.CareerWorld;
 
@@ -48,7 +49,7 @@ public sealed class ProductionCareerWorldBootstrapTests
             world.Fixtures.Count);
         Assert.Equal(ProductionCareerWorldConstraints.ClubCount, world.Managers.Count);
         Assert.Equal(ProductionCareerWorldConstraints.CountryDisplayName, world.Country.DisplayName);
-        Assert.Equal(MvpLeagueIdentity.DisplayName, world.LeagueName);
+        Assert.Equal(TurkeySuperLig202627DataPack.CompetitionName, world.LeagueName);
         Assert.Equal(OpeningDay, world.WorldDate);
     }
 
@@ -67,6 +68,44 @@ public sealed class ProductionCareerWorldBootstrapTests
         Assert.All(world.Players, player => Assert.IsType<Domain.PlayerCareer.PlayerCareer>(player));
         Assert.DoesNotContain("Spike1Placeholder", world.Clubs[0].GetType().FullName);
         Assert.DoesNotContain("Spike1Placeholder", world.Players[0].GetType().FullName);
+    }
+
+    [Fact]
+    public void Generate_UsesSuperLigDataPackClubNames()
+    {
+        var world = ProductionCareerWorldBootstrap.Create(848484, OpeningDay);
+
+        Assert.Equal(TurkeySuperLig202627DataPack.AllClubs.Count, world.Clubs.Count);
+        Assert.Equal("Türkiye", world.Country.DisplayName);
+        Assert.Equal(TurkeySuperLig202627DataPack.CompetitionName, world.LeagueName);
+        Assert.Equal("GALATASARAY A.Ş.", world.Clubs[0].DisplayName);
+        Assert.All(world.Clubs, club =>
+        {
+            var pack = TurkeySuperLig202627DataPack.GetClub(club.Id);
+            Assert.Equal(pack.OfficialName, club.DisplayName);
+        });
+    }
+
+    [Fact]
+    public void Generate_SeedsPlayerAbilitiesAndClubStrengthFromDataPack()
+    {
+        var world = ProductionCareerWorldBootstrap.Create(848484, OpeningDay);
+        var galatasaray = world.Clubs.Single(club => club.Id.Value == 1);
+        var pack = TurkeySuperLig202627DataPack.GetClub(galatasaray.Id);
+        var careers = world.Players
+            .Where(player => player.OriginClubId == galatasaray.Id)
+            .OrderBy(player => player.SlotIndex)
+            .ToArray();
+
+        Assert.Equal(pack.SquadStrength, galatasaray.SportiveStrength);
+        Assert.Equal(pack.Players.Count, careers.Length);
+        Assert.All(careers, career =>
+        {
+            var profile = pack.Players[career.SlotIndex];
+            Assert.Equal(profile.CurrentAbility, career.CurrentAbility);
+            Assert.Equal(profile.PotentialAbility, career.PotentialAbility);
+            Assert.Equal(OpeningDay.Year - profile.Age, career.BirthYear);
+        });
     }
 
     [Fact]

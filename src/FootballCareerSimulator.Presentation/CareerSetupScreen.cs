@@ -92,7 +92,7 @@ public partial class CareerSetupScreen : Control
 
         var intro = new Label
         {
-            Text = "Adını ve geçmişini seç. Yirmi kulübün hepsi kapını çalmaz; yalnız uygun tekliflerden birini kabul edersin.",
+            Text = "Adını ve geçmişini seç. Süper Lig'in on sekiz kulübünün hepsi kapını çalmaz; yalnız uygun tekliflerden birini kabul edersin.",
             HorizontalAlignment = HorizontalAlignment.Center,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
@@ -148,7 +148,7 @@ public partial class CareerSetupScreen : Control
             MaxLength = 10,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 50),
-            TooltipText = "Aynı seed aynı ligi, kulüpleri ve futbolcuları üretir",
+            TooltipText = "Aynı seed aynı teklifleri, yetenekleri ve maçları üretir. Kulüpler Süper Lig veri paketidir.",
         };
         CareerUiTheme.StyleTextInput(_seedInput);
         _seedInput.TextChanged += _ => RebuildWorldFromSeed();
@@ -234,7 +234,7 @@ public partial class CareerSetupScreen : Control
 
         _offerHint = new Label
         {
-            Text = "Önce bir başlangıç geçmişi seç. Ligdeki yirmi kulübü listeden sahiplenemezsin.",
+            Text = "Önce bir başlangıç geçmişi seç. Ligdeki kulüpleri listeden sahiplenemezsin.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(_offerHint, muted: true);
@@ -329,7 +329,7 @@ public partial class CareerSetupScreen : Control
             _offers = Array.Empty<StartingClubOfferDigest>();
             _offerHint.Text = _worldSummary is null
                 ? "Geçerli bir dünya seed'i olmadan teklif üretilmez."
-                : "Önce bir başlangıç geçmişi seç. Ligdeki yirmi kulübü listeden sahiplenemezsin.";
+                : "Önce bir başlangıç geçmişi seç. Ligdeki kulüpleri listeden sahiplenemezsin.";
             return;
         }
 

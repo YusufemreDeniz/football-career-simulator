@@ -27,12 +27,31 @@ public enum MvpSquadPositionRole
 public sealed record MvpSquadPlayerProfile(
     string DisplayName,
     MvpSquadPositionGroup PositionGroup,
-    MvpSquadPositionRole? PositionRole = null)
+    MvpSquadPositionRole? PositionRole = null,
+    int? CurrentAbility = null,
+    int? PotentialAbility = null,
+    int? Age = null)
 {
     public MvpSquadPlayerProfile(
         string displayName,
         MvpSquadPositionRole positionRole)
         : this(displayName, positionRole.ToPositionGroup(), positionRole)
+    {
+    }
+
+    public MvpSquadPlayerProfile(
+        string displayName,
+        MvpSquadPositionRole positionRole,
+        int currentAbility,
+        int potentialAbility,
+        int age)
+        : this(
+            displayName,
+            positionRole.ToPositionGroup(),
+            positionRole,
+            currentAbility,
+            potentialAbility,
+            age)
     {
     }
 

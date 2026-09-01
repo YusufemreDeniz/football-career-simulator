@@ -9,7 +9,7 @@ public sealed record StartingJobOffer(JobOfferId OfferId, ClubId ClubId, int Spo
 
 /// <summary>
 /// Starting Background + dünya state'inden sınırlı, deterministik ilk Job Offer seti üretir.
-/// Boş set geçersizdir; 20 kulübün tamamı asla dönmez.
+/// Boş set geçersizdir; ligin tamamı asla dönmez.
 /// </summary>
 public static class StartingJobOfferGenerator
 {

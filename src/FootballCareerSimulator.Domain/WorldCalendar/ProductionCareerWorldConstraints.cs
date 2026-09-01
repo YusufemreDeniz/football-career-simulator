@@ -10,7 +10,7 @@ public static class ProductionCareerWorldConstraints
 
     public const int LeagueCount = 1;
 
-    public const int ClubCount = 20;
+    public const int ClubCount = 18;
 
     public const int ContractedPlayersPerClub = 23;
 
@@ -24,9 +24,9 @@ public static class ProductionCareerWorldConstraints
 
     public const int TargetActivePlayerCount = ContractedPlayerCount + FreeAgentCount;
 
-    public const string CountryDisplayName = "Valoria";
+    public const string CountryDisplayName = "Türkiye";
 
-    public const string CountryCode = "VAL";
+    public const string CountryCode = "TUR";
 
     public const long DefaultCountryId = 1;
 

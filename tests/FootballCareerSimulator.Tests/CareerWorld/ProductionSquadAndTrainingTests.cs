@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Application.CareerWorld;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.DataPacks;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
@@ -12,23 +13,20 @@ public sealed class ProductionSquadAndTrainingTests
     private static readonly GameDate Opening = ProductionCareerWorldConstraints.DefaultOpeningDate;
 
     [Fact]
-    public void ProductionClub_GetsSeededNamesNotSuperLigPack()
+    public void ProductionClub_UsesSuperLigDataPackNames()
     {
         var world = ProductionCareerWorldBootstrap.Create(Seed, Opening);
         var club = world.Clubs[0];
+        var pack = TurkeySuperLig202627DataPack.GetClub(club.Id);
         var profiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(
             club.Id,
             Seed,
             club.DisplayName);
 
-        Assert.Equal(MvpSquadRosterGenerator.SquadSize, profiles.Count);
+        Assert.Equal(pack.OfficialName, club.DisplayName);
+        Assert.Equal(pack.Players.Count, profiles.Count);
+        Assert.Equal(pack.Players[0].DisplayName, profiles[0].DisplayName);
         Assert.Equal(profiles.Count, profiles.Select(player => player.DisplayName).Distinct().Count());
-        Assert.All(profiles, profile =>
-        {
-            Assert.False(string.IsNullOrWhiteSpace(profile.DisplayName));
-            Assert.Contains(' ', profile.DisplayName);
-            Assert.False(string.IsNullOrWhiteSpace(profile.PositionCode));
-        });
         Assert.Contains(profiles, profile => profile.PositionCode == "KL");
     }
 
@@ -45,7 +43,7 @@ public sealed class ProductionSquadAndTrainingTests
         Assert.Equal(ProductionCareerWorldConstraints.ContractedPlayersPerClub, squad.Length);
         Assert.All(squad, player =>
         {
-            Assert.InRange(player.AgeYears(Opening), 18, 34);
+            Assert.InRange(player.AgeYears(Opening), 18, 40);
             Assert.InRange(player.CurrentAbility, 40, 99);
         });
     }

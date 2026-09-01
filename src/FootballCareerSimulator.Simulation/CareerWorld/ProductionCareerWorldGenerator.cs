@@ -6,51 +6,18 @@ using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.DataPacks;
 using FootballCareerSimulator.Simulation.WorldCalendar;
 using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
 
 namespace FootballCareerSimulator.Simulation.CareerWorld;
 
 /// <summary>
-/// Production kariyer dünyasını seed'den üretir. Spike1Placeholder.WorldFactory içerik veya
-/// kimlik modeli kullanılmaz; Club, PlayerCareer, Fixture ve ManagerId production tipleridir.
+/// Production kariyer dünyasını API veri paketindeki Süper Lig kulüplerinden üretir.
+/// Spike1Placeholder.WorldFactory içerik veya kimlik modeli kullanılmaz.
 /// </summary>
 public static class ProductionCareerWorldGenerator
 {
-    private static readonly string[] ClubNames =
-    [
-        "Valoria City",
-        "Harbour Athletic",
-        "Northgate United",
-        "Riverside FC",
-        "Eastmill Wanderers",
-        "Crown Hill",
-        "Ashford Town",
-        "Silverport",
-        "Redcliff Rovers",
-        "Lakeside",
-        "Ironbridge",
-        "Westmere",
-        "Oakenshaw",
-        "Stormhaven",
-        "Goldfield",
-        "Mapleford",
-        "Blackwater",
-        "Highmere",
-        "Southreach",
-        "Kingsmead",
-        "Whitecliff",
-        "Dunford",
-        "Cinderwell",
-        "Port Calder",
-        "Greenford Athletic",
-        "Ravenshore",
-        "Hillcrest",
-        "Stoneharbor",
-        "Emberlyn",
-        "Fairhaven",
-    ];
-
     private static readonly string[] ManagerFirstNames =
     [
         "Emre", "Can", "Leyla", "Baran", "Selin", "Kerem", "Deniz", "Aylin",
@@ -73,7 +40,7 @@ public static class ProductionCareerWorldGenerator
             ProductionCareerWorldConstraints.CountryDisplayName,
             ProductionCareerWorldConstraints.CountryCode);
         var competitionId = new CompetitionId(MvpLeagueIdentity.DefaultCompetitionId);
-        var clubs = CreateClubs(random);
+        var clubs = CreateClubs();
         var registry = LeagueClubRegistry.Rehydrate(clubs);
         var people = CreatePlayers(clubs, worldDate, random);
         var managers = CreateManagers(clubs, random);
@@ -91,7 +58,7 @@ public static class ProductionCareerWorldGenerator
             rootSeed,
             country,
             competitionId,
-            MvpLeagueIdentity.DisplayName,
+            TurkeySuperLig202627DataPack.CompetitionName,
             worldDate,
             registry,
             people.Players,
@@ -103,65 +70,34 @@ public static class ProductionCareerWorldGenerator
         return world;
     }
 
-    private static IReadOnlyList<Club> CreateClubs(SimulationRandomContext random)
+    private static IReadOnlyList<Club> CreateClubs()
     {
-        var available = ClubNames.ToList();
-        var chosen = new List<string>(ProductionCareerWorldConstraints.ClubCount);
-        while (chosen.Count < ProductionCareerWorldConstraints.ClubCount)
+        var catalog = MvpLeagueCatalog.CreateClubs();
+        var packClubs = TurkeySuperLig202627DataPack.AllClubs;
+        if (catalog.Count != packClubs.Count
+            || catalog.Count != ProductionCareerWorldConstraints.ClubCount)
         {
-            if (available.Count == 0)
-            {
-                throw new ProductionCareerWorldInvariantViolationException(
-                    "Club name catalog is smaller than the required club count.");
-            }
-
-            var index = random.NextInt(0, available.Count);
-            chosen.Add(available[index]);
-            available.RemoveAt(index);
+            throw new ProductionCareerWorldInvariantViolationException(
+                "Süper Lig katalogu ile veri paketi kulüp sayısı uyuşmuyor.");
         }
 
-        var usedCodes = new HashSet<string>(StringComparer.Ordinal);
-        var clubs = new List<Club>(chosen.Count);
-        for (var i = 0; i < chosen.Count; i++)
+        var clubs = new List<Club>(catalog.Count);
+        foreach (var catalogClub in catalog)
         {
-            var strength = 52 + random.NextInt(0, 44);
+            if (!TurkeySuperLig202627DataPack.TryGetClub(catalogClub.Id, out var packClub))
+            {
+                throw new ProductionCareerWorldInvariantViolationException(
+                    $"Veri paketinde kulüp yok: {catalogClub.Id.Value}.");
+            }
+
             clubs.Add(Club.Create(
-                new ClubId(i + 1),
-                chosen[i],
-                new ClubCode(AllocateClubCode(chosen[i], usedCodes, random)),
-                strength));
+                catalogClub.Id,
+                packClub.OfficialName,
+                catalogClub.Code,
+                packClub.SquadStrength));
         }
 
         return clubs;
-    }
-
-    private static string AllocateClubCode(
-        string displayName,
-        HashSet<string> usedCodes,
-        SimulationRandomContext random)
-    {
-        var letters = new string(displayName.Where(char.IsLetter).ToArray());
-        var stem = letters.Length >= 3
-            ? letters[..3]
-            : (letters + "XXX")[..3];
-        stem = stem.ToUpperInvariant();
-
-        if (usedCodes.Add(stem))
-        {
-            return stem;
-        }
-
-        for (var attempt = 0; attempt < 80; attempt++)
-        {
-            var candidate = $"{stem.AsSpan(0, 2)}{(char)('A' + random.NextInt(0, 26))}";
-            if (usedCodes.Add(candidate))
-            {
-                return candidate;
-            }
-        }
-
-        throw new ProductionCareerWorldInvariantViolationException(
-            $"Unable to allocate a unique club code for '{displayName}'.");
     }
 
     private static (IReadOnlyList<PlayerCareerAggregate> Players, IReadOnlyList<PlayerFreeAgency> FreeAgents)
@@ -176,16 +112,19 @@ public static class ProductionCareerWorldGenerator
 
         foreach (var club in clubs)
         {
+            var profiles = TurkeySuperLig202627DataPack.GetClub(club.Id).Players;
             for (var slot = MatchSelection.MinSquadSlot; slot <= MatchSelection.MaxSquadSlot; slot++)
             {
-                var currentAbility = Math.Clamp(
-                    club.SportiveStrength - 18 + random.NextInt(0, 21),
-                    PlayerCareerAggregate.MinAbility,
-                    PlayerCareerAggregate.MaxAbility);
-                var potentialAbility = Math.Min(
-                    PlayerCareerAggregate.MaxAbility,
-                    currentAbility + random.NextInt(5, 19));
-                var age = random.NextInt(18, 35);
+                var profile = profiles[slot];
+                var currentAbility = profile.CurrentAbility
+                    ?? throw new ProductionCareerWorldInvariantViolationException(
+                        $"Oyuncu CA verisi eksik: {profile.DisplayName}.");
+                var potentialAbility = profile.PotentialAbility
+                    ?? throw new ProductionCareerWorldInvariantViolationException(
+                        $"Oyuncu PA verisi eksik: {profile.DisplayName}.");
+                var age = profile.Age
+                    ?? throw new ProductionCareerWorldInvariantViolationException(
+                        $"Oyuncu yaş verisi eksik: {profile.DisplayName}.");
                 var player = PlayerCareerAggregate.CreateForSlot(
                     club.Id,
                     slot,

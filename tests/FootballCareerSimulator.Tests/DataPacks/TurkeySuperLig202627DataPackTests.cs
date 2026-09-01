@@ -22,6 +22,18 @@ public sealed class TurkeySuperLig202627DataPackTests
             Assert.Equal(25, data.PlayerNames.Distinct(StringComparer.OrdinalIgnoreCase).Count());
             Assert.Equal(25, data.Players.Count);
             Assert.All(data.Players, player => Assert.True(Enum.IsDefined(player.PositionGroup)));
+            Assert.All(data.Players, player =>
+            {
+                Assert.InRange(player.CurrentAbility!.Value, 45, 90);
+                Assert.InRange(player.PotentialAbility!.Value, player.CurrentAbility.Value, 99);
+                Assert.InRange(player.Age!.Value, 16, 40);
+            });
+            Assert.Equal(
+                (int)Math.Round(
+                    data.Players.Take(11).Average(player => player.CurrentAbility!.Value),
+                    MidpointRounding.AwayFromZero),
+                data.SquadStrength);
+            Assert.Contains("ea.com", data.AbilitySourceUrl, StringComparison.OrdinalIgnoreCase);
             Assert.Equal(
                 new[]
                 {
@@ -62,5 +74,17 @@ public sealed class TurkeySuperLig202627DataPackTests
             MvpSquadPositionRole.RightWinger or
             MvpSquadPositionRole.LeftWinger or
             MvpSquadPositionRole.Striker);
+    }
+
+    [Fact]
+    public void GalatasarayRoster_UsesPlayerSpecificRatingsInsteadOfSquadSlotRandomness()
+    {
+        var players = TurkeySuperLig202627DataPack.GetClub(new ClubId(1)).Players;
+        var osimhen = Assert.Single(players, player => player.DisplayName == "Victor Osimhen");
+        var youthPlayer = Assert.Single(players, player => player.DisplayName == "B. Luş");
+
+        Assert.Equal(85, osimhen.CurrentAbility);
+        Assert.True(osimhen.CurrentAbility > youthPlayer.CurrentAbility);
+        Assert.True(youthPlayer.PotentialAbility > youthPlayer.CurrentAbility);
     }
 }
