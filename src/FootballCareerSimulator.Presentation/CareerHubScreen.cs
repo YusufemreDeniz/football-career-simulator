@@ -720,22 +720,28 @@ public partial class CareerHubScreen : Control
         content.AddThemeConstantOverride("separation", 12);
         panel.AddChild(content);
 
-        var title = SectionTitle("FUTBOLCU DOSYASI");
-        content.AddChild(title);
+        content.AddChild(UiComponents.SectionHeader("FUTBOLCU DOSYASI & PROFİLİ", withDivider: true));
         _playerDossierTitle = BodyLabel("PlayerDossierTitle");
         CareerUiTheme.StyleHeadline(_playerDossierTitle);
+        _playerDossierTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(22));
         content.AddChild(_playerDossierTitle);
         _playerDossierBody = BodyLabel("PlayerDossierBody", autowrap: true);
         _playerDossierBody.SizeFlagsVertical = SizeFlags.ExpandFill;
         content.AddChild(_playerDossierBody);
 
-        _playerDossierSellButton = PrimaryButton("Satışa Çıkar");
+        var actionRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        actionRow.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
+        content.AddChild(actionRow);
+
+        _playerDossierSellButton = DangerButton("🏷 Satışa Çıkar");
+        _playerDossierSellButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         _playerDossierSellButton.Pressed += OnPlayerDossierSellPressed;
-        content.AddChild(_playerDossierSellButton);
+        actionRow.AddChild(_playerDossierSellButton);
 
         var close = SecondaryButton("Kapat");
+        close.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         close.Pressed += ClosePlayerDossier;
-        content.AddChild(close);
+        actionRow.AddChild(close);
     }
 
     private void OnPlayerDossierBackdropInput(InputEvent @event)
@@ -910,9 +916,9 @@ public partial class CareerHubScreen : Control
         page.AddChild(panel);
 
         var content = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        content.AddThemeConstantOverride("separation", 9);
+        content.AddThemeConstantOverride("separation", CareerUiTheme.SeparationCard);
         panel.AddChild(content);
-        content.AddChild(SectionTitle(title));
+        content.AddChild(UiComponents.SectionHeader(title, withDivider: true));
         return content;
     }
 
@@ -960,25 +966,26 @@ public partial class CareerHubScreen : Control
 
         var primaryRow = ActionFlow();
         matchCard.AddChild(primaryRow);
-        _approveSelectionButton = PrimaryButton("Kadro Onayla");
+        _approveSelectionButton = AccentButton("✓ Kadro Onayla");
         _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
         primaryRow.AddChild(_approveSelectionButton);
-        _playButton = PrimaryButton("Maç Gününe Git");
+        _playButton = PrimaryButton("⚽ Maç Gününe Git");
         _playButton.Pressed += OnPlayMatches;
         primaryRow.AddChild(_playButton);
-        _swapSelectionButton = SecondaryButton("XI↔Yedek");
+        _swapSelectionButton = SecondaryButton("⇄ XI ↔ Yedek");
         _swapSelectionButton.Pressed += () => Apply(_controller.SwapLastStarterWithFirstBenchForNextDueMatch());
         primaryRow.AddChild(_swapSelectionButton);
 
-        _seasonTransitionButton = PrimaryButton("Sezonu Bitir → Yeni Sezon");
+        var seasonTimeCard = AddCard(matchColumn, "ZAMAN AKIŞI & İLERLEME");
+        _seasonTransitionButton = AccentButton("🏁 Sezonu Bitir → Yeni Sezon");
         _seasonTransitionButton.Pressed += () => Apply(_controller.TransitionToNextSeason());
-        matchColumn.AddChild(_seasonTransitionButton);
+        seasonTimeCard.AddChild(_seasonTransitionButton);
         var timeRow = ActionFlow();
-        matchColumn.AddChild(timeRow);
-        _advanceDayButton = SecondaryButton("1 Gün İlerlet");
+        seasonTimeCard.AddChild(timeRow);
+        _advanceDayButton = SecondaryButton("▶ 1 Gün İlerlet");
         _advanceDayButton.Pressed += () => Apply(_controller.AdvanceDays(1));
         timeRow.AddChild(_advanceDayButton);
-        _advanceWeekButton = SecondaryButton("7 Gün İlerlet");
+        _advanceWeekButton = SecondaryButton("⏩ 7 Gün İlerlet");
         _advanceWeekButton.Pressed += () => Apply(_controller.AdvanceDays(7));
         timeRow.AddChild(_advanceWeekButton);
 
@@ -1027,30 +1034,30 @@ public partial class CareerHubScreen : Control
 
         var deskRow = ActionFlow();
         decisionCard.AddChild(deskRow);
-        _grantDecisionButton = PrimaryButton("Talebi Kabul Et");
+        _grantDecisionButton = PrimaryButton("✓ Talebi Kabul Et");
         _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
         deskRow.AddChild(_grantDecisionButton);
-        _refuseDecisionButton = SecondaryButton("Talebi Reddet");
+        _refuseDecisionButton = DangerButton("✕ Talebi Reddet");
         _refuseDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: false));
         deskRow.AddChild(_refuseDecisionButton);
-        _disciplineWarningButton = SecondaryButton("Uyarı Ver");
+        _disciplineWarningButton = SecondaryButton("⚠ Uyarı Ver");
         _disciplineWarningButton.Pressed += () =>
             Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueWarning));
         deskRow.AddChild(_disciplineWarningButton);
-        _disciplineFineButton = SecondaryButton("Ceza Uygula");
+        _disciplineFineButton = DangerButton("⚑ Para Cezası");
         _disciplineFineButton.Pressed += () =>
             Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueFine));
         deskRow.AddChild(_disciplineFineButton);
-        _disciplineSupportButton = SecondaryButton("Destekle");
+        _disciplineSupportButton = SecondaryButton("♥ Destekle");
         _disciplineSupportButton.Pressed += () =>
             Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionOfferSupport));
         deskRow.AddChild(_disciplineSupportButton);
-        _boardCounterButton = SecondaryButton("Karşı Teklif");
+        _boardCounterButton = SecondaryButton("⚖ Karşı Teklif");
         _boardCounterButton.Pressed += () =>
             Apply(_controller.AnswerOldestPendingWithOption(
                 Domain.Interaction.DecisionRequest.OptionCounterBoardDemand));
         deskRow.AddChild(_boardCounterButton);
-        _pressCriticizeButton = SecondaryButton("Kamuya Eleştir");
+        _pressCriticizeButton = DangerButton("🎙 Kamuya Eleştir");
         _pressCriticizeButton.Pressed += () =>
             Apply(_controller.AnswerOldestPendingWithOption(
                 Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
@@ -1398,16 +1405,16 @@ public partial class CareerHubScreen : Control
         var offerRow = ActionFlow();
         offerCard.AddChild(offerRow);
 
-        _submitClubOfferButton = SecondaryButton("Teklif Sun");
+        _submitClubOfferButton = AccentButton("💰 Teklif Sun");
         _submitClubOfferButton.Pressed += () =>
             Apply(_controller.SubmitClubOffer((int)_transferFeeInput.Value));
         offerRow.AddChild(_submitClubOfferButton);
 
-        _acceptClubOfferButton = SecondaryButton("Kulüp Yanıtını Al");
+        _acceptClubOfferButton = PrimaryButton("✓ Kulüp Yanıtını Al");
         _acceptClubOfferButton.Pressed += () => Apply(_controller.ResolvePendingClubResponse());
         offerRow.AddChild(_acceptClubOfferButton);
 
-        _rejectClubOfferButton = SecondaryButton("Teklifi Geri Çek");
+        _rejectClubOfferButton = DangerButton("✕ Teklifi Geri Çek");
         _rejectClubOfferButton.Pressed += () => Apply(_controller.RejectPendingClubOffer());
         offerRow.AddChild(_rejectClubOfferButton);
 
@@ -1452,19 +1459,19 @@ public partial class CareerHubScreen : Control
         var proposalRow = ActionFlow();
         contractCard.AddChild(proposalRow);
 
-        _submitContractProposalButton = SecondaryButton("Sözleşme Teklif");
+        _submitContractProposalButton = AccentButton("📝 Sözleşme Teklif Et");
         _submitContractProposalButton.Pressed += () =>
             Apply(_controller.SubmitContractProposal(
                 (int)_transferWageInput.Value,
                 (int)_contractYearsInput.Value));
         proposalRow.AddChild(_submitContractProposalButton);
 
-        _acceptContractProposalButton = SecondaryButton("Menajer Yanıtını Al");
+        _acceptContractProposalButton = PrimaryButton("✓ Menajer Yanıtını Al");
         _acceptContractProposalButton.Pressed += () =>
             Apply(_controller.ResolvePendingContractResponse());
         proposalRow.AddChild(_acceptContractProposalButton);
 
-        _rejectContractProposalButton = SecondaryButton("Teklifi Geri Çek");
+        _rejectContractProposalButton = DangerButton("✕ Teklifi Geri Çek");
         _rejectContractProposalButton.Pressed += () =>
             Apply(_controller.RejectPendingContractProposal());
         proposalRow.AddChild(_rejectContractProposalButton);
@@ -1495,7 +1502,7 @@ public partial class CareerHubScreen : Control
             Apply(_controller.RejectFinancialApprovalForOldestPendingProcess());
         financialRow.AddChild(_rejectFinancialApprovalButton);
 
-        _completeTransferButton = SecondaryButton("Transferi Tamamla");
+        _completeTransferButton = AccentButton("🏆 Transferi Tamamla");
         _completeTransferButton.Pressed += () =>
             Apply(_controller.CompleteOldestFinanciallyApprovedProcess());
         financialRow.AddChild(_completeTransferButton);
@@ -1977,15 +1984,15 @@ public partial class CareerHubScreen : Control
         var saveLoadRow = ActionFlow();
         saveCard.AddChild(saveLoadRow);
 
-        _saveGameButton = PrimaryButton("Kaydet");
+        _saveGameButton = AccentButton("💾 Oyunu Kaydet");
         _saveGameButton.Pressed += () => Apply(_controller.SaveGame());
         saveLoadRow.AddChild(_saveGameButton);
 
-        _loadGameButton = SecondaryButton("Yükle");
+        _loadGameButton = PrimaryButton("📂 Kayıtlı Oyunu Yükle");
         _loadGameButton.Pressed += OnLoadGamePressed;
         saveLoadRow.AddChild(_loadGameButton);
 
-        var menuButton = SecondaryButton("Ana Menü");
+        var menuButton = DangerButton("⏏ Ana Menüye Dön");
         menuButton.Pressed += () => BackToMenuRequested?.Invoke();
         saveLoadRow.AddChild(menuButton);
         return page;
@@ -2071,6 +2078,27 @@ public partial class CareerHubScreen : Control
     {
         var button = new Button { Text = text };
         CareerUiTheme.StyleSecondaryButton(button);
+        return button;
+    }
+
+    private static Button AccentButton(string text)
+    {
+        var button = new Button { Text = text };
+        CareerUiTheme.StyleAccentButton(button);
+        return button;
+    }
+
+    private static Button DangerButton(string text)
+    {
+        var button = new Button { Text = text };
+        CareerUiTheme.StyleDangerButton(button);
+        return button;
+    }
+
+    private static Button GhostButton(string text)
+    {
+        var button = new Button { Text = text };
+        CareerUiTheme.StyleGhostButton(button);
         return button;
     }
 
@@ -2805,7 +2833,7 @@ public partial class CareerHubScreen : Control
     {
         var exists = _controller.SaveFileExists();
         _loadGameButton.Disabled = !exists;
-        _loadGameButton.Text = exists ? "Yükle" : "Yükle (kayıt yok)";
+        _loadGameButton.Text = exists ? "📂 Kayıtlı Oyunu Yükle" : "📂 Kayıtlı Oyunu Yükle (kayıt yok)";
     }
 
     private void RefreshTransferWindowStatus()
