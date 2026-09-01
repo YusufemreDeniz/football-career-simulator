@@ -669,6 +669,13 @@ internal static class CareerUiTheme
             new Color(signalColor.R, signalColor.G, signalColor.B, 0.55f),
             radius: RadiusMedium, contentMargin: SpaceM, shadowSize: 0);
 
+    /// <summary>Top context bar panel — üst şerit için broadcast tarzı panel.</summary>
+    public static StyleBoxFlat TopBarPanel() =>
+        PanelStyle(
+            new Color(BackgroundDeep.R, BackgroundDeep.G, BackgroundDeep.B, 0.94f),
+            new Color(Stroke.R, Stroke.G, Stroke.B, 0.42f),
+            radius: RadiusMedium, contentMargin: SpaceM, shadowSize: 6);
+
     /// <summary>Metric hero — büyük sayı gösterimi.</summary>
     public static StyleBoxFlat MetricHeroPanel() =>
         PanelStyle(

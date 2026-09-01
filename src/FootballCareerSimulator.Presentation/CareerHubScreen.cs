@@ -202,6 +202,9 @@ public partial class CareerHubScreen : Control
     private Label _pageSubtitleLabel = null!;
     private MobileScrollContainer _pageScroll = null!;
     private Button _careerButton = null!;
+    private Button _topContinueButton = null!;
+    private PanelContainer _nextMatchPill = null!;
+    private Label _nextMatchLabel = null!;
     private Control[] _pages = null!;
     private Button[] _navButtons = null!;
     private HubPage _currentPage = HubPage.Today;
@@ -332,6 +335,10 @@ public partial class CareerHubScreen : Control
         if (step is null)
         {
             _officeNextStepButton.Visible = false;
+            if (_topContinueButton is not null)
+            {
+                _topContinueButton.Visible = false;
+            }
             SyncTodayActionVisibility();
             return;
         }
@@ -347,6 +354,14 @@ public partial class CareerHubScreen : Control
         };
         _officeNextStepButton.Text = step.ButtonLabel;
         _officeNextStepButton.Visible = true;
+
+        if (_topContinueButton is not null)
+        {
+            _topContinueButton.Text = "▶ " + step.ButtonLabel;
+            _topContinueButton.Visible = true;
+            _topContinueButton.TooltipText = step.ButtonLabel;
+        }
+
         SyncTodayActionVisibility();
     }
 
@@ -426,19 +441,26 @@ public partial class CareerHubScreen : Control
         shell.AddThemeConstantOverride("separation", 10);
         _shellMargin.AddChild(shell);
 
-        // Sabit kariyer kabuğu: kulüp kimliği + tarih, ardından aktif ekran başlığı.
+        // Sabit kariyer kabuğu: broadcast tarzı top bar paneli + kulüp/menajer kimliği + sonraki maç + devam CTA'sı.
+        var topBarPanel = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        topBarPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.TopBarPanel());
+        shell.AddChild(topBarPanel);
+
         _topBar = new HBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Alignment = BoxContainer.AlignmentMode.Center,
         };
-        _topBar.AddThemeConstantOverride("separation", 10);
-        shell.AddChild(_topBar);
+        _topBar.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
+        topBarPanel.AddChild(_topBar);
 
         _clubCrest = new TextureRect
         {
             Name = "ClubCrest",
-            CustomMinimumSize = new Vector2(64, 64),
+            CustomMinimumSize = new Vector2(48, 48),
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             TooltipText = "Kulüp arması",
@@ -449,57 +471,99 @@ public partial class CareerHubScreen : Control
         var brandLockup = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Alignment = BoxContainer.AlignmentMode.Center,
         };
-        brandLockup.AddThemeConstantOverride("separation", 0);
+        brandLockup.AddThemeConstantOverride("separation", 1);
         _topBar.AddChild(brandLockup);
 
-        _brandLabel = new Label { Text = "FCS  /  KARİYER" };
-        CareerUiTheme.StyleSection(_brandLabel);
+        _brandLabel = new Label { Text = "FCS  /  MENAJER OFİSİ" };
+        CareerUiTheme.StyleEyebrow(_brandLabel, CareerUiTheme.Accent);
+        _brandLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         brandLockup.AddChild(_brandLabel);
 
         _managerLabel = BodyLabel("ManagerLabel", autowrap: true);
         CareerUiTheme.StyleHeadline(_managerLabel);
-        _managerLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(22));
+        _managerLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(20));
         brandLockup.AddChild(_managerLabel);
+
+        _seasonLabel = BodyLabel("SeasonLabel", muted: true, autowrap: true);
+        _seasonLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        brandLockup.AddChild(_seasonLabel);
+
+        // Center: Sonraki Maç / Fikstür Teaser
+        _nextMatchPill = new PanelContainer
+        {
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+            Visible = false,
+        };
+        _nextMatchPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePanel(CareerUiTheme.Data));
+        _topBar.AddChild(_nextMatchPill);
+        _nextMatchLabel = new Label
+        {
+            Text = string.Empty,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.StyleTableText(_nextMatchLabel);
+        _nextMatchLabel.AddThemeColorOverride("font_color", CareerUiTheme.TextPrimary);
+        _nextMatchPill.AddChild(_nextMatchLabel);
+
+        // Right: Tarih + Ana Loop Continue CTA + Dosya
+        var topBarRight = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ShrinkEnd,
+            Alignment = BoxContainer.AlignmentMode.End,
+        };
+        topBarRight.AddThemeConstantOverride("separation", CareerUiTheme.SpaceS);
+        _topBar.AddChild(topBarRight);
 
         _datePanel = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
         _datePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.PillPanel());
-        _topBar.AddChild(_datePanel);
+        topBarRight.AddChild(_datePanel);
         _dateLabel = BodyLabel("DateLabel");
         _dateLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _dateLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
         _datePanel.AddChild(_dateLabel);
 
+        _topContinueButton = new Button
+        {
+            Text = "▶ Devam Et",
+            CustomMinimumSize = new Vector2(140, 42),
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            Visible = false,
+        };
+        CareerUiTheme.StyleAccentButton(_topContinueButton);
+        _topContinueButton.Pressed += OnOfficeNextStepPressed;
+        topBarRight.AddChild(_topContinueButton);
+
         _careerButton = SecondaryButton("DOSYA");
-        _careerButton.CustomMinimumSize = new Vector2(58, 48);
+        _careerButton.CustomMinimumSize = new Vector2(58, 42);
         _careerButton.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         _careerButton.TooltipText = "Kariyer dosyası, kayıt ve ana menü";
         _careerButton.Pressed += () => ShowPage(HubPage.File);
-        _topBar.AddChild(_careerButton);
+        topBarRight.AddChild(_careerButton);
 
         var careerMeta = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         careerMeta.AddThemeConstantOverride("separation", 2);
         shell.AddChild(careerMeta);
-        _seasonLabel = BodyLabel("SeasonLabel", muted: true, autowrap: true);
-        careerMeta.AddChild(_seasonLabel);
         _progressLabel = BodyLabel("ProgressLabel", muted: true, autowrap: true);
         _progressLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
         careerMeta.AddChild(_progressLabel);
         careerMeta.Visible = false;
 
         var screenHeading = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        screenHeading.AddThemeConstantOverride("separation", 10);
+        screenHeading.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
         shell.AddChild(screenHeading);
         var headingCopy = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        headingCopy.AddThemeConstantOverride("separation", 0);
+        headingCopy.AddThemeConstantOverride("separation", 2);
         screenHeading.AddChild(headingCopy);
         _pageTitleLabel = new Label();
         CareerUiTheme.StyleHeadline(_pageTitleLabel);
-        _pageTitleLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(26));
+        _pageTitleLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(24));
         headingCopy.AddChild(_pageTitleLabel);
         _pageSubtitleLabel = BodyLabel("PageSubtitle", muted: true, autowrap: true);
         _pageSubtitleLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
-        _pageSubtitleLabel.Visible = false;
+        _pageSubtitleLabel.Visible = true;
         headingCopy.AddChild(_pageSubtitleLabel);
 
         _liveChip = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
@@ -517,7 +581,7 @@ public partial class CareerHubScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        _workspace.AddThemeConstantOverride("separation", 10);
+        _workspace.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
         shell.AddChild(_workspace);
         BuildNavBar(_workspace);
 
@@ -583,7 +647,7 @@ public partial class CareerHubScreen : Control
     {
         var navPanel = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(112, 0),
+            CustomMinimumSize = new Vector2(128, 0),
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
         navPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NavigationPanel());
@@ -595,11 +659,11 @@ public partial class CareerHubScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        _navGrid.AddThemeConstantOverride("h_separation", 4);
-        _navGrid.AddThemeConstantOverride("v_separation", 4);
+        _navGrid.AddThemeConstantOverride("h_separation", CareerUiTheme.SeparationNav);
+        _navGrid.AddThemeConstantOverride("v_separation", CareerUiTheme.SeparationNav);
         navPanel.AddChild(_navGrid);
 
-        var labels = new[] { "MERKEZ", "KADRO", "TRANSFER", "TAKTİK", "LİG" };
+        var labels = new[] { "MERKEZ", "KADRO", "TRANSFER", "TAKTİK", "LİG", "DOSYA" };
         _navButtons = new Button[6];
         for (var i = 0; i < labels.Length; i++)
         {
@@ -609,13 +673,12 @@ public partial class CareerHubScreen : Control
                 Text = labels[i],
                 ToggleMode = false,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                CustomMinimumSize = new Vector2(0, CareerUiTheme.TouchTargetMin),
             };
             button.Pressed += () => ShowPage(page);
             _navGrid.AddChild(button);
             _navButtons[i] = button;
         }
-
-        _navButtons[(int)HubPage.File] = _careerButton;
     }
 
     private void BuildPlayerDossierOverlay()
@@ -752,10 +815,11 @@ public partial class CareerHubScreen : Control
         };
         _pageTitleLabel.Text = titles[(int)page];
         _pageSubtitleLabel.Text = subtitles[(int)page];
+        _pageSubtitleLabel.Visible = true;
         for (var i = 0; i < _pages.Length; i++)
         {
             _pages[i].Visible = i == (int)page;
-            CareerUiTheme.StyleNavButton(_navButtons[i], selected: i == (int)page);
+            CareerUiTheme.StyleSidebarNavButton(_navButtons[i], selected: i == (int)page);
         }
 
         var current = _pages[(int)page];
@@ -807,6 +871,17 @@ public partial class CareerHubScreen : Control
             "font_size",
             CareerUiTheme.FontSize(profile.IsCompact ? 11 : 12));
         _careerButton.CustomMinimumSize = new Vector2(profile.IsCompact ? 54 : 58, profile.TouchTargetHeight);
+        if (_topContinueButton is not null)
+        {
+            _topContinueButton.CustomMinimumSize = new Vector2(profile.IsCompact ? 104 : 140, profile.TouchTargetHeight);
+            _topContinueButton.AddThemeFontSizeOverride(
+                "font_size",
+                CareerUiTheme.FontSize(profile.IsCompact ? 12 : 14));
+        }
+        if (_nextMatchPill is not null)
+        {
+            _nextMatchPill.Visible = !profile.IsCompact && _controller.BuildNextMatchBriefing().HasMatch;
+        }
         _statusLabel.CustomMinimumSize = new Vector2(0, profile.IsCompact ? 46 : 42);
         _navGrid.Columns = Size.X > Size.Y ? 1 : profile.NavigationColumns;
         foreach (var button in _navButtons.Where(button => button is not null).Distinct())
@@ -2352,6 +2427,7 @@ public partial class CareerHubScreen : Control
             UpdateTransferNeedButtons(manager);
             UpdateTrainingButtons(manager);
             UpdateTacticButtons(manager);
+            RefreshNavBadges();
             SanitizeScreenText(this);
             return;
         }
@@ -2403,7 +2479,35 @@ public partial class CareerHubScreen : Control
         UpdateTrainingButtons(manager);
         UpdateTacticButtons(manager);
         UpdateSaveDeskButtons();
+        RefreshNavBadges();
         SanitizeScreenText(this);
+    }
+
+    private void RefreshNavBadges()
+    {
+        if (_navButtons is null || _navButtons.Length < 6)
+        {
+            return;
+        }
+
+        var decisions = _controller.Host.InteractionModule.Queries.GetPending(take: 5);
+        var pendingCount = decisions.OpenCount;
+        _navButtons[(int)HubPage.Today].Text = pendingCount > 0 ? $"MERKEZ ({pendingCount})" : "MERKEZ";
+
+        var window = _controller.Host.WorldModule.Queries.GetTransferWindow();
+        var offers = _controller.Host.TransferModule.Queries.GetManagedClubOffers();
+        var proposals = _controller.Host.TransferModule.Queries.GetManagedContractProposals();
+        var transferPending = offers.PendingCount > 0 || proposals.PendingCount > 0;
+        _navButtons[(int)HubPage.Transfer].Text = transferPending
+            ? "TRANSFER (!)"
+            : window.IsOpen
+                ? "TRANSFER ●"
+                : "TRANSFER";
+
+        _navButtons[(int)HubPage.Club].Text = "KADRO";
+        _navButtons[(int)HubPage.Prep].Text = "TAKTİK";
+        _navButtons[(int)HubPage.World].Text = "LİG";
+        _navButtons[(int)HubPage.File].Text = "DOSYA";
     }
 
     private static void SanitizeScreenText(Node node)
@@ -3609,6 +3713,24 @@ public partial class CareerHubScreen : Control
                 ? briefing.FixtureLine
                 : briefing.Headline,
             briefing.HasMatch ? briefing.Headline : string.Empty);
+
+        if (_nextMatchPill is not null && _nextMatchLabel is not null)
+        {
+            if (briefing.HasMatch)
+            {
+                var matchLine = !string.IsNullOrWhiteSpace(briefing.FixtureLine)
+                    ? briefing.FixtureLine
+                    : briefing.Headline;
+                _nextMatchLabel.Text = $"⚔ {matchLine}";
+                _nextMatchPill.Visible = true;
+                _nextMatchPill.TooltipText = briefing.Headline;
+            }
+            else
+            {
+                _nextMatchPill.Visible = false;
+            }
+        }
+
         RefreshTodayPulse();
 
         if (pending is null)
