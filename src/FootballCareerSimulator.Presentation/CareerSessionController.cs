@@ -4628,7 +4628,7 @@ public sealed class CareerSessionController
         GameDate.FromDayNumber(currentDayNumber).AddDays(4).DayNumber;
 
     /// <summary>
-    /// Smoke test için lig kurulumunu uygular (TimeControlScreen self-check ile aynı sıra).
+    /// Smoke test için lig kurulumunu uygular (CareerUiSmokeTest self-check ile aynı sıra).
     /// </summary>
     public static void SetupLeagueSeasonForSelfCheck(
         CompetitionModule competition,
