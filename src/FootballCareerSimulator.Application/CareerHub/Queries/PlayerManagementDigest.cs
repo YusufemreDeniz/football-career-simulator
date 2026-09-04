@@ -36,7 +36,7 @@ public sealed record PlayerManagementLine(
     string CausalitySummary)
 {
     public string ToListLabel() =>
-        $"{SquadNumber}. {DisplayName} · {PositionCode} · GÜÇ {Rating} · FİT %{Fitness}"
+        $"{SquadNumber}. {DisplayName} · {PositionCode} · GÜÇ {Rating} · {PlayerPhysicalState.FatigueBandLabel(Fatigue)}"
         + (Availability == "Hazır" ? string.Empty : $" · {Availability.ToUpperInvariant()}");
 
     public string ToSaleLabel() => $"{DisplayName} ({PositionCode} · GÜÇ {Rating})";
@@ -52,7 +52,7 @@ public sealed record PlayerManagementLine(
 
         return $"{DisplayName} · {PositionName} ({PositionCode})\n"
             + $"Yaş {Age} · CA {CurrentAbility} / PA {PotentialAbility} · {CareerPhase}\n"
-            + $"Fitness %{Fitness} · yorgunluk %{Fatigue} · {Availability}\n"
+            + $"Kondisyon: {PlayerPhysicalState.FatigueBandLabel(Fatigue)} · fitness %{Fitness} · {Availability}\n"
             + $"{contract}\n"
             + $"İlişki: {RelationshipState} · {relationship}\n"
             + $"Sözler: {PromiseSummary}\n"
@@ -71,6 +71,7 @@ public sealed record PlayerManagementLine(
         return $"{PositionName} · {PositionCode}\n"
             + $"Güç {Rating} · yaş {Age} · {CareerPhase}\n"
             + $"Yetenek {CurrentAbility} / potansiyel {PotentialAbility}\n"
+            + $"Kondisyon: {PlayerPhysicalState.FatigueBandLabel(Fatigue)}\n"
             + $"Fitness %{Fitness} · yorgunluk %{Fatigue}\n"
             + $"Durum: {Availability}\n\n"
             + $"{contract}\n\n"
@@ -205,7 +206,9 @@ public sealed record PlayerManagementDigest(
                 : "Sakat";
         }
 
-        return physical.Fitness < 60 || physical.Fatigue >= 70 ? "Riskli" : "Hazır";
+        return physical.Fatigue >= 65 || physical.Fitness < 55
+            ? PlayerPhysicalState.FatigueBandLabel(physical.Fatigue)
+            : "Hazır";
     }
 
     private static string RelationshipLabel(RelationshipRecord? relationship)

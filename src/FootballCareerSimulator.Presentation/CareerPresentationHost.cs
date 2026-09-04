@@ -225,7 +225,8 @@ public sealed class CareerPresentationHost
             promiseInvalidation: socialContinuity.Invalidation,
             transferMemory: socialContinuity.TransferMemory,
             clubHistoryMemory: socialContinuity.ClubHistoryMemory,
-            relationships: socialContinuity.RelationshipEvaluation);
+            relationships: socialContinuity.RelationshipEvaluation,
+            trainingStore: training.Store);
         var eventRuleForBind = worldModule.EventRuleEvaluation
             ?? throw new InvalidOperationException("Event & Rule Evaluation iskeleti bağlı değil.");
         worldModule.CloseTransferWindow.BindWindowClosedConsequences(
@@ -269,6 +270,13 @@ public sealed class CareerPresentationHost
             new PlayerAgingDayBoundaryApplier(
                 playerCareer.Development,
                 eventRuleForBind.Gate));
+        worldModule.AdvanceSimulationTime.BindTrainingLoadConsequences(
+            new FootballCareerSimulator.Application.TrainingPhysicalState.Services.TrainingLoadDayBoundaryApplier(
+                training.Store,
+                managerModule.Store,
+                worldModule.TimelineStore,
+                eventRuleForBind.Gate,
+                teamPreparation.SquadStore));
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,

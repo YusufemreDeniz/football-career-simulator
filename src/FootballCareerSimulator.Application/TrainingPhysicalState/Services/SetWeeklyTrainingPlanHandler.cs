@@ -7,7 +7,6 @@ using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.ManagerCareer;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
-using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 namespace FootballCareerSimulator.Application.TrainingPhysicalState.Services;
 
@@ -62,44 +61,46 @@ public sealed class SetWeeklyTrainingPlanHandler : ICommandIdempotencyReset
         var day = _timelineStore.Timeline.CurrentDate;
         var rootSeed = _timelineStore.Timeline.RootSeed;
 
+        // Plan yalnız hedef yükü kaydeder; sakatlık/yorgunluk gün sınırında uygulanır.
         var plan = WeeklyTrainingPlan.Set(clubId, focus, intensity, rest, day);
-        var existingPlan = _store.GetPlan(clubId);
-        var existingPhysical = _store.PhysicalStates
-            .Where(state => state.ClubId == clubId)
-            .OrderBy(state => state.SlotIndex)
-            .ToArray();
-        var physicalLoadAlreadyApplied = existingPlan?.SetAt.DayNumber == day.DayNumber
-            && existingPhysical.Length > 0;
-        var physical = physicalLoadAlreadyApplied
-            ? existingPhysical
-            : MvpTrainingLoadApplier.ApplyPlanToSquad(
-                plan,
-                rootSeed,
-                _store.PhysicalBySlot);
-
+        var previousPlan = _store.GetPlan(clubId);
         _store.UpsertPlan(plan);
-        if (!physicalLoadAlreadyApplied)
+
+        _clubSquadService?.SyncFromActiveContracts(clubId, day);
+        if (previousPlan is null
+            || previousPlan.Focus != plan.Focus
+            || previousPlan.Intensity != plan.Intensity
+            || previousPlan.RestApproach != plan.RestApproach)
         {
-            _store.ReplacePhysicalStatesForClub(clubId, physical);
             _playerDevelopment?.EnsureAndApplyWeeklyTraining(clubId, plan, rootSeed, day);
         }
 
-        _clubSquadService?.SyncFromActiveContracts(clubId, day);
-
         var invalidated = _selectionRevalidation?.InvalidateUnavailableForClub(clubId, day) ?? 0;
+        var physical = _store.PhysicalStates
+            .Where(state => state.ClubId == clubId)
+            .OrderBy(state => state.SlotIndex)
+            .ToArray();
+        var xi = physical.Length > 0
+            ? physical.Take(MatchSelection.StartingXiSize).ToArray()
+            : Array.Empty<PlayerPhysicalState>();
+        var averageFatigue = xi.Length == 0
+            ? PlayerPhysicalState.DefaultFatigue
+            : (int)Math.Round(xi.Average(s => s.Fatigue), MidpointRounding.AwayFromZero);
+        var averageFitness = xi.Length == 0
+            ? PlayerPhysicalState.DefaultFitness
+            : (int)Math.Round(xi.Average(s => s.Fitness), MidpointRounding.AwayFromZero);
 
-        var xi = physical.Take(MatchSelection.StartingXiSize).ToArray();
         var result = new SetWeeklyTrainingPlanResult(
             true,
             clubId.Value,
             (int)focus,
             (int)intensity,
             (int)rest,
-            (int)Math.Round(xi.Average(s => s.Fatigue), MidpointRounding.AwayFromZero),
-            (int)Math.Round(xi.Average(s => s.Fitness), MidpointRounding.AwayFromZero),
+            averageFatigue,
+            averageFitness,
             physical.Count(s => s.IsInjured),
             invalidated,
-            PhysicalLoadApplied: !physicalLoadAlreadyApplied);
+            PhysicalLoadApplied: false);
 
         _completed[command.CommandId] = result;
         return result;

@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
@@ -58,12 +59,12 @@ public sealed class MatchDayLineupStripTests
         Assert.DoesNotContain(0, starting);
         Assert.Single(swaps);
         Assert.Equal(0, swaps[0].OutSlotIndex);
-        Assert.Equal(11, swaps[0].InSlotIndex);
+        Assert.DoesNotContain(swaps[0].InSlotIndex, Enumerable.Range(0, MatchSelection.StartingXiSize));
 
         var names = Enumerable.Range(0, 25).Select(i => $"P{i} N{i}").ToArray();
         var strip = MatchDayLineupStrip.Compose(true, true, starting, swaps, names);
         Assert.Contains("Onaylı XI", strip.Caption, StringComparison.Ordinal);
-        Assert.Contains(strip.StartingXi, c => c.IsIn && c.SlotIndex == 11);
+        Assert.Contains(strip.StartingXi, c => c.IsIn && c.SlotIndex == swaps[0].InSlotIndex);
         Assert.Contains(strip.OutPlayers, c => c.SlotIndex == 0 && c.IsOut);
         Assert.Contains("Sahaya bu XI ile çıktın", strip.ResultBridgeCaption, StringComparison.Ordinal);
         Assert.Contains("Böyle çıktın:", strip.ResultBridgeBeatLine(), StringComparison.Ordinal);

@@ -63,11 +63,13 @@ public static class MvpAvailabilityAwareSelection
             return true;
         }
 
+        // Yalnız sakat/naive XI farkını raporla; rol dengelemesi injury swap sayılmaz.
         var naiveStarting = candidateSlots.Take(MatchSelection.StartingXiSize).ToArray();
-        var swappedOut = naiveStarting
-            .Where(slot => unavailable.Contains(slot) && !preferredStarting.Contains(slot))
+        var swappedOut = naiveStarting.Where(unavailable.Contains).ToArray();
+        var swappedIn = preferredStarting
+            .Where(slot => !naiveStarting.Contains(slot))
+            .Take(swappedOut.Length)
             .ToArray();
-        var swappedIn = preferredStarting.Where(slot => !naiveStarting.Contains(slot)).ToArray();
         var count = Math.Min(swappedOut.Length, swappedIn.Length);
         if (count == 0)
         {

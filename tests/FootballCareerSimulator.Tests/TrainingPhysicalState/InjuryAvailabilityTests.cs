@@ -45,7 +45,8 @@ public sealed class InjuryAvailabilityTests : IDisposable
     {
         Assert.True(MvpInjuryRiskEvaluator.ShouldInjure(riskPercent: 20, roll0To99: 5));
         Assert.False(MvpInjuryRiskEvaluator.ShouldInjure(riskPercent: 20, roll0To99: 20));
-        Assert.True(MvpInjuryRiskEvaluator.ComputeTrainingRiskPercent(80, TrainingIntensity.High) >= 24);
+        Assert.True(MvpInjuryRiskEvaluator.ComputeTrainingRiskPercent(80, TrainingIntensity.High) >= 5);
+        Assert.True(MvpInjuryRiskEvaluator.ComputeTrainingRiskPercent(80, TrainingIntensity.High) < 24);
     }
 
     [Fact]
@@ -60,6 +61,8 @@ public sealed class InjuryAvailabilityTests : IDisposable
         var recovered = injured.RecoverIfDue(Day.AddDays(4));
         Assert.False(recovered.IsInjured);
         Assert.True(recovered.IsAvailableOn(Day.AddDays(4)));
+        Assert.True(recovered.Fatigue > PlayerPhysicalState.DefaultFatigue);
+        Assert.True(recovered.Fitness < PlayerPhysicalState.DefaultFitness);
     }
 
     [Fact]

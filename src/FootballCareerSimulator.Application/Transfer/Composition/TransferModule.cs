@@ -8,6 +8,7 @@ using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Application.Transfer.Services;
@@ -101,7 +102,8 @@ public sealed class TransferModule
         PromiseInvalidationService? promiseInvalidation = null,
         TransferMemoryService? transferMemory = null,
         ClubHistoryMemoryService? clubHistoryMemory = null,
-        RelationshipEvaluationService? relationships = null)
+        RelationshipEvaluationService? relationships = null,
+        ITrainingPhysicalStateStore? trainingStore = null)
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(clubSquad);
@@ -144,7 +146,9 @@ public sealed class TransferModule
             promiseInvalidation,
             transferMemory,
             clubHistoryMemory,
-            relationships);
+            relationships,
+            trainingStore,
+            squadStore);
 
         var clubs = clubRegistry
             ?? new InMemoryClubRegistryStore(LeagueClubRegistry.CreateMvpLeague());

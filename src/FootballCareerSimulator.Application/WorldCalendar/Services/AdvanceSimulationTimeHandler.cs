@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
 using FootballCareerSimulator.Application.Interaction.Services;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.EventRuleEvaluation;
@@ -23,6 +24,7 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
     private MemoryDecayDayBoundaryApplier? _memoryDecay;
     private DecisionExpireDayBoundaryApplier? _decisionExpire;
     private PlayerAgingDayBoundaryApplier? _playerAging;
+    private TrainingLoadDayBoundaryApplier? _trainingLoad;
     private readonly Dictionary<Guid, AdvanceSimulationTimeResult> _completedCommands = new();
 
     public AdvanceSimulationTimeHandler(
@@ -53,6 +55,9 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
 
     public void BindPlayerAgingConsequences(PlayerAgingDayBoundaryApplier applier) =>
         _playerAging = applier ?? throw new ArgumentNullException(nameof(applier));
+
+    public void BindTrainingLoadConsequences(TrainingLoadDayBoundaryApplier applier) =>
+        _trainingLoad = applier ?? throw new ArgumentNullException(nameof(applier));
 
     public AdvanceSimulationTimeResult Handle(AdvanceSimulationTimeCommand command)
     {
@@ -162,6 +167,8 @@ public sealed class AdvanceSimulationTimeHandler : ICommandIdempotencyReset
             {
                 playersAged = _playerAging.ApplyFromReactions(evaluated.ReactionIntents);
             }
+
+            _trainingLoad?.ApplyFromReactions(evaluated.ReactionIntents);
 
             if (_reactionScheduler is not null)
             {

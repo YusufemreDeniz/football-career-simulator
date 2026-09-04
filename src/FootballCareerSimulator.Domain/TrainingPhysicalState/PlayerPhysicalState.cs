@@ -5,7 +5,8 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Domain.TrainingPhysicalState;
 
 /// <summary>
-/// Slot bazlı yorgunluk/fitness/sakatlık (gerçek PlayerId yok; MatchSelection slot modeli ile hizalı).
+/// Kulüp slotunda tutulan yorgunluk/fitness/sakatlık.
+/// Slot MatchSelection ile hizalıdır; oyuncu transferinde state taşınmalıdır (PlayerId köprüsü Application'da).
 /// </summary>
 public sealed class PlayerPhysicalState
 {
@@ -13,6 +14,8 @@ public sealed class PlayerPhysicalState
     public const int MaxLevel = 100;
     public const int DefaultFatigue = 15;
     public const int DefaultFitness = 80;
+    public const int PostInjuryFatigueBump = 12;
+    public const int PostInjuryFitnessPenalty = 18;
 
     private PlayerPhysicalState(
         ClubId clubId,
@@ -111,6 +114,34 @@ public sealed class PlayerPhysicalState
     public PlayerPhysicalState ClearInjury() =>
         new(ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity.None, null);
 
+    /// <summary>
+    /// Sakatlık bitince hemen tam kondisyon verilmez; yeniden sakatlanma riski kalsın.
+    /// </summary>
+    public PlayerPhysicalState ClearInjuryWithRecoveryDampening()
+    {
+        var fatigue = Math.Clamp(Fatigue + PostInjuryFatigueBump, MinLevel, MaxLevel);
+        var fitness = Math.Clamp(Fitness - PostInjuryFitnessPenalty, MinLevel, MaxLevel);
+        return new PlayerPhysicalState(
+            ClubId,
+            SlotIndex,
+            fatigue,
+            fitness,
+            InjurySeverity.None,
+            injuredUntilDayNumber: null);
+    }
+
+    public PlayerPhysicalState Relocate(ClubId clubId, int slotIndex)
+    {
+        EnsureSlot(slotIndex);
+        return new PlayerPhysicalState(
+            clubId,
+            slotIndex,
+            Fatigue,
+            Fitness,
+            InjurySeverity,
+            InjuredUntilDayNumber);
+    }
+
     public PlayerPhysicalState RecoverIfDue(GameDate day)
     {
         if (!IsInjured)
@@ -120,11 +151,21 @@ public sealed class PlayerPhysicalState
 
         if (InjuredUntilDayNumber is int until && day.DayNumber > until)
         {
-            return ClearInjury();
+            return ClearInjuryWithRecoveryDampening();
         }
 
         return this;
     }
+
+    public static string FatigueBandLabel(int fatigue) =>
+        fatigue switch
+        {
+            <= 24 => "Dinç",
+            <= 44 => "Normal",
+            <= 64 => "Yorgun",
+            <= 79 => "Yüksek Risk",
+            _ => "Çok Yorgun",
+        };
 
     public bool IsAvailableOn(GameDate day) =>
         !IsInjured

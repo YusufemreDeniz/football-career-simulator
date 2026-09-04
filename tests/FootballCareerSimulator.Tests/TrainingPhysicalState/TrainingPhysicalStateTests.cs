@@ -89,7 +89,7 @@ public sealed class TrainingPhysicalStateTests : IDisposable
     }
 
     [Fact]
-    public void SetWeeklyTrainingPlan_AppliesFatigueToSquad()
+    public void SetWeeklyTrainingPlan_DoesNotApplyInstantPhysicalLoad()
     {
         var (_, _, _, _, _, training) = CreateStack();
 
@@ -101,13 +101,13 @@ public sealed class TrainingPhysicalStateTests : IDisposable
                 (int)RestApproach.Light));
 
         Assert.True(result.Succeeded);
-        Assert.True(result.AverageFatigue > PlayerPhysicalState.DefaultFatigue);
+        Assert.False(result.PhysicalLoadApplied);
         Assert.NotNull(training.Store.GetPlan(new Domain.Shared.ClubId(1)));
-        Assert.Equal(25, training.Store.PhysicalStates.Count);
+        Assert.Empty(training.Store.PhysicalStates);
     }
 
     [Fact]
-    public void SetWeeklyTrainingPlan_SecondChoiceOnSameDay_DoesNotStackPhysicalLoad()
+    public void SetWeeklyTrainingPlan_SecondChoiceOnSameDay_OnlyUpdatesPlan()
     {
         var (_, _, _, _, _, training) = CreateStack();
 
@@ -117,9 +117,6 @@ public sealed class TrainingPhysicalStateTests : IDisposable
                 (int)TrainingFocus.General,
                 (int)TrainingIntensity.High,
                 (int)RestApproach.Light));
-        var afterFirst = training.Store.PhysicalStates
-            .Select(state => (state.SlotIndex, state.Fatigue, state.Fitness, state.InjurySeverity))
-            .ToArray();
 
         var second = training.SetWeeklyPlan.Handle(
             new SetWeeklyTrainingPlanCommand(
@@ -127,13 +124,9 @@ public sealed class TrainingPhysicalStateTests : IDisposable
                 (int)TrainingFocus.Recovery,
                 (int)TrainingIntensity.Low,
                 (int)RestApproach.Heavy));
-        var afterSecond = training.Store.PhysicalStates
-            .Select(state => (state.SlotIndex, state.Fatigue, state.Fitness, state.InjurySeverity))
-            .ToArray();
 
-        Assert.True(first.PhysicalLoadApplied);
+        Assert.False(first.PhysicalLoadApplied);
         Assert.False(second.PhysicalLoadApplied);
-        Assert.Equal(afterFirst, afterSecond);
         Assert.Equal(TrainingFocus.Recovery, training.Store.GetPlan(new ClubId(1))!.Focus);
     }
 
@@ -141,14 +134,16 @@ public sealed class TrainingPhysicalStateTests : IDisposable
     public void HighFatigueLineup_ProducesNegativeMatchModifier()
     {
         var (_, _, _, _, _, training) = CreateStack();
-        training.SetWeeklyPlan.Handle(
-            new SetWeeklyTrainingPlanCommand(
-                Guid.NewGuid(),
-                (int)TrainingFocus.General,
-                (int)TrainingIntensity.High,
-                (int)RestApproach.Light));
-
         var clubId = new ClubId(1);
+        var plan = WeeklyTrainingPlan.Set(
+            clubId,
+            TrainingFocus.General,
+            TrainingIntensity.High,
+            RestApproach.Light,
+            PreseasonStart);
+        var loaded = MvpTrainingLoadApplier.ApplyPlanToSquad(plan, rootSeed: 42);
+        training.Store.ReplacePhysicalStatesForClub(clubId, loaded);
+
         var modifier = MvpPhysicalMatchModifier.ComputeLineupModifier(
             clubId,
             Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray(),
@@ -185,49 +180,87 @@ public sealed class TrainingPhysicalStateTests : IDisposable
     [Fact]
     public void FitnessFocus_RaisesFitnessMoreThanRecovery()
     {
-        var (_, _, _, _, _, fitnessTraining) = CreateStack();
-        var (_, _, _, _, _, recoveryTraining) = CreateStack();
+        var clubId = new ClubId(1);
+        var fitnessPlan = WeeklyTrainingPlan.Set(
+            clubId,
+            TrainingFocus.Fitness,
+            TrainingIntensity.Medium,
+            RestApproach.Normal,
+            PreseasonStart);
+        var recoveryPlan = WeeklyTrainingPlan.Set(
+            clubId,
+            TrainingFocus.Recovery,
+            TrainingIntensity.Medium,
+            RestApproach.Normal,
+            PreseasonStart);
 
-        var fitness = fitnessTraining.SetWeeklyPlan.Handle(
-            new SetWeeklyTrainingPlanCommand(
-                Guid.NewGuid(),
-                (int)TrainingFocus.Fitness,
-                (int)TrainingIntensity.Medium,
-                (int)RestApproach.Normal));
-        var recovery = recoveryTraining.SetWeeklyPlan.Handle(
-            new SetWeeklyTrainingPlanCommand(
-                Guid.NewGuid(),
-                (int)TrainingFocus.Recovery,
-                (int)TrainingIntensity.Medium,
-                (int)RestApproach.Normal));
+        var fitness = MvpTrainingLoadApplier.ApplyToPlayer(
+            PlayerPhysicalState.CreateRested(clubId, 0),
+            fitnessPlan);
+        var recovery = MvpTrainingLoadApplier.ApplyToPlayer(
+            PlayerPhysicalState.CreateRested(clubId, 0),
+            recoveryPlan);
 
-        Assert.True(fitness.AverageFitness > recovery.AverageFitness);
-        Assert.True(recovery.AverageFatigue < fitness.AverageFatigue);
-        Assert.Equal(TrainingFocus.Fitness, fitnessTraining.Store.GetPlan(new ClubId(1))!.Focus);
-        Assert.Equal(TrainingFocus.Recovery, recoveryTraining.Store.GetPlan(new ClubId(1))!.Focus);
+        Assert.True(fitness.Fitness > recovery.Fitness);
+        Assert.True(recovery.Fatigue < fitness.Fatigue);
     }
 
     [Fact]
     public void HeavyRest_LowersFatigueMoreThanLightRest()
     {
-        var (_, _, _, _, _, lightRest) = CreateStack();
-        var (_, _, _, _, _, heavyRest) = CreateStack();
+        var clubId = new ClubId(1);
+        var lightPlan = WeeklyTrainingPlan.Set(
+            clubId,
+            TrainingFocus.General,
+            TrainingIntensity.High,
+            RestApproach.Light,
+            PreseasonStart);
+        var heavyPlan = WeeklyTrainingPlan.Set(
+            clubId,
+            TrainingFocus.General,
+            TrainingIntensity.High,
+            RestApproach.Heavy,
+            PreseasonStart);
 
-        var light = lightRest.SetWeeklyPlan.Handle(
-            new SetWeeklyTrainingPlanCommand(
-                Guid.NewGuid(),
-                (int)TrainingFocus.General,
-                (int)TrainingIntensity.High,
-                (int)RestApproach.Light));
-        var heavy = heavyRest.SetWeeklyPlan.Handle(
-            new SetWeeklyTrainingPlanCommand(
-                Guid.NewGuid(),
-                (int)TrainingFocus.General,
-                (int)TrainingIntensity.High,
-                (int)RestApproach.Heavy));
+        var light = MvpTrainingLoadApplier.ApplyToPlayer(
+            PlayerPhysicalState.CreateRested(clubId, 0),
+            lightPlan);
+        var heavy = MvpTrainingLoadApplier.ApplyToPlayer(
+            PlayerPhysicalState.CreateRested(clubId, 0),
+            heavyPlan);
 
-        Assert.True(heavy.AverageFatigue < light.AverageFatigue);
-        Assert.Equal(RestApproach.Heavy, heavyRest.Store.GetPlan(new ClubId(1))!.RestApproach);
+        Assert.True(heavy.Fatigue < light.Fatigue);
+    }
+
+    [Fact]
+    public void DailyTick_RaisesFatigueWithoutMassInjury()
+    {
+        var clubId = new ClubId(1);
+        var plan = WeeklyTrainingPlan.Set(
+            clubId,
+            TrainingFocus.General,
+            TrainingIntensity.High,
+            RestApproach.Light,
+            PreseasonStart);
+        var occupied = Enumerable.Range(0, 18).ToArray();
+        var afterWeek = occupied
+            .Select(slot => PlayerPhysicalState.CreateRested(clubId, slot))
+            .ToDictionary(state => (clubId.Value, state.SlotIndex));
+
+        for (var dayOffset = 0; dayOffset < 7; dayOffset++)
+        {
+            var day = PreseasonStart.AddDays(dayOffset);
+            var next = MvpTrainingLoadApplier.ApplyDailyTick(
+                plan,
+                day,
+                rootSeed: 42,
+                afterWeek,
+                occupied);
+            afterWeek = next.ToDictionary(state => (clubId.Value, state.SlotIndex));
+        }
+
+        Assert.True(afterWeek.Values.Average(state => state.Fatigue) > PlayerPhysicalState.DefaultFatigue);
+        Assert.True(afterWeek.Values.Count(state => state.IsInjured) <= 3);
     }
 
     [Fact]
@@ -240,6 +273,10 @@ public sealed class TrainingPhysicalStateTests : IDisposable
                 (int)TrainingFocus.Fitness,
                 (int)TrainingIntensity.Medium,
                 (int)RestApproach.Normal));
+        var clubId = new ClubId(1);
+        var plan = training.Store.GetPlan(clubId)!;
+        var physical = MvpTrainingLoadApplier.ApplyPlanToSquad(plan, rootSeed: 42);
+        training.Store.ReplacePhysicalStatesForClub(clubId, physical);
 
         var persistence = new CareerSqlitePersistence();
         var path = Path.Combine(_tempDirectory, "training.db");

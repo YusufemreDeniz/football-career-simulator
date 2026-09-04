@@ -2,12 +2,16 @@ using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
+using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.SocialContinuity;
+using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.Transfer;
 using FootballCareerSimulator.Domain.WorldCalendar;
 
@@ -32,6 +36,8 @@ public sealed class TransferCompletionService
     private readonly TransferMemoryService? _transferMemory;
     private readonly ClubHistoryMemoryService? _clubHistoryMemory;
     private readonly RelationshipEvaluationService? _relationships;
+    private readonly ITrainingPhysicalStateStore? _trainingStore;
+    private readonly IClubSquadStore? _squadStore;
 
     public TransferCompletionService(
         ITransferProcessStore processStore,
@@ -46,7 +52,9 @@ public sealed class TransferCompletionService
         PromiseInvalidationService? promiseInvalidation = null,
         TransferMemoryService? transferMemory = null,
         ClubHistoryMemoryService? clubHistoryMemory = null,
-        RelationshipEvaluationService? relationships = null)
+        RelationshipEvaluationService? relationships = null,
+        ITrainingPhysicalStateStore? trainingStore = null,
+        IClubSquadStore? squadStore = null)
     {
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
@@ -62,6 +70,8 @@ public sealed class TransferCompletionService
         _transferMemory = transferMemory;
         _clubHistoryMemory = clubHistoryMemory;
         _relationships = relationships;
+        _trainingStore = trainingStore;
+        _squadStore = squadStore;
     }
 
     public TransferProcess Complete(
@@ -107,10 +117,12 @@ public sealed class TransferCompletionService
         _promiseInvalidation?.InvalidateForPlayerLeaving(process.PlayerId, day);
         _relationships?.MarkDormantForPlayerLeaving(process.PlayerId, day);
 
+        var carriedPhysical = CapturePhysicalBeforeSquadSync(process);
         var clubIds = process.SellingClubId is { } selling
             ? new[] { process.BuyingClubId.Value, selling.Value }
             : new[] { process.BuyingClubId.Value };
         _clubSquad.SyncClubs(clubIds, day);
+        RemountPhysicalAfterTransfer(process, carriedPhysical);
 
         process = Persist(process.MarkCompleted(day));
         _transferMemory?.RecordCompleted(process, day, ResolveInvolvedManager(process));
@@ -206,4 +218,59 @@ public sealed class TransferCompletionService
             buyingClubId,
             actor,
             "Only the employed manager of the buying club can complete a transfer.");
+
+    private (ClubId ClubId, int SlotIndex, PlayerPhysicalState State)? CapturePhysicalBeforeSquadSync(
+        TransferProcess process)
+    {
+        if (_trainingStore is null || _squadStore is null || process.SellingClubId is not { } selling)
+        {
+            return null;
+        }
+
+        var member = _squadStore.Get(selling)?.Members.FirstOrDefault(m => m.PlayerId == process.PlayerId);
+        if (member is null)
+        {
+            return null;
+        }
+
+        var state = _trainingStore.GetPhysical(selling, member.SlotIndex);
+        return state is null ? null : (selling, member.SlotIndex, state);
+    }
+
+    private void RemountPhysicalAfterTransfer(
+        TransferProcess process,
+        (ClubId ClubId, int SlotIndex, PlayerPhysicalState State)? carried)
+    {
+        if (_trainingStore is null || _squadStore is null)
+        {
+            return;
+        }
+
+        if (carried is { } left)
+        {
+            var sellerStates = _trainingStore.PhysicalStates
+                .Where(state => state.ClubId == left.ClubId)
+                .Select(state => state.SlotIndex == left.SlotIndex
+                    ? PlayerPhysicalState.CreateRested(left.ClubId, left.SlotIndex)
+                    : state)
+                .ToArray();
+            _trainingStore.ReplacePhysicalStatesForClub(left.ClubId, sellerStates);
+        }
+
+        var buyerMember = _squadStore.Get(process.BuyingClubId)?
+            .Members.FirstOrDefault(m => m.PlayerId == process.PlayerId);
+        if (buyerMember is null)
+        {
+            return;
+        }
+
+        var remounted = carried is { } source
+            ? source.State.Relocate(process.BuyingClubId, buyerMember.SlotIndex)
+            : PlayerPhysicalState.CreateRested(process.BuyingClubId, buyerMember.SlotIndex);
+        var buyerStates = _trainingStore.PhysicalStates
+            .Where(state => state.ClubId == process.BuyingClubId && state.SlotIndex != buyerMember.SlotIndex)
+            .Append(remounted)
+            .ToArray();
+        _trainingStore.ReplacePhysicalStatesForClub(process.BuyingClubId, buyerStates);
+    }
 }

@@ -5,26 +5,41 @@ using FootballCareerSimulator.Simulation;
 namespace FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 /// <summary>
-/// Deterministik sakatlık riski (antrenman / maç yükü).
+/// Deterministik sakatlık riski. Risk birikimli yorgunluk + yükten gelir; zar yalnız tetikleyicidir.
 /// </summary>
 public static class MvpInjuryRiskEvaluator
 {
     public static int ComputeTrainingRiskPercent(int fatigue, TrainingIntensity intensity)
     {
+        // Haftalık plan seçiminde değil günlük tick'te kullanılır; taban kasıtlı düşük tutulur.
         var baseRisk = intensity switch
         {
-            TrainingIntensity.Low => 2,
-            TrainingIntensity.Medium => 8,
-            TrainingIntensity.High => 24,
-            _ => 8,
+            TrainingIntensity.Low => 1,
+            TrainingIntensity.Medium => 2,
+            TrainingIntensity.High => 5,
+            _ => 2,
         };
 
-        var fatigueBonus = Math.Max(0, fatigue - 45) / 2;
-        return Math.Clamp(baseRisk + fatigueBonus, 0, 45);
+        var fatigueBonus = Math.Max(0, fatigue - 50) / 4;
+        return Math.Clamp(baseRisk + fatigueBonus, 0, 18);
     }
 
-    public static int ComputeMatchRiskPercent(int fatigue) =>
-        Math.Clamp(4 + Math.Max(0, fatigue - 40) / 3, 0, 30);
+    public static int ComputeDailyTrainingRiskPercent(int fatigue, TrainingIntensity intensity) =>
+        Math.Max(0, (int)Math.Round(ComputeTrainingRiskPercent(fatigue, intensity) / 7.0, MidpointRounding.AwayFromZero));
+
+    public static int ComputeMatchRiskPercent(int fatigue, int minutesPlayed)
+    {
+        var minutesFactor = minutesPlayed switch
+        {
+            >= 80 => 2,
+            >= 60 => 1,
+            >= 30 => 0,
+            > 0 => 0,
+            _ => -1,
+        };
+
+        return Math.Clamp(1 + Math.Max(0, fatigue - 55) / 5 + minutesFactor, 0, 14);
+    }
 
     public static bool ShouldInjure(int riskPercent, int roll0To99) =>
         roll0To99 >= 0 && roll0To99 < Math.Clamp(riskPercent, 0, 100);
@@ -50,12 +65,31 @@ public static class MvpInjuryRiskEvaluator
         return InjurySeverity.Minor;
     }
 
-    public static int DaysOut(InjurySeverity severity) =>
+    public static int DaysOut(InjurySeverity severity, int roll0To99 = 50) =>
         severity switch
         {
-            InjurySeverity.Minor => 3,
-            InjurySeverity.Moderate => 7,
-            InjurySeverity.Serious => 14,
+            InjurySeverity.Minor => 2 + (roll0To99 % 3),
+            InjurySeverity.Moderate => 5 + (roll0To99 % 4),
+            InjurySeverity.Serious => 9 + (roll0To99 % 5),
+            _ => 0,
+        };
+
+    public static int MatchFatigueGain(int minutesPlayed) =>
+        minutesPlayed switch
+        {
+            >= 80 => 14,
+            >= 60 => 10,
+            >= 30 => 6,
+            >= 1 => 3,
+            _ => 0,
+        };
+
+    public static int MatchFitnessLoss(int minutesPlayed) =>
+        minutesPlayed switch
+        {
+            >= 80 => 3,
+            >= 60 => 2,
+            >= 30 => 1,
             _ => 0,
         };
 
@@ -63,7 +97,8 @@ public static class MvpInjuryRiskEvaluator
         PlayerPhysicalState state,
         WeeklyTrainingPlan plan,
         int rootSeed,
-        GameDate day)
+        GameDate day,
+        bool dailyTick = false)
     {
         ArgumentNullException.ThrowIfNull(state);
         ArgumentNullException.ThrowIfNull(plan);
@@ -74,15 +109,18 @@ public static class MvpInjuryRiskEvaluator
             return state;
         }
 
-        var risk = ComputeTrainingRiskPercent(state.Fatigue, plan.Intensity);
-        var roll = Roll(rootSeed, state.ClubId.Value, state.SlotIndex, day.DayNumber, salt: 701);
+        var risk = dailyTick
+            ? ComputeDailyTrainingRiskPercent(state.Fatigue, plan.Intensity)
+            : ComputeTrainingRiskPercent(state.Fatigue, plan.Intensity);
+        var salt = dailyTick ? 703 : 701;
+        var roll = Roll(rootSeed, state.ClubId.Value, state.SlotIndex, day.DayNumber, salt);
         if (!ShouldInjure(risk, roll))
         {
             return state;
         }
 
         var severity = ResolveSeverity(roll, risk);
-        return state.WithInjury(severity, day.AddDays(DaysOut(severity)));
+        return state.WithInjury(severity, day.AddDays(DaysOut(severity, roll)));
     }
 
     public static PlayerPhysicalState MaybeInjureFromMatch(
@@ -90,6 +128,7 @@ public static class MvpInjuryRiskEvaluator
         int rootSeed,
         long fixtureId,
         GameDate day,
+        int minutesPlayed = 90,
         int riskBonusPercent = 0)
     {
         ArgumentNullException.ThrowIfNull(state);
@@ -101,18 +140,37 @@ public static class MvpInjuryRiskEvaluator
         }
 
         var afterMatch = state.WithLevels(
-            Math.Clamp(state.Fatigue + 12, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel),
-            Math.Clamp(state.Fitness - 2, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel));
+            Math.Clamp(
+                state.Fatigue + MatchFatigueGain(minutesPlayed),
+                PlayerPhysicalState.MinLevel,
+                PlayerPhysicalState.MaxLevel),
+            Math.Clamp(
+                state.Fitness - MatchFitnessLoss(minutesPlayed),
+                PlayerPhysicalState.MinLevel,
+                PlayerPhysicalState.MaxLevel));
 
-        var risk = Math.Clamp(ComputeMatchRiskPercent(afterMatch.Fatigue) + riskBonusPercent, 0, 45);
-        var roll = Roll(rootSeed, state.ClubId.Value, state.SlotIndex, day.DayNumber, salt: unchecked((int)fixtureId) ^ 909);
+        if (minutesPlayed <= 0)
+        {
+            return afterMatch;
+        }
+
+        var risk = Math.Clamp(
+            ComputeMatchRiskPercent(afterMatch.Fatigue, minutesPlayed) + riskBonusPercent,
+            0,
+            25);
+        var roll = Roll(
+            rootSeed,
+            state.ClubId.Value,
+            state.SlotIndex,
+            day.DayNumber,
+            salt: unchecked((int)fixtureId) ^ 909);
         if (!ShouldInjure(risk, roll))
         {
             return afterMatch;
         }
 
         var severity = ResolveSeverity(roll, risk);
-        return afterMatch.WithInjury(severity, day.AddDays(DaysOut(severity)));
+        return afterMatch.WithInjury(severity, day.AddDays(DaysOut(severity, roll)));
     }
 
     private static int Roll(int rootSeed, long clubId, int slotIndex, int dayNumber, int salt)

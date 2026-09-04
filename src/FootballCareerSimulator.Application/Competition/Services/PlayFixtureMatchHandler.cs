@@ -739,13 +739,20 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                     rootSeed,
                     fixtureId.Value,
                     day,
+                    minutesPlayed: 90,
                     riskBonusPercent);
             }
             else if (matchdaySlots.Contains(slot))
             {
                 existing[slot] = state.WithLevels(
-                    Math.Clamp(state.Fatigue + 4, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel),
-                    Math.Clamp(state.Fitness - 1, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel));
+                    Math.Clamp(
+                        state.Fatigue + MvpInjuryRiskEvaluator.MatchFatigueGain(20),
+                        PlayerPhysicalState.MinLevel,
+                        PlayerPhysicalState.MaxLevel),
+                    Math.Clamp(
+                        state.Fitness - MvpInjuryRiskEvaluator.MatchFitnessLoss(20),
+                        PlayerPhysicalState.MinLevel,
+                        PlayerPhysicalState.MaxLevel));
             }
         }
 
