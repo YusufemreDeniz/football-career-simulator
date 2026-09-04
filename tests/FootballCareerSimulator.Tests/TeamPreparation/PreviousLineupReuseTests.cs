@@ -120,7 +120,7 @@ public sealed class PreviousLineupReuseTests
 
         var loaded = teamPrep.SelectionQueries.Get(managed[1], 1)!;
         Assert.DoesNotContain(injuredSlot, loaded.StartingSlotIndices);
-        Assert.Contains(injuredSlot, loaded.BenchSlotIndices);
+        Assert.DoesNotContain(injuredSlot, loaded.BenchSlotIndices);
         Assert.Contains("sakatlar dışarı", second.AutoSwapSummary, StringComparison.Ordinal);
     }
 

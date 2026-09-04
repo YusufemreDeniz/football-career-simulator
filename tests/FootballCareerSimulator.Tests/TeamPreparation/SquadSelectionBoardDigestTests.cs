@@ -37,7 +37,7 @@ public sealed class SquadSelectionBoardDigestTests
         Assert.All(board.StartingXi, player => Assert.True(player.IsStarter));
         Assert.Equal(54, board.Bench[0].Fitness);
         Assert.Equal(62, board.Bench[0].Fatigue);
-        Assert.Contains("FİT %54", board.Bench[0].ButtonLabel);
+        Assert.Contains("Yorgun", board.Bench[0].ButtonLabel, StringComparison.Ordinal);
     }
 
     [Fact]

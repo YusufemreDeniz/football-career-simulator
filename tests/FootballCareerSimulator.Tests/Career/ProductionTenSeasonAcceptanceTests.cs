@@ -256,7 +256,8 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
         var contracts = ContractRegistrationModule.Create(
             playerStore,
             manager.Store,
-            world.TimelineStore);
+            world.TimelineStore,
+            trainingStore: trainingStore);
         var players = PlayerCareerModule.Create(
             manager.Store,
             world.TimelineStore,

@@ -35,6 +35,11 @@ public sealed class MatchSelectionAvailabilityRevalidationService
                     clubId,
                     selection.StartingSlotIndices,
                     day,
+                    physical)
+                && !MvpAvailabilityAwareSelection.HasUnavailableStarter(
+                    clubId,
+                    selection.BenchSlotIndices,
+                    day,
                     physical))
             {
                 continue;

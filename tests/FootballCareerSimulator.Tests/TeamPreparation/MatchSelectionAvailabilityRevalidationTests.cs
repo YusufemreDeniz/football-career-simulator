@@ -103,7 +103,7 @@ public sealed class MatchSelectionAvailabilityRevalidationTests
     }
 
     [Fact]
-    public void Invalidate_KeepsSelection_WhenOnlyBenchInjured()
+    public void Invalidate_RemovesSelection_WhenBenchInjured()
     {
         var (competition, teamPrep, training, revalidation) = CreateStack();
         var fixtureId = ManagedFixtureId(competition);
@@ -122,8 +122,8 @@ public sealed class MatchSelectionAvailabilityRevalidationTests
 
         var removed = revalidation.InvalidateUnavailableForClub(clubId, Day);
 
-        Assert.Equal(0, removed);
-        Assert.True(teamPrep.SelectionQueries.IsApproved(fixtureId, 1));
+        Assert.Equal(1, removed);
+        Assert.False(teamPrep.SelectionQueries.IsApproved(fixtureId, 1));
     }
 
     [Fact]
@@ -162,8 +162,8 @@ public sealed class MatchSelectionAvailabilityRevalidationTests
         var laterFixtureId = managed[1];
 
         var firstStarting = Enumerable.Range(0, MatchSelection.StartingXiSize).ToArray();
-        var firstBench = Enumerable.Range(MatchSelection.StartingXiSize, MatchSelection.MaxBenchSize)
-            .ToArray();
+        // İlk maç yedeğinde sakat slot olmasın — sakatlar bench'e de giremez.
+        var firstBench = Enumerable.Range(12, MatchSelection.MaxBenchSize).ToArray();
         var laterStarting = new[] { 11 }.Concat(Enumerable.Range(0, MatchSelection.StartingXiSize - 1))
             .ToArray();
         var laterBench = Enumerable.Range(12, MatchSelection.MaxBenchSize).ToArray();

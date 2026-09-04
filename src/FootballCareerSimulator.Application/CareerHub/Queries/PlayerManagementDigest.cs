@@ -107,7 +107,6 @@ public sealed record PlayerManagementLine(
         PlayerPhysicalState.ReasonTrainingLoad => "Antrenman yükü",
         PlayerPhysicalState.ReasonMatchLoad => "Maç yükü",
         PlayerPhysicalState.ReasonAccumulatedWorkload => "Birikimli iş yükü",
-        PlayerPhysicalState.ReasonReturnFromInjury => "Sakatlıktan dönüş",
         PlayerPhysicalState.ReasonUnexpected => "Beklenmedik / temas",
         _ => code,
     };
@@ -191,10 +190,9 @@ public sealed record PlayerManagementDigest(
 
                 var band = PlayerPhysicalState.FatigueBandLabel(physical.Fatigue);
                 var promiseLabel = PromiseLabel(activePromises);
-                var hasPromiseRisk = promiseLabel.Contains("risk", StringComparison.OrdinalIgnoreCase)
-                    || promiseLabel.Contains("bozul", StringComparison.OrdinalIgnoreCase)
-                    || RelationshipLabel(relationship).Contains("Kırılgan", StringComparison.Ordinal);
+                var hasPromiseRisk = HasPromiseRiskFromState(relationship, activePromises, playerPromises);
                 var workloadHint = BuildWorkloadHint(physical, day);
+                var minutes7 = physical.EffectiveMatchMinutesLast7Days(day);
 
                 return new PlayerManagementLine(
                     playerId.Value,
@@ -216,7 +214,7 @@ public sealed record PlayerManagementDigest(
                     physical.Fatigue >= 65
                         || band is "Yüksek Risk" or "Çok Yorgun",
                     hasPromiseRisk,
-                    physical.MatchMinutesLast7Days,
+                    minutes7,
                     physical.DaysSinceLastMatch(day),
                     physical.LastInjuryReasonCode,
                     workloadHint,
@@ -262,14 +260,16 @@ public sealed record PlayerManagementDigest(
     private static string? BuildWorkloadHint(PlayerPhysicalState physical, GameDate day)
     {
         var parts = new List<string>();
-        if (physical.MatchMinutesLast7Days > 0)
+        var minutes7 = physical.EffectiveMatchMinutesLast7Days(day);
+        var minutes14 = physical.EffectiveMatchMinutesLast14Days(day);
+        if (minutes7 > 0)
         {
-            parts.Add($"Son 7 günde {physical.MatchMinutesLast7Days} dk");
+            parts.Add($"Son 7 günde {minutes7} dk");
         }
 
-        if (physical.MatchMinutesLast14Days >= 270)
+        if (minutes14 >= 270)
         {
-            parts.Add($"Son 14 günde {physical.MatchMinutesLast14Days} dk");
+            parts.Add($"Son 14 günde {minutes14} dk");
         }
 
         if (physical.HasCongestedFixture(day))
@@ -282,7 +282,41 @@ public sealed record PlayerManagementDigest(
             parts.Add("Yüksek yorgunluk birikimi");
         }
 
+        if (physical.HasElevatedReturnRisk)
+        {
+            parts.Add("Sakatlıktan dönüş riski");
+        }
+
         return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
+    private static bool HasPromiseRiskFromState(
+        RelationshipRecord? relationship,
+        IReadOnlyList<Promise> activePromises,
+        IReadOnlyList<Promise> playerPromises)
+    {
+        if (IsFragileRelationship(relationship))
+        {
+            return true;
+        }
+
+        if (playerPromises.Any(promise => promise.Status == PromiseStatus.Broken))
+        {
+            return true;
+        }
+
+        return activePromises.Any(promise => promise.StartsGiven < promise.TargetStarts);
+    }
+
+    private static bool IsFragileRelationship(RelationshipRecord? relationship)
+    {
+        if (relationship is null)
+        {
+            return false;
+        }
+
+        var average = (relationship.Trust + relationship.Respect + relationship.ProfessionalCompatibility) / 3;
+        return average <= 35;
     }
 
     private static string RelationshipLabel(RelationshipRecord? relationship)
