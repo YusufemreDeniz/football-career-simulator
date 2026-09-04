@@ -5,9 +5,21 @@ config_version=5
 
 [application]
 
-config/name="Football Career Simulator - Presentation Shell"
-run/main_scene="res://PlayerListScreen.tscn"
-config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+config/name="Football Career Simulator"
+run/main_scene="res://CareerAppRoot.tscn"
+config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/size/resizable=true
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/stretch/scale_mode="fractional"
+window/handheld/orientation=0
 
 [dotnet]
 
@@ -16,3 +28,15 @@ project/assembly_name="FootballCareerSimulator.Presentation"
 [debug]
 
 file_logging/enable_file_logging=true
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+textures/vram_compression/import_etc2_astc=true

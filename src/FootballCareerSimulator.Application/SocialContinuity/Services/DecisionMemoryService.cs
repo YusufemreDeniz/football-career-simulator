@@ -1,0 +1,166 @@
+using FootballCareerSimulator.Application.SocialContinuity.Ports;
+using FootballCareerSimulator.Domain.Interaction;
+using FootballCareerSimulator.Domain.SocialContinuity;
+using FootballCareerSimulator.Domain.WorldCalendar;
+
+namespace FootballCareerSimulator.Application.SocialContinuity.Services;
+
+/// <summary>
+/// DecisionRequest Answered/Expired → Relationship Memory (oyuncu → menajer; idempotent).
+/// </summary>
+public sealed class DecisionMemoryService
+{
+    private readonly IMemoryStore _store;
+
+    public DecisionMemoryService(IMemoryStore store)
+    {
+        _store = store ?? throw new ArgumentNullException(nameof(store));
+    }
+
+    public int RecordOutcome(DecisionRequest request, GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return request.Kind switch
+        {
+            DecisionRequestKind.PlayingTimeRequest => RecordPlayingTimeOutcome(request, day),
+            DecisionRequestKind.StartingOpportunityRequest => RecordStartingOpportunityOutcome(request, day),
+            DecisionRequestKind.TransferRequest => RecordTransferOutcome(request, day),
+            DecisionRequestKind.DisciplineRequest => RecordDisciplineOutcome(request, day),
+            DecisionRequestKind.BoardDemandRequest => RecordBoardDemandOutcome(request, day),
+            DecisionRequestKind.PressQuestionRequest => RecordPressQuestionOutcome(request, day),
+            _ => 0,
+        };
+    }
+
+    public int RecordPlayingTimeOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.PlayingTimeRequest,
+            MemoryRecord.DecisionPlayingTimeAnswerRuleId,
+            MemoryRecord.DecisionPlayingTimeAnswerRuleVersion,
+            MemoryRecord.BuildDecisionPlayingTimeOutcomeSourceKey,
+            MemoryRecord.CreateDecisionPlayingTimeOutcome,
+            day);
+
+    public int RecordStartingOpportunityOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.StartingOpportunityRequest,
+            MemoryRecord.DecisionStartingOpportunityAnswerRuleId,
+            MemoryRecord.DecisionStartingOpportunityAnswerRuleVersion,
+            MemoryRecord.BuildDecisionStartingOpportunityOutcomeSourceKey,
+            MemoryRecord.CreateDecisionStartingOpportunityOutcome,
+            day);
+
+    public int RecordTransferOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.TransferRequest,
+            MemoryRecord.DecisionTransferAnswerRuleId,
+            MemoryRecord.DecisionTransferAnswerRuleVersion,
+            MemoryRecord.BuildDecisionTransferOutcomeSourceKey,
+            MemoryRecord.CreateDecisionTransferOutcome,
+            day);
+
+    public int RecordDisciplineOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.DisciplineRequest,
+            MemoryRecord.DecisionDisciplineAnswerRuleId,
+            MemoryRecord.DecisionDisciplineAnswerRuleVersion,
+            MemoryRecord.BuildDecisionDisciplineOutcomeSourceKey,
+            MemoryRecord.CreateDecisionDisciplineOutcome,
+            day);
+
+    public int RecordBoardDemandOutcome(DecisionRequest request, GameDate day)
+    {
+        if (request.Kind != DecisionRequestKind.BoardDemandRequest)
+        {
+            return 0;
+        }
+
+        if (request.Status is not (
+            DecisionRequestStatus.Answered
+            or DecisionRequestStatus.Expired))
+        {
+            return 0;
+        }
+
+        var outcomeKey = request.Status == DecisionRequestStatus.Expired
+            ? "Expired"
+            : request.SelectedOptionCode!;
+        var sourceKey = MemoryRecord.BuildDecisionBoardDemandOutcomeSourceKey(
+            request.DecisionRequestId,
+            outcomeKey);
+        var remembering = new ActorRef(ActorKind.Manager, request.ManagerId.Value);
+        if (_store.Memories.Any(m =>
+                m.SourceEventKey == sourceKey
+                && m.RememberingActor == remembering
+                && m.RuleId == MemoryRecord.DecisionBoardDemandAnswerRuleId
+                && m.RuleVersion == MemoryRecord.DecisionBoardDemandAnswerRuleVersion))
+        {
+            return 0;
+        }
+
+        var nextId = _store.Memories.Count == 0
+            ? 1L
+            : _store.Memories.Max(m => m.MemoryId.Value) + 1;
+        _store.Upsert(MemoryRecord.CreateDecisionBoardDemandOutcome(
+            new MemoryId(nextId),
+            request,
+            day));
+        return 1;
+    }
+
+    public int RecordPressQuestionOutcome(DecisionRequest request, GameDate day) =>
+        RecordTypedOutcome(
+            request,
+            DecisionRequestKind.PressQuestionRequest,
+            MemoryRecord.DecisionPressQuestionAnswerRuleId,
+            MemoryRecord.DecisionPressQuestionAnswerRuleVersion,
+            MemoryRecord.BuildDecisionPressQuestionOutcomeSourceKey,
+            MemoryRecord.CreateDecisionPressQuestionOutcome,
+            day);
+
+    private int RecordTypedOutcome(
+        DecisionRequest request,
+        DecisionRequestKind expectedKind,
+        string ruleId,
+        int ruleVersion,
+        Func<DecisionRequestId, string, string> sourceKeyBuilder,
+        Func<MemoryId, DecisionRequest, GameDate, MemoryRecord> factory,
+        GameDate day)
+    {
+        if (request.Kind != expectedKind)
+        {
+            return 0;
+        }
+
+        if (request.Status is not (
+            DecisionRequestStatus.Answered
+            or DecisionRequestStatus.Expired))
+        {
+            return 0;
+        }
+
+        var outcomeKey = request.Status == DecisionRequestStatus.Expired
+            ? "Expired"
+            : request.SelectedOptionCode!;
+        var sourceKey = sourceKeyBuilder(request.DecisionRequestId, outcomeKey);
+        var remembering = new ActorRef(ActorKind.Player, request.SubjectPlayerId.Value);
+        if (_store.Memories.Any(m =>
+                m.SourceEventKey == sourceKey
+                && m.RememberingActor == remembering
+                && m.RuleId == ruleId
+                && m.RuleVersion == ruleVersion))
+        {
+            return 0;
+        }
+
+        var nextId = _store.Memories.Count == 0
+            ? 1L
+            : _store.Memories.Max(m => m.MemoryId.Value) + 1;
+        _store.Upsert(factory(new MemoryId(nextId), request, day));
+        return 1;
+    }
+}

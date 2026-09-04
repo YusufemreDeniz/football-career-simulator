@@ -12,6 +12,7 @@
     <Project Path="tests/FootballCareerSimulator.Tests/FootballCareerSimulator.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/FootballCareerSimulator.DataRefreshApi/FootballCareerSimulator.DataRefreshApi.csproj" />
     <Project Path="tools/FootballCareerSimulator.SimulationRunner/FootballCareerSimulator.SimulationRunner.csproj" />
   </Folder>
 </Solution>

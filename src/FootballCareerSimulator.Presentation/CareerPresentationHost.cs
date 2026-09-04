@@ -1,0 +1,375 @@
+using FootballCareerSimulator.Application.Career.Services;
+using FootballCareerSimulator.Application.CareerWorld;
+using FootballCareerSimulator.Application.ClubGovernance.Composition;
+using FootballCareerSimulator.Application.ClubGovernance.Infrastructure;
+using FootballCareerSimulator.Application.ClubGovernance.Services;
+using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.Competition.Infrastructure;
+using FootballCareerSimulator.Application.Competition.Services;
+using FootballCareerSimulator.Application.ContractRegistration.Composition;
+using FootballCareerSimulator.Application.Interaction.Composition;
+using FootballCareerSimulator.Application.Interaction.Infrastructure;
+using FootballCareerSimulator.Application.Interaction.Services;
+using FootballCareerSimulator.Application.ManagerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
+using FootballCareerSimulator.Application.SocialContinuity.Composition;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
+using FootballCareerSimulator.Application.TeamPreparation.Composition;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
+using FootballCareerSimulator.Application.ContractRegistration.Services;
+using FootballCareerSimulator.Application.Transfer.Composition;
+using FootballCareerSimulator.Application.Transfer.Services;
+using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Application.WorldCalendar.Infrastructure;
+using FootballCareerSimulator.Application.WorldCalendar.Ports;
+using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Infrastructure.Career;
+using FootballCareerSimulator.Simulation;
+using Godot;
+
+namespace FootballCareerSimulator.Presentation;
+
+public sealed class CareerPresentationHost
+{
+    public CareerPresentationHost(
+        WorldCalendarModule worldModule,
+        CompetitionModule competitionModule,
+        ClubGovernanceModule clubModule,
+        ManagerCareerModule managerModule,
+        TeamPreparationModule teamPreparationModule,
+        TrainingPhysicalStateModule trainingModule,
+        PlayerCareerModule playerCareerModule,
+        ContractRegistrationModule contractModule,
+        TransferModule transferModule,
+        SocialContinuityModule socialContinuityModule,
+        InteractionModule interactionModule,
+        YouthAcademyLifecycleService youthAcademyLifecycle,
+        ClubFinanceLedgerService clubFinanceLedger,
+        CareerGameSessionService gameSession,
+        string defaultSavePath)
+    {
+        WorldModule = worldModule ?? throw new ArgumentNullException(nameof(worldModule));
+        CompetitionModule = competitionModule ?? throw new ArgumentNullException(nameof(competitionModule));
+        ClubModule = clubModule ?? throw new ArgumentNullException(nameof(clubModule));
+        ManagerModule = managerModule ?? throw new ArgumentNullException(nameof(managerModule));
+        TeamPreparationModule = teamPreparationModule
+            ?? throw new ArgumentNullException(nameof(teamPreparationModule));
+        TrainingModule = trainingModule ?? throw new ArgumentNullException(nameof(trainingModule));
+        PlayerCareerModule = playerCareerModule
+            ?? throw new ArgumentNullException(nameof(playerCareerModule));
+        ContractModule = contractModule ?? throw new ArgumentNullException(nameof(contractModule));
+        TransferModule = transferModule ?? throw new ArgumentNullException(nameof(transferModule));
+        SocialContinuityModule = socialContinuityModule
+            ?? throw new ArgumentNullException(nameof(socialContinuityModule));
+        InteractionModule = interactionModule ?? throw new ArgumentNullException(nameof(interactionModule));
+        YouthAcademyLifecycle = youthAcademyLifecycle
+            ?? throw new ArgumentNullException(nameof(youthAcademyLifecycle));
+        ClubFinanceLedger = clubFinanceLedger
+            ?? throw new ArgumentNullException(nameof(clubFinanceLedger));
+        GameSession = gameSession ?? throw new ArgumentNullException(nameof(gameSession));
+        DefaultSavePath = defaultSavePath ?? throw new ArgumentNullException(nameof(defaultSavePath));
+    }
+
+    public WorldCalendarModule WorldModule { get; }
+    public CompetitionModule CompetitionModule { get; }
+    public ClubGovernanceModule ClubModule { get; }
+    public ManagerCareerModule ManagerModule { get; }
+    public TeamPreparationModule TeamPreparationModule { get; }
+    public TrainingPhysicalStateModule TrainingModule { get; }
+    public PlayerCareerModule PlayerCareerModule { get; }
+    public ContractRegistrationModule ContractModule { get; }
+    public TransferModule TransferModule { get; }
+    public SocialContinuityModule SocialContinuityModule { get; }
+    public InteractionModule InteractionModule { get; }
+    public YouthAcademyLifecycleService YouthAcademyLifecycle { get; }
+    public ClubFinanceLedgerService ClubFinanceLedger { get; }
+    public CareerGameSessionService GameSession { get; }
+    public string DefaultSavePath { get; }
+
+    public static IReadOnlyList<Application.ClubGovernance.Queries.ClubReadModel> GetNewCareerClubs(int rootSeed) =>
+        ClubGovernanceModule
+            .Create(ProductionCareerWorldBootstrap.Create(rootSeed).ClubRegistry)
+            .Queries
+            .GetAllClubs();
+
+    public static IReadOnlyList<StartingClubOfferDigest> GetStartingJobOffers(
+        int rootSeed,
+        Domain.ManagerCareer.StartingBackground background,
+        GameDate? startingDate = null) =>
+        StartingCareerOfferService.Preview(rootSeed, background, startingDate);
+
+    public static CareerPresentationHost CreateDefault(string? defaultSavePath = null) =>
+        CreateNewCareer(
+            CareerStartConfiguration.Create("Teknik Direktor", startingClubId: 1),
+            defaultSavePath);
+
+    public static CareerPresentationHost CreateNewCareer(
+        CareerStartConfiguration configuration,
+        string? defaultSavePath = null)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var world = ProductionCareerWorldBootstrap.Create(
+            configuration.RootSeed,
+            configuration.StartingDate);
+        var startDate = world.WorldDate;
+        var timelineStore = new InMemoryWorldTimelineStore(
+            WorldTimeline.Create(startDate, configuration.RootSeed, SimulationRandomContext.Version));
+        var competitionStore = new InMemoryLeagueCompetitionStore(
+            new LeagueCompetition(world.CompetitionId));
+        var clubModule = ClubGovernanceModule.Create(world.ClubRegistry);
+        var clubFinanceLedgerStore = new InMemoryClubFinanceLedgerStore();
+        var clubFinanceLedger = new ClubFinanceLedgerService(clubFinanceLedgerStore);
+        var startingClubId = configuration.StartingClubId;
+        var startingStrength = clubModule.Queries.GetClub(startingClubId)?.SportiveStrength ?? 50;
+        var decisionStore = new InMemoryDecisionRequestStore();
+        var dialogueSessionStore = new InMemoryDialogueSessionStore();
+        var worldModule = WorldCalendarModule.Create(
+            startDate,
+            rootSeed: configuration.RootSeed,
+            blockerSources:
+            [
+                new UnplayedFixturesTimeAdvanceBlockerSource(competitionStore, timelineStore),
+                new DecisionRequestTimeAdvanceBlockerSource(decisionStore),
+            ],
+            timelineStore: timelineStore);
+
+        var managerModule = configuration.StartingBackground is { } background
+            ? ManagerCareerModule.CreateFromAcceptedStartingOffer(
+                startDate,
+                clubModule.Store,
+                worldModule.TimelineStore,
+                background,
+                configuration.RootSeed,
+                startingClubId,
+                displayName: configuration.ManagerName,
+                clubSportiveStrength: startingStrength)
+            : ManagerCareerModule.CreateForCareer(
+                startDate,
+                clubModule.Store,
+                worldModule.TimelineStore,
+                displayName: configuration.ManagerName,
+                startingClubId: startingClubId,
+                clubSportiveStrength: startingStrength);
+
+        var trainingStore = new InMemoryTrainingPhysicalStateStore();
+        var playerStore = new InMemoryPlayerCareerStore();
+        var contractModule = ContractRegistrationModule.Create(
+            playerStore,
+            managerModule.Store,
+            worldModule.TimelineStore);
+        ProductionCareerWorldBootstrap.HydratePeople(
+            world,
+            playerStore,
+            contractModule.FreeAgentStore);
+        var playerCareer = PlayerCareerModule.Create(
+            managerModule.Store,
+            worldModule.TimelineStore,
+            trainingStore,
+            playerStore,
+            contractModule.Registration);
+        var teamPreparation = TeamPreparationModule.Create(
+            competitionStore,
+            managerModule.Store,
+            trainingStore: trainingStore,
+            timelineStore: worldModule.TimelineStore,
+            contractStore: contractModule.Store,
+            playerCareerStore: playerStore);
+        var training = TrainingPhysicalStateModule.Create(
+            managerModule.Store,
+            worldModule.TimelineStore,
+            trainingStore,
+            playerCareer.Development,
+            teamPreparation.ClubSquad,
+            teamPreparation.SelectionStore);
+        var youthAcademyLifecycle = new YouthAcademyLifecycleService(
+            clubModule.Store,
+            competitionStore,
+            managerModule.Store,
+            worldModule.TimelineStore,
+            decisionStore,
+            playerCareer.Store,
+            contractModule.Store,
+            teamPreparation.SquadStore);
+        var seasonPlayerLifecycle = new SeasonPlayerLifecycleService(
+            playerCareer.Store,
+            playerCareer.Development,
+            contractModule.Registration,
+            teamPreparation.ClubSquad
+                ?? throw new InvalidOperationException("ClubSquad service is required for season lifecycle."),
+            training.Store,
+            worldModule.TimelineStore,
+            youthAcademyLifecycle);
+        var socialContinuity = SocialContinuityModule.Create();
+        teamPreparation.BindPromiseStore(socialContinuity.PromiseStore);
+        clubModule.BindWageBudget(contractModule.Store);
+        contractModule.Registration.BindPromiseInvalidation(socialContinuity.Invalidation);
+        contractModule.Registration.BindRelationships(socialContinuity.RelationshipEvaluation);
+        managerModule.AcceptJobOffer?.BindCareerMemory(socialContinuity.CareerMemory);
+        managerModule.AcceptJobOffer?.BindClubHistoryMemory(socialContinuity.ClubHistoryMemory);
+        var transferModule = TransferModule.Create(
+            contractModule.Store,
+            teamPreparation.SquadStore,
+            managerModule.Store,
+            contractModule.Registration,
+            teamPreparation.ClubSquad
+                ?? throw new InvalidOperationException("ClubSquad service is required for transfers."),
+            transferWindow: worldModule.TransferWindowQuery,
+            transferBudget: clubModule.TransferBudget,
+            wageBudget: clubModule.WageBudget,
+            clubRegistry: clubModule.Store,
+            freeAgentStore: contractModule.FreeAgentStore,
+            promiseInvalidation: socialContinuity.Invalidation,
+            transferMemory: socialContinuity.TransferMemory,
+            clubHistoryMemory: socialContinuity.ClubHistoryMemory,
+            relationships: socialContinuity.RelationshipEvaluation,
+            trainingStore: training.Store);
+        var eventRuleForBind = worldModule.EventRuleEvaluation
+            ?? throw new InvalidOperationException("Event & Rule Evaluation iskeleti bağlı değil.");
+        worldModule.CloseTransferWindow.BindWindowClosedConsequences(
+            new TransferWindowClosedConsequenceApplier(
+                transferModule.WindowClose,
+                eventRuleForBind.Gate));
+        worldModule.OpenTransferWindow.BindWindowOpenedConsequences(
+            new TransferWindowOpenedConsequenceApplier(
+                transferModule.AiSimulation,
+                eventRuleForBind.Gate));
+        worldModule.AdvanceSimulationTime.BindContractExpiryConsequences(
+            new ContractExpiryDayBoundaryApplier(
+                contractModule.Registration,
+                eventRuleForBind.Gate));
+        var interactionModule = InteractionModule.Create(
+            managerModule.Store,
+            socialContinuity.PlayingTime,
+            decisionStore,
+            socialContinuity.RelationshipEvaluation,
+            socialContinuity.DecisionMemory,
+            socialContinuity.PromiseStore,
+            dialogueSessionStore,
+            socialContinuity.StartingOpportunity,
+            transferModule.Needs,
+            relationshipStore: socialContinuity.RelationshipStore,
+            memoryStore: socialContinuity.MemoryStore);
+        worldModule.AdvanceSimulationTime.BindPromiseDeadlineConsequences(
+            new PromiseDeadlineDayBoundaryApplier(
+                socialContinuity.StartingOpportunity,
+                eventRuleForBind.Gate,
+                interactionModule.PromiseBroken));
+        worldModule.AdvanceSimulationTime.BindMemoryDecayConsequences(
+            new MemoryDecayDayBoundaryApplier(
+                socialContinuity.MemoryDecay,
+                eventRuleForBind.Gate));
+        worldModule.AdvanceSimulationTime.BindDecisionExpireConsequences(
+            new DecisionExpireDayBoundaryApplier(
+                interactionModule.Decisions,
+                eventRuleForBind.Gate));
+        worldModule.AdvanceSimulationTime.BindPlayerAgingConsequences(
+            new PlayerAgingDayBoundaryApplier(
+                playerCareer.Development,
+                eventRuleForBind.Gate));
+        worldModule.AdvanceSimulationTime.BindTrainingLoadConsequences(
+            new FootballCareerSimulator.Application.TrainingPhysicalState.Services.TrainingLoadDayBoundaryApplier(
+                training.Store,
+                managerModule.Store,
+                worldModule.TimelineStore,
+                eventRuleForBind.Gate,
+                teamPreparation.SquadStore,
+                competitionStore));
+
+        var competitionModule = CompetitionModule.CreateForCareerFromStore(
+            competitionStore,
+            worldModule.TimelineStore,
+            clubModule.Store,
+            managerModule.Store,
+            teamPreparation.SelectionStore,
+            training.Store,
+            playerCareer.Store,
+            playerCareer.Development,
+            teamPreparation.TacticPlanStore,
+            teamPreparation.SquadStore,
+            socialContinuity.StartingOpportunity,
+            socialContinuity.SelectionMemory,
+            socialContinuity.PlayingTime,
+            socialContinuity.Invalidation,
+            socialContinuity.CareerMemory,
+            socialContinuity.ClubHistoryMemory,
+            socialContinuity.MatchPerformanceMemory,
+            socialContinuity.RelationshipEvaluation,
+            interactionModule.PostMatchPress,
+            interactionModule.PostMatchPlayingTimeDemand,
+            interactionModule.PostMatchBoardDemand,
+            interactionModule.PostMatchDiscipline,
+            playerLifecycle: seasonPlayerLifecycle,
+            dualPhaseTacticPlanStore: teamPreparation.DualPhaseTacticPlanStore);
+        var persistence = new CareerSqlitePersistence();
+
+        var eventRule = worldModule.EventRuleEvaluation
+            ?? throw new InvalidOperationException("Event & Rule Evaluation iskeleti bağlı değil.");
+
+        ICommandIdempotencyReset[] idempotencyResets =
+        [
+            worldModule.AdvanceSimulationTime,
+            worldModule.OpenPlanningPeriod,
+            worldModule.CompletePlanningPeriod,
+            worldModule.OpenTransferWindow,
+            worldModule.CloseTransferWindow,
+            eventRule,
+            .. competitionModule.IdempotencyResets,
+            .. teamPreparation.IdempotencyResets,
+            training.IdempotencyReset,
+            .. managerModule.IdempotencyResets,
+        ];
+
+        var gameSession = new CareerGameSessionService(
+            worldModule.TimelineStore,
+            competitionModule.Store,
+            clubModule.Store,
+            managerModule.Store,
+            teamPreparation.SelectionStore,
+            teamPreparation.SquadStore,
+            teamPreparation.TacticPlanStore,
+            transferModule.NeedStore,
+            transferModule.ShortlistStore,
+            transferModule.TargetStore,
+            transferModule.ProcessStore,
+            transferModule.OfferStore,
+            transferModule.ProposalStore,
+            socialContinuity.PromiseStore,
+            socialContinuity.MemoryStore,
+            socialContinuity.RelationshipStore,
+            interactionModule.DecisionRequestStore,
+            interactionModule.DialogueSessionStore,
+            interactionModule.DisciplinaryActionStore,
+            training.Store,
+            playerCareer.Store,
+            contractModule.Store,
+            contractModule.FreeAgentStore,
+            persistence,
+            idempotencyResets,
+            eventRule.Registry,
+            eventRule.ScheduledEvaluationStore,
+            clubFinanceLedgerStore,
+            teamPreparation.DualPhaseTacticPlanStore);
+
+        var savePath = defaultSavePath ?? Path.Combine(OS.GetUserDataDir(), "career_save.db");
+        return new CareerPresentationHost(
+            worldModule,
+            competitionModule,
+            clubModule,
+            managerModule,
+            teamPreparation,
+            training,
+            playerCareer,
+            contractModule,
+            transferModule,
+            socialContinuity,
+            interactionModule,
+            youthAcademyLifecycle,
+            clubFinanceLedger,
+            gameSession,
+            savePath);
+    }
+}

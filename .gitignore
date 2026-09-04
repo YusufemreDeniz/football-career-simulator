@@ -10,6 +10,11 @@ obj/
 # Godot (bkz. src/FootballCareerSimulator.Presentation, docs/18_SPIKE_EXECUTION_PLAN.md Kart 5)
 .godot/
 .import/
+*.import
+
+# Yerel Godot/Codex inceleme çıktıları; kaynak asset ve .uid dosyaları izlenir.
+.codex-remote-attachments/
+artifacts/
 
 # Test/coverage çıktıları
 TestResults/
@@ -19,4 +24,4 @@ TestResults/
 
 # Export çıktıları (bkz. docs/18_SPIKE_EXECUTION_PLAN.md Kart 7); export_presets.cfg bilinçli olarak
 # İZLENİR (yeniden üretilebilir CI export'u için gereklidir), yalnızca üretilen ikili dosyalar yok sayılır.
-/builds/
+builds/

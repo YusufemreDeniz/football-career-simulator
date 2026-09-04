@@ -1,0 +1,60 @@
+using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
+using FootballCareerSimulator.Application.TeamPreparation.Ports;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Services;
+using FootballCareerSimulator.Application.WorldCalendar.Ports;
+
+namespace FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
+
+public sealed class TrainingPhysicalStateModule
+{
+    public TrainingPhysicalStateModule(
+        ITrainingPhysicalStateStore store,
+        SetWeeklyTrainingPlanHandler setWeeklyPlan,
+        TrainingQueryService queries)
+    {
+        Store = store;
+        SetWeeklyPlan = setWeeklyPlan;
+        Queries = queries;
+    }
+
+    public ITrainingPhysicalStateStore Store { get; }
+
+    public SetWeeklyTrainingPlanHandler SetWeeklyPlan { get; }
+
+    public TrainingQueryService Queries { get; }
+
+    public ICommandIdempotencyReset IdempotencyReset => SetWeeklyPlan;
+
+    public static TrainingPhysicalStateModule Create(
+        IManagerCareerStore managerCareerStore,
+        IWorldTimelineStore timelineStore,
+        ITrainingPhysicalStateStore? store = null,
+        PlayerCareerDevelopmentService? playerDevelopment = null,
+        ClubSquadService? clubSquadService = null,
+        IMatchSelectionStore? matchSelectionStore = null)
+    {
+        var trainingStore = store ?? new InMemoryTrainingPhysicalStateStore();
+        MatchSelectionAvailabilityRevalidationService? revalidation = null;
+        if (matchSelectionStore is not null)
+        {
+            revalidation = new MatchSelectionAvailabilityRevalidationService(
+                matchSelectionStore,
+                trainingStore);
+        }
+
+        return new TrainingPhysicalStateModule(
+            trainingStore,
+            new SetWeeklyTrainingPlanHandler(
+                trainingStore,
+                managerCareerStore,
+                timelineStore,
+                playerDevelopment,
+                clubSquadService,
+                revalidation),
+            new TrainingQueryService(trainingStore, managerCareerStore, timelineStore));
+    }
+}
