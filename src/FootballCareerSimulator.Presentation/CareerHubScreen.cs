@@ -126,6 +126,28 @@ public partial class CareerHubScreen : Control
     private ItemList _fixtureList = null!;
     private ItemList _squadList = null!;
     private Control _clubPitchHost = null!;
+    private VBoxContainer _clubOverviewPanel = null!;
+    private VBoxContainer _clubAllPlayersPanel = null!;
+    private VBoxContainer _clubPlanPanel = null!;
+    private VBoxContainer _clubPlanPitchHost = null!;
+    private Label _clubOverviewHeadlineLabel = null!;
+    private Label _clubDepthLabel = null!;
+    private Label _clubPitchCaptionLabel = null!;
+    private Label _clubPlanCaptionLabel = null!;
+    private HBoxContainer _clubSignalRow = null!;
+    private Button _clubTabOverviewButton = null!;
+    private Button _clubTabAllButton = null!;
+    private Button _clubTabPlanButton = null!;
+    private Button _clubDeclareNeedButton = null!;
+    private string? _squadListFilterCode;
+    private enum ClubSubPage
+    {
+        Overview = 0,
+        AllPlayers = 1,
+        Plan = 2,
+    }
+
+    private ClubSubPage _clubSubPage = ClubSubPage.Overview;
     private Label _playerManagementHeadlineLabel = null!;
     private Label _playerDetailLabel = null!;
     private Control _playerDossierOverlay = null!;
@@ -1074,46 +1096,130 @@ public partial class CareerHubScreen : Control
     private Control BuildClubPage()
     {
         var page = PageRoot();
-        var squadCard = AddCard(page, "KADRO DURUMU", emphasized: true);
-        _squadCapacityLabel = BodyLabel("SquadCapacityLabel", autowrap: true);
-        squadCard.AddChild(_squadCapacityLabel);
-        _squadStatusLabel = BodyLabel("SquadStatusLabel", autowrap: true);
-        squadCard.AddChild(_squadStatusLabel);
 
-        var pitchCard = AddCard(page, "SAHA YERLEŞİMİ", emphasized: true);
+        var tabRow = ActionFlow();
+        page.AddChild(tabRow);
+        _clubTabOverviewButton = PrimaryButton("Genel Bakış");
+        _clubTabOverviewButton.Pressed += () => ShowClubSubPage(ClubSubPage.Overview);
+        tabRow.AddChild(_clubTabOverviewButton);
+        _clubTabAllButton = SecondaryButton("Tüm Oyuncular");
+        _clubTabAllButton.Pressed += () =>
+        {
+            _squadListFilterCode = null;
+            ShowClubSubPage(ClubSubPage.AllPlayers);
+            RefreshSquadList();
+        };
+        tabRow.AddChild(_clubTabAllButton);
+        _clubTabPlanButton = SecondaryButton("Kadro Planı");
+        _clubTabPlanButton.Pressed += () => ShowClubSubPage(ClubSubPage.Plan);
+        tabRow.AddChild(_clubTabPlanButton);
+
+        _clubOverviewPanel = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        _clubOverviewPanel.AddThemeConstantOverride("separation", 10);
+        page.AddChild(_clubOverviewPanel);
+
+        var overviewCard = AddCard(_clubOverviewPanel, "KADRO DURUMU", emphasized: true);
+        _clubOverviewHeadlineLabel = BodyLabel("ClubOverviewHeadline", autowrap: true);
+        overviewCard.AddChild(_clubOverviewHeadlineLabel);
+        _squadCapacityLabel = BodyLabel("SquadCapacityLabel", autowrap: true);
+        overviewCard.AddChild(_squadCapacityLabel);
+        _squadStatusLabel = BodyLabel("SquadStatusLabel", muted: true, autowrap: true);
+        overviewCard.AddChild(_squadStatusLabel);
+        _clubDepthLabel = BodyLabel("ClubDepthLabel", autowrap: true);
+        overviewCard.AddChild(_clubDepthLabel);
+        _clubSignalRow = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _clubSignalRow.AddThemeConstantOverride("separation", 8);
+        overviewCard.AddChild(_clubSignalRow);
+        _clubDeclareNeedButton = PrimaryButton("Transfer ihtiyacı oluştur");
+        _clubDeclareNeedButton.Pressed += () =>
+        {
+            Apply(_controller.DeclarePositionGapNeed());
+            ShowPage(HubPage.Transfer);
+        };
+        overviewCard.AddChild(_clubDeclareNeedButton);
+
+        var pitchCard = AddCard(_clubOverviewPanel, "SAHA", emphasized: true);
+        _clubPitchCaptionLabel = BodyLabel("ClubPitchCaption", muted: true, autowrap: true);
+        pitchCard.AddChild(_clubPitchCaptionLabel);
         _clubPitchHost = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 340),
         };
         pitchCard.AddChild(_clubPitchHost);
-        _developmentLabel = BodyLabel("DevelopmentLabel", autowrap: true);
-        _developmentLabel.Visible = false;
-        squadCard.AddChild(_developmentLabel);
-        _contractLabel = BodyLabel("ContractLabel", autowrap: true);
-        _contractLabel.Visible = false;
-        squadCard.AddChild(_contractLabel);
 
-        var kitStrip = new HBoxContainer
+        _clubAllPlayersPanel = new VBoxContainer
         {
-            Name = "ClubKitStrip",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            Visible = false,
         };
-        kitStrip.AddThemeConstantOverride("separation", 18);
-        kitStrip.Visible = false;
-        squadCard.AddChild(kitStrip);
-        _homeKit = AddKitPreview(kitStrip, "İÇ SAHA", "Kulübün resmi iç saha forması");
-        _awayKit = AddKitPreview(kitStrip, "DEPLASMAN", "Kulübün resmi deplasman forması");
-        _thirdKit = AddKitPreview(kitStrip, "ÜÇÜNCÜ", "Kulübün resmi üçüncü forması");
+        _clubAllPlayersPanel.AddThemeConstantOverride("separation", 10);
+        page.AddChild(_clubAllPlayersPanel);
 
-        var academyCard = AddCard(page, "ALTYAPI DEĞERLENDİRME GÜNÜ", emphasized: true);
+        var playerManagementCard = AddCard(_clubAllPlayersPanel, "TÜM OYUNCULAR", emphasized: true);
+        _playerManagementHeadlineLabel = BodyLabel("PlayerManagementHeadlineLabel", autowrap: true);
+        playerManagementCard.AddChild(_playerManagementHeadlineLabel);
+        _squadList = new ItemList
+        {
+            Name = "SquadList",
+            CustomMinimumSize = new Vector2(0, 420),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StyleList(_squadList);
+        _squadList.AllowReselect = true;
+        _squadList.ItemSelected += OnSquadPlayerSelected;
+        _squadList.ItemClicked += OnSquadPlayerClicked;
+        playerManagementCard.AddChild(_squadList);
+        _playerDetailLabel = BodyLabel("PlayerDetailLabel", muted: true, autowrap: true);
+        _playerDetailLabel.Text = "Oyuncu dosyası için isme dokun.";
+        playerManagementCard.AddChild(_playerDetailLabel);
+
+        var actionCard = AddCard(_clubAllPlayersPanel, "KADRO AKSİYONLARI");
+        var jobRow = ActionFlow();
+        actionCard.AddChild(jobRow);
+        _generateOfferButton = SecondaryButton("İş Teklifi Ara");
+        _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
+        jobRow.AddChild(_generateOfferButton);
+        _acceptOfferButton = SecondaryButton("Teklifi Kabul Et");
+        _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
+        jobRow.AddChild(_acceptOfferButton);
+        _signFreeAgentButton = SecondaryButton("Serbesti Geri İmzala");
+        _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
+        jobRow.AddChild(_signFreeAgentButton);
+        _promoteOverflowButton = PrimaryButton("Taşanı Kadroya Al");
+        _promoteOverflowButton.Pressed += () => Apply(_controller.PromoteOverflowPlayerToSquad());
+        jobRow.AddChild(_promoteOverflowButton);
+        _releaseCapacityButton = PrimaryButton("Yer Aç");
+        _releaseCapacityButton.Pressed += () => Apply(_controller.ReleaseToFreeSquadCapacity());
+        jobRow.AddChild(_releaseCapacityButton);
+        _sellFringeButton = PrimaryButton("Satışa Çıkar");
+        _sellFringeButton.Pressed += () => Apply(_controller.SellFringePlayerFromManagedClub());
+        _sellFringeButton.Visible = false;
+        jobRow.AddChild(_sellFringeButton);
+        _promiseStartButton = SecondaryButton("İlk 11 Sözü Ver");
+        _promiseStartButton.Pressed += () =>
+            ApplySelectedPlayer(_controller.PromiseStartingOpportunityToPlayer);
+        jobRow.AddChild(_promiseStartButton);
+        _promisePlayingTimeButton = SecondaryButton("Oyun Süresi Sözü");
+        _promisePlayingTimeButton.Pressed += () =>
+            ApplySelectedPlayer(_controller.PromisePlayingTimeToPlayer);
+        jobRow.AddChild(_promisePlayingTimeButton);
+
+        var academyCard = AddCard(_clubAllPlayersPanel, "ALTYAPI");
         _academyIntakeLabel = BodyLabel("AcademyIntakeLabel", autowrap: true);
         academyCard.AddChild(_academyIntakeLabel);
         _academyCandidateList = new ItemList
         {
             Name = "AcademyCandidateList",
-            CustomMinimumSize = new Vector2(0, 250),
+            CustomMinimumSize = new Vector2(0, 180),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StyleList(_academyCandidateList);
@@ -1127,24 +1233,22 @@ public partial class CareerHubScreen : Control
         _academyRejectButton = SecondaryButton("Değerlendirmeyi Kapat");
         _academyRejectButton.Pressed += () => ApplySelectedAcademyCandidate(accept: false);
         academyRow.AddChild(_academyRejectButton);
-
-        var academyDevelopmentCard = AddCard(page, "AKADEMİ GELİŞİM MERKEZİ", emphasized: true);
-        _academyLifecycleLabel = BodyLabel("AcademyLifecycleLabel", autowrap: true);
-        academyDevelopmentCard.AddChild(_academyLifecycleLabel);
+        _academyLifecycleLabel = BodyLabel("AcademyLifecycleLabel", muted: true, autowrap: true);
+        academyCard.AddChild(_academyLifecycleLabel);
         _academyLifecycleList = new ItemList
         {
             Name = "AcademyLifecycleList",
-            CustomMinimumSize = new Vector2(0, 220),
+            CustomMinimumSize = new Vector2(0, 160),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         CareerUiTheme.StyleList(_academyLifecycleList);
         _academyLifecycleList.ItemSelected += OnAcademyLifecyclePlayerSelected;
-        academyDevelopmentCard.AddChild(_academyLifecycleList);
-        _academyPromoteButton = PrimaryButton("A Takıma Çıkar");
+        academyCard.AddChild(_academyLifecycleList);
+        _academyPromoteButton = SecondaryButton("A Takıma Çıkar");
         _academyPromoteButton.Pressed += PromoteSelectedAcademyPlayer;
-        academyDevelopmentCard.AddChild(_academyPromoteButton);
+        academyCard.AddChild(_academyPromoteButton);
 
-        var teamDynamicsCard = AddCard(page, "SOYUNMA ODASI & SÖZLER");
+        var teamDynamicsCard = AddCard(_clubAllPlayersPanel, "SOYUNMA ODASI & SÖZLER");
         _dressingRoomEchoLabel = BodyLabel("DressingRoomEchoLabel", autowrap: true);
         _dressingRoomEchoLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         teamDynamicsCard.AddChild(_dressingRoomEchoLabel);
@@ -1156,65 +1260,18 @@ public partial class CareerHubScreen : Control
         teamDynamicsCard.AddChild(_relationshipLabel);
         _decisionLabel = BodyLabel("DecisionLabel", autowrap: true);
         teamDynamicsCard.AddChild(_decisionLabel);
-
-        var playerManagementCard = AddCard(page, "FUTBOLCU YÖNETİMİ", emphasized: true);
-        _playerManagementHeadlineLabel = BodyLabel("PlayerManagementHeadlineLabel", autowrap: true);
-        playerManagementCard.AddChild(_playerManagementHeadlineLabel);
-        _squadList = new ItemList
-        {
-            Name = "SquadList",
-            CustomMinimumSize = new Vector2(0, 620),
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
-        CareerUiTheme.StyleList(_squadList);
-        _squadList.AllowReselect = true;
-        _squadList.ItemSelected += OnSquadPlayerSelected;
-        _squadList.ItemClicked += OnSquadPlayerClicked;
-        playerManagementCard.AddChild(_squadList);
-        _playerDetailLabel = BodyLabel("PlayerDetailLabel", muted: true, autowrap: true);
-        _playerDetailLabel.Text = "Oyuncu dosyası için isme dokun.";
-        playerManagementCard.AddChild(_playerDetailLabel);
-
-        var actionCard = AddCard(page, "KADRO & KARİYER AKSİYONLARI");
-        var jobRow = ActionFlow();
-        actionCard.AddChild(jobRow);
-
-        _generateOfferButton = SecondaryButton("İş Teklifi Ara");
-        _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
-        jobRow.AddChild(_generateOfferButton);
-
-        _acceptOfferButton = SecondaryButton("Teklifi Kabul Et");
-        _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
-        jobRow.AddChild(_acceptOfferButton);
-
-        _signFreeAgentButton = SecondaryButton("Serbesti Geri İmzala");
-        _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
-        jobRow.AddChild(_signFreeAgentButton);
-
-        _promoteOverflowButton = PrimaryButton("Taşanı Kadroya Al");
-        _promoteOverflowButton.Pressed += () => Apply(_controller.PromoteOverflowPlayerToSquad());
-        jobRow.AddChild(_promoteOverflowButton);
-
-        _releaseCapacityButton = PrimaryButton("Yer Aç");
-        _releaseCapacityButton.Pressed += () => Apply(_controller.ReleaseToFreeSquadCapacity());
-        jobRow.AddChild(_releaseCapacityButton);
-
-        _sellFringeButton = PrimaryButton("Satışa Çıkar");
-        _sellFringeButton.Pressed += () => Apply(_controller.SellFringePlayerFromManagedClub());
-        jobRow.AddChild(_sellFringeButton);
-
-        _promiseStartButton = SecondaryButton("İlk 11 Sözü Ver");
-        _promiseStartButton.Pressed += () =>
-            ApplySelectedPlayer(_controller.PromiseStartingOpportunityToPlayer);
-        jobRow.AddChild(_promiseStartButton);
-
-        _promisePlayingTimeButton = SecondaryButton("Oyun Süresi Sözü");
-        _promisePlayingTimeButton.Pressed += () =>
-            ApplySelectedPlayer(_controller.PromisePlayingTimeToPlayer);
-        jobRow.AddChild(_promisePlayingTimeButton);
+        _developmentLabel = BodyLabel("DevelopmentLabel", autowrap: true);
+        _developmentLabel.Visible = false;
+        teamDynamicsCard.AddChild(_developmentLabel);
+        _contractLabel = BodyLabel("ContractLabel", autowrap: true);
+        _contractLabel.Visible = false;
+        teamDynamicsCard.AddChild(_contractLabel);
+        _homeKit = new TextureRect { Visible = false };
+        _awayKit = new TextureRect { Visible = false };
+        _thirdKit = new TextureRect { Visible = false };
 
         var decisionRow = ActionFlow();
-        decisionRow.Visible = false; // Geliştirici tetikleri: gerçek oyuncu akışında olaylar domain'den açılır.
+        decisionRow.Visible = false;
         teamDynamicsCard.AddChild(decisionRow);
         _openDecisionButton = SecondaryButton("Süre Talebi Aç");
         _openDecisionButton.Pressed += () =>
@@ -1240,27 +1297,53 @@ public partial class CareerHubScreen : Control
             Apply(_controller.OpenPressQuestionDecisionForOldestSquadPlayer());
         decisionRow.AddChild(_openPressQuestionDecisionButton);
 
-        var clubDetailsToggle = SecondaryButton("Kadro ayrıntıları");
-        squadCard.AddChild(clubDetailsToggle);
-        var optionalClubCards = new[]
+        _clubPlanPanel = new VBoxContainer
         {
-            teamDynamicsCard.GetParent<Control>(),
-            actionCard.GetParent<Control>(),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            Visible = false,
         };
-        foreach (var card in optionalClubCards)
+        _clubPlanPanel.AddThemeConstantOverride("separation", 10);
+        page.AddChild(_clubPlanPanel);
+        var planCard = AddCard(_clubPlanPanel, "KADRO PLANI", emphasized: true);
+        _clubPlanCaptionLabel = BodyLabel("ClubPlanCaption", autowrap: true);
+        planCard.AddChild(_clubPlanCaptionLabel);
+        _clubPlanPitchHost = new VBoxContainer
         {
-            card.Visible = false;
-        }
-        clubDetailsToggle.Pressed += () =>
-        {
-            var visible = !optionalClubCards[0].Visible;
-            foreach (var card in optionalClubCards)
-            {
-                card.Visible = visible;
-            }
-            clubDetailsToggle.Text = visible ? "Kadro ayrıntılarını gizle" : "Kadro ayrıntıları";
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 420),
         };
+        planCard.AddChild(_clubPlanPitchHost);
+
+        ShowClubSubPage(ClubSubPage.Overview);
         return page;
+    }
+
+    private void ShowClubSubPage(ClubSubPage page)
+    {
+        _clubSubPage = page;
+        _clubOverviewPanel.Visible = page == ClubSubPage.Overview;
+        _clubAllPlayersPanel.Visible = page == ClubSubPage.AllPlayers;
+        _clubPlanPanel.Visible = page == ClubSubPage.Plan;
+        StyleClubTab(_clubTabOverviewButton, page == ClubSubPage.Overview);
+        StyleClubTab(_clubTabAllButton, page == ClubSubPage.AllPlayers);
+        StyleClubTab(_clubTabPlanButton, page == ClubSubPage.Plan);
+        if (page == ClubSubPage.Plan)
+        {
+            RefreshClubPlanBoard();
+        }
+    }
+
+    private static void StyleClubTab(Button button, bool active)
+    {
+        if (active)
+        {
+            CareerUiTheme.StylePrimaryButton(button);
+        }
+        else
+        {
+            CareerUiTheme.StyleSecondaryButton(button);
+        }
     }
 
     private Control BuildTransferPage()
@@ -2298,7 +2381,15 @@ public partial class CareerHubScreen : Control
     private void RefreshClubPitch(IReadOnlyList<PlayerManagementLine> players)
     {
         MatchScreenUi.ClearChildren(_clubPitchHost);
+        var board = _controller.BuildSquadSelectionBoard();
+        if (board.HasMatch && board.StartingXi.Count == Domain.TeamPreparation.MatchSelection.StartingXiSize)
+        {
+            _clubPitchHost.AddChild(TacticalPitchBoardUi.BuildReadOnly(board.StartingXi, OnPitchPlayerSelected));
+            return;
+        }
+
         var startingXi = players
+            .Where(player => !player.Availability.StartsWith("Sakat", StringComparison.OrdinalIgnoreCase))
             .Take(Domain.TeamPreparation.MatchSelection.StartingXiSize)
             .Select(player => new Application.TeamPreparation.Queries.SquadSelectionPlayerDigest(
                 player.SlotIndex,
@@ -2307,19 +2398,69 @@ public partial class CareerHubScreen : Control
                 player.Rating,
                 player.Fitness,
                 player.Fatigue,
-                !player.Availability.StartsWith("Sakat", StringComparison.OrdinalIgnoreCase),
+                true,
                 true,
                 player.PositionName))
             .ToArray();
         if (startingXi.Length != Domain.TeamPreparation.MatchSelection.StartingXiSize)
         {
             var empty = BodyLabel("ClubPitchEmpty", muted: true, autowrap: true);
-            empty.Text = "Saha yerleşimi için 11 futbolcu bekleniyor.";
+            empty.Text = "Saha yerleşimi için yeterli müsait futbolcu yok.";
             _clubPitchHost.AddChild(empty);
             return;
         }
 
         _clubPitchHost.AddChild(TacticalPitchBoardUi.BuildReadOnly(startingXi, OnPitchPlayerSelected));
+    }
+
+    private void RefreshClubPlanBoard()
+    {
+        MatchScreenUi.ClearChildren(_clubPlanPitchHost);
+        var board = _controller.BuildSquadSelectionBoard();
+        if (!board.HasMatch)
+        {
+            var empty = BodyLabel("ClubPlanEmpty", muted: true, autowrap: true);
+            empty.Text = "Yaklaşan maç yok — Genel Bakış’taki kadro önizlemesine bak.";
+            _clubPlanPitchHost.AddChild(empty);
+            _clubPlanCaptionLabel.Text = "Kadro planı maç gününe bağlanır.";
+            return;
+        }
+
+        _clubPlanCaptionLabel.Text = board.IsApproved
+            ? "Onaylı XI ve yedekler — dokunarak oyuncu dosyasını aç."
+            : "Taslak XI ve yedekler — Maç Günü’nde onayla veya değiştir.";
+        _clubPlanPitchHost.AddChild(
+            TacticalPitchBoardUi.Build(
+                board,
+                selectedSlotIndex: null,
+                selectPlayer: OnPitchPlayerSelected,
+                swapPlayers: (_, _) => { },
+                interactionEnabled: true));
+    }
+
+    private void RefreshClubSignals(Application.CareerHub.Queries.SquadOverviewDigest overview)
+    {
+        MatchScreenUi.ClearChildren(_clubSignalRow);
+        foreach (var signal in overview.Signals)
+        {
+            var code = signal.Code;
+            var button = signal.IsActionable
+                ? SecondaryButton(signal.Label)
+                : SecondaryButton(signal.Label);
+            if (signal.IsActionable)
+            {
+                button.Pressed += () =>
+                {
+                    _squadListFilterCode = code;
+                    ShowClubSubPage(ClubSubPage.AllPlayers);
+                    RefreshSquadList();
+                };
+            }
+
+            _clubSignalRow.AddChild(button);
+        }
+
+        _clubDeclareNeedButton.Visible = overview.CanCreateTransferNeed;
     }
 
     private void OnPitchPlayerSelected(Application.TeamPreparation.Queries.SquadSelectionPlayerDigest digest)
@@ -3937,7 +4078,12 @@ public partial class CareerHubScreen : Control
         RefreshYouthAcademy();
         _squadList.Clear();
         var capacity = _controller.BuildSquadCapacityDigest();
-        _squadCapacityLabel.Text = capacity.ToDisplayText();
+        var overview = _controller.BuildSquadOverviewDigest();
+        _squadCapacityLabel.Text = overview.CapacityLine;
+        _clubOverviewHeadlineLabel.Text = overview.Headline;
+        _clubDepthLabel.Text = overview.DepthLine;
+        _clubPitchCaptionLabel.Text = overview.PitchCaption;
+        RefreshClubSignals(overview);
 
         var manager = _controller.GetManagerCareer();
         if (manager.EmployedClubId is not long clubId)
@@ -3947,6 +4093,7 @@ public partial class CareerHubScreen : Control
             _playerManagementHeadlineLabel.Text = "Futbolcu yönetimi: kulüp görevi yok.";
             _selectedPlayerId = null;
             RefreshPlayerDetail();
+            RefreshClubPitch(Array.Empty<PlayerManagementLine>());
             return;
         }
 
@@ -3957,30 +4104,50 @@ public partial class CareerHubScreen : Control
             : $"A takım: {persisted.Members.Count} üye · {clubName}";
 
         var management = _controller.BuildPlayerManagementDigest();
-        _playerManagementPlayers = management.Players;
-        _playerManagementHeadlineLabel.Text = management.Headline;
+        var visiblePlayers = FilterSquadPlayers(management.Players, _squadListFilterCode);
+        _playerManagementPlayers = visiblePlayers;
+        _playerManagementHeadlineLabel.Text = string.IsNullOrWhiteSpace(_squadListFilterCode)
+            ? management.Headline
+            : $"{management.Headline} · filtre: {_squadListFilterCode}";
 
-        foreach (var player in management.Players)
+        foreach (var player in visiblePlayers)
         {
             _squadList.AddItem(player.ToListLabel());
         }
 
-        if (_selectedPlayerId is not long selectedId
-            || !management.Players.Any(player => player.PlayerId == selectedId))
+        if (capacity.IsOverCapacity
+            && (_squadListFilterCode is null
+                || _squadListFilterCode == Application.CareerHub.Queries.SquadOverviewDigest.SignalOverflow))
         {
-            _selectedPlayerId = management.Players.FirstOrDefault()?.PlayerId;
+            foreach (var id in capacity.OverflowPlayerIds)
+            {
+                _squadList.AddItem($"[kadro dışı sözleşme] {_controller.GetPlayerDisplayName(id)}");
+            }
+        }
+
+        if (_selectedPlayerId is not long selectedId
+            || !visiblePlayers.Any(player => player.PlayerId == selectedId))
+        {
+            _selectedPlayerId = visiblePlayers.FirstOrDefault()?.PlayerId;
         }
 
         if (_selectedPlayerId is long activePlayerId)
         {
-            var selectedIndex = management.Players
+            var selectedIndex = visiblePlayers
                 .Select((player, index) => (player, index))
                 .FirstOrDefault(item => item.player.PlayerId == activePlayerId).index;
-            _squadList.Select(selectedIndex);
+            if (selectedIndex >= 0 && selectedIndex < visiblePlayers.Count)
+            {
+                _squadList.Select(selectedIndex);
+            }
         }
 
         RefreshPlayerDetail();
         RefreshClubPitch(management.Players);
+        if (_clubSubPage == ClubSubPage.Plan)
+        {
+            RefreshClubPlanBoard();
+        }
 
         if (_playerDossierOverlay is { Visible: true } && _selectedPlayerId is long openId)
         {
@@ -3993,14 +4160,36 @@ public partial class CareerHubScreen : Control
                 ClosePlayerDossier();
             }
         }
+    }
 
-        if (capacity.IsOverCapacity)
+    private static IReadOnlyList<PlayerManagementLine> FilterSquadPlayers(
+        IReadOnlyList<PlayerManagementLine> players,
+        string? filterCode)
+    {
+        if (string.IsNullOrWhiteSpace(filterCode)
+            || filterCode is Application.CareerHub.Queries.SquadOverviewDigest.SignalDepth
+                or Application.CareerHub.Queries.SquadOverviewDigest.SignalOverflow
+                or "calm")
         {
-            foreach (var id in capacity.OverflowPlayerIds)
-            {
-                _squadList.AddItem($"[kadro dışı sözleşme] {_controller.GetPlayerDisplayName(id)}");
-            }
+            return players;
         }
+
+        return filterCode switch
+        {
+            Application.CareerHub.Queries.SquadOverviewDigest.SignalInjured => players
+                .Where(player => player.Availability.Contains("Sakat", StringComparison.OrdinalIgnoreCase))
+                .ToArray(),
+            Application.CareerHub.Queries.SquadOverviewDigest.SignalFatigue => players
+                .Where(player => player.Fatigue >= 65)
+                .ToArray(),
+            Application.CareerHub.Queries.SquadOverviewDigest.SignalPromise => players
+                .Where(player =>
+                    player.PromiseSummary.Contains("risk", StringComparison.OrdinalIgnoreCase)
+                    || player.PromiseSummary.Contains("bozul", StringComparison.OrdinalIgnoreCase)
+                    || player.RelationshipState.Contains("Kırılgan", StringComparison.OrdinalIgnoreCase))
+                .ToArray(),
+            _ => players,
+        };
     }
 
     private void RefreshYouthAcademy()

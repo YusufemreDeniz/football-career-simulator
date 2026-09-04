@@ -17,7 +17,7 @@ public sealed record SquadSelectionPlayerDigest(
     string PositionName = "")
 {
     public string ButtonLabel =>
-        $"{DisplayName} · {PositionCode} · GÜÇ {Rating} · FİT %{Fitness}"
+        $"{DisplayName}\n{PositionCode} · {PlayerPhysicalState.FatigueBandLabel(Fatigue)}"
         + (IsAvailable ? string.Empty : " · SAKAT");
 }
 

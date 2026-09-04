@@ -1383,6 +1383,31 @@ public sealed partial class CareerSessionController
         return progress is { CanArchive: true, CanComplete: false };
     }
 
+    public SquadOverviewDigest BuildSquadOverviewDigest()
+    {
+        var capacity = BuildSquadCapacityDigest();
+        if (!capacity.IsEmployed)
+        {
+            return SquadOverviewDigest.Clear();
+        }
+
+        var management = BuildPlayerManagementDigest();
+        var scout = BuildScoutTransferDigest();
+        var board = BuildSquadSelectionBoard();
+        var promiseRisk = management.Players.Count(player =>
+            player.PromiseSummary.Contains("risk", StringComparison.OrdinalIgnoreCase)
+            || player.PromiseSummary.Contains("bozul", StringComparison.OrdinalIgnoreCase)
+            || player.RelationshipState.Contains("Kırılgan", StringComparison.OrdinalIgnoreCase));
+
+        return SquadOverviewDigest.Compose(
+            capacity,
+            management.Players,
+            scout.HasClub ? scout.NeedLine : null,
+            board.HasMatch,
+            board.IsApproved,
+            promiseRisk);
+    }
+
     public SquadCapacityDigest BuildSquadCapacityDigest()
     {
         if (Host.ManagerModule.Queries.GetCareer().EmployedClubId is not long clubId
