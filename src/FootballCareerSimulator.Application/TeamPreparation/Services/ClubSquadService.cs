@@ -2,6 +2,8 @@ using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Services;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
@@ -16,16 +18,19 @@ public sealed class ClubSquadService
     private readonly IClubSquadStore _squadStore;
     private readonly IContractStore _contractStore;
     private readonly IPlayerCareerStore _playerCareerStore;
+    private readonly ITrainingPhysicalStateStore? _trainingStore;
 
     public ClubSquadService(
         IClubSquadStore squadStore,
         IContractStore contractStore,
-        IPlayerCareerStore playerCareerStore)
+        IPlayerCareerStore playerCareerStore,
+        ITrainingPhysicalStateStore? trainingStore = null)
     {
         _squadStore = squadStore ?? throw new ArgumentNullException(nameof(squadStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
         _playerCareerStore = playerCareerStore
             ?? throw new ArgumentNullException(nameof(playerCareerStore));
+        _trainingStore = trainingStore;
     }
 
     public ClubSquad SyncFromActiveContracts(ClubId clubId, GameDate day)
@@ -85,6 +90,11 @@ public sealed class ClubSquadService
 
         var squad = ClubSquad.Rehydrate(clubId, members);
         _squadStore.Upsert(squad);
+        if (_trainingStore is not null)
+        {
+            PhysicalLocationSync.SyncClubMembership(_trainingStore, clubId, squad.Members);
+        }
+
         return squad;
     }
 
@@ -215,6 +225,11 @@ public sealed class ClubSquadService
 
         var next = ClubSquad.Rehydrate(clubId, members);
         _squadStore.Upsert(next);
+        if (_trainingStore is not null)
+        {
+            PhysicalLocationSync.SyncClubMembership(_trainingStore, clubId, next.Members);
+        }
+
         return new SquadOverflowPromotionResult(
             promoteId.Value,
             demote.PlayerId.Value,

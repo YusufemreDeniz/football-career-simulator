@@ -109,7 +109,11 @@ public sealed class TeamPreparationModule
         ClubSquadService? clubSquadService = null;
         if (contractStore is not null && playerCareerStore is not null)
         {
-            clubSquadService = new ClubSquadService(clubSquadStore, contractStore, playerCareerStore);
+            clubSquadService = new ClubSquadService(
+                clubSquadStore,
+                contractStore,
+                playerCareerStore,
+                trainingStore);
         }
 
         var selectionQueries = new MatchSelectionQueryService(store, competitionStore, managerCareerStore);

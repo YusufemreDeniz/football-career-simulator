@@ -160,7 +160,8 @@ public sealed class CareerPresentationHost
         var contractModule = ContractRegistrationModule.Create(
             playerStore,
             managerModule.Store,
-            worldModule.TimelineStore);
+            worldModule.TimelineStore,
+            trainingStore: trainingStore);
         ProductionCareerWorldBootstrap.HydratePeople(
             world,
             playerStore,

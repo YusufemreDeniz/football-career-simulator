@@ -3,6 +3,7 @@ using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 
 namespace FootballCareerSimulator.Application.ContractRegistration.Composition;
@@ -34,14 +35,15 @@ public sealed class ContractRegistrationModule
         IManagerCareerStore managerCareerStore,
         IWorldTimelineStore timelineStore,
         IContractStore? store = null,
-        IFreeAgentStore? freeAgentStore = null)
+        IFreeAgentStore? freeAgentStore = null,
+        ITrainingPhysicalStateStore? trainingStore = null)
     {
         var contractStore = store ?? new InMemoryContractStore();
         var agents = freeAgentStore ?? new InMemoryFreeAgentStore();
         return new ContractRegistrationModule(
             contractStore,
             agents,
-            new ContractRegistrationService(contractStore, agents, playerCareerStore),
+            new ContractRegistrationService(contractStore, agents, playerCareerStore, trainingStore),
             new ContractQueryService(contractStore, agents, managerCareerStore, timelineStore));
     }
 }

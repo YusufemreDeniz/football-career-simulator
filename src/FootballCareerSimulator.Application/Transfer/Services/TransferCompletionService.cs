@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Services;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Domain.ClubGovernance;
@@ -236,5 +237,18 @@ public sealed class TransferCompletionService
             ?? PlayerPhysicalState.CreateRested(process.PlayerId);
         _trainingStore.UpsertPhysical(
             existing.WithLocation(process.BuyingClubId, buyerMember.SlotIndex));
+
+        // Satıcı kulüpte eski slot işgali kalmasın; membership sync çağrılmasa bile.
+        PhysicalLocationSync.SyncClubMembership(
+            _trainingStore,
+            process.BuyingClubId,
+            _squadStore.Get(process.BuyingClubId)?.Members ?? Array.Empty<SquadMember>());
+        if (process.SellingClubId is { } seller)
+        {
+            PhysicalLocationSync.SyncClubMembership(
+                _trainingStore,
+                seller,
+                _squadStore.Get(seller)?.Members ?? Array.Empty<SquadMember>());
+        }
     }
 }

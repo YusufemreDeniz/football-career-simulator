@@ -2,6 +2,7 @@ using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
@@ -168,21 +169,7 @@ public sealed class SeasonPlayerLifecycleService
                         transition.Successor.SlotIndex));
             }
 
-            foreach (var member in squad.Members)
-            {
-                var existing = _training.GetPhysical(member.PlayerId);
-                if (existing is null)
-                {
-                    _training.UpsertPhysical(
-                        PlayerPhysicalState.CreateRested(member.PlayerId, clubId, member.SlotIndex));
-                }
-                else if (!existing.HasLocation
-                    || existing.ClubId != clubId
-                    || existing.SlotIndex != member.SlotIndex)
-                {
-                    _training.UpsertPhysical(existing.WithLocation(clubId, member.SlotIndex));
-                }
-            }
+            PhysicalLocationSync.SyncClubMembership(_training, clubId, squad.Members);
         }
     }
 }

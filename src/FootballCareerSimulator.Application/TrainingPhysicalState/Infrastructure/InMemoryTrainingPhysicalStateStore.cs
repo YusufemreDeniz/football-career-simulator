@@ -20,11 +20,27 @@ public sealed class InMemoryTrainingPhysicalStateStore : ITrainingPhysicalStateS
 
     public IReadOnlyDictionary<long, PlayerPhysicalState> PhysicalByPlayerId => _physical;
 
-    public IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> PhysicalBySlot =>
-        _physical.Values
-            .Where(state => state.HasLocation)
-            .GroupBy(state => (state.ClubId!.Value.Value, state.SlotIndex!.Value))
-            .ToDictionary(group => group.Key, group => group.OrderBy(s => s.PlayerId.Value).First());
+    public IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> PhysicalBySlot
+    {
+        get
+        {
+            var located = _physical.Values.Where(state => state.HasLocation).ToArray();
+            var duplicate = located
+                .GroupBy(state => (state.ClubId!.Value.Value, state.SlotIndex!.Value))
+                .FirstOrDefault(group => group.Count() > 1);
+            if (duplicate is not null)
+            {
+                var players = string.Join(
+                    ",",
+                    duplicate.Select(state => state.PlayerId.Value).OrderBy(id => id));
+                throw new TrainingPhysicalStateInvariantViolationException(
+                    $"Duplicate physical location ClubId={duplicate.Key.Item1} Slot={duplicate.Key.Item2} for players [{players}].");
+            }
+
+            return located.ToDictionary(
+                state => (state.ClubId!.Value.Value, state.SlotIndex!.Value));
+        }
+    }
 
     public WeeklyTrainingPlan? GetPlan(ClubId clubId) =>
         _plans.TryGetValue(clubId.Value, out var plan) ? plan : null;
@@ -45,6 +61,22 @@ public sealed class InMemoryTrainingPhysicalStateStore : ITrainingPhysicalStateS
     public void UpsertPhysical(PlayerPhysicalState state)
     {
         ArgumentNullException.ThrowIfNull(state);
+
+        if (state.HasLocation)
+        {
+            var club = state.ClubId!;
+            var slot = state.SlotIndex!.Value;
+            foreach (var other in _physical.Values
+                .Where(candidate =>
+                    candidate.PlayerId != state.PlayerId
+                    && candidate.ClubId == club
+                    && candidate.SlotIndex == slot)
+                .ToArray())
+            {
+                _physical[other.PlayerId.Value] = other.ClearLocation();
+            }
+        }
+
         _physical[state.PlayerId.Value] = state;
     }
 
@@ -78,7 +110,7 @@ public sealed class InMemoryTrainingPhysicalStateStore : ITrainingPhysicalStateS
 
         foreach (var state in incoming)
         {
-            _physical[state.PlayerId.Value] = state;
+            UpsertPhysical(state);
         }
     }
 
@@ -99,7 +131,7 @@ public sealed class InMemoryTrainingPhysicalStateStore : ITrainingPhysicalStateS
 
         foreach (var state in physicalStates)
         {
-            _physical[state.PlayerId.Value] = state;
+            UpsertPhysical(state);
         }
     }
 }

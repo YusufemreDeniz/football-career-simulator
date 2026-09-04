@@ -2,6 +2,8 @@ using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Queries;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Services;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
@@ -16,18 +18,21 @@ public sealed class ContractRegistrationService
     private readonly IContractStore _store;
     private readonly IFreeAgentStore _freeAgentStore;
     private readonly IPlayerCareerStore _playerCareerStore;
+    private readonly ITrainingPhysicalStateStore? _trainingStore;
     private PromiseInvalidationService? _promiseInvalidation;
     private RelationshipEvaluationService? _relationships;
 
     public ContractRegistrationService(
         IContractStore store,
         IFreeAgentStore freeAgentStore,
-        IPlayerCareerStore playerCareerStore)
+        IPlayerCareerStore playerCareerStore,
+        ITrainingPhysicalStateStore? trainingStore = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _freeAgentStore = freeAgentStore ?? throw new ArgumentNullException(nameof(freeAgentStore));
         _playerCareerStore = playerCareerStore
             ?? throw new ArgumentNullException(nameof(playerCareerStore));
+        _trainingStore = trainingStore;
     }
 
     public void BindPromiseInvalidation(PromiseInvalidationService invalidation) =>
@@ -108,6 +113,11 @@ public sealed class ContractRegistrationService
             _store.Upsert(next);
             _freeAgentStore.Upsert(
                 PlayerFreeAgency.Release(next.PlayerId, next.ClubId, day));
+            if (_trainingStore is not null)
+            {
+                PhysicalLocationSync.ClearPlayerLocation(_trainingStore, next.PlayerId);
+            }
+
             _promiseInvalidation?.InvalidateForPlayerLeaving(next.PlayerId, day);
             _relationships?.MarkDormantForPlayerLeaving(next.PlayerId, day);
             affectedClubs.Add(next.ClubId.Value);
@@ -143,6 +153,11 @@ public sealed class ContractRegistrationService
         var next = contract.ReleaseEarly(day);
         _store.Upsert(next);
         _freeAgentStore.Upsert(PlayerFreeAgency.Release(playerId, clubId, day));
+        if (_trainingStore is not null)
+        {
+            PhysicalLocationSync.ClearPlayerLocation(_trainingStore, playerId);
+        }
+
         _promiseInvalidation?.InvalidateForPlayerLeaving(playerId, day);
         _relationships?.MarkDormantForPlayerLeaving(playerId, day);
 

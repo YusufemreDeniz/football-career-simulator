@@ -722,7 +722,21 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             .Where(state => state.ClubId == clubId && state.SlotIndex is int)
             .Select(state => state.RecoverIfDue(day))
             .GroupBy(state => state.SlotIndex!.Value)
-            .ToDictionary(group => group.Key, group => group.OrderBy(s => s.PlayerId.Value).First());
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    if (group.Count() > 1)
+                    {
+                        var players = string.Join(
+                            ",",
+                            group.Select(state => state.PlayerId.Value).OrderBy(id => id));
+                        throw new TrainingPhysicalStateInvariantViolationException(
+                            $"Duplicate physical location ClubId={clubId.Value} Slot={group.Key} for players [{players}].");
+                    }
+
+                    return group.First();
+                });
 
         if (existing.Count == 0)
         {
@@ -1134,7 +1148,21 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var physicalBySlot = _trainingStore?.PhysicalStates
             .Where(state => state.ClubId == clubId && state.SlotIndex is int)
             .GroupBy(state => state.SlotIndex!.Value)
-            .ToDictionary(group => group.Key, group => group.OrderBy(s => s.PlayerId.Value).First());
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    if (group.Count() > 1)
+                    {
+                        var players = string.Join(
+                            ",",
+                            group.Select(state => state.PlayerId.Value).OrderBy(id => id));
+                        throw new TrainingPhysicalStateInvariantViolationException(
+                            $"Duplicate physical location ClubId={clubId.Value} Slot={group.Key} for players [{players}].");
+                    }
+
+                    return group.First();
+                });
         var availableSlots = rosterSlots
             .Where(slot => physicalBySlot is null
                 || !physicalBySlot.TryGetValue(slot, out var physical)
