@@ -2567,10 +2567,19 @@ public partial class CareerHubScreen : Control
             return;
         }
 
+        // MERKEZ: bekleyen zorunlu karar sayısı
         var decisions = _controller.GetPendingDecisions(take: 5);
         var pendingCount = decisions.OpenCount;
         _navButtons[(int)HubPage.Today].Text = pendingCount > 0 ? $"MERKEZ ({pendingCount})" : "MERKEZ";
 
+        // KADRO: onay bekleyen maç varsa uyarı
+        var currentDay = _controller.GetCurrentGameDate().DayNumber;
+        var pendingMatch = _controller.GetNextDueManagedFixture(currentDay);
+        _navButtons[(int)HubPage.Club].Text = pendingMatch is { IsApproved: false }
+            ? "KADRO (!)"
+            : "KADRO";
+
+        // TRANSFER: bekleyen teklif veya pencere açık
         var window = _controller.GetTransferWindow();
         var offers = _controller.GetManagedClubOffers();
         var proposals = _controller.GetManagedContractProposals();
@@ -2581,8 +2590,12 @@ public partial class CareerHubScreen : Control
                 ? "TRANSFER ●"
                 : "TRANSFER";
 
-        _navButtons[(int)HubPage.Club].Text = "KADRO";
-        _navButtons[(int)HubPage.Prep].Text = "TAKTİK";
+        // TAKTİK: antrenman planı yoksa uyarı
+        var training = _controller.GetTrainingSummary();
+        _navButtons[(int)HubPage.Prep].Text = training.ClubId is not null && !training.HasPlan
+            ? "TAKTİK (!)"
+            : "TAKTİK";
+
         _navButtons[(int)HubPage.World].Text = "LİG";
         _navButtons[(int)HubPage.File].Text = "DOSYA";
     }
@@ -3730,11 +3743,29 @@ public partial class CareerHubScreen : Control
         _pulseLabel.Text = CompactSummary(pulse.Headline, pulseSupport);
         var weekStory = _controller.BuildWeekStory();
         var weekMood = _controller.BuildWeekMood(weekStoryActive: weekStory.IsActive);
-        _weekStoryLabel.Visible = false;
-        _weekStoryLabel.Text = string.Empty;
+        if (weekStory.IsActive && !string.IsNullOrWhiteSpace(weekStory.StoryLine))
+        {
+            _weekStoryLabel.Text = $"📖 {weekStory.StoryLine}";
+            _weekStoryLabel.Visible = true;
+        }
+        else
+        {
+            _weekStoryLabel.Visible = false;
+            _weekStoryLabel.Text = string.Empty;
+        }
+
         var recoveryPath = _controller.BuildInjuryRecoveryPath();
-        _recoveryPathLabel.Visible = false;
-        _recoveryPathLabel.Text = string.Empty;
+        if (recoveryPath.IsActive && !string.IsNullOrWhiteSpace(recoveryPath.Headline))
+        {
+            _recoveryPathLabel.Text = $"🏥 {recoveryPath.Headline}";
+            _recoveryPathLabel.Visible = true;
+        }
+        else
+        {
+            _recoveryPathLabel.Visible = false;
+            _recoveryPathLabel.Text = string.Empty;
+        }
+
 
         var currentDay = _controller.GetCurrentGameDate().DayNumber;
         var pending = _controller.GetNextDueManagedFixture(currentDay);
