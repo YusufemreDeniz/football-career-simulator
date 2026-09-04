@@ -3871,8 +3871,21 @@ public partial class CareerHubScreen : Control
 
         _advanceDayButton.Disabled = !canAdvance;
         _advanceWeekButton.Disabled = !canAdvance;
-        _advanceDayButton.Text = canAdvance ? "1 Gün İlerlet" : "1 Gün İlerlet (engelli)";
-        _advanceWeekButton.Text = canAdvance ? "7 Gün İlerlet" : "7 Gün İlerlet (engelli)";
+        if (canAdvance)
+        {
+            _advanceDayButton.Text = "1 Gün İlerlet";
+            _advanceDayButton.TooltipText = string.Empty;
+            _advanceWeekButton.Text = "7 Gün İlerlet";
+            _advanceWeekButton.TooltipText = string.Empty;
+        }
+        else
+        {
+            var blocker = _controller.BuildTimeAdvanceBlockerDigest();
+            _advanceDayButton.Text = "1 Gün İlerlet (kilitli)";
+            _advanceDayButton.TooltipText = blocker.AdviceLine;
+            _advanceWeekButton.Text = "7 Gün İlerlet (kilitli)";
+            _advanceWeekButton.TooltipText = blocker.AdviceLine;
+        }
 
         var canTransition = _controller.CanTransitionToNextSeason();
         _seasonTransitionButton.Disabled = !canTransition;
