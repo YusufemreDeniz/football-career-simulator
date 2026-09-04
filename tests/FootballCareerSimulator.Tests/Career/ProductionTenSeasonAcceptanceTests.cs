@@ -207,7 +207,7 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
             stopwatch.Elapsed);
 
         Assert.True(saved.Succeeded);
-        Assert.Equal(48, final.SchemaVersion);
+        Assert.Equal(49, final.SchemaVersion);
         Assert.Equal(10, final.League.Seasons.Count);
         Assert.All(final.League.Seasons, season => Assert.Equal(SeasonStatus.Archived, season.Status));
         Assert.Equal(

@@ -76,8 +76,8 @@ public sealed class ProductionBalanceTelemetryTests
             totals.Add(played.HomeGoals + played.AwayGoals);
             injuredStarters.Add(
                 training.Store.PhysicalStates.Count(state =>
-                    state.ClubId.Value == 1
-                    && state.SlotIndex < 11
+                    state.ClubId is { Value: 1 }
+                    && state.SlotIndex is < 11
                     && state.InjurySeverity != InjurySeverity.None));
         }
 

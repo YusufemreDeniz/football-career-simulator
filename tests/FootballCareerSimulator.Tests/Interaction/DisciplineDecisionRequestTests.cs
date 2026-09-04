@@ -61,7 +61,7 @@ public sealed class DisciplineDecisionRequestTests : IDisposable
         var action = Assert.Single(interaction.DisciplinaryActionStore.Actions);
         Assert.Equal(DisciplinaryActionKind.Warning, action.Kind);
         var relationship = social.RelationshipStore.FindPlayerToManager(60, 1)!;
-        Assert.Equal(48, relationship.Trust);
+        Assert.Equal(49, relationship.Trust);
         Assert.Equal(54, relationship.Respect);
         Assert.Equal(
             MemoryValence.Negative,
@@ -111,7 +111,7 @@ public sealed class DisciplineDecisionRequestTests : IDisposable
         var relationship = social.RelationshipStore.FindPlayerToManager(62, 1)!;
         Assert.Equal(44, relationship.Trust);
         Assert.Equal(56, relationship.Respect);
-        Assert.Equal(48, relationship.ProfessionalCompatibility);
+        Assert.Equal(49, relationship.ProfessionalCompatibility);
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed class DisciplineDecisionRequestTests : IDisposable
 
         Assert.Equal(DisciplinaryActionKind.Support, interaction.DisciplinaryActionStore.Actions.Single().Kind);
         Assert.Equal(56, social.RelationshipStore.FindPlayerToManager(63, 1)!.Trust);
-        Assert.Equal(48, social.RelationshipStore.FindPlayerToManager(63, 1)!.Respect);
+        Assert.Equal(49, social.RelationshipStore.FindPlayerToManager(63, 1)!.Respect);
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public sealed class DisciplineDecisionRequestTests : IDisposable
             interaction.DisciplinaryActionStore.Actions);
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(48, loaded.SchemaVersion);
+        Assert.Equal(49, loaded.SchemaVersion);
         var action = Assert.Single(loaded.DisciplinaryActions);
         Assert.Equal(DisciplinaryActionKind.Warning, action.Kind);
         Assert.Equal(64, action.SubjectPlayerId.Value);

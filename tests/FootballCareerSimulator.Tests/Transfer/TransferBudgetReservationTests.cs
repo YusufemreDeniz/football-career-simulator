@@ -122,7 +122,7 @@ public sealed class TransferBudgetReservationTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(48, loaded.SchemaVersion);
+        Assert.Equal(49, loaded.SchemaVersion);
         var club = loaded.ClubRegistry.GetClubOrThrow(new ClubId(1));
         Assert.Equal(250_000, club.ReservedTransferFunds);
         Assert.Equal(Club.DefaultTransferBudgetLimit(club.SportiveStrength), club.TransferBudgetLimit);
