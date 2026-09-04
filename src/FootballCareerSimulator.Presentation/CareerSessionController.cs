@@ -1705,13 +1705,21 @@ public sealed partial class CareerSessionController
             }
         }
 
-        return ScoutTransferDigest.Compose(
+        var digest = ScoutTransferDigest.Compose(
             GetClubDisplayName(clubId),
             timeline.CurrentDate.DayNumber,
             managedProfiles,
             managedRatings,
             candidates,
             Host.ClubModule.TransferBudget.Get(managedId).Available);
+        var injured = Host.TrainingModule.Queries.GetManagedClubSummary().InjuredSlotCount;
+        return injured > 0
+            ? digest with
+            {
+                NeedLine = digest.NeedLine
+                    + $" · sakatlık kapağı riski ({injured} oyuncu)",
+            }
+            : digest;
     }
 
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>
@@ -1951,14 +1959,19 @@ public sealed partial class CareerSessionController
             var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
                 ?? throw new InvalidOperationException("Menajer kulübü yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-            var need = Host.TransferModule.Needs.Declare(
+            var scout = BuildScoutTransferDigest();
+            var reason = scout.HasClub && scout.NeedPositionCode is not ("—" or "")
+                ? $"ManualPositionGap:{scout.NeedPositionCode}"
+                : "ManualPositionGap";
+            _ = Host.TransferModule.Needs.Declare(
                 new Domain.Shared.ClubId(clubId),
                 TransferNeedKind.PositionGap,
                 priority: 4,
-                "ManualPositionGap",
+                reason,
                 day);
+            var needLine = scout.HasClub ? scout.NeedLine : "Pozisyon açığı kaydı açıldı.";
             return UiActionResult.Ok(
-                $"Transfer ihtiyacı: #{need.NeedId.Value} pozisyon açığı (öncelik {need.Priority}).");
+                $"Transfer ihtiyacı oluşturuldu.\n{needLine}\nÖnerilen listede adaylar bu ihtiyaca göre sıralandı.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -1979,7 +1992,7 @@ public sealed partial class CareerSessionController
                 ?? throw new InvalidOperationException("Kapatılacak açık ihtiyaç yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
             Host.TransferModule.Needs.Close(new TransferNeedId(oldest.NeedId), day);
-            return UiActionResult.Ok($"Transfer ihtiyacı kapatıldı: #{oldest.NeedId} ({oldest.KindName}).");
+            return UiActionResult.Ok($"Transfer ihtiyacı kapatıldı: {oldest.KindName}.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -2285,9 +2298,12 @@ public sealed partial class CareerSessionController
             var updated = Host.TransferModule.Completion.Complete(
                 new TransferProcessId(process.ProcessId),
                 day);
+            var scout = BuildScoutTransferDigest();
+            var depthLine = scout.HasClub ? $"\n{scout.NeedLine}" : string.Empty;
             return UiActionResult.Ok(
                 $"Transfer tamamlandı: {GetPlayerDisplayName(updated.PlayerId.Value)}"
-                + $" → {GetClubDisplayName(updated.BuyingClubId.Value)}.");
+                + $" kadroya katıldı."
+                + depthLine);
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -2346,7 +2362,7 @@ public sealed partial class CareerSessionController
                     or TransferProcessStatus.CompletionPending =>
                     CompleteOldestFinanciallyApprovedProcess(),
                 _ => UiActionResult.Fail(
-                    $"Bu süreç durumunda otomatik adım yok ({process.StatusName}). Müzakere kartlarını aç."),
+                    "Bu görüşmede otomatik adım yok. Teklif ayrıntılarını açıp manuel ilerle."),
             };
         }
         catch (Exception ex)

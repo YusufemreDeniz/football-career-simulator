@@ -77,5 +77,6 @@ public sealed class ScoutTransferDigestTests
         Assert.Contains(candidate.InterestLabel, candidate.ToListLabel(), StringComparison.Ordinal);
         Assert.Contains("BÜTÇE ÜSTÜ", candidate.ToListLabel(), StringComparison.Ordinal);
         Assert.Contains("Açılış teklifi", candidate.ToDetailText(), StringComparison.Ordinal);
+        Assert.Contains("Neden önerildi?", candidate.ToDetailText(), StringComparison.Ordinal);
     }
 }

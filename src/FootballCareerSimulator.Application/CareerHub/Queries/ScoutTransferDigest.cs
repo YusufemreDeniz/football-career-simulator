@@ -47,10 +47,11 @@ public sealed record ScoutCandidateLine(
 
     public string ToDetailText() =>
         $"{DisplayName} · {PositionCode} · {ClubName}\n"
+        + $"Neden önerildi? {RecommendedSquadRole} ihtiyacına uyuyor · ilgi {InterestLabel}\n"
         + $"Scout bilgisi %{KnowledgePercent} · güç {EstimatedAbilityLow}-{EstimatedAbilityHigh} · potansiyel {PotentialAbility}\n"
         + $"Piyasa değeri {MarketValue:N0} · beklenen aralık {EstimatedFeeLow:N0}-{EstimatedFeeHigh:N0}\n"
-        + $"Transfer ilgisi %{InterestPercent} ({InterestLabel}) · önerilen rol {RecommendedSquadRole}\n"
-        + $"Açılış teklifi {SuggestedOpeningFee:N0} · önerilen maaş {SuggestedWeeklyWage:N0}/hafta";
+        + $"Açılış teklifi {SuggestedOpeningFee:N0} · önerilen maaş {SuggestedWeeklyWage:N0}/hafta"
+        + (IsAffordable ? string.Empty : "\nUyarı: bütçe üstü — teklifi düşür veya başka aday seç.");
 }
 
 public sealed record ScoutTransferDigest(
