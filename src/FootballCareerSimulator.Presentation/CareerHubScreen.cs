@@ -358,7 +358,7 @@ public partial class CareerHubScreen : Control
         if (_topContinueButton is not null)
         {
             _topContinueButton.Text = "▶ " + step.ButtonLabel;
-            _topContinueButton.Visible = true;
+            _topContinueButton.Visible = _currentPage != HubPage.Today;
             _topContinueButton.TooltipText = step.ButtonLabel;
         }
 
@@ -787,8 +787,8 @@ public partial class CareerHubScreen : Control
             return;
         }
 
-        var employed = _controller.Host.ManagerModule.Queries.GetCareer().EmployedClubId is not null;
-        var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
+        var employed = _controller.IsManagerEmployed;
+        var windowOpen = _controller.IsTransferWindowOpen;
         var hasPlayer = _selectedPlayerId is > 0;
         _playerDossierSellButton.Visible = employed && hasPlayer;
         _playerDossierSellButton.Disabled = !windowOpen || !hasPlayer;
@@ -826,6 +826,11 @@ public partial class CareerHubScreen : Control
         {
             _pages[i].Visible = i == (int)page;
             CareerUiTheme.StyleSidebarNavButton(_navButtons[i], selected: i == (int)page);
+        }
+
+        if (_topContinueButton is not null)
+        {
+            _topContinueButton.Visible = page != HubPage.Today && _officeNextStepButton.Visible;
         }
 
         var current = _pages[(int)page];
@@ -2162,6 +2167,17 @@ public partial class CareerHubScreen : Control
 
     private void OnPlayMatches()
     {
+        var currentDay = _controller.GetCurrentGameDate().DayNumber;
+        var pending = _controller.GetNextDueManagedFixture(currentDay);
+        if (pending is not null && !pending.IsApproved)
+        {
+            var approveResult = _controller.ApproveDefaultSelectionForNextDueMatch();
+            if (!approveResult.Succeeded)
+            {
+                Apply(approveResult);
+                return;
+            }
+        }
         Callable.From(() => MatchDayRequested?.Invoke()).CallDeferred();
     }
 
@@ -2382,13 +2398,10 @@ public partial class CareerHubScreen : Control
 
     private void RefreshUi()
     {
-        var host = _controller.Host;
-        var world = host.WorldModule;
-        var competition = host.CompetitionModule;
-        var current = world.Queries.GetCurrentGameDate();
-        var season = competition.Queries.GetCurrentSeason();
-        var manager = host.ManagerModule.Queries.GetCareer();
-        var period = world.Queries.GetCurrentPlanningPeriod();
+        var current = _controller.GetCurrentGameDate();
+        var season = _controller.GetCurrentSeason();
+        var manager = _controller.GetManagerCareer();
+        var period = _controller.GetCurrentPlanningPeriod();
 
         _dateLabel.Text = $"{current.Day:D2}.{current.Month:D2}.{current.Year}";
         RefreshClubBranding();
@@ -2450,7 +2463,7 @@ public partial class CareerHubScreen : Control
             RefreshTacticStatus();
             RefreshSquadList();
             RefreshSaveDesk();
-            UpdatePrimaryHints(dueMatchCount: 0, canAdvance: world.Queries.GetTimeAdvanceEligibility().CanAdvance);
+            UpdatePrimaryHints(dueMatchCount: 0, canAdvance: _controller.CanAdvanceTime());
             UpdateJobOfferButtons(manager);
             UpdateTransferNeedButtons(manager);
             UpdateTrainingButtons(manager);
@@ -2460,7 +2473,7 @@ public partial class CareerHubScreen : Control
             return;
         }
 
-        var progress = competition.Queries.GetSeasonProgress(season.SeasonId);
+        var progress = _controller.GetSeasonProgress(season.SeasonId);
         var progressText = progress is null
             ? "İlerleme: —"
             : $"İlerleme: {progress.AcceptedFixtureCount}/{progress.TotalFixtureCount} maç"
@@ -2495,13 +2508,9 @@ public partial class CareerHubScreen : Control
         RefreshSquadList();
         RefreshSaveDesk();
 
-        var dueCount = competition.Queries
-            .GetSeasonFixtures(season.SeasonId)
-            .Count(fixture =>
-                fixture.ScheduledDayNumber <= current.DayNumber
-                && string.Equals(fixture.Status, nameof(FixtureStatus.Planned), StringComparison.Ordinal));
+        var dueCount = _controller.GetDueFixtureCount(season.SeasonId, current.DayNumber);
 
-        UpdatePrimaryHints(dueCount, world.Queries.GetTimeAdvanceEligibility().CanAdvance);
+        UpdatePrimaryHints(dueCount, _controller.CanAdvanceTime());
         UpdateJobOfferButtons(manager);
         UpdateTransferNeedButtons(manager);
         UpdateTrainingButtons(manager);
@@ -2518,13 +2527,13 @@ public partial class CareerHubScreen : Control
             return;
         }
 
-        var decisions = _controller.Host.InteractionModule.Queries.GetPending(take: 5);
+        var decisions = _controller.GetPendingDecisions(take: 5);
         var pendingCount = decisions.OpenCount;
         _navButtons[(int)HubPage.Today].Text = pendingCount > 0 ? $"MERKEZ ({pendingCount})" : "MERKEZ";
 
-        var window = _controller.Host.WorldModule.Queries.GetTransferWindow();
-        var offers = _controller.Host.TransferModule.Queries.GetManagedClubOffers();
-        var proposals = _controller.Host.TransferModule.Queries.GetManagedContractProposals();
+        var window = _controller.GetTransferWindow();
+        var offers = _controller.GetManagedClubOffers();
+        var proposals = _controller.GetManagedContractProposals();
         var transferPending = offers.PendingCount > 0 || proposals.PendingCount > 0;
         _navButtons[(int)HubPage.Transfer].Text = transferPending
             ? "TRANSFER (!)"
@@ -2564,9 +2573,9 @@ public partial class CareerHubScreen : Control
 
     private void RefreshClubBranding()
     {
-        var manager = _controller.Host.ManagerModule.Queries.GetCareer();
+        var manager = _controller.GetManagerCareer();
         var club = manager.EmployedClubId is long clubId
-            ? _controller.Host.ClubModule.Queries.GetClub(clubId)
+            ? _controller.GetClub(clubId)
             : null;
 
         if (club is null)
@@ -2768,8 +2777,8 @@ public partial class CareerHubScreen : Control
     private FirstWeekGuideDigest BuildFirstWeekGuide()
     {
         var preferences = GameExperienceSettingsStore.Current;
-        var timeline = _controller.Host.WorldModule.TimelineStore.Timeline;
-        var startedAt = _controller.Host.ManagerModule.Store.Career.ActiveEmployment?.StartedAt.DayNumber
+        var timeline = _controller.GetTimeline();
+        var startedAt = _controller.GetEmploymentStartedDayNumber()
             ?? timeline.CurrentDate.DayNumber;
         var daysSinceStart = Math.Max(0, timeline.CurrentDate.DayNumber - startedAt);
         return FirstWeekGuideDigest.Compose(
@@ -2838,7 +2847,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshTransferWindowStatus()
     {
-        var window = _controller.Host.WorldModule.Queries.GetTransferWindow();
+        var window = _controller.GetTransferWindow();
         var openText = window.OpenedOnDayNumber is { } openDay
             ? $" · açılış {GameDate.ToDisplayDateString(openDay)}"
             : string.Empty;
@@ -2910,16 +2919,16 @@ public partial class CareerHubScreen : Control
 
     private void RefreshTransferBudgetStatus()
     {
-        var clubId = _controller.Host.ManagerModule.Store.Career.ActiveEmployment?.ClubId;
+        var clubId = _controller.GetEmployedClubId();
         if (clubId is null)
         {
             _transferBudgetLabel.Text = "Transfer bütçesi: işsiz — kayıt yok.";
             return;
         }
 
-        var budget = _controller.Host.ClubModule.TransferBudget.Get(clubId.Value);
-        var day = _controller.Host.WorldModule.TimelineStore.Timeline.CurrentDate;
-        var wage = _controller.Host.ClubModule.WageBudget?.Get(clubId.Value, day);
+        var budget = _controller.GetTransferBudget(clubId.Value);
+        var day = _controller.GetTimeline().CurrentDate;
+        var wage = _controller.GetWageBudget(clubId.Value, day);
         var wageText = wage is null
             ? string.Empty
             : $" · Maaş: kullanılabilir {wage.Available:N0} / limit {wage.Limit:N0}"
@@ -2932,7 +2941,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshClubOfferStatus()
     {
-        var offers = _controller.Host.TransferModule.Queries.GetManagedClubOffers();
+        var offers = _controller.GetManagedClubOffers();
         if (offers.ClubId is null)
         {
             _clubOfferLabel.Text = "Kulüp teklifi: işsiz — kayıt yok.";
@@ -2958,7 +2967,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshContractProposalStatus()
     {
-        var proposals = _controller.Host.TransferModule.Queries.GetManagedContractProposals();
+        var proposals = _controller.GetManagedContractProposals();
         if (proposals.ClubId is null)
         {
             _contractProposalLabel.Text = "Sözleşme teklifi: işsiz — kayıt yok.";
@@ -2986,7 +2995,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshTransferProcessStatus()
     {
-        var view = _controller.Host.TransferModule.Queries.GetManagedClubProcesses();
+        var view = _controller.GetManagedClubProcesses();
         if (view.ClubId is null)
         {
             _transferProcessLabel.Text = "Transfer süreci: işsiz — kayıt yok.";
@@ -3013,13 +3022,11 @@ public partial class CareerHubScreen : Control
 
     private int TransferTension(long processId, int statusCode)
     {
-        var offerRounds = _controller.Host.TransferModule.OfferStore
-            .GetForProcess(new Domain.Transfer.TransferProcessId(processId))
+        var offerRounds = _controller.GetOfferRounds(processId)
             .Select(offer => offer.Round)
             .DefaultIfEmpty(0)
             .Max();
-        var contractRounds = _controller.Host.TransferModule.ProposalStore
-            .GetForProcess(new Domain.Transfer.TransferProcessId(processId))
+        var contractRounds = _controller.GetContractProposalRounds(processId)
             .Select(proposal => proposal.Round)
             .DefaultIfEmpty(0)
             .Max();
@@ -3079,7 +3086,7 @@ public partial class CareerHubScreen : Control
             }
         }
 
-        var view = _controller.Host.TransferModule.Queries.GetManagedClubShortlistTargets();
+        var view = _controller.GetManagedClubShortlistTargets();
         if (view.ClubId is null)
         {
             _shortlistTargetLabel.Text = "Kısa liste/hedef: işsiz — kayıt yok.";
@@ -3102,7 +3109,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshTransferNeedStatus()
     {
-        var needs = _controller.Host.TransferModule.Queries.GetManagedClubNeeds();
+        var needs = _controller.GetManagedClubNeeds();
         if (needs.ClubId is null)
         {
             _transferNeedLabel.Text = "Transfer ihtiyacı: işsiz — kayıt yok.";
@@ -3128,21 +3135,21 @@ public partial class CareerHubScreen : Control
     {
         var employed = string.Equals(manager.EmploymentStatus, "Employed", StringComparison.Ordinal);
         var openCount = employed
-            ? _controller.Host.TransferModule.Queries.GetManagedClubNeeds().OpenCount
+            ? _controller.GetManagedClubNeeds().OpenCount
             : 0;
         var listedCount = employed
-            ? _controller.Host.TransferModule.Queries.GetManagedClubShortlistTargets().ListedTargetCount
+            ? _controller.GetManagedClubShortlistTargets().ListedTargetCount
             : 0;
         _refreshTransferNeedsButton.Disabled = !employed;
         _declareTransferNeedButton.Disabled = !employed;
         _closeTransferNeedButton.Disabled = !employed || openCount == 0;
-        var windowOpen = _controller.Host.WorldModule.Queries.GetTransferWindow().IsOpen;
+        var windowOpen = _controller.IsTransferWindowOpen;
         // Boş pencere: İhtiyaç Tara görünür (D-364); Pozisyon İhtiyacı geliştirici API'sinde kalır.
         _refreshTransferNeedsButton.Visible = employed && windowOpen && openCount == 0;
         _declareTransferNeedButton.Visible = false;
         _closeTransferNeedButton.Visible = !_closeTransferNeedButton.Disabled;
         var activeProcessCount = employed
-            ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveCount
+            ? _controller.GetManagedClubProcesses().ActiveCount
             : 0;
         var selectedScout = _selectedScoutPlayerId is long selectedScoutId
             ? _scoutCandidates.FirstOrDefault(candidate => candidate.PlayerId == selectedScoutId)
@@ -3156,7 +3163,7 @@ public partial class CareerHubScreen : Control
         _suggestTargetButton.Visible = !_suggestTargetButton.Disabled && !nextStepPicksTarget;
         _dropTargetButton.Visible = !_dropTargetButton.Disabled;
         var processes = employed
-            ? _controller.Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+            ? _controller.GetManagedClubProcesses().ActiveProcesses
             : [];
         var pendingSporting = processes.Any(p =>
             p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.SportingApprovalPending);
@@ -3178,7 +3185,7 @@ public partial class CareerHubScreen : Control
             && p.StatusCode is (int)Domain.Transfer.TransferProcessStatus.SportingApproved
                 or (int)Domain.Transfer.TransferProcessStatus.ClubNegotiation);
         var pendingOffers = employed
-            && _controller.Host.TransferModule.Queries.GetManagedClubOffers().PendingCount > 0;
+            && _controller.GetManagedClubOffers().PendingCount > 0;
         _submitClubOfferButton.Disabled = !canSubmitOffer || pendingOffers;
         _acceptClubOfferButton.Disabled = !pendingOffers;
         _rejectClubOfferButton.Disabled = !pendingOffers;
@@ -3194,7 +3201,7 @@ public partial class CareerHubScreen : Control
             || (p.IsFreeAgent
                 && p.StatusCode == (int)Domain.Transfer.TransferProcessStatus.SportingApproved));
         var pendingProposals = employed
-            && _controller.Host.TransferModule.Queries.GetManagedContractProposals().PendingCount > 0;
+            && _controller.GetManagedContractProposals().PendingCount > 0;
         _submitContractProposalButton.Disabled = !canSubmitProposal || pendingProposals;
         _acceptContractProposalButton.Disabled = !pendingProposals;
         _rejectContractProposalButton.Disabled = !pendingProposals;
@@ -3349,8 +3356,8 @@ public partial class CareerHubScreen : Control
 
     private void RefreshTacticStatus()
     {
-        var tactic = _controller.Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
-        if (tactic.ClubId is null)
+        var tactic = _controller.GetManagedClubTacticPlan();
+        if (tactic is null || tactic.ClubId is null)
         {
             _tacticLabel.Text = "Taktik: işsiz — plan yok.";
             RefreshPreparationBriefing();
@@ -3396,33 +3403,33 @@ public partial class CareerHubScreen : Control
             button.Disabled = !employed;
         }
 
-        var tactic = _controller.Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
-        _formation442Button.ButtonPressed = tactic.ClubId is not null && tactic.Formation == Formation.F442;
-        _formation433Button.ButtonPressed = tactic.ClubId is not null && tactic.Formation == Formation.F433;
-        _formation352Button.ButtonPressed = tactic.ClubId is not null && tactic.Formation == Formation.F352;
+        var tactic = _controller.GetManagedClubTacticPlan();
+        _formation442Button.ButtonPressed = tactic is not null && tactic.ClubId is not null && tactic.Formation == Formation.F442;
+        _formation433Button.ButtonPressed = tactic is not null && tactic.ClubId is not null && tactic.Formation == Formation.F433;
+        _formation352Button.ButtonPressed = tactic is not null && tactic.ClubId is not null && tactic.Formation == Formation.F352;
         _approachBalancedButton.ButtonPressed =
-            tactic.ClubId is not null && tactic.Approach == TacticalApproach.Balanced;
+            tactic is not null && tactic.ClubId is not null && tactic.Approach == TacticalApproach.Balanced;
         _approachAttackingButton.ButtonPressed =
-            tactic.ClubId is not null && tactic.Approach == TacticalApproach.Attacking;
+            tactic is not null && tactic.ClubId is not null && tactic.Approach == TacticalApproach.Attacking;
         _approachDefensiveButton.ButtonPressed =
-            tactic.ClubId is not null && tactic.Approach == TacticalApproach.Defensive;
+            tactic is not null && tactic.ClubId is not null && tactic.Approach == TacticalApproach.Defensive;
         _pressingLowButton.ButtonPressed =
-            tactic.ClubId is not null && tactic.Pressing == PressingIntensity.LowBlock;
+            tactic is not null && tactic.ClubId is not null && tactic.Pressing == PressingIntensity.LowBlock;
         _pressingBalancedButton.ButtonPressed =
-            tactic.ClubId is not null && tactic.Pressing == PressingIntensity.Balanced;
+            tactic is not null && tactic.ClubId is not null && tactic.Pressing == PressingIntensity.Balanced;
         _pressingHighButton.ButtonPressed =
-            tactic.ClubId is not null && tactic.Pressing == PressingIntensity.HighPress;
+            tactic is not null && tactic.ClubId is not null && tactic.Pressing == PressingIntensity.HighPress;
         _lineDeepButton.ButtonPressed =
-            tactic.ClubId is not null && tactic.DefensiveLine == DefensiveLine.Deep;
+            tactic is not null && tactic.ClubId is not null && tactic.DefensiveLine == DefensiveLine.Deep;
         _lineStandardButton.ButtonPressed =
-            tactic.ClubId is not null && tactic.DefensiveLine == DefensiveLine.Standard;
+            tactic is not null && tactic.ClubId is not null && tactic.DefensiveLine == DefensiveLine.Standard;
         _lineHighButton.ButtonPressed =
-            tactic.ClubId is not null && tactic.DefensiveLine == DefensiveLine.High;
+            tactic is not null && tactic.ClubId is not null && tactic.DefensiveLine == DefensiveLine.High;
     }
 
     private void RefreshDevelopmentStatus()
     {
-        var development = _controller.Host.PlayerCareerModule.Queries.GetManagedClubSummary();
+        var development = _controller.GetManagedClubDevelopmentSummary();
         if (development.ClubId is null)
         {
             _developmentLabel.Text = "Gelişim: işsiz — kadro profili yok.";
@@ -3447,7 +3454,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshContractStatus()
     {
-        var contracts = _controller.Host.ContractModule.Queries.GetManagedClubSummary();
+        var contracts = _controller.GetManagedClubContractSummary();
         if (contracts.ClubId is null)
         {
             _contractLabel.Text = "Sözleşme: işsiz — kayıt yok.";
@@ -3475,11 +3482,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshMemoryStatus()
     {
-        var manager = _controller.Host.ManagerModule.Queries.GetCareer();
-        var memories = _controller.Host.SocialContinuityModule.Queries.GetActiveForActor(
-            Domain.SocialContinuity.ActorKind.Manager,
-            manager.ManagerId,
-            take: 5);
+        var memories = _controller.GetActiveMemoriesForManager(take: 5);
 
         if (memories.ActiveCount == 0)
         {
@@ -3504,11 +3507,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshPromiseStatus()
     {
-        var manager = _controller.Host.ManagerModule.Queries.GetCareer();
-        var promises = _controller.Host.SocialContinuityModule.PromiseQueries.GetActiveForPromisor(
-            Domain.SocialContinuity.ActorKind.Manager,
-            manager.ManagerId,
-            take: 5);
+        var promises = _controller.GetActivePromisesForManager(take: 5);
 
         if (promises.ActiveCount == 0)
         {
@@ -3527,9 +3526,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshRelationshipStatus()
     {
-        var manager = _controller.Host.ManagerModule.Queries.GetCareer();
-        var relationships = _controller.Host.SocialContinuityModule.RelationshipQueries
-            .GetActiveForManager(manager.ManagerId, take: 5);
+        var relationships = _controller.GetActiveRelationshipsForManager(take: 5);
 
         if (relationships.ActiveCount == 0)
         {
@@ -3548,7 +3545,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshDecisionStatus()
     {
-        var pending = _controller.Host.InteractionModule.Queries.GetPending(take: 5);
+        var pending = _controller.GetPendingDecisions(take: 5);
         var desk = _controller.BuildDecisionDeskDigest();
         _deskLabel.Text = CompactSummary(desk.Headline, desk.SupportingLine ?? string.Empty);
 
@@ -3575,8 +3572,7 @@ public partial class CareerHubScreen : Control
         }
 
         var first = pending.OpenRequests[0];
-        var options = _controller.Host.InteractionModule.DialogueOptions.GetForDecision(
-            new Domain.Interaction.DecisionRequestId(first.DecisionRequestId));
+        var options = _controller.GetDialogueOptionsForDecision(first.DecisionRequestId);
         var grant = options.Options.FirstOrDefault(o =>
             o.OptionCode != Domain.Interaction.DecisionRequest.OptionRefuse
             && o.OptionCode is not (
@@ -3636,8 +3632,7 @@ public partial class CareerHubScreen : Control
         _decisionLabel.Text =
             $"Kararlar: {pending.OpenCount} açık — Karar Masası kartından yanıtla. {desk.SupportingLine}";
 
-        var awaiting = _controller.Host.InteractionModule.DialogueSessionStore.Sessions
-            .Count(s => s.IsAwaitingPlayer);
+        var awaiting = _controller.GetAwaitingDecisionSessionCount();
         if (awaiting > 0)
         {
             _decisionLabel.Text += $" · diyalog:{awaiting}";
@@ -3656,7 +3651,7 @@ public partial class CareerHubScreen : Control
         _acceptOfferButton.Visible = !_acceptOfferButton.Disabled;
 
         var signable = !unemployed
-            && _controller.Host.ContractModule.Queries.GetNextSignableFreeAgentForManagedClub() is not null;
+            && _controller.HasSignableFreeAgent();
         _signFreeAgentButton.Disabled = !signable;
         _signFreeAgentButton.Visible = signable;
 
@@ -3698,9 +3693,8 @@ public partial class CareerHubScreen : Control
         _recoveryPathLabel.Visible = false;
         _recoveryPathLabel.Text = string.Empty;
 
-        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
-        var pending = _controller.Host.TeamPreparationModule.SelectionQueries
-            .GetNextDueManagedFixture(currentDay);
+        var currentDay = _controller.GetCurrentGameDate().DayNumber;
+        var pending = _controller.GetNextDueManagedFixture(currentDay);
         var duePlayable = pending is { IsApproved: true };
         var dueUnapproved = pending is { IsApproved: false };
         var blocker = _controller.BuildTimeAdvanceBlockerDigest();
@@ -3731,9 +3725,8 @@ public partial class CareerHubScreen : Control
 
     private void RefreshSelectionStatus()
     {
-        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
-        var pending = _controller.Host.TeamPreparationModule.SelectionQueries
-            .GetNextDueManagedFixture(currentDay);
+        var currentDay = _controller.GetCurrentGameDate().DayNumber;
+        var pending = _controller.GetNextDueManagedFixture(currentDay);
 
         var briefing = _controller.BuildNextMatchBriefing();
         _briefingLabel.Text = CompactSummary(
@@ -3782,14 +3775,12 @@ public partial class CareerHubScreen : Control
 
     private void UpdatePrimaryHints(int dueMatchCount, bool canAdvance)
     {
-        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
-        var pending = _controller.Host.TeamPreparationModule.SelectionQueries
-            .GetNextDueManagedFixture(currentDay);
+        var currentDay = _controller.GetCurrentGameDate().DayNumber;
+        var pending = _controller.GetNextDueManagedFixture(currentDay);
         var selectionBlocksPlay = pending is not null && !pending.IsApproved;
 
-        _playButton.Disabled = dueMatchCount == 0 || selectionBlocksPlay;
-        var tension = _controller.Host.TeamPreparationModule.PromiseTension
-            .GetForNextDueMatch(currentDay);
+        _playButton.Disabled = dueMatchCount == 0;
+        var tension = _controller.GetPromiseTensionForNextDueMatch(currentDay);
         var atRisk = tension is
         {
             HasTension: true,
@@ -3799,7 +3790,7 @@ public partial class CareerHubScreen : Control
         _playButton.Text = dueMatchCount == 0
             ? "Maç Gününe Git"
             : selectionBlocksPlay
-                ? "Maç Gününe Git (önce kadro)"
+                ? $"✓ Kadro Onayla & Maça Git ({dueMatchCount})"
                 : atRisk
                     ? $"Maç Gününe Git ({dueMatchCount}) · söz riski"
                     : $"Maç Gününe Git ({dueMatchCount})";
@@ -3811,10 +3802,10 @@ public partial class CareerHubScreen : Control
 
         var canTransition = _controller.CanTransitionToNextSeason();
         _seasonTransitionButton.Disabled = !canTransition;
-        var season = _controller.Host.CompetitionModule.Queries.GetCurrentSeason();
+        var season = _controller.GetCurrentSeason();
         var progress = season is null
             ? null
-            : _controller.Host.CompetitionModule.Queries.GetSeasonProgress(season.SeasonId);
+            : _controller.GetSeasonProgress(season.SeasonId);
         _seasonTransitionButton.Text = progress is { CanArchive: true, CanComplete: false }
             ? "Yeni Sezona Geç"
             : "Sezonu Bitir → Yeni Sezon";
@@ -3827,13 +3818,10 @@ public partial class CareerHubScreen : Control
     /// </summary>
     private void SyncTodayActionVisibility()
     {
-        var hasOpenDecision = _controller.Host.InteractionModule.Queries
-            .GetPending(take: 1)
-            .OpenCount > 0;
-        var currentDay = _controller.Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
-        var pendingMatch = _controller.Host.TeamPreparationModule.SelectionQueries
-            .GetNextDueManagedFixture(currentDay);
-        var canAdvance = _controller.Host.WorldModule.Queries.GetTimeAdvanceEligibility().CanAdvance;
+        var hasOpenDecision = _controller.GetPendingDecisions(take: 1).OpenCount > 0;
+        var currentDay = _controller.GetCurrentGameDate().DayNumber;
+        var pendingMatch = _controller.GetNextDueManagedFixture(currentDay);
+        var canAdvance = _controller.CanAdvanceTime();
 
         // Bu eylemlerin tamamı OfficeNextStep tarafından zaten kapsanır.
         _approveSelectionButton.Visible = false;
@@ -3844,7 +3832,7 @@ public partial class CareerHubScreen : Control
         _officeNextStepButton.Visible = _officeNextStepButton.Visible && !hasOpenDecision;
         _playButton.Visible =
             !hasOpenDecision
-            && pendingMatch is { IsApproved: true }
+            && pendingMatch is not null
             && !_officeNextStepButton.Visible;
         _swapSelectionButton.Visible = !hasOpenDecision && pendingMatch is not null;
         _advanceDayButton.Visible =
@@ -3864,7 +3852,7 @@ public partial class CareerHubScreen : Control
         var capacity = _controller.BuildSquadCapacityDigest();
         _squadCapacityLabel.Text = capacity.ToDisplayText();
 
-        var manager = _controller.Host.ManagerModule.Queries.GetCareer();
+        var manager = _controller.GetManagerCareer();
         if (manager.EmployedClubId is not long clubId)
         {
             _squadStatusLabel.Text = "A takım: işsiz — kayıt yok.";
@@ -3875,8 +3863,7 @@ public partial class CareerHubScreen : Control
             return;
         }
 
-        var persisted = _controller.Host.TeamPreparationModule.SquadStore.Get(
-            new Domain.Shared.ClubId(clubId));
+        var persisted = _controller.GetPersistedSquad(clubId);
         var clubName = _controller.GetClubDisplayName(clubId);
         _squadStatusLabel.Text = persisted is null || persisted.Members.Count == 0
             ? "A takım: henüz yok — lig kur / gün ilerle / antrenman ile oluşur."
@@ -4066,14 +4053,14 @@ public partial class CareerHubScreen : Control
     private void RefreshFixtureList()
     {
         _fixtureList.Clear();
-        var season = _controller.Host.CompetitionModule.Queries.GetCurrentSeason();
+        var season = _controller.GetCurrentSeason();
         if (season is null || season.FixtureCount == 0)
         {
             return;
         }
 
         var round = (int)_roundSelector.Value;
-        var fixtures = _controller.Host.CompetitionModule.Queries.GetFixturesByRound(season.SeasonId, round);
+        var fixtures = _controller.GetFixturesByRound(season.SeasonId, round);
 
         foreach (var fixture in fixtures)
         {
@@ -4095,15 +4082,15 @@ public partial class CareerHubScreen : Control
         _managedLeagueStatisticsLabel.Text = statistics.ManagedClubLine;
         _standingsTable.Clear();
 
-        var season = _controller.Host.CompetitionModule.Queries.GetCurrentSeason();
+        var season = _controller.GetCurrentSeason();
         if (season is null || season.FixtureCount == 0)
         {
             ShowEmptyStandings("Henüz fikstür oluşturulmadı");
             return;
         }
 
-        var managedClubId = _controller.Host.ManagerModule.Queries.GetCareer().EmployedClubId;
-        var standings = _controller.Host.CompetitionModule.Queries.GetStandings(season.SeasonId);
+        var managedClubId = _controller.GetEmployedClubId();
+        var standings = _controller.GetStandings(season.SeasonId);
         if (standings.Count == 0)
         {
             ShowEmptyStandings("Henüz puan durumu oluşmadı");

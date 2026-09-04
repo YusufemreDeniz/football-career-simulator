@@ -38,7 +38,7 @@ namespace FootballCareerSimulator.Presentation;
 /// <summary>
 /// Kariyer hub'ının Application komutlarını tek yerden çağırır; UI'ye Türkçe sonuç mesajı döner.
 /// </summary>
-public sealed class CareerSessionController
+public sealed partial class CareerSessionController
 {
     public const long DefaultSeasonId = 1;
 
