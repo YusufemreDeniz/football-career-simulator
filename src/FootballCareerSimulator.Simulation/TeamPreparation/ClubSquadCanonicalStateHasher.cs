@@ -10,7 +10,9 @@ public static class ClubSquadCanonicalStateHasher
         ArgumentNullException.ThrowIfNull(squads);
 
         var builder = new StringBuilder("ClubSquads=");
-        foreach (var squad in squads.OrderBy(s => s.ClubId.Value))
+        foreach (var squad in squads
+                     .Where(squad => squad.Members.Count > 0)
+                     .OrderBy(s => s.ClubId.Value))
         {
             builder.Append("Club=").Append(squad.ClubId.Value).Append(';');
             foreach (var member in squad.Members.OrderBy(m => m.SlotIndex))
