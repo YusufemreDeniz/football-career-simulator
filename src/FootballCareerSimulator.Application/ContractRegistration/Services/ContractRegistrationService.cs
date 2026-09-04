@@ -178,6 +178,39 @@ public sealed class ContractRegistrationService
                 "MVP free-agent resign is only allowed back to the last club (no transfer).");
         }
 
+        return ActivateFreeAgentContract(playerId, clubId, day, contractYears);
+    }
+
+    /// <summary>
+    /// Nüfus tabanı: serbest ajanı (LastClub kısıtı olmadan) ince kadroya bağlar.
+    /// </summary>
+    private FreeAgentResignResult SignFreeAgentForPopulationFloor(
+        PlayerId playerId,
+        ClubId clubId,
+        GameDate day,
+        int contractYears)
+    {
+        if (contractYears < 1 || contractYears > 5)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                "Contract years must be between 1 and 5.");
+        }
+
+        if (_freeAgentStore.Get(playerId) is null)
+        {
+            throw new ContractRegistrationInvariantViolationException(
+                $"Player {playerId.Value} is not a free agent.");
+        }
+
+        return ActivateFreeAgentContract(playerId, clubId, day, contractYears);
+    }
+
+    private FreeAgentResignResult ActivateFreeAgentContract(
+        PlayerId playerId,
+        ClubId clubId,
+        GameDate day,
+        int contractYears)
+    {
         if (GetActiveClub(playerId, day) is not null)
         {
             throw new ContractRegistrationInvariantViolationException(
@@ -252,6 +285,44 @@ public sealed class ContractRegistrationService
                     contractYears: 2);
                 renewed++;
                 affected.Add(item.FreeAgent.LastClubId.Value);
+            }
+        }
+
+        // Transfer / emeklilik sonrası LastClub havuzu yetmezse: açık serbest ajanlarla
+        // tüm kulüpleri oynanabilir tabana çek (XI için en az StartingXiSize korunur).
+        var clubIds = _playerCareerStore.Careers
+            .Where(career => !career.IsRetired)
+            .Select(career => career.OriginClubId.Value)
+            .Concat(_store.Contracts.Select(contract => contract.ClubId.Value))
+            .Distinct()
+            .OrderBy(id => id)
+            .ToArray();
+        foreach (var clubIdValue in clubIds)
+        {
+            var clubId = new ClubId(clubIdValue);
+            var activeContractCount = _store.GetForClub(clubId).Count(contract => contract.IsActiveOn(day));
+            var missing = minimumActiveContractsPerClub - activeContractCount;
+            if (missing <= 0)
+            {
+                continue;
+            }
+
+            var pool = _freeAgentStore.FreeAgents
+                .Select(freeAgent => (
+                    FreeAgent: freeAgent,
+                    Career: _playerCareerStore.Careers.FirstOrDefault(
+                        career => career.Id == freeAgent.PlayerId)))
+                .Where(item => item.Career is { IsRetired: false })
+                .OrderBy(item => item.FreeAgent.LastClubId.Value == clubId.Value ? 0 : 1)
+                .ThenBy(item => item.FreeAgent.PlayerId.Value)
+                .Take(missing)
+                .ToArray();
+
+            foreach (var item in pool)
+            {
+                SignFreeAgentForPopulationFloor(item.FreeAgent.PlayerId, clubId, day, contractYears: 2);
+                renewed++;
+                affected.Add(clubIdValue);
             }
         }
 

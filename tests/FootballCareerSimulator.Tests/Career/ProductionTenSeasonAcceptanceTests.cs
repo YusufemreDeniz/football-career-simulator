@@ -125,6 +125,19 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
                 {
                     ApplyManagedTraining(host);
                     var squad = host.Team.ClubSquad!.SyncFromActiveContracts(active.ClubId, fixtureDay);
+                    if (squad.Members.Count < 18)
+                    {
+                        host.Contracts.Registration.RestorePopulationContinuity(fixtureDay);
+                        squad = host.Team.ClubSquad.SyncFromActiveContracts(active.ClubId, fixtureDay);
+                    }
+
+                    if (squad.Members.Count < MatchSelection.StartingXiSize)
+                    {
+                        throw new InvalidOperationException(
+                            $"Managed club {active.ClubId.Value} still below XI after continuity restore "
+                            + $"({squad.Members.Count}/{MatchSelection.StartingXiSize} on day {fixtureDay.DayNumber}).");
+                    }
+
                     host.Team.SelectionStore.Upsert(MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
                         new FixtureId(fixture.FixtureId),
                         active.ClubId,

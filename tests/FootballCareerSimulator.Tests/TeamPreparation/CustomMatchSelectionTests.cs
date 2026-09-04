@@ -137,7 +137,7 @@ public sealed class CustomMatchSelectionTests
     }
 
     [Fact]
-    public void DefaultSelection_ThrowsWhenFewerThanElevenAvailable()
+    public void DefaultSelection_AllowsEmergencyCallUpWhenOnlyTenHealthy()
     {
         var clubId = new ClubId(1);
         var physical = Enumerable.Range(0, MatchSelection.MaxSquadSlot + 1)
@@ -146,18 +146,44 @@ public sealed class CustomMatchSelectionTests
                 slot => PlayerPhysicalState.CreateRested(clubId, slot)
                     .WithInjury(InjurySeverity.Minor, Day.AddDays(5)));
 
-        // Leave only 10 available.
+        // Leave only 10 available; one injured fills XI as emergency call-up.
         for (var slot = 0; slot < 10; slot++)
         {
             physical[(clubId.Value, slot)] = PlayerPhysicalState.CreateRested(clubId, slot);
         }
 
+        var selection = MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+            new FixtureId(3),
+            clubId,
+            Day,
+            physical);
+        Assert.Equal(MatchSelection.StartingXiSize, selection.StartingSlotIndices.Count);
+    }
+
+    [Fact]
+    public void DefaultSelection_ThrowsWhenSquadSmallerThanEleven()
+    {
+        var clubId = new ClubId(1);
+        var day = Day;
+        var members = Enumerable.Range(0, 10)
+            .Select(slot => SquadMember.Create(
+                new Domain.PlayerCareer.PlayerId(1000 + slot),
+                slot,
+                day))
+            .ToArray();
+        var squad = ClubSquad.Rehydrate(clubId, members);
+        var physical = Enumerable.Range(0, 10)
+            .ToDictionary(
+                slot => (clubId.Value, slot),
+                slot => PlayerPhysicalState.CreateRested(clubId, slot));
+
         Assert.Throws<TeamPreparationInvariantViolationException>(() =>
             MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
                 new FixtureId(3),
                 clubId,
-                Day,
-                physical));
+                day,
+                physical,
+                squad));
     }
 
     [Fact]

@@ -90,7 +90,12 @@ public sealed class AiClubTransferSimulationService
         var managedClubId = _managerCareerStore.Career.ActiveEmployment?.ClubId;
         var candidates = _clubRegistry.Registry.Clubs
             .Where(club => managedClubId is null || club.Id.Value != managedClubId.Value.Value)
-            .OrderBy(club => club.Id.Value)
+            .Select(club => (
+                Club: club,
+                ActiveContracts: _contractStore.GetForClub(club.Id).Count(c => c.IsActiveOn(day))))
+            .OrderBy(item => item.ActiveContracts) // ince kadrolar önce FA / takviye alsın
+            .ThenBy(item => item.Club.Id.Value)
+            .Select(item => item.Club)
             .ToArray();
 
         if (candidates.Length == 0)
@@ -98,7 +103,7 @@ public sealed class AiClubTransferSimulationService
             return new AiClubTransferTickOutcome(0, 0);
         }
 
-        var start = Math.Abs(worldSeed) % candidates.Length;
+        var start = 0;
         var completed = 0;
         var attempted = 0;
 
@@ -155,7 +160,7 @@ public sealed class AiClubTransferSimulationService
         var buyers = _clubRegistry.Registry.Clubs
             .Where(club => club.Id.Value != sellingClubId.Value)
             .Where(club => managedClubId is null || club.Id.Value != managedClubId.Value.Value)
-            .Where(club => HasSquadSpace(club.Id))
+            .Where(club => HasSquadSpace(club.Id, day))
             .Where(club => CanAffordDefaultWage(club.Id, day))
             .Where(club =>
                 _transferBudget is null
@@ -240,7 +245,7 @@ public sealed class AiClubTransferSimulationService
 
     private bool TrySignFreeAgent(ClubId buyingClubId, GameDate day)
     {
-        if (!HasSquadSpace(buyingClubId) || !CanAffordDefaultWage(buyingClubId, day))
+        if (!HasSquadSpace(buyingClubId, day) || !CanAffordDefaultWage(buyingClubId, day))
         {
             return false;
         }
@@ -269,7 +274,7 @@ public sealed class AiClubTransferSimulationService
         int worldSeed,
         ClubId? managedClubId)
     {
-        if (!HasSquadSpace(buyingClubId) || !CanAffordDefaultWage(buyingClubId, day))
+        if (!HasSquadSpace(buyingClubId, day) || !CanAffordDefaultWage(buyingClubId, day))
         {
             return false;
         }
@@ -381,10 +386,11 @@ public sealed class AiClubTransferSimulationService
         }
     }
 
-    private bool HasSquadSpace(ClubId buyingClubId)
+    private bool HasSquadSpace(ClubId buyingClubId, GameDate day)
     {
-        var squadCount = _squadStore.Get(buyingClubId)?.Members.Count ?? 0;
-        return squadCount < ClubSquad.MaxMembers;
+        // Squad store bayat kalabiliyor; aktif sözleşme sayısı kapasiteyi belirler.
+        var contractCount = _contractStore.GetForClub(buyingClubId).Count(c => c.IsActiveOn(day));
+        return contractCount < ClubSquad.MaxMembers;
     }
 
     private bool CanAffordDefaultWage(ClubId buyingClubId, GameDate day) =>

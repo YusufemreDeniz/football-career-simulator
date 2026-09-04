@@ -131,6 +131,12 @@ public sealed class SeasonPlayerLifecycleService
 
         SyncClubs(affectedClubIds, day, transitions);
 
+        // Emekli kariyerlerde takılı aktif sözleşme kalmasın (transfer/nüfus tabanı kenarları).
+        foreach (var retired in _store.Careers.Where(career => career.IsRetired).ToArray())
+        {
+            _contracts.RetirePlayer(retired.Id, day);
+        }
+
         return new SeasonPlayerLifecycleResult(
             agedCount,
             transitions.Length,

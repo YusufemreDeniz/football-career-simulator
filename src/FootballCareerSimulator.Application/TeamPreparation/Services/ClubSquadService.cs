@@ -98,7 +98,9 @@ public sealed class ClubSquadService
     }
 
     public int CountActiveContracts(ClubId clubId, GameDate day) =>
-        _contractStore.GetForClub(clubId).Count(c => c.IsActiveOn(day));
+        _contractStore.GetForClub(clubId)
+            .Count(c => c.IsActiveOn(day)
+                && _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId && !career.IsRetired));
 
     public bool HasFreeSquadCapacity(ClubId clubId, GameDate day) =>
         CountActiveContracts(clubId, day) < ClubSquad.MaxMembers;
@@ -151,11 +153,11 @@ public sealed class ClubSquadService
     }
 
     /// <summary>
-    /// Satış adayı: taşan veya en yüksek slot — ince kadroda (&lt;2) satılmaz.
+    /// Satış adayı: taşan veya en yüksek slot — XI altı kadroda satılmaz.
     /// </summary>
     public long? SuggestSaleCandidatePlayerId(ClubId clubId, GameDate day)
     {
-        const int minSellerActiveContracts = 2;
+        const int minSellerActiveContracts = 18;
         if (CountActiveContracts(clubId, day) < minSellerActiveContracts)
         {
             return null;

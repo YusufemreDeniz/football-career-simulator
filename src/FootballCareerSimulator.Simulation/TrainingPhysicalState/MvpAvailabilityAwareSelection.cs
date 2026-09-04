@@ -87,19 +87,31 @@ public static class MvpAvailabilityAwareSelection
         return true;
     }
 
+    /// <summary>
+    /// İlk 11'de unavailable slot: sağlıklı yedek varken yasak; ince kadroda acil çağrıya izin.
+    /// </summary>
     public static void EnsureStartingXiAvailable(
         ClubId clubId,
         IReadOnlyList<int> startingSlotIndices,
         GameDate day,
-        IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot)
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot,
+        ClubSquad? clubSquad = null)
     {
         ArgumentNullException.ThrowIfNull(startingSlotIndices);
         ArgumentNullException.ThrowIfNull(physicalBySlot);
 
+        var startingSet = startingSlotIndices.ToHashSet();
+        var candidates = ResolveCandidateSlots(clubSquad);
+        var hasHealthyReserve = candidates.Any(slot =>
+            !startingSet.Contains(slot)
+            && !(physicalBySlot.TryGetValue((clubId.Value, slot), out var reserve)
+                 && !reserve.IsAvailableOn(day)));
+
         foreach (var slot in startingSlotIndices)
         {
             if (physicalBySlot.TryGetValue((clubId.Value, slot), out var state)
-                && !state.IsAvailableOn(day))
+                && !state.IsAvailableOn(day)
+                && hasHealthyReserve)
             {
                 throw new TeamPreparationInvariantViolationException(
                     $"Starting XI cannot include unavailable slot {slot}.");
@@ -142,6 +154,17 @@ public static class MvpAvailabilityAwareSelection
         var unavailable = new List<int>();
         PartitionByAvailability(clubId, day, candidateSlots, physicalBySlot, available, unavailable);
 
+        var usedEmergencyCallUp = false;
+        if (available.Count < MatchSelection.StartingXiSize && unavailable.Count > 0)
+        {
+            // İnce kadro: yedek yoksa sakat/uygunsuz oyuncuyu acil çağrı olarak XI'ye al.
+            var need = MatchSelection.StartingXiSize - available.Count;
+            var emergency = unavailable.Take(need).ToArray();
+            available.AddRange(emergency);
+            unavailable.RemoveRange(0, emergency.Length);
+            usedEmergencyCallUp = emergency.Length > 0;
+        }
+
         if (available.Count < MatchSelection.StartingXiSize)
         {
             throw new TeamPreparationInvariantViolationException(
@@ -157,7 +180,11 @@ public static class MvpAvailabilityAwareSelection
             .Take(MatchSelection.MaxBenchSize)
             .ToArray();
 
-        EnsureStartingXiAvailable(clubId, starting, day, physicalBySlot);
+        if (!usedEmergencyCallUp)
+        {
+            EnsureStartingXiAvailable(clubId, starting, day, physicalBySlot);
+        }
+
         return MatchSelection.Approve(fixtureId, clubId, starting, bench, clubSquad);
     }
 

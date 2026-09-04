@@ -549,7 +549,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                     clubId,
                     selection.StartingSlotIndices,
                     day,
-                    _trainingStore.PhysicalBySlot);
+                    _trainingStore.PhysicalBySlot,
+                    _clubSquadStore?.Get(clubId));
             }
 
             return MvpSquadStrengthCalculator.ComputeLineupBonus(
