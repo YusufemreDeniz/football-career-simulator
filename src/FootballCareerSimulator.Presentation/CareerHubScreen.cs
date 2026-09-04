@@ -2138,8 +2138,19 @@ public partial class CareerHubScreen : Control
         Regex.Replace(InternalIdentifierPattern.Replace(text, string.Empty), @"[ ]{2,}", " ").Trim();
 
     private static string CompactOfficeText(
-        Application.Competition.Queries.PostMatchOfficeDigest digest) =>
-        CompactSummary(digest.Headline, digest.AdviceLine);
+        Application.Competition.Queries.PostMatchOfficeDigest digest)
+    {
+        var body = string.IsNullOrWhiteSpace(digest.AdviceLine)
+            ? digest.Headline
+            : $"{digest.Headline}\n{digest.AdviceLine}";
+        if (digest.BeatLines.Count > 0)
+        {
+            var beats = string.Join(" · ", digest.BeatLines.Take(2));
+            body = $"{body}\n{beats}";
+        }
+
+        return CompactText(body, maxLines: 3, maxCharacters: 300);
+    }
 
     private static string CompactOfficeText(
         Application.CareerHub.Queries.CareerResumeDigest digest) =>
@@ -2364,9 +2375,38 @@ public partial class CareerHubScreen : Control
         var selected = _selectedPlayerId is long playerId
             ? _playerManagementPlayers.FirstOrDefault(player => player.PlayerId == playerId)
             : null;
-        _playerDetailLabel.Text = selected is null
-            ? "Oyuncu dosyası için isme dokun."
-            : $"{selected.DisplayName} seçili — dosya için tekrar dokun.";
+
+        if (selected is null)
+        {
+            _playerDetailLabel.Text = "Oyuncu dosyası için listeden isme dokun.";
+            _playerDetailLabel.TooltipText = string.Empty;
+        }
+        else
+        {
+            // Ana satır: kritik istatistikler tek bakışta görünür
+            var fitness = selected.Fitness switch
+            {
+                >= 85 => "💪",
+                >= 60 => "🟡",
+                _ => "🔴"
+            };
+            var relIcon = selected.RelationshipState switch
+            {
+                "Güçlü" => "🟢",
+                "Kırılgan" => "🔴",
+                _ => "⚪"
+            };
+            var availability = selected.Availability == "Hazır" ? string.Empty : $" · ⚠ {selected.Availability}";
+            var promiseFlag = selected.PromiseSummary == "aktif söz yok" ? string.Empty : " · 🤝 söz";
+            _playerDetailLabel.Text =
+                $"{selected.DisplayName} · {selected.PositionCode} · GÜÇ {selected.Rating}"
+                + $" · {fitness} Fit %{selected.Fitness}"
+                + $" · {relIcon} {selected.RelationshipState}"
+                + availability
+                + promiseFlag
+                + " — dosya için tekrar dokun.";
+            _playerDetailLabel.TooltipText = selected.ToDetailText();
+        }
 
         var disabled = selected is null;
         _promiseStartButton.Disabled = disabled;
@@ -3683,8 +3723,11 @@ public partial class CareerHubScreen : Control
     private void RefreshTodayPulse()
     {
         var pulse = _controller.BuildTodayPulse();
-        var pulseDetail = pulse.PulseLines.FirstOrDefault();
-        _pulseLabel.Text = CompactSummary(pulse.Headline, pulseDetail ?? string.Empty);
+        var pulseLines = pulse.PulseLines.Take(2).ToArray();
+        var pulseSupport = pulseLines.Length > 0
+            ? string.Join(" · ", pulseLines)
+            : string.Empty;
+        _pulseLabel.Text = CompactSummary(pulse.Headline, pulseSupport);
         var weekStory = _controller.BuildWeekStory();
         var weekMood = _controller.BuildWeekMood(weekStoryActive: weekStory.IsActive);
         _weekStoryLabel.Visible = false;
