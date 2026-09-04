@@ -8,8 +8,8 @@ using FootballCareerSimulator.Simulation.TeamPreparation;
 namespace FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 /// <summary>
-/// Varsayılan XI: uygun slotları öne alır; sakatları yedek/dışarıda bırakır.
-/// İlk 11'de unavailable slot kabul edilmez.
+/// Varsayılan XI: uygun slotları öne alır; sakatları XI ve yedekten dışarıda bırakır.
+/// Unavailable oyuncu hiçbir normal production seçiminde yer alamaz.
 /// </summary>
 public static class MvpAvailabilityAwareSelection
 {
@@ -88,7 +88,7 @@ public static class MvpAvailabilityAwareSelection
     }
 
     /// <summary>
-    /// İlk 11'de unavailable slot: sağlıklı yedek varken yasak; ince kadroda acil çağrıya izin.
+    /// İlk 11'de unavailable slot kabul edilmez.
     /// </summary>
     public static void EnsureStartingXiAvailable(
         ClubId clubId,
@@ -99,22 +99,35 @@ public static class MvpAvailabilityAwareSelection
     {
         ArgumentNullException.ThrowIfNull(startingSlotIndices);
         ArgumentNullException.ThrowIfNull(physicalBySlot);
-
-        var startingSet = startingSlotIndices.ToHashSet();
-        var candidates = ResolveCandidateSlots(clubSquad);
-        var hasHealthyReserve = candidates.Any(slot =>
-            !startingSet.Contains(slot)
-            && !(physicalBySlot.TryGetValue((clubId.Value, slot), out var reserve)
-                 && !reserve.IsAvailableOn(day)));
+        _ = clubSquad;
 
         foreach (var slot in startingSlotIndices)
         {
             if (physicalBySlot.TryGetValue((clubId.Value, slot), out var state)
-                && !state.IsAvailableOn(day)
-                && hasHealthyReserve)
+                && !state.IsAvailableOn(day))
             {
                 throw new TeamPreparationInvariantViolationException(
                     $"Starting XI cannot include unavailable slot {slot}.");
+            }
+        }
+    }
+
+    public static void EnsureBenchAvailable(
+        ClubId clubId,
+        IReadOnlyList<int> benchSlotIndices,
+        GameDate day,
+        IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState> physicalBySlot)
+    {
+        ArgumentNullException.ThrowIfNull(benchSlotIndices);
+        ArgumentNullException.ThrowIfNull(physicalBySlot);
+
+        foreach (var slot in benchSlotIndices)
+        {
+            if (physicalBySlot.TryGetValue((clubId.Value, slot), out var state)
+                && !state.IsAvailableOn(day))
+            {
+                throw new TeamPreparationInvariantViolationException(
+                    $"Bench cannot include unavailable slot {slot}.");
             }
         }
     }
@@ -154,17 +167,6 @@ public static class MvpAvailabilityAwareSelection
         var unavailable = new List<int>();
         PartitionByAvailability(clubId, day, candidateSlots, physicalBySlot, available, unavailable);
 
-        var usedEmergencyCallUp = false;
-        if (available.Count < MatchSelection.StartingXiSize && unavailable.Count > 0)
-        {
-            // İnce kadro: yedek yoksa sakat/uygunsuz oyuncuyu acil çağrı olarak XI'ye al.
-            var need = MatchSelection.StartingXiSize - available.Count;
-            var emergency = unavailable.Take(need).ToArray();
-            available.AddRange(emergency);
-            unavailable.RemoveRange(0, emergency.Length);
-            usedEmergencyCallUp = emergency.Length > 0;
-        }
-
         if (available.Count < MatchSelection.StartingXiSize)
         {
             throw new TeamPreparationInvariantViolationException(
@@ -174,17 +176,14 @@ public static class MvpAvailabilityAwareSelection
         }
 
         var starting = SelectBalancedStartingSlots(clubId, available);
+        // Sakat/unavailable oyuncu bench'e de alınmaz.
         var bench = available
             .Where(slot => !starting.Contains(slot))
-            .Concat(unavailable)
             .Take(MatchSelection.MaxBenchSize)
             .ToArray();
 
-        if (!usedEmergencyCallUp)
-        {
-            EnsureStartingXiAvailable(clubId, starting, day, physicalBySlot);
-        }
-
+        EnsureStartingXiAvailable(clubId, starting, day, physicalBySlot, clubSquad);
+        EnsureBenchAvailable(clubId, bench, day, physicalBySlot);
         return MatchSelection.Approve(fixtureId, clubId, starting, bench, clubSquad);
     }
 
@@ -247,13 +246,13 @@ public static class MvpAvailabilityAwareSelection
         var bench = previousBenchSlotIndices
             .Concat(previousStartingSlotIndices)
             .Concat(available)
-            .Concat(unavailable)
-            .Where(slot => candidateSet.Contains(slot) && !used.Contains(slot))
+            .Where(slot => candidateSet.Contains(slot) && !used.Contains(slot) && availableSet.Contains(slot))
             .Distinct()
             .Take(MatchSelection.MaxBenchSize)
             .ToArray();
 
-        EnsureStartingXiAvailable(clubId, starting, day, physicalBySlot);
+        EnsureStartingXiAvailable(clubId, starting, day, physicalBySlot, clubSquad);
+        EnsureBenchAvailable(clubId, bench, day, physicalBySlot);
         return MatchSelection.Approve(fixtureId, clubId, starting, bench, clubSquad);
     }
 
@@ -364,6 +363,7 @@ public static class MvpAvailabilityAwareSelection
         if (physicalBySlot is not null)
         {
             EnsureStartingXiAvailable(selection.ClubId, starting, day, physicalBySlot);
+            EnsureBenchAvailable(selection.ClubId, bench, day, physicalBySlot);
         }
 
         return MatchSelection.Approve(

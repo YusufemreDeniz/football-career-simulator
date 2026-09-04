@@ -157,7 +157,7 @@ public sealed class ClubSquadService
     /// </summary>
     public long? SuggestSaleCandidatePlayerId(ClubId clubId, GameDate day)
     {
-        const int minSellerActiveContracts = 18;
+        const int minSellerActiveContracts = ClubSquad.MinimumPlayableContracts + 1;
         if (CountActiveContracts(clubId, day) < minSellerActiveContracts)
         {
             return null;

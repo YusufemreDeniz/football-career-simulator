@@ -137,7 +137,7 @@ public sealed class CustomMatchSelectionTests
     }
 
     [Fact]
-    public void DefaultSelection_AllowsEmergencyCallUpWhenOnlyTenHealthy()
+    public void DefaultSelection_ThrowsWhenFewerThanElevenAvailable()
     {
         var clubId = new ClubId(1);
         var physical = Enumerable.Range(0, MatchSelection.MaxSquadSlot + 1)
@@ -146,18 +146,18 @@ public sealed class CustomMatchSelectionTests
                 slot => PlayerPhysicalState.CreateRested(clubId, slot)
                     .WithInjury(InjurySeverity.Minor, Day.AddDays(5)));
 
-        // Leave only 10 available; one injured fills XI as emergency call-up.
+        // Leave only 10 available — sakatlar emergency ile XI'ye alınmaz.
         for (var slot = 0; slot < 10; slot++)
         {
             physical[(clubId.Value, slot)] = PlayerPhysicalState.CreateRested(clubId, slot);
         }
 
-        var selection = MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
-            new FixtureId(3),
-            clubId,
-            Day,
-            physical);
-        Assert.Equal(MatchSelection.StartingXiSize, selection.StartingSlotIndices.Count);
+        Assert.Throws<TeamPreparationInvariantViolationException>(() =>
+            MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+                new FixtureId(3),
+                clubId,
+                Day,
+                physical));
     }
 
     [Fact]
@@ -184,6 +184,27 @@ public sealed class CustomMatchSelectionTests
                 day,
                 physical,
                 squad));
+    }
+
+    [Fact]
+    public void DefaultSelection_NeverPlacesUnavailableOnBench()
+    {
+        var clubId = new ClubId(1);
+        var physical = Enumerable.Range(0, MatchSelection.MaxSquadSlot + 1)
+            .ToDictionary(
+                slot => (clubId.Value, slot),
+                slot => PlayerPhysicalState.CreateRested(clubId, slot));
+        physical[(clubId.Value, 20)] = PlayerPhysicalState.CreateRested(clubId, 20)
+            .WithInjury(InjurySeverity.Minor, Day.AddDays(5));
+
+        var selection = MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+            new FixtureId(3),
+            clubId,
+            Day,
+            physical);
+
+        Assert.DoesNotContain(20, selection.StartingSlotIndices);
+        Assert.DoesNotContain(20, selection.BenchSlotIndices);
     }
 
     [Fact]

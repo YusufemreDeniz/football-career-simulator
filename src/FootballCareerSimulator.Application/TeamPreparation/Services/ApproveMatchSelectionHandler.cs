@@ -49,11 +49,18 @@ public sealed class ApproveMatchSelectionHandler : ICommandIdempotencyReset
         var clubSquad = _squadStore?.Get(clubId);
         if (_trainingStore is not null && _timelineStore is not null)
         {
+            var day = _timelineStore.Timeline.CurrentDate;
+            var physical = _trainingStore.PhysicalBySlot;
             MvpAvailabilityAwareSelection.EnsureStartingXiAvailable(
                 clubId,
                 command.StartingSlotIndices,
-                _timelineStore.Timeline.CurrentDate,
-                _trainingStore.PhysicalBySlot);
+                day,
+                physical);
+            MvpAvailabilityAwareSelection.EnsureBenchAvailable(
+                clubId,
+                command.BenchSlotIndices,
+                day,
+                physical);
         }
 
         var selection = MatchSelection.Approve(

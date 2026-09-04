@@ -156,20 +156,34 @@ public sealed class SeasonPlayerLifecycleService
         {
             var clubId = new ClubId(clubIdValue);
             _contracts.EnsureClubContracts(clubId, day);
-            _squads.SyncFromActiveContracts(clubId, day);
+            var squad = _squads.SyncFromActiveContracts(clubId, day);
 
-            var physicalBySlot = _training.PhysicalStates
-                .Where(state => state.ClubId == clubId)
-                .ToDictionary(state => state.SlotIndex);
             foreach (var transition in transitions.Where(item => item.Retired.OriginClubId == clubId))
             {
-                physicalBySlot[transition.Retired.SlotIndex] =
-                    PlayerPhysicalState.CreateRested(clubId, transition.Retired.SlotIndex);
+                _training.RemovePhysical(transition.Retired.Id);
+                _training.UpsertPhysical(
+                    PlayerPhysicalState.CreateRested(
+                        transition.Successor.Id,
+                        clubId,
+                        transition.Successor.SlotIndex));
             }
 
-            _training.ReplacePhysicalStatesForClub(clubId, physicalBySlot.Values);
+            foreach (var member in squad.Members)
+            {
+                var existing = _training.GetPhysical(member.PlayerId);
+                if (existing is null)
+                {
+                    _training.UpsertPhysical(
+                        PlayerPhysicalState.CreateRested(member.PlayerId, clubId, member.SlotIndex));
+                }
+                else if (!existing.HasLocation
+                    || existing.ClubId != clubId
+                    || existing.SlotIndex != member.SlotIndex)
+                {
+                    _training.UpsertPhysical(existing.WithLocation(clubId, member.SlotIndex));
+                }
+            }
         }
-
     }
 }
 

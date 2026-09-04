@@ -22,9 +22,8 @@ public sealed class AiClubTransferSimulationService
     public const int DefaultWeeklyWage = 15_000;
     public const int DefaultContractYears = 2;
     public const int DefaultClubTransferFee = 500_000;
-    // Bir satıştan sonra en az 18 kişilik maç kadrosu kalsın. Uzun kariyerde
-    // kulüplerin art arda AI satışlarıyla ilk 11 kuramayacak kadar incelmesini önler.
-    public const int MinSellerActiveContracts = 19;
+    // Bir satıştan sonra en az MinimumPlayableContracts kalsın.
+    public const int MinSellerActiveContracts = ClubSquad.MinimumPlayableContracts + 1;
 
     private readonly IClubRegistryStore _clubRegistry;
     private readonly IManagerCareerStore _managerCareerStore;

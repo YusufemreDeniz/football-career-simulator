@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Domain.ContractRegistration;
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.ContractRegistration;
 
@@ -242,7 +243,7 @@ public sealed class ContractRegistrationService
     public ContractPopulationContinuityResult RestorePopulationContinuity(
         GameDate day,
         int retainedFreeAgentsPerClub = 2,
-        int minimumActiveContractsPerClub = 18)
+        int minimumActiveContractsPerClub = ClubSquad.MinimumPlayableContracts)
     {
         if (retainedFreeAgentsPerClub < 0)
         {

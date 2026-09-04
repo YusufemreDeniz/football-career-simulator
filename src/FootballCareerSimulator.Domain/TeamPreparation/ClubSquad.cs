@@ -11,6 +11,12 @@ public sealed class ClubSquad
 {
     public const int MaxMembers = MatchSelection.MaxSquadSlot - MatchSelection.MinSquadSlot + 1;
 
+    /// <summary>
+    /// Oynanabilir taban: XI + tam yedek. AI satış ve nüfus sürekliliği bu eşiği korur.
+    /// </summary>
+    public const int MinimumPlayableContracts =
+        MatchSelection.StartingXiSize + MatchSelection.MaxBenchSize;
+
     private ClubSquad(ClubId clubId, IReadOnlyList<SquadMember> members)
     {
         ClubId = clubId;
