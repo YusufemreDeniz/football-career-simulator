@@ -245,7 +245,7 @@ public sealed class TrainingPhysicalStateTests : IDisposable
         var occupied = Enumerable.Range(0, 18).ToArray();
         var afterWeek = occupied
             .Select(slot => PlayerPhysicalState.CreateRested(clubId, slot))
-            .ToDictionary(state => (clubId.Value, state.SlotIndex));
+            .ToDictionary(state => (clubId.Value, state.SlotIndex!.Value));
 
         for (var dayOffset = 0; dayOffset < 7; dayOffset++)
         {
@@ -256,7 +256,7 @@ public sealed class TrainingPhysicalStateTests : IDisposable
                 rootSeed: 42,
                 afterWeek,
                 occupied);
-            afterWeek = next.ToDictionary(state => (clubId.Value, state.SlotIndex));
+            afterWeek = next.ToDictionary(state => (clubId.Value, state.SlotIndex!.Value));
         }
 
         Assert.True(afterWeek.Values.Average(state => state.Fatigue) > PlayerPhysicalState.DefaultFatigue);
@@ -304,7 +304,7 @@ public sealed class TrainingPhysicalStateTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(48, loaded.SchemaVersion);
+        Assert.Equal(49, loaded.SchemaVersion);
         Assert.Single(loaded.TrainingPlans);
         Assert.Equal(TrainingIntensity.Medium, loaded.TrainingPlans[0].Intensity);
         Assert.Equal(25, loaded.PhysicalStates.Count);

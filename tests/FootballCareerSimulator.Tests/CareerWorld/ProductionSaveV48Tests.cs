@@ -41,7 +41,7 @@ public sealed class ProductionSaveV48Tests : IDisposable
         var (path, clubId, startingSlots, benchSlots) = SaveCareerWithTemplate();
 
         var loaded = new CareerSqlitePersistence().Load(path);
-        Assert.Equal(48, loaded.SchemaVersion);
+        Assert.Equal(49, loaded.SchemaVersion);
         Assert.False(loaded.WasMigrated);
         Assert.Equal(StartingBackground.TacticalSpecialist, loaded.ManagerCareer.StartingBackground);
         Assert.Equal("Aylin Kaya", loaded.ManagerCareer.DisplayName);
@@ -59,7 +59,7 @@ public sealed class ProductionSaveV48Tests : IDisposable
 
         var loaded = new CareerSqlitePersistence().Load(path);
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(48, loaded.SchemaVersion);
+        Assert.Equal(49, loaded.SchemaVersion);
         Assert.Equal(StartingBackground.TacticalSpecialist, loaded.ManagerCareer.StartingBackground);
         Assert.Equal("StartBackground:TacticalSpecialist", loaded.ManagerCareer.LastReputationReasonCode);
         Assert.Empty(loaded.LineupTemplates ?? []);

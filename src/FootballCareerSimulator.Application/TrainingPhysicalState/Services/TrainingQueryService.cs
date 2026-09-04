@@ -50,9 +50,9 @@ public sealed class TrainingQueryService
             _timelineStore.Timeline.RootSeed);
         var injuredNames = injuredStates
             .Select(state =>
-                state.SlotIndex >= 0 && state.SlotIndex < names.Count
-                    ? names[state.SlotIndex]
-                    : $"Oyuncu #{state.SlotIndex + 1}")
+                state.SlotIndex is int slot && slot >= 0 && slot < names.Count
+                    ? names[slot]
+                    : $"Oyuncu #{state.PlayerId.Value}")
             .Take(4)
             .ToArray();
 

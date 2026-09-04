@@ -532,6 +532,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 48;
         }
 
+        if (version == 48 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 49)
+        {
+            WorldCalendarSqliteMigrator.MigrateV48ToV49InPlace(filePath);
+            wasMigrated = true;
+            version = 49;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -705,13 +712,17 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
 
         ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
             CREATE TABLE PlayerPhysicalState (
-                ClubId INTEGER NOT NULL,
-                SlotIndex INTEGER NOT NULL,
+                PlayerId INTEGER PRIMARY KEY,
+                ClubId INTEGER NULL,
+                SlotIndex INTEGER NULL,
                 Fatigue INTEGER NOT NULL,
                 Fitness INTEGER NOT NULL,
                 InjurySeverity INTEGER NOT NULL,
                 InjuredUntilDayNumber INTEGER NULL,
-                PRIMARY KEY (ClubId, SlotIndex)
+                MatchMinutesLast7Days INTEGER NOT NULL DEFAULT 0,
+                MatchMinutesLast14Days INTEGER NOT NULL DEFAULT 0,
+                LastMatchDayNumber INTEGER NULL,
+                LastInjuryReasonCode TEXT NULL
             );
             """);
 
@@ -1407,17 +1418,33 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             command.Transaction = transaction;
             command.CommandText = """
                 INSERT INTO PlayerPhysicalState (
-                    ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity, InjuredUntilDayNumber)
-                VALUES ($clubId, $slotIndex, $fatigue, $fitness, $injurySeverity, $injuredUntil);
+                    PlayerId, ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity, InjuredUntilDayNumber,
+                    MatchMinutesLast7Days, MatchMinutesLast14Days, LastMatchDayNumber, LastInjuryReasonCode)
+                VALUES (
+                    $playerId, $clubId, $slotIndex, $fatigue, $fitness, $injurySeverity, $injuredUntil,
+                    $m7, $m14, $lastMatch, $reason);
                 """;
-            command.Parameters.AddWithValue("$clubId", state.ClubId.Value);
-            command.Parameters.AddWithValue("$slotIndex", state.SlotIndex);
+            command.Parameters.AddWithValue("$playerId", state.PlayerId.Value);
+            command.Parameters.AddWithValue(
+                "$clubId",
+                state.ClubId is { } club ? club.Value : DBNull.Value);
+            command.Parameters.AddWithValue(
+                "$slotIndex",
+                state.SlotIndex is int slot ? slot : DBNull.Value);
             command.Parameters.AddWithValue("$fatigue", state.Fatigue);
             command.Parameters.AddWithValue("$fitness", state.Fitness);
             command.Parameters.AddWithValue("$injurySeverity", (int)state.InjurySeverity);
             command.Parameters.AddWithValue(
                 "$injuredUntil",
                 state.InjuredUntilDayNumber is int until ? until : DBNull.Value);
+            command.Parameters.AddWithValue("$m7", state.MatchMinutesLast7Days);
+            command.Parameters.AddWithValue("$m14", state.MatchMinutesLast14Days);
+            command.Parameters.AddWithValue(
+                "$lastMatch",
+                state.LastMatchDayNumber is int lastMatch ? lastMatch : DBNull.Value);
+            command.Parameters.AddWithValue(
+                "$reason",
+                state.LastInjuryReasonCode is { } reason ? reason : DBNull.Value);
             command.ExecuteNonQuery();
         }
     }
@@ -2836,29 +2863,51 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             return Array.Empty<PlayerPhysicalState>();
         }
 
+        var hasPlayerId = ColumnExists(connection, "PlayerPhysicalState", "PlayerId");
         var states = new List<PlayerPhysicalState>();
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity, InjuredUntilDayNumber
-            FROM PlayerPhysicalState
-            ORDER BY ClubId, SlotIndex;
-            """;
+        command.CommandText = hasPlayerId
+            ? """
+                SELECT PlayerId, ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity, InjuredUntilDayNumber,
+                       MatchMinutesLast7Days, MatchMinutesLast14Days, LastMatchDayNumber, LastInjuryReasonCode
+                FROM PlayerPhysicalState
+                ORDER BY PlayerId;
+                """
+            : """
+                SELECT ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity, InjuredUntilDayNumber
+                FROM PlayerPhysicalState
+                ORDER BY ClubId, SlotIndex;
+                """;
         using var reader = command.ExecuteReader();
         while (reader.Read())
         {
-            var injurySeverity = reader.FieldCount > 4
-                ? (InjurySeverity)reader.GetInt32(4)
-                : InjurySeverity.None;
-            int? injuredUntil = reader.FieldCount > 5 && !reader.IsDBNull(5)
-                ? reader.GetInt32(5)
-                : null;
-            states.Add(PlayerPhysicalState.Rehydrate(
-                new ClubId(reader.GetInt64(0)),
-                reader.GetInt32(1),
-                reader.GetInt32(2),
-                reader.GetInt32(3),
-                injurySeverity,
-                injuredUntil));
+            if (hasPlayerId)
+            {
+                ClubId? clubId = reader.IsDBNull(1) ? null : new ClubId(reader.GetInt64(1));
+                int? slotIndex = reader.IsDBNull(2) ? null : reader.GetInt32(2);
+                states.Add(PlayerPhysicalState.Rehydrate(
+                    new Domain.PlayerCareer.PlayerId(reader.GetInt64(0)),
+                    clubId,
+                    slotIndex,
+                    reader.GetInt32(3),
+                    reader.GetInt32(4),
+                    (InjurySeverity)reader.GetInt32(5),
+                    reader.IsDBNull(6) ? null : reader.GetInt32(6),
+                    reader.IsDBNull(7) ? 0 : reader.GetInt32(7),
+                    reader.IsDBNull(8) ? 0 : reader.GetInt32(8),
+                    reader.IsDBNull(9) ? null : reader.GetInt32(9),
+                    reader.IsDBNull(10) ? null : reader.GetString(10)));
+            }
+            else
+            {
+                states.Add(PlayerPhysicalState.Rehydrate(
+                    new ClubId(reader.GetInt64(0)),
+                    reader.GetInt32(1),
+                    reader.GetInt32(2),
+                    reader.GetInt32(3),
+                    (InjurySeverity)reader.GetInt32(4),
+                    reader.IsDBNull(5) ? null : reader.GetInt32(5)));
+            }
         }
 
         return states;

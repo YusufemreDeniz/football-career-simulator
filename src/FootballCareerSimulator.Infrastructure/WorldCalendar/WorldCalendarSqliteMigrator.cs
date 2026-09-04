@@ -2949,6 +2949,124 @@ internal static class WorldCalendarSqliteMigrator
         transaction.Commit();
     }
 
+    public static void MigrateV48ToV49InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+        try
+        {
+            MigrateV48ToV49(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V48 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    private static void MigrateV48ToV49(string workingCopyPath)
+    {
+        using var connection = OpenMigrationConnection(workingCopyPath);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        if (TableExists(connection, "PlayerPhysicalState")
+            && !ColumnExists(connection, "PlayerPhysicalState", "PlayerId"))
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+                ALTER TABLE PlayerPhysicalState RENAME TO PlayerPhysicalState_V48;
+                CREATE TABLE PlayerPhysicalState (
+                    PlayerId INTEGER PRIMARY KEY,
+                    ClubId INTEGER NULL,
+                    SlotIndex INTEGER NULL,
+                    Fatigue INTEGER NOT NULL,
+                    Fitness INTEGER NOT NULL,
+                    InjurySeverity INTEGER NOT NULL,
+                    InjuredUntilDayNumber INTEGER NULL,
+                    MatchMinutesLast7Days INTEGER NOT NULL DEFAULT 0,
+                    MatchMinutesLast14Days INTEGER NOT NULL DEFAULT 0,
+                    LastMatchDayNumber INTEGER NULL,
+                    LastInjuryReasonCode TEXT NULL
+                );
+                """);
+
+            // Squad üyesi varsa PlayerId oradan; yoksa FromClubSlot sentetik kimlik.
+            if (TableExists(connection, "ClubSquadMemberState"))
+            {
+                ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+                    INSERT OR REPLACE INTO PlayerPhysicalState (
+                        PlayerId, ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity, InjuredUntilDayNumber,
+                        MatchMinutesLast7Days, MatchMinutesLast14Days, LastMatchDayNumber, LastInjuryReasonCode)
+                    SELECT
+                        COALESCE(m.PlayerId, (old.ClubId * 1000) + old.SlotIndex + 1) AS PlayerId,
+                        old.ClubId,
+                        old.SlotIndex,
+                        old.Fatigue,
+                        old.Fitness,
+                        old.InjurySeverity,
+                        old.InjuredUntilDayNumber,
+                        0, 0, NULL, NULL
+                    FROM PlayerPhysicalState_V48 old
+                    LEFT JOIN ClubSquadMemberState m
+                        ON m.ClubId = old.ClubId AND m.SlotIndex = old.SlotIndex;
+                    """);
+            }
+            else
+            {
+                ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+                    INSERT OR REPLACE INTO PlayerPhysicalState (
+                        PlayerId, ClubId, SlotIndex, Fatigue, Fitness, InjurySeverity, InjuredUntilDayNumber,
+                        MatchMinutesLast7Days, MatchMinutesLast14Days, LastMatchDayNumber, LastInjuryReasonCode)
+                    SELECT
+                        (old.ClubId * 1000) + old.SlotIndex + 1,
+                        old.ClubId,
+                        old.SlotIndex,
+                        old.Fatigue,
+                        old.Fitness,
+                        old.InjurySeverity,
+                        old.InjuredUntilDayNumber,
+                        0, 0, NULL, NULL
+                    FROM PlayerPhysicalState_V48 old;
+                    """);
+            }
+
+            ProductionSqliteCommands.ExecuteNonQuery(
+                connection,
+                transaction,
+                "DROP TABLE PlayerPhysicalState_V48;");
+        }
+        else if (TableExists(connection, "PlayerPhysicalState")
+                 && ColumnExists(connection, "PlayerPhysicalState", "PlayerId")
+                 && !ColumnExists(connection, "PlayerPhysicalState", "MatchMinutesLast7Days"))
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+                ALTER TABLE PlayerPhysicalState ADD COLUMN MatchMinutesLast7Days INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE PlayerPhysicalState ADD COLUMN MatchMinutesLast14Days INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE PlayerPhysicalState ADD COLUMN LastMatchDayNumber INTEGER NULL;
+                ALTER TABLE PlayerPhysicalState ADD COLUMN LastInjuryReasonCode TEXT NULL;
+                """);
+        }
+
+        ProductionSqliteCommands.ExecuteNonQuery(
+            connection,
+            transaction,
+            "UPDATE ProductionSaveManifest SET SchemaVersion = 49;");
+        transaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

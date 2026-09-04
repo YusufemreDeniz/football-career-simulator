@@ -117,12 +117,11 @@ public sealed class TransferCompletionService
         _promiseInvalidation?.InvalidateForPlayerLeaving(process.PlayerId, day);
         _relationships?.MarkDormantForPlayerLeaving(process.PlayerId, day);
 
-        var carriedPhysical = CapturePhysicalBeforeSquadSync(process);
         var clubIds = process.SellingClubId is { } selling
             ? new[] { process.BuyingClubId.Value, selling.Value }
             : new[] { process.BuyingClubId.Value };
         _clubSquad.SyncClubs(clubIds, day);
-        RemountPhysicalAfterTransfer(process, carriedPhysical);
+        RelocatePhysicalAfterTransfer(process);
 
         process = Persist(process.MarkCompleted(day));
         _transferMemory?.RecordCompleted(process, day, ResolveInvolvedManager(process));
@@ -219,42 +218,11 @@ public sealed class TransferCompletionService
             actor,
             "Only the employed manager of the buying club can complete a transfer.");
 
-    private (ClubId ClubId, int SlotIndex, PlayerPhysicalState State)? CapturePhysicalBeforeSquadSync(
-        TransferProcess process)
-    {
-        if (_trainingStore is null || _squadStore is null || process.SellingClubId is not { } selling)
-        {
-            return null;
-        }
-
-        var member = _squadStore.Get(selling)?.Members.FirstOrDefault(m => m.PlayerId == process.PlayerId);
-        if (member is null)
-        {
-            return null;
-        }
-
-        var state = _trainingStore.GetPhysical(selling, member.SlotIndex);
-        return state is null ? null : (selling, member.SlotIndex, state);
-    }
-
-    private void RemountPhysicalAfterTransfer(
-        TransferProcess process,
-        (ClubId ClubId, int SlotIndex, PlayerPhysicalState State)? carried)
+    private void RelocatePhysicalAfterTransfer(TransferProcess process)
     {
         if (_trainingStore is null || _squadStore is null)
         {
             return;
-        }
-
-        if (carried is { } left)
-        {
-            var sellerStates = _trainingStore.PhysicalStates
-                .Where(state => state.ClubId == left.ClubId)
-                .Select(state => state.SlotIndex == left.SlotIndex
-                    ? PlayerPhysicalState.CreateRested(left.ClubId, left.SlotIndex)
-                    : state)
-                .ToArray();
-            _trainingStore.ReplacePhysicalStatesForClub(left.ClubId, sellerStates);
         }
 
         var buyerMember = _squadStore.Get(process.BuyingClubId)?
@@ -264,13 +232,9 @@ public sealed class TransferCompletionService
             return;
         }
 
-        var remounted = carried is { } source
-            ? source.State.Relocate(process.BuyingClubId, buyerMember.SlotIndex)
-            : PlayerPhysicalState.CreateRested(process.BuyingClubId, buyerMember.SlotIndex);
-        var buyerStates = _trainingStore.PhysicalStates
-            .Where(state => state.ClubId == process.BuyingClubId && state.SlotIndex != buyerMember.SlotIndex)
-            .Append(remounted)
-            .ToArray();
-        _trainingStore.ReplacePhysicalStatesForClub(process.BuyingClubId, buyerStates);
+        var existing = _trainingStore.GetPhysical(process.PlayerId)
+            ?? PlayerPhysicalState.CreateRested(process.PlayerId);
+        _trainingStore.UpsertPhysical(
+            existing.WithLocation(process.BuyingClubId, buyerMember.SlotIndex));
     }
 }

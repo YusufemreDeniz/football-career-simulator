@@ -5,13 +5,16 @@ using FootballCareerSimulator.Simulation;
 namespace FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 /// <summary>
-/// Deterministik sakatlık riski. Risk birikimli yorgunluk + yükten gelir; zar yalnız tetikleyicidir.
+/// Deterministik sakatlık riski. Risk birikimli yorgunluk + maç yükünden gelir.
 /// </summary>
 public static class MvpInjuryRiskEvaluator
 {
-    public static int ComputeTrainingRiskPercent(int fatigue, TrainingIntensity intensity)
+    public static int ComputeTrainingRiskPercent(
+        PlayerPhysicalState state,
+        TrainingIntensity intensity)
     {
-        // Haftalık plan seçiminde değil günlük tick'te kullanılır; taban kasıtlı düşük tutulur.
+        ArgumentNullException.ThrowIfNull(state);
+
         var baseRisk = intensity switch
         {
             TrainingIntensity.Low => 1,
@@ -20,15 +23,37 @@ public static class MvpInjuryRiskEvaluator
             _ => 2,
         };
 
-        var fatigueBonus = Math.Max(0, fatigue - 50) / 4;
-        return Math.Clamp(baseRisk + fatigueBonus, 0, 18);
+        var fatigueBonus = Math.Max(0, state.Fatigue - 50) / 4;
+        var workloadBonus = state.MatchMinutesLast7Days switch
+        {
+            >= 270 => 6,
+            >= 180 => 4,
+            >= 90 => 2,
+            _ => 0,
+        };
+        var returnBonus = string.Equals(
+            state.LastInjuryReasonCode,
+            PlayerPhysicalState.ReasonReturnFromInjury,
+            StringComparison.Ordinal)
+            ? 3
+            : 0;
+
+        return Math.Clamp(baseRisk + fatigueBonus + workloadBonus + returnBonus, 0, 28);
     }
 
-    public static int ComputeDailyTrainingRiskPercent(int fatigue, TrainingIntensity intensity) =>
-        Math.Max(0, (int)Math.Round(ComputeTrainingRiskPercent(fatigue, intensity) / 7.0, MidpointRounding.AwayFromZero));
+    public static int ComputeDailyTrainingRiskPercent(
+        PlayerPhysicalState state,
+        TrainingIntensity intensity) =>
+        Math.Max(
+            0,
+            (int)Math.Round(
+                ComputeTrainingRiskPercent(state, intensity) / (double)MvpTrainingLoadApplier.TrainingLoadDaysPerWeek,
+                MidpointRounding.AwayFromZero));
 
-    public static int ComputeMatchRiskPercent(int fatigue, int minutesPlayed)
+    public static int ComputeMatchRiskPercent(PlayerPhysicalState state, int minutesPlayed, GameDate day)
     {
+        ArgumentNullException.ThrowIfNull(state);
+
         var minutesFactor = minutesPlayed switch
         {
             >= 80 => 2,
@@ -38,7 +63,25 @@ public static class MvpInjuryRiskEvaluator
             _ => -1,
         };
 
-        return Math.Clamp(1 + Math.Max(0, fatigue - 55) / 5 + minutesFactor, 0, 14);
+        var workloadBonus = state.MatchMinutesLast7Days switch
+        {
+            >= 270 => 5,
+            >= 180 => 3,
+            >= 90 => 1,
+            _ => 0,
+        };
+        var congestionBonus = state.HasCongestedFixture(day) ? 3 : 0;
+        var returnBonus = string.Equals(
+            state.LastInjuryReasonCode,
+            PlayerPhysicalState.ReasonReturnFromInjury,
+            StringComparison.Ordinal)
+            ? 2
+            : 0;
+
+        return Math.Clamp(
+            1 + Math.Max(0, state.Fatigue - 55) / 5 + minutesFactor + workloadBonus + congestionBonus + returnBonus,
+            0,
+            22);
     }
 
     public static bool ShouldInjure(int riskPercent, int roll0To99) =>
@@ -93,6 +136,21 @@ public static class MvpInjuryRiskEvaluator
             _ => 0,
         };
 
+    public static string ResolveTrainingInjuryReason(PlayerPhysicalState state, TrainingIntensity intensity) =>
+        state.MatchMinutesLast7Days >= 180 || intensity == TrainingIntensity.High
+            ? PlayerPhysicalState.ReasonAccumulatedWorkload
+            : PlayerPhysicalState.ReasonTrainingLoad;
+
+    public static string ResolveMatchInjuryReason(PlayerPhysicalState state, GameDate day) =>
+        state.HasCongestedFixture(day) || state.MatchMinutesLast7Days >= 180
+            ? PlayerPhysicalState.ReasonAccumulatedWorkload
+            : string.Equals(
+                state.LastInjuryReasonCode,
+                PlayerPhysicalState.ReasonReturnFromInjury,
+                StringComparison.Ordinal)
+                ? PlayerPhysicalState.ReasonReturnFromInjury
+                : PlayerPhysicalState.ReasonMatchLoad;
+
     public static PlayerPhysicalState MaybeInjureFromTraining(
         PlayerPhysicalState state,
         WeeklyTrainingPlan plan,
@@ -110,17 +168,20 @@ public static class MvpInjuryRiskEvaluator
         }
 
         var risk = dailyTick
-            ? ComputeDailyTrainingRiskPercent(state.Fatigue, plan.Intensity)
-            : ComputeTrainingRiskPercent(state.Fatigue, plan.Intensity);
+            ? ComputeDailyTrainingRiskPercent(state, plan.Intensity)
+            : ComputeTrainingRiskPercent(state, plan.Intensity);
         var salt = dailyTick ? 703 : 701;
-        var roll = Roll(rootSeed, state.ClubId.Value, state.SlotIndex, day.DayNumber, salt);
+        var roll = Roll(rootSeed, state.PlayerId.Value, day.DayNumber, salt);
         if (!ShouldInjure(risk, roll))
         {
             return state;
         }
 
         var severity = ResolveSeverity(roll, risk);
-        return state.WithInjury(severity, day.AddDays(DaysOut(severity, roll)));
+        return state.WithInjury(
+            severity,
+            day.AddDays(DaysOut(severity, roll)),
+            ResolveTrainingInjuryReason(state, plan.Intensity));
     }
 
     public static PlayerPhysicalState MaybeInjureFromMatch(
@@ -139,15 +200,17 @@ public static class MvpInjuryRiskEvaluator
             return state;
         }
 
-        var afterMatch = state.WithLevels(
-            Math.Clamp(
-                state.Fatigue + MatchFatigueGain(minutesPlayed),
-                PlayerPhysicalState.MinLevel,
-                PlayerPhysicalState.MaxLevel),
-            Math.Clamp(
-                state.Fitness - MatchFitnessLoss(minutesPlayed),
-                PlayerPhysicalState.MinLevel,
-                PlayerPhysicalState.MaxLevel));
+        var afterMatch = state
+            .WithLevels(
+                Math.Clamp(
+                    state.Fatigue + MatchFatigueGain(minutesPlayed),
+                    PlayerPhysicalState.MinLevel,
+                    PlayerPhysicalState.MaxLevel),
+                Math.Clamp(
+                    state.Fitness - MatchFitnessLoss(minutesPlayed),
+                    PlayerPhysicalState.MinLevel,
+                    PlayerPhysicalState.MaxLevel))
+            .RecordMatchMinutes(day, minutesPlayed);
 
         if (minutesPlayed <= 0)
         {
@@ -155,13 +218,12 @@ public static class MvpInjuryRiskEvaluator
         }
 
         var risk = Math.Clamp(
-            ComputeMatchRiskPercent(afterMatch.Fatigue, minutesPlayed) + riskBonusPercent,
+            ComputeMatchRiskPercent(afterMatch, minutesPlayed, day) + riskBonusPercent,
             0,
-            25);
+            28);
         var roll = Roll(
             rootSeed,
-            state.ClubId.Value,
-            state.SlotIndex,
+            state.PlayerId.Value,
             day.DayNumber,
             salt: unchecked((int)fixtureId) ^ 909);
         if (!ShouldInjure(risk, roll))
@@ -170,13 +232,16 @@ public static class MvpInjuryRiskEvaluator
         }
 
         var severity = ResolveSeverity(roll, risk);
-        return afterMatch.WithInjury(severity, day.AddDays(DaysOut(severity, roll)));
+        return afterMatch.WithInjury(
+            severity,
+            day.AddDays(DaysOut(severity, roll)),
+            ResolveMatchInjuryReason(afterMatch, day));
     }
 
-    private static int Roll(int rootSeed, long clubId, int slotIndex, int dayNumber, int salt)
+    private static int Roll(int rootSeed, long playerId, int dayNumber, int salt)
     {
         var rng = new SimulationRandomContext(
-            unchecked(rootSeed * 911) ^ ((int)clubId * 47) ^ (slotIndex * 131) ^ (dayNumber * 17) ^ salt);
+            unchecked(rootSeed * 911) ^ ((int)playerId * 47) ^ (dayNumber * 17) ^ salt);
         return rng.NextInt(0, 100);
     }
 }

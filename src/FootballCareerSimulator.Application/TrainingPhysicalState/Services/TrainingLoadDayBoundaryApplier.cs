@@ -1,11 +1,14 @@
+using FootballCareerSimulator.Application.Competition.Ports;
 using FootballCareerSimulator.Application.EventRuleEvaluation.Reactions;
 using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.WorldCalendar.Ports;
+using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.EventRuleEvaluation;
 using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
@@ -22,6 +25,7 @@ public sealed class TrainingLoadDayBoundaryApplier
     private readonly ITrainingPhysicalStateStore _store;
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly IClubSquadStore? _squadStore;
+    private readonly ILeagueCompetitionStore? _competitionStore;
     private readonly EventEffectIdempotencyGate _gate;
     private readonly IWorldTimelineStore _timelineStore;
 
@@ -30,7 +34,8 @@ public sealed class TrainingLoadDayBoundaryApplier
         IManagerCareerStore managerCareerStore,
         IWorldTimelineStore timelineStore,
         EventEffectIdempotencyGate gate,
-        IClubSquadStore? squadStore = null)
+        IClubSquadStore? squadStore = null,
+        ILeagueCompetitionStore? competitionStore = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _managerCareerStore = managerCareerStore
@@ -38,6 +43,7 @@ public sealed class TrainingLoadDayBoundaryApplier
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _gate = gate ?? throw new ArgumentNullException(nameof(gate));
         _squadStore = squadStore;
+        _competitionStore = competitionStore;
     }
 
     public int ApplyFromReactions(IReadOnlyList<ReactionIntent> intents)
@@ -86,20 +92,43 @@ public sealed class TrainingLoadDayBoundaryApplier
             return 0;
         }
 
-        IReadOnlyList<int>? occupied = null;
         var squad = _squadStore?.Get(clubId);
-        if (squad is { Members.Count: > 0 })
+        IReadOnlyList<(Domain.PlayerCareer.PlayerId PlayerId, int SlotIndex)> members =
+            squad is { Members.Count: > 0 }
+                ? squad.Members.Select(member => (member.PlayerId, member.SlotIndex)).ToArray()
+                : Array.Empty<(Domain.PlayerCareer.PlayerId, int)>();
+
+        if (members.Count == 0)
         {
-            occupied = squad.Members.Select(member => member.SlotIndex).ToArray();
+            return 0;
         }
 
-        var next = MvpTrainingLoadApplier.ApplyDailyTick(
+        var next = MvpTrainingLoadApplier.ApplyDailyTickToMembers(
             plan,
             day,
             rootSeed,
-            _store.PhysicalBySlot,
-            occupied);
-        _store.ReplacePhysicalStatesForClub(clubId, next);
+            members,
+            _store.PhysicalByPlayerId,
+            isMatchDay: ClubHasMatchOn(clubId, day));
+        foreach (var state in next)
+        {
+            _store.UpsertPhysical(state);
+        }
+
         return next.Count;
+    }
+
+    private bool ClubHasMatchOn(ClubId clubId, GameDate day)
+    {
+        var season = _competitionStore?.League.CurrentSeason;
+        if (season is null)
+        {
+            return false;
+        }
+
+        return season.Fixtures.Any(fixture =>
+            fixture.ScheduledDate.DayNumber == day.DayNumber
+            && fixture.Status is FixtureStatus.Planned
+            && (fixture.HomeClubId == clubId || fixture.AwayClubId == clubId));
     }
 }

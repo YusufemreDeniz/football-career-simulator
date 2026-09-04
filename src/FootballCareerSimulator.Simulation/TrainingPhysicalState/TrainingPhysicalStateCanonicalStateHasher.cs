@@ -24,16 +24,17 @@ public static class TrainingPhysicalStateCanonicalStateHasher
         }
 
         builder.Append("Physical=");
-        foreach (var state in physicalStates
-                     .OrderBy(s => s.ClubId.Value)
-                     .ThenBy(s => s.SlotIndex))
+        foreach (var state in physicalStates.OrderBy(s => s.PlayerId.Value))
         {
-            builder.Append("C=").Append(state.ClubId.Value)
-                .Append(";S=").Append(state.SlotIndex)
+            builder.Append("P=").Append(state.PlayerId.Value)
+                .Append(";C=").Append(state.ClubId?.Value.ToString() ?? "-")
+                .Append(";S=").Append(state.SlotIndex?.ToString() ?? "-")
                 .Append(";Fat=").Append(state.Fatigue)
                 .Append(";Fit=").Append(state.Fitness)
                 .Append(";Inj=").Append((int)state.InjurySeverity)
                 .Append(";Until=").Append(state.InjuredUntilDayNumber?.ToString() ?? "-")
+                .Append(";M7=").Append(state.MatchMinutesLast7Days)
+                .Append(";M14=").Append(state.MatchMinutesLast14Days)
                 .Append('|');
         }
 

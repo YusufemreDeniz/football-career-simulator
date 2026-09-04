@@ -276,7 +276,8 @@ public sealed class CareerPresentationHost
                 managerModule.Store,
                 worldModule.TimelineStore,
                 eventRuleForBind.Gate,
-                teamPreparation.SquadStore));
+                teamPreparation.SquadStore,
+                competitionStore));
 
         var competitionModule = CompetitionModule.CreateForCareerFromStore(
             competitionStore,

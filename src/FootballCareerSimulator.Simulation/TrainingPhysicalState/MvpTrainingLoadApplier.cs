@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
@@ -6,18 +7,33 @@ using FootballCareerSimulator.Domain.WorldCalendar;
 namespace FootballCareerSimulator.Simulation.TrainingPhysicalState;
 
 /// <summary>
-/// Haftalık planı günlük tick olarak uygular; boş/ghost slotlara yük basmaz.
+/// Haftalık planı antrenman günlerinde uygular; maç günü yükü basmaz; ghost slot yok.
 /// </summary>
 public static class MvpTrainingLoadApplier
 {
-    public const int TrainingDaysPerWeek = 7;
+    /// <summary>Haftada antrenman günü sayısı (maç günü + dinlenme günü ayrı).</summary>
+    public const int TrainingLoadDaysPerWeek = 5;
+
+    /// <summary>Geriye uyum alias.</summary>
+    public const int TrainingDaysPerWeek = TrainingLoadDaysPerWeek;
+
+    /// <summary>
+    /// Haftanın her takvim günü antrenman günü değildir: Pzt–Cum yük; Cmt–Paz dinlenme.
+    /// Maç günü ayrıca düşük yük uygular.
+    /// </summary>
+    public static bool IsCalendarTrainingDay(GameDate day)
+    {
+        var dow = DateOnly.FromDayNumber(day.DayNumber).DayOfWeek;
+        return dow is not DayOfWeek.Saturday and not DayOfWeek.Sunday;
+    }
 
     public static IReadOnlyList<PlayerPhysicalState> ApplyDailyTick(
         WeeklyTrainingPlan plan,
         GameDate day,
         int rootSeed,
         IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerPhysicalState>? existing = null,
-        IReadOnlyList<int>? occupiedSlots = null)
+        IReadOnlyList<int>? occupiedSlots = null,
+        bool isMatchDay = false)
     {
         ArgumentNullException.ThrowIfNull(plan);
 
@@ -36,6 +52,12 @@ public static class MvpTrainingLoadApplier
                 continue;
             }
 
+            if (isMatchDay || !IsCalendarTrainingDay(day))
+            {
+                states.Add(ApplyRestOrMatchDayRecovery(current, plan, isMatchDay));
+                continue;
+            }
+
             var loaded = ApplyDailyToPlayer(current, plan);
             states.Add(
                 MvpInjuryRiskEvaluator.MaybeInjureFromTraining(
@@ -47,6 +69,82 @@ public static class MvpTrainingLoadApplier
         }
 
         return MergeWithPreservedSlots(plan.ClubId, states, existing, slots);
+    }
+
+    /// <summary>
+    /// PlayerId tabanlı günlük tick — squad üyeleri üzerinden.
+    /// </summary>
+    public static IReadOnlyList<PlayerPhysicalState> ApplyDailyTickToMembers(
+        WeeklyTrainingPlan plan,
+        GameDate day,
+        int rootSeed,
+        IReadOnlyList<(PlayerId PlayerId, int SlotIndex)> members,
+        IReadOnlyDictionary<long, PlayerPhysicalState>? existingByPlayer = null,
+        bool isMatchDay = false)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(members);
+
+        var result = new List<PlayerPhysicalState>(members.Count);
+        foreach (var member in members)
+        {
+            var current = existingByPlayer is not null
+                && existingByPlayer.TryGetValue(member.PlayerId.Value, out var prior)
+                    ? prior.RecoverIfDue(day).WithLocation(plan.ClubId, member.SlotIndex)
+                    : PlayerPhysicalState.CreateRested(member.PlayerId, plan.ClubId, member.SlotIndex);
+
+            if (!current.IsAvailableOn(day))
+            {
+                result.Add(current);
+                continue;
+            }
+
+            if (isMatchDay || !IsCalendarTrainingDay(day))
+            {
+                result.Add(ApplyRestOrMatchDayRecovery(current, plan, isMatchDay));
+                continue;
+            }
+
+            var loaded = ApplyDailyToPlayer(current, plan);
+            result.Add(
+                MvpInjuryRiskEvaluator.MaybeInjureFromTraining(
+                    loaded,
+                    plan,
+                    rootSeed,
+                    day,
+                    dailyTick: true));
+        }
+
+        return result;
+    }
+
+    /// <summary>Maç günü veya hafta sonu: antrenman sakatlığı yok; dinlenme/toparlanma.</summary>
+    public static PlayerPhysicalState ApplyRestOrMatchDayRecovery(
+        PlayerPhysicalState current,
+        WeeklyTrainingPlan plan,
+        bool isMatchDay)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(plan);
+
+        var fatigueRelief = isMatchDay
+            ? 1
+            : plan.RestApproach switch
+            {
+                RestApproach.Light => 2,
+                RestApproach.Normal => 4,
+                RestApproach.Heavy => 8,
+                _ => 4,
+            };
+        if (!isMatchDay && plan.Focus == TrainingFocus.Recovery)
+        {
+            fatigueRelief += 2;
+        }
+
+        var fitnessBump = !isMatchDay && plan.RestApproach == RestApproach.Heavy ? 1 : 0;
+        return current.WithLevels(
+            Math.Clamp(current.Fatigue - fatigueRelief, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel),
+            Math.Clamp(current.Fitness + fitnessBump, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel));
     }
 
     /// <summary>
@@ -140,7 +238,8 @@ public static class MvpTrainingLoadApplier
         return physicalBySlot.Values
             .Where(state => state.ClubId == clubId)
             .Select(state => state.RecoverIfDue(day))
-            .OrderBy(state => state.SlotIndex)
+            .OrderBy(state => state.SlotIndex ?? int.MaxValue)
+            .ThenBy(state => state.PlayerId.Value)
             .ToArray();
     }
 
@@ -172,8 +271,8 @@ public static class MvpTrainingLoadApplier
                 fatigue += 2;
                 break;
             case TrainingFocus.Recovery:
-                fatigue -= 6;
-                fitness += 2;
+                fatigue -= 8;
+                fitness += 3;
                 break;
             case TrainingFocus.Tactical:
                 fitness += 3;
@@ -188,7 +287,7 @@ public static class MvpTrainingLoadApplier
     }
 
     private static int DivideAcrossWeek(int weeklyDelta) =>
-        (int)Math.Round(weeklyDelta / (double)TrainingDaysPerWeek, MidpointRounding.AwayFromZero);
+        (int)Math.Round(weeklyDelta / (double)TrainingLoadDaysPerWeek, MidpointRounding.AwayFromZero);
 
     private static IReadOnlyList<int> ResolveOccupiedSlots(IReadOnlyList<int>? occupiedSlots)
     {
@@ -214,14 +313,17 @@ public static class MvpTrainingLoadApplier
         IReadOnlyList<int> touchedSlots)
     {
         var touched = touchedSlots.ToHashSet();
-        var bySlot = updated.ToDictionary(state => state.SlotIndex);
+        var bySlot = updated
+            .Where(state => state.SlotIndex is int)
+            .ToDictionary(state => state.SlotIndex!.Value);
         if (existing is not null)
         {
-            foreach (var state in existing.Values.Where(s => s.ClubId == clubId))
+            foreach (var state in existing.Values.Where(s => s.ClubId == clubId && s.SlotIndex is int))
             {
-                if (!touched.Contains(state.SlotIndex))
+                var slot = state.SlotIndex!.Value;
+                if (!touched.Contains(slot))
                 {
-                    bySlot[state.SlotIndex] = state;
+                    bySlot[slot] = state;
                 }
             }
         }
