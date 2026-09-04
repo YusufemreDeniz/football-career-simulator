@@ -26,6 +26,14 @@ public sealed record PlayerManagementLine(
     int Fitness,
     int Fatigue,
     string Availability,
+    bool IsInjured,
+    string FatigueRiskBand,
+    bool HasFatigueRisk,
+    bool HasPromiseRisk,
+    int MatchMinutesLast7Days,
+    int DaysSinceLastMatch,
+    string? InjuryReasonCode,
+    string? WorkloadHint,
     int? WeeklyWage,
     string ContractEnd,
     int? Trust,
@@ -36,7 +44,7 @@ public sealed record PlayerManagementLine(
     string CausalitySummary)
 {
     public string ToListLabel() =>
-        $"{SquadNumber}. {DisplayName} · {PositionCode} · GÜÇ {Rating} · {PlayerPhysicalState.FatigueBandLabel(Fatigue)}"
+        $"{SquadNumber}. {DisplayName} · {PositionCode} · GÜÇ {Rating} · {FatigueRiskBand}"
         + (Availability == "Hazır" ? string.Empty : $" · {Availability.ToUpperInvariant()}");
 
     public string ToSaleLabel() => $"{DisplayName} ({PositionCode} · GÜÇ {Rating})";
@@ -50,9 +58,16 @@ public sealed record PlayerManagementLine(
             ? $"Güven {trust} · saygı {respect} · uyum {compatibility}"
             : "Henüz bireysel ilişki kaydı yok";
 
+        var workload = WorkloadHint is null ? string.Empty : $"\nYük: {WorkloadHint}";
+        var injuryReason = InjuryReasonCode is null
+            ? string.Empty
+            : $"\nSakatlık nedeni: {InjuryReasonLabel(InjuryReasonCode)}";
         return $"{DisplayName} · {PositionName} ({PositionCode})\n"
             + $"Yaş {Age} · CA {CurrentAbility} / PA {PotentialAbility} · {CareerPhase}\n"
-            + $"Kondisyon: {PlayerPhysicalState.FatigueBandLabel(Fatigue)} · fitness %{Fitness} · {Availability}\n"
+            + $"Kondisyon: {FatigueRiskBand} · fitness %{Fitness} · {Availability}"
+            + workload
+            + injuryReason
+            + "\n"
             + $"{contract}\n"
             + $"İlişki: {RelationshipState} · {relationship}\n"
             + $"Sözler: {PromiseSummary}\n"
@@ -68,17 +83,34 @@ public sealed record PlayerManagementLine(
             ? $"Güven {trust} · saygı {respect} · uyum {compatibility}"
             : "Henüz bireysel ilişki kaydı yok";
 
+        var workload = WorkloadHint is null ? string.Empty : $"Yük: {WorkloadHint}\n";
+        var injuryReason = InjuryReasonCode is null
+            ? string.Empty
+            : $"Sakatlık nedeni: {InjuryReasonLabel(InjuryReasonCode)}\n";
         return $"{PositionName} · {PositionCode}\n"
             + $"Güç {Rating} · yaş {Age} · {CareerPhase}\n"
             + $"Yetenek {CurrentAbility} / potansiyel {PotentialAbility}\n"
-            + $"Kondisyon: {PlayerPhysicalState.FatigueBandLabel(Fatigue)}\n"
+            + $"Kondisyon: {FatigueRiskBand}\n"
             + $"Fitness %{Fitness} · yorgunluk %{Fatigue}\n"
-            + $"Durum: {Availability}\n\n"
+            + $"Durum: {Availability}\n"
+            + workload
+            + injuryReason
+            + "\n"
             + $"{contract}\n\n"
             + $"İlişki: {RelationshipState}\n{relationship}\n\n"
             + $"Sözler: {PromiseSummary}\n"
             + $"Not: {CausalitySummary}";
     }
+
+    private static string InjuryReasonLabel(string code) => code switch
+    {
+        PlayerPhysicalState.ReasonTrainingLoad => "Antrenman yükü",
+        PlayerPhysicalState.ReasonMatchLoad => "Maç yükü",
+        PlayerPhysicalState.ReasonAccumulatedWorkload => "Birikimli iş yükü",
+        PlayerPhysicalState.ReasonReturnFromInjury => "Sakatlıktan dönüş",
+        PlayerPhysicalState.ReasonUnexpected => "Beklenmedik / temas",
+        _ => code,
+    };
 }
 
 public sealed record PlayerManagementDigest(
@@ -157,6 +189,13 @@ public sealed record PlayerManagementDigest(
                     .ThenByDescending(candidate => candidate.MemoryId.Value)
                     .ToArray();
 
+                var band = PlayerPhysicalState.FatigueBandLabel(physical.Fatigue);
+                var promiseLabel = PromiseLabel(activePromises);
+                var hasPromiseRisk = promiseLabel.Contains("risk", StringComparison.OrdinalIgnoreCase)
+                    || promiseLabel.Contains("bozul", StringComparison.OrdinalIgnoreCase)
+                    || RelationshipLabel(relationship).Contains("Kırılgan", StringComparison.Ordinal);
+                var workloadHint = BuildWorkloadHint(physical, day);
+
                 return new PlayerManagementLine(
                     playerId.Value,
                     slot,
@@ -172,13 +211,22 @@ public sealed record PlayerManagementDigest(
                     physical.Fitness,
                     physical.Fatigue,
                     AvailabilityLabel(physical, day),
+                    !physical.IsAvailableOn(day),
+                    band,
+                    physical.Fatigue >= 65
+                        || band is "Yüksek Risk" or "Çok Yorgun",
+                    hasPromiseRisk,
+                    physical.MatchMinutesLast7Days,
+                    physical.DaysSinceLastMatch(day),
+                    physical.LastInjuryReasonCode,
+                    workloadHint,
                     contract?.WeeklyWage,
                     contract is null ? "—" : $"{contract.EndDate.Year:D4}-{contract.EndDate.Month:D2}-{contract.EndDate.Day:D2}",
                     relationship?.Trust,
                     relationship?.Respect,
                     relationship?.ProfessionalCompatibility,
                     RelationshipLabel(relationship),
-                    PromiseLabel(activePromises),
+                    promiseLabel,
                     CausalityLabel(relationship, playerPromises, playerMemories));
             })
             .ToArray();
@@ -209,6 +257,32 @@ public sealed record PlayerManagementDigest(
         return physical.Fatigue >= 65 || physical.Fitness < 55
             ? PlayerPhysicalState.FatigueBandLabel(physical.Fatigue)
             : "Hazır";
+    }
+
+    private static string? BuildWorkloadHint(PlayerPhysicalState physical, GameDate day)
+    {
+        var parts = new List<string>();
+        if (physical.MatchMinutesLast7Days > 0)
+        {
+            parts.Add($"Son 7 günde {physical.MatchMinutesLast7Days} dk");
+        }
+
+        if (physical.MatchMinutesLast14Days >= 270)
+        {
+            parts.Add($"Son 14 günde {physical.MatchMinutesLast14Days} dk");
+        }
+
+        if (physical.HasCongestedFixture(day))
+        {
+            parts.Add($"{physical.DaysSinceLastMatch(day)} günde ikinci maç");
+        }
+
+        if (physical.Fatigue >= 65)
+        {
+            parts.Add("Yüksek yorgunluk birikimi");
+        }
+
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
     }
 
     private static string RelationshipLabel(RelationshipRecord? relationship)

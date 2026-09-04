@@ -11,15 +11,16 @@ public sealed class SquadOverviewDigestTests
         var capacity = SquadCapacityDigest.Compose(22, 22, 25, Array.Empty<long>());
         var players = new[]
         {
-            Line(1, fatigue: 20, availability: "Hazır"),
-            Line(2, fatigue: 72, availability: "Yüksek Risk"),
-            Line(3, fatigue: 30, availability: "Sakat · dönüş 01.09.2026"),
+            Line(1, fatigue: 20, isInjured: false, hasFatigueRisk: false),
+            Line(2, fatigue: 72, isInjured: false, hasFatigueRisk: true),
+            Line(3, fatigue: 30, isInjured: true, hasFatigueRisk: false),
         };
 
         var digest = SquadOverviewDigest.Compose(
             capacity,
             players,
             scoutNeedLine: "Sol bek derinliği zayıf",
+            hasDepthGap: true,
             hasMatchBoard: true,
             matchBoardApproved: false,
             promiseRiskCount: 1);
@@ -32,7 +33,11 @@ public sealed class SquadOverviewDigestTests
         Assert.Contains("taslak", digest.PitchCaption, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static PlayerManagementLine Line(long id, int fatigue, string availability) =>
+    private static PlayerManagementLine Line(
+        long id,
+        int fatigue,
+        bool isInjured,
+        bool hasFatigueRisk) =>
         new(
             id,
             SlotIndex: (int)id,
@@ -47,7 +52,15 @@ public sealed class SquadOverviewDigestTests
             CareerPhase: "Gelişim",
             Fitness: 75,
             Fatigue: fatigue,
-            Availability: availability,
+            Availability: isInjured ? "Sakat" : "Hazır",
+            IsInjured: isInjured,
+            FatigueRiskBand: fatigue >= 65 ? "Yüksek Risk" : "Normal",
+            HasFatigueRisk: hasFatigueRisk,
+            HasPromiseRisk: false,
+            MatchMinutesLast7Days: 0,
+            DaysSinceLastMatch: 5,
+            InjuryReasonCode: null,
+            WorkloadHint: null,
             WeeklyWage: 1000,
             ContractEnd: "2028-06-30",
             Trust: 50,

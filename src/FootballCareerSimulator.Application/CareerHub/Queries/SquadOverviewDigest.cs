@@ -1,5 +1,4 @@
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
-using FootballCareerSimulator.Domain.TrainingPhysicalState;
 
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
@@ -39,6 +38,7 @@ public sealed record SquadOverviewDigest(
         SquadCapacityDigest capacity,
         IReadOnlyList<PlayerManagementLine> players,
         string? scoutNeedLine,
+        bool hasDepthGap,
         bool hasMatchBoard,
         bool matchBoardApproved,
         int promiseRiskCount)
@@ -51,22 +51,9 @@ public sealed record SquadOverviewDigest(
             return Clear();
         }
 
-        var injured = players.Count(player =>
-            player.Availability.Contains("Sakat", StringComparison.OrdinalIgnoreCase));
-        var fatigued = players.Count(player =>
-            player.Fatigue >= 65
-            || string.Equals(
-                PlayerPhysicalState.FatigueBandLabel(player.Fatigue),
-                "Yüksek Risk",
-                StringComparison.Ordinal)
-            || string.Equals(
-                PlayerPhysicalState.FatigueBandLabel(player.Fatigue),
-                "Çok Yorgun",
-                StringComparison.Ordinal));
-        var depthWeak = !string.IsNullOrWhiteSpace(scoutNeedLine)
-            && (scoutNeedLine.Contains("derinli", StringComparison.OrdinalIgnoreCase)
-                || scoutNeedLine.Contains("açık", StringComparison.OrdinalIgnoreCase)
-                || scoutNeedLine.Contains("ihtiyaç", StringComparison.OrdinalIgnoreCase));
+        var injured = players.Count(player => player.IsInjured);
+        var fatigued = players.Count(player => player.HasFatigueRisk);
+        var depthWeak = hasDepthGap;
 
         var signals = new List<SquadSignalLine>();
         if (injured > 0)
@@ -99,7 +86,11 @@ public sealed record SquadOverviewDigest(
 
         if (depthWeak)
         {
-            signals.Add(new SquadSignalLine(SignalDepth, scoutNeedLine!.Trim(), 1, true));
+            signals.Add(new SquadSignalLine(
+                SignalDepth,
+                string.IsNullOrWhiteSpace(scoutNeedLine) ? "Mevki derinliği zayıf" : scoutNeedLine.Trim(),
+                1,
+                true));
         }
 
         if (signals.Count == 0)

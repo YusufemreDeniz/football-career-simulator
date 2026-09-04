@@ -1187,15 +1187,6 @@ public partial class CareerHubScreen : Control
         var actionCard = AddCard(_clubAllPlayersPanel, "KADRO AKSİYONLARI");
         var jobRow = ActionFlow();
         actionCard.AddChild(jobRow);
-        _generateOfferButton = SecondaryButton("İş Teklifi Ara");
-        _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
-        jobRow.AddChild(_generateOfferButton);
-        _acceptOfferButton = SecondaryButton("Teklifi Kabul Et");
-        _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
-        jobRow.AddChild(_acceptOfferButton);
-        _signFreeAgentButton = SecondaryButton("Serbesti Geri İmzala");
-        _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
-        jobRow.AddChild(_signFreeAgentButton);
         _promoteOverflowButton = PrimaryButton("Taşanı Kadroya Al");
         _promoteOverflowButton.Pressed += () => Apply(_controller.PromoteOverflowPlayerToSquad());
         jobRow.AddChild(_promoteOverflowButton);
@@ -1204,7 +1195,6 @@ public partial class CareerHubScreen : Control
         jobRow.AddChild(_releaseCapacityButton);
         _sellFringeButton = PrimaryButton("Satışa Çıkar");
         _sellFringeButton.Pressed += () => Apply(_controller.SellFringePlayerFromManagedClub());
-        _sellFringeButton.Visible = false;
         jobRow.AddChild(_sellFringeButton);
         _promiseStartButton = SecondaryButton("İlk 11 Sözü Ver");
         _promiseStartButton.Pressed += () =>
@@ -2056,6 +2046,18 @@ public partial class CareerHubScreen : Control
         page.MoveChild(experienceCard.GetParent(), 0);
 
         var saveCard = AddCard(page, "KARİYER DOSYASI", emphasized: true);
+        var careerJobCard = AddCard(page, "İŞ PİYASASI");
+        var careerJobRow = ActionFlow();
+        careerJobCard.AddChild(careerJobRow);
+        _generateOfferButton = PrimaryButton("İş Teklifi Ara");
+        _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
+        careerJobRow.AddChild(_generateOfferButton);
+        _acceptOfferButton = AccentButton("Teklifi Kabul Et");
+        _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
+        careerJobRow.AddChild(_acceptOfferButton);
+        _signFreeAgentButton = SecondaryButton("Serbest oyuncu imzala");
+        _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
+        careerJobRow.AddChild(_signFreeAgentButton);
         _saveDeskLabel = BodyLabel("SaveDeskLabel", autowrap: true);
         saveCard.AddChild(_saveDeskLabel);
 
@@ -2379,7 +2381,7 @@ public partial class CareerHubScreen : Control
         }
 
         var startingXi = players
-            .Where(player => !player.Availability.StartsWith("Sakat", StringComparison.OrdinalIgnoreCase))
+            .Where(player => !player.IsInjured)
             .Take(Domain.TeamPreparation.MatchSelection.StartingXiSize)
             .Select(player => new Application.TeamPreparation.Queries.SquadSelectionPlayerDigest(
                 player.SlotIndex,
@@ -2544,11 +2546,16 @@ public partial class CareerHubScreen : Control
             };
             var availability = selected.Availability == "Hazır" ? string.Empty : $" · ⚠ {selected.Availability}";
             var promiseFlag = selected.PromiseSummary == "aktif söz yok" ? string.Empty : " · 🤝 söz";
+            var workload = string.IsNullOrWhiteSpace(selected.WorkloadHint)
+                ? string.Empty
+                : $" · {selected.WorkloadHint}";
             _playerDetailLabel.Text =
                 $"{selected.DisplayName} · {selected.PositionCode} · GÜÇ {selected.Rating}"
                 + $" · {fitness} Fit %{selected.Fitness}"
+                + $" · {selected.FatigueRiskBand}"
                 + $" · {relIcon} {selected.RelationshipState}"
                 + availability
+                + workload
                 + promiseFlag
                 + " — dosya için tekrar dokun.";
             _playerDetailLabel.TooltipText = selected.ToDetailText();
@@ -4253,16 +4260,13 @@ public partial class CareerHubScreen : Control
         return filterCode switch
         {
             Application.CareerHub.Queries.SquadOverviewDigest.SignalInjured => players
-                .Where(player => player.Availability.Contains("Sakat", StringComparison.OrdinalIgnoreCase))
+                .Where(player => player.IsInjured)
                 .ToArray(),
             Application.CareerHub.Queries.SquadOverviewDigest.SignalFatigue => players
-                .Where(player => player.Fatigue >= 65)
+                .Where(player => player.HasFatigueRisk)
                 .ToArray(),
             Application.CareerHub.Queries.SquadOverviewDigest.SignalPromise => players
-                .Where(player =>
-                    player.PromiseSummary.Contains("risk", StringComparison.OrdinalIgnoreCase)
-                    || player.PromiseSummary.Contains("bozul", StringComparison.OrdinalIgnoreCase)
-                    || player.RelationshipState.Contains("Kırılgan", StringComparison.OrdinalIgnoreCase))
+                .Where(player => player.HasPromiseRisk)
                 .ToArray(),
             _ => players,
         };

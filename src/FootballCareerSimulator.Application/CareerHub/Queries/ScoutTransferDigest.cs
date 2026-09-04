@@ -59,6 +59,7 @@ public sealed record ScoutTransferDigest(
     string NeedPositionCode,
     string Headline,
     string NeedLine,
+    bool HasDepthGap,
     IReadOnlyList<ScoutCandidateLine> Candidates)
 {
     private static readonly IReadOnlyDictionary<MvpSquadPositionGroup, int> IdealDepth =
@@ -71,7 +72,7 @@ public sealed record ScoutTransferDigest(
         };
 
     public static ScoutTransferDigest Clear() =>
-        new(false, "—", "Scout merkezi: kulüp görevi yok.", "İhtiyaç hesaplanamadı.", Array.Empty<ScoutCandidateLine>());
+        new(false, "—", "Scout merkezi: kulüp görevi yok.", "İhtiyaç hesaplanamadı.", false, Array.Empty<ScoutCandidateLine>());
 
     public static ScoutTransferDigest Compose(
         string managedClubName,
@@ -117,6 +118,7 @@ public sealed record ScoutTransferDigest(
                 transferBudgetAvailable))
             .ToArray();
         var positionCode = GroupCode(needGroup.Group);
+        var hasDepthGap = needGroup.Count < IdealDepth[needGroup.Group] || needGroup.Average < 72;
 
         return new ScoutTransferDigest(
             true,
@@ -125,6 +127,7 @@ public sealed record ScoutTransferDigest(
             $"Kadro ihtiyacı: {GroupName(needGroup.Group)} ({positionCode})"
             + $" · mevcut {needGroup.Count}/{IdealDepth[needGroup.Group]}"
             + $" · ortalama güç {needGroup.Average}",
+            hasDepthGap,
             lines);
     }
 

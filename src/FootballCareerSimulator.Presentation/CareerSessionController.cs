@@ -1394,15 +1394,13 @@ public sealed partial class CareerSessionController
         var management = BuildPlayerManagementDigest();
         var scout = BuildScoutTransferDigest();
         var board = BuildSquadSelectionBoard();
-        var promiseRisk = management.Players.Count(player =>
-            player.PromiseSummary.Contains("risk", StringComparison.OrdinalIgnoreCase)
-            || player.PromiseSummary.Contains("bozul", StringComparison.OrdinalIgnoreCase)
-            || player.RelationshipState.Contains("Kırılgan", StringComparison.OrdinalIgnoreCase));
+        var promiseRisk = management.Players.Count(player => player.HasPromiseRisk);
 
         return SquadOverviewDigest.Compose(
             capacity,
             management.Players,
             scout.HasClub ? scout.NeedLine : null,
+            scout.HasClub && scout.HasDepthGap,
             board.HasMatch,
             board.IsApproved,
             promiseRisk);
