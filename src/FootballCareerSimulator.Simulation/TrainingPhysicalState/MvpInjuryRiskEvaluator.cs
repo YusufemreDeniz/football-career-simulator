@@ -11,10 +11,14 @@ public static class MvpInjuryRiskEvaluator
 {
     public static int ComputeTrainingRiskPercent(
         PlayerPhysicalState state,
-        TrainingIntensity intensity)
+        TrainingIntensity intensity,
+        GameDate? asOfDay = null)
     {
         ArgumentNullException.ThrowIfNull(state);
 
+        var minutes7 = asOfDay is GameDate day
+            ? state.EffectiveMatchMinutesLast7Days(day)
+            : state.MatchMinutesLast7Days;
         var baseRisk = intensity switch
         {
             TrainingIntensity.Low => 1,
@@ -24,36 +28,34 @@ public static class MvpInjuryRiskEvaluator
         };
 
         var fatigueBonus = Math.Max(0, state.Fatigue - 50) / 4;
-        var workloadBonus = state.MatchMinutesLast7Days switch
+        var workloadBonus = minutes7 switch
         {
             >= 270 => 6,
             >= 180 => 4,
             >= 90 => 2,
             _ => 0,
         };
-        var returnBonus = string.Equals(
-            state.LastInjuryReasonCode,
-            PlayerPhysicalState.ReasonReturnFromInjury,
-            StringComparison.Ordinal)
-            ? 3
-            : 0;
+        var returnBonus = state.HasElevatedReturnRisk ? 3 : 0;
 
         return Math.Clamp(baseRisk + fatigueBonus + workloadBonus + returnBonus, 0, 28);
     }
 
     public static int ComputeDailyTrainingRiskPercent(
         PlayerPhysicalState state,
-        TrainingIntensity intensity) =>
+        TrainingIntensity intensity,
+        GameDate? asOfDay = null) =>
         Math.Max(
             0,
             (int)Math.Round(
-                ComputeTrainingRiskPercent(state, intensity) / (double)MvpTrainingLoadApplier.TrainingLoadDaysPerWeek,
+                ComputeTrainingRiskPercent(state, intensity, asOfDay)
+                    / (double)MvpTrainingLoadApplier.TrainingLoadDaysPerWeek,
                 MidpointRounding.AwayFromZero));
 
     public static int ComputeMatchRiskPercent(PlayerPhysicalState state, int minutesPlayed, GameDate day)
     {
         ArgumentNullException.ThrowIfNull(state);
 
+        // PRE-MATCH workload / gap — current maç dakikası henüz kaydedilmemiş olmalı.
         var minutesFactor = minutesPlayed switch
         {
             >= 80 => 2,
@@ -63,7 +65,7 @@ public static class MvpInjuryRiskEvaluator
             _ => -1,
         };
 
-        var workloadBonus = state.MatchMinutesLast7Days switch
+        var workloadBonus = state.EffectiveMatchMinutesLast7Days(day) switch
         {
             >= 270 => 5,
             >= 180 => 3,
@@ -71,12 +73,7 @@ public static class MvpInjuryRiskEvaluator
             _ => 0,
         };
         var congestionBonus = state.HasCongestedFixture(day) ? 3 : 0;
-        var returnBonus = string.Equals(
-            state.LastInjuryReasonCode,
-            PlayerPhysicalState.ReasonReturnFromInjury,
-            StringComparison.Ordinal)
-            ? 2
-            : 0;
+        var returnBonus = state.HasElevatedReturnRisk ? 2 : 0;
 
         return Math.Clamp(
             1 + Math.Max(0, state.Fatigue - 55) / 5 + minutesFactor + workloadBonus + congestionBonus + returnBonus,
@@ -136,20 +133,18 @@ public static class MvpInjuryRiskEvaluator
             _ => 0,
         };
 
-    public static string ResolveTrainingInjuryReason(PlayerPhysicalState state, TrainingIntensity intensity) =>
-        state.MatchMinutesLast7Days >= 180 || intensity == TrainingIntensity.High
+    public static string ResolveTrainingInjuryReason(
+        PlayerPhysicalState state,
+        TrainingIntensity intensity,
+        GameDate day) =>
+        state.EffectiveMatchMinutesLast7Days(day) >= 180 || intensity == TrainingIntensity.High
             ? PlayerPhysicalState.ReasonAccumulatedWorkload
             : PlayerPhysicalState.ReasonTrainingLoad;
 
-    public static string ResolveMatchInjuryReason(PlayerPhysicalState state, GameDate day) =>
-        state.HasCongestedFixture(day) || state.MatchMinutesLast7Days >= 180
+    public static string ResolveMatchInjuryReason(PlayerPhysicalState preMatchState, GameDate day) =>
+        preMatchState.HasCongestedFixture(day) || preMatchState.EffectiveMatchMinutesLast7Days(day) >= 180
             ? PlayerPhysicalState.ReasonAccumulatedWorkload
-            : string.Equals(
-                state.LastInjuryReasonCode,
-                PlayerPhysicalState.ReasonReturnFromInjury,
-                StringComparison.Ordinal)
-                ? PlayerPhysicalState.ReasonReturnFromInjury
-                : PlayerPhysicalState.ReasonMatchLoad;
+            : PlayerPhysicalState.ReasonMatchLoad;
 
     public static PlayerPhysicalState MaybeInjureFromTraining(
         PlayerPhysicalState state,
@@ -168,8 +163,8 @@ public static class MvpInjuryRiskEvaluator
         }
 
         var risk = dailyTick
-            ? ComputeDailyTrainingRiskPercent(state, plan.Intensity)
-            : ComputeTrainingRiskPercent(state, plan.Intensity);
+            ? ComputeDailyTrainingRiskPercent(state, plan.Intensity, day)
+            : ComputeTrainingRiskPercent(state, plan.Intensity, day);
         var salt = dailyTick ? 703 : 701;
         var roll = Roll(rootSeed, state.PlayerId.Value, day.DayNumber, salt);
         if (!ShouldInjure(risk, roll))
@@ -181,7 +176,7 @@ public static class MvpInjuryRiskEvaluator
         return state.WithInjury(
             severity,
             day.AddDays(DaysOut(severity, roll)),
-            ResolveTrainingInjuryReason(state, plan.Intensity));
+            ResolveTrainingInjuryReason(state, plan.Intensity, day));
     }
 
     public static PlayerPhysicalState MaybeInjureFromMatch(
@@ -194,20 +189,26 @@ public static class MvpInjuryRiskEvaluator
     {
         ArgumentNullException.ThrowIfNull(state);
 
-        state = state.RecoverIfDue(day);
-        if (!state.IsAvailableOn(day))
+        var preMatch = state.RecoverIfDue(day);
+        if (!preMatch.IsAvailableOn(day))
         {
-            return state;
+            return preMatch;
         }
 
-        var afterMatch = state
+        // Risk PRE-MATCH gap/workload ile; dakika kaydı risk hesabından sonra.
+        var risk = Math.Clamp(
+            ComputeMatchRiskPercent(preMatch, minutesPlayed, day) + riskBonusPercent,
+            0,
+            28);
+
+        var afterMatch = preMatch
             .WithLevels(
                 Math.Clamp(
-                    state.Fatigue + MatchFatigueGain(minutesPlayed),
+                    preMatch.Fatigue + MatchFatigueGain(minutesPlayed),
                     PlayerPhysicalState.MinLevel,
                     PlayerPhysicalState.MaxLevel),
                 Math.Clamp(
-                    state.Fitness - MatchFitnessLoss(minutesPlayed),
+                    preMatch.Fitness - MatchFitnessLoss(minutesPlayed),
                     PlayerPhysicalState.MinLevel,
                     PlayerPhysicalState.MaxLevel))
             .RecordMatchMinutes(day, minutesPlayed);
@@ -217,10 +218,6 @@ public static class MvpInjuryRiskEvaluator
             return afterMatch;
         }
 
-        var risk = Math.Clamp(
-            ComputeMatchRiskPercent(afterMatch, minutesPlayed, day) + riskBonusPercent,
-            0,
-            28);
         var roll = Roll(
             rootSeed,
             state.PlayerId.Value,
@@ -235,7 +232,7 @@ public static class MvpInjuryRiskEvaluator
         return afterMatch.WithInjury(
             severity,
             day.AddDays(DaysOut(severity, roll)),
-            ResolveMatchInjuryReason(afterMatch, day));
+            ResolveMatchInjuryReason(preMatch, day));
     }
 
     private static int Roll(int rootSeed, long playerId, int dayNumber, int salt)

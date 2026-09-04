@@ -18,10 +18,12 @@ public sealed class PlayerPhysicalState
     public const int PostInjuryFatigueBump = 12;
     public const int PostInjuryFitnessPenalty = 18;
 
+    /// <summary>Dönüş riski fitness bu eşiğin altına inmişken geçerlidir.</summary>
+    public const int ReturnRiskFitnessCeiling = DefaultFitness - (PostInjuryFitnessPenalty / 2);
+
     public const string ReasonTrainingLoad = "training_load";
     public const string ReasonMatchLoad = "match_load";
     public const string ReasonAccumulatedWorkload = "accumulated_workload";
-    public const string ReasonReturnFromInjury = "return_from_injury";
     public const string ReasonUnexpected = "unexpected";
 
     private PlayerPhysicalState(
@@ -66,17 +68,24 @@ public sealed class PlayerPhysicalState
 
     public int? InjuredUntilDayNumber { get; }
 
+    /// <summary>Son maç günündeki 7 günlük pencere sayacı (ham). UI/risk için Effective* kullan.</summary>
     public int MatchMinutesLast7Days { get; }
 
+    /// <summary>Son maç günündeki 14 günlük pencere sayacı (ham).</summary>
     public int MatchMinutesLast14Days { get; }
 
     public int? LastMatchDayNumber { get; }
 
+    /// <summary>Gerçek sakatlık nedeni (training_load / match_load / …). Dönüş marker değil.</summary>
     public string? LastInjuryReasonCode { get; }
 
     public bool IsInjured => InjurySeverity != InjurySeverity.None;
 
     public bool HasLocation => ClubId is not null && SlotIndex is int;
+
+    /// <summary>Sakatlıktan dönüşte düşük fitness varken geçici yükselmiş risk.</summary>
+    public bool HasElevatedReturnRisk =>
+        !IsInjured && Fitness < ReturnRiskFitnessCeiling;
 
     public static PlayerPhysicalState CreateRested(PlayerId playerId, ClubId? clubId = null, int? slotIndex = null)
     {
@@ -118,6 +127,15 @@ public sealed class PlayerPhysicalState
         EnsureInjury(injurySeverity, injuredUntilDayNumber);
         EnsureNonNegative(matchMinutesLast7Days, nameof(matchMinutesLast7Days));
         EnsureNonNegative(matchMinutesLast14Days, nameof(matchMinutesLast14Days));
+        var reason = string.IsNullOrWhiteSpace(lastInjuryReasonCode)
+            ? null
+            : lastInjuryReasonCode.Trim();
+        // Eski kayıtlarda dönüş marker'ı neden gibi saklanmış olabilir; gerçek neden değilse temizle.
+        if (string.Equals(reason, "return_from_injury", StringComparison.Ordinal))
+        {
+            reason = null;
+        }
+
         return new PlayerPhysicalState(
             playerId,
             clubId,
@@ -129,7 +147,7 @@ public sealed class PlayerPhysicalState
             matchMinutesLast7Days,
             matchMinutesLast14Days,
             lastMatchDayNumber,
-            string.IsNullOrWhiteSpace(lastInjuryReasonCode) ? null : lastInjuryReasonCode.Trim());
+            reason);
     }
 
     /// <summary>Legacy save/test rehydrate keyed by club+slot before PlayerId migration.</summary>
@@ -193,12 +211,11 @@ public sealed class PlayerPhysicalState
         Copy(
             injurySeverity: InjurySeverity.None,
             injuredUntilDayNumber: null,
-            clearInjuryUntil: true,
-            lastInjuryReasonCode: null,
-            clearInjuryReason: true);
+            clearInjuryUntil: true);
 
     /// <summary>
-    /// Sakatlık bitince hemen tam kondisyon verilmez; yeniden sakatlanma riski kalsın.
+    /// Sakatlık bitince hemen tam kondisyon verilmez; neden kodu korunur.
+    /// Yükselmiş dönüş riski düşük fitness ile temsil edilir.
     /// </summary>
     public PlayerPhysicalState ClearInjuryWithRecoveryDampening()
     {
@@ -209,8 +226,7 @@ public sealed class PlayerPhysicalState
             fitness: fitness,
             injurySeverity: InjurySeverity.None,
             injuredUntilDayNumber: null,
-            clearInjuryUntil: true,
-            lastInjuryReasonCode: ReasonReturnFromInjury);
+            clearInjuryUntil: true);
     }
 
     public PlayerPhysicalState RecoverIfDue(GameDate day)
@@ -229,7 +245,7 @@ public sealed class PlayerPhysicalState
     }
 
     /// <summary>
-    /// Maç dakikası kaydı: 7/14 günlük pencereyi basit üstel-azalmalı sayaçla günceller.
+    /// Maç dakikası kaydı: önce mevcut pencereyi son maçtan bugüne yaşlandırır, sonra dakika ekler.
     /// </summary>
     public PlayerPhysicalState RecordMatchMinutes(GameDate day, int minutesPlayed)
     {
@@ -249,13 +265,26 @@ public sealed class PlayerPhysicalState
             lastMatchDayNumber: day.DayNumber);
     }
 
+    /// <summary>
+    /// Bugüne göre yaşlanmış 7 günlük maç dakikası (ham sayaç son maç gününe göredir).
+    /// </summary>
+    public int EffectiveMatchMinutesLast7Days(GameDate day) =>
+        DecayMinutes(MatchMinutesLast7Days, DaysSinceLastMatch(day), windowDays: 7);
+
+    /// <summary>
+    /// Bugüne göre yaşlanmış 14 günlük maç dakikası.
+    /// </summary>
+    public int EffectiveMatchMinutesLast14Days(GameDate day) =>
+        DecayMinutes(MatchMinutesLast14Days, DaysSinceLastMatch(day), windowDays: 14);
+
     public int DaysSinceLastMatch(GameDate day) =>
         LastMatchDayNumber is int last
             ? Math.Max(0, day.DayNumber - last)
             : 99;
 
     public bool HasCongestedFixture(GameDate day) =>
-        DaysSinceLastMatch(day) is > 0 and <= 3 && MatchMinutesLast7Days >= 60;
+        DaysSinceLastMatch(day) is > 0 and <= 3
+        && EffectiveMatchMinutesLast7Days(day) >= 60;
 
     public static string FatigueBandLabel(int fatigue) =>
         fatigue switch
