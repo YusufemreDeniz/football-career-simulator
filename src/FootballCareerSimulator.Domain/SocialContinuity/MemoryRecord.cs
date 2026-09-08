@@ -83,7 +83,10 @@ public sealed class MemoryRecord
         PromiseId? relatedPromiseId,
         string ruleId,
         int ruleVersion,
-        IEnumerable<string>? processedReinforcementKeys = null)
+        IEnumerable<string>? processedReinforcementKeys = null,
+        MemoryResolutionStatus resolutionStatus = MemoryResolutionStatus.Unresolved,
+        GameDate? resolvedOn = null,
+        string? resolutionReasonCode = null)
     {
         MemoryId = memoryId;
         RememberingActor = rememberingActor;
@@ -104,6 +107,9 @@ public sealed class MemoryRecord
         RuleVersion = ruleVersion;
         _processedReinforcementKeys = (processedReinforcementKeys ?? Array.Empty<string>())
             .ToHashSet(StringComparer.Ordinal);
+        ResolutionStatus = resolutionStatus;
+        ResolvedOn = resolvedOn;
+        ResolutionReasonCode = resolutionReasonCode;
     }
 
     public MemoryId MemoryId { get; }
@@ -139,6 +145,12 @@ public sealed class MemoryRecord
     public string RuleId { get; }
 
     public int RuleVersion { get; }
+
+    public MemoryResolutionStatus ResolutionStatus { get; }
+
+    public GameDate? ResolvedOn { get; }
+
+    public string? ResolutionReasonCode { get; }
 
     public IReadOnlyCollection<string> ProcessedReinforcementKeys => _processedReinforcementKeys;
 
@@ -985,7 +997,10 @@ public sealed class MemoryRecord
             RelatedPromiseId,
             RuleId,
             RuleVersion,
-            _processedReinforcementKeys);
+            _processedReinforcementKeys,
+            ResolutionStatus,
+            ResolvedOn,
+            ResolutionReasonCode);
     }
 
     public MemoryRecord Reinforce(string reinforcementEventKey, GameDate day)
@@ -1042,7 +1057,58 @@ public sealed class MemoryRecord
             RelatedPromiseId,
             RuleId,
             RuleVersion,
-            nextKeys);
+            nextKeys,
+            ResolutionStatus == MemoryResolutionStatus.Unresolved ? MemoryResolutionStatus.Reinforced : ResolutionStatus,
+            ResolvedOn,
+            ResolutionReasonCode);
+    }
+
+    public MemoryRecord MarkResolution(
+        MemoryResolutionStatus newStatus,
+        GameDate day,
+        string reasonCode)
+    {
+        if (string.IsNullOrWhiteSpace(reasonCode))
+        {
+            throw new SocialContinuityInvariantViolationException("Resolution reason code is required.");
+        }
+
+        var nextInfluence = newStatus switch
+        {
+            MemoryResolutionStatus.Resolved => 0,
+            MemoryResolutionStatus.PartiallyResolved => Math.Max(0, CurrentInfluence / 2),
+            MemoryResolutionStatus.Contradicted => Math.Max(0, (int)(CurrentInfluence * 0.7)),
+            MemoryResolutionStatus.Reopened => Math.Min(MaxImportance, Math.Max(BaseImportance, CurrentInfluence * 2)),
+            MemoryResolutionStatus.Reinforced => Math.Min(MaxImportance, CurrentInfluence + InfluenceBonusPerReinforcement),
+            _ => CurrentInfluence,
+        };
+
+        var nextStatus = newStatus == MemoryResolutionStatus.Resolved
+            ? MemoryStatus.Dormant
+            : (newStatus == MemoryResolutionStatus.Reopened ? MemoryStatus.Active : Status);
+
+        return new MemoryRecord(
+            MemoryId,
+            RememberingActor,
+            SubjectKind,
+            SubjectId,
+            SourceEventKey,
+            Category,
+            CreatedOn,
+            LastReinforcedOn,
+            BaseImportance,
+            nextInfluence,
+            Valence,
+            Visibility,
+            nextStatus,
+            ReinforcementCount,
+            RelatedPromiseId,
+            RuleId,
+            RuleVersion,
+            _processedReinforcementKeys,
+            newStatus,
+            day,
+            reasonCode);
     }
 
     public static MemoryRecord Rehydrate(
@@ -1063,7 +1129,10 @@ public sealed class MemoryRecord
         PromiseId? relatedPromiseId,
         string ruleId,
         int ruleVersion,
-        IEnumerable<string>? processedReinforcementKeys = null)
+        IEnumerable<string>? processedReinforcementKeys = null,
+        MemoryResolutionStatus resolutionStatus = MemoryResolutionStatus.Unresolved,
+        GameDate? resolvedOn = null,
+        string? resolutionReasonCode = null)
     {
         if (!Enum.IsDefined(subjectKind))
         {
@@ -1090,6 +1159,11 @@ public sealed class MemoryRecord
             throw new SocialContinuityInvariantViolationException($"Unknown memory status: {status}.");
         }
 
+        if (!Enum.IsDefined(resolutionStatus))
+        {
+            throw new SocialContinuityInvariantViolationException($"Unknown resolution status: {resolutionStatus}.");
+        }
+
         if (string.IsNullOrWhiteSpace(sourceEventKey))
         {
             throw new SocialContinuityInvariantViolationException("Source event key is required.");
@@ -1111,10 +1185,10 @@ public sealed class MemoryRecord
         }
 
         if (baseImportance is < MinImportance or > MaxImportance
-            || currentInfluence is < MinImportance or > MaxImportance)
+            || currentInfluence is < 0 or > MaxImportance)
         {
             throw new SocialContinuityInvariantViolationException(
-                $"Importance must be between {MinImportance} and {MaxImportance}.");
+                $"Importance must be between 0 and {MaxImportance}.");
         }
 
         if (reinforcementCount < 0)
@@ -1140,7 +1214,10 @@ public sealed class MemoryRecord
             relatedPromiseId,
             ruleId,
             ruleVersion,
-            processedReinforcementKeys ?? Array.Empty<string>());
+            processedReinforcementKeys ?? Array.Empty<string>(),
+            resolutionStatus,
+            resolvedOn,
+            resolutionReasonCode);
     }
 
     public static string BuildPromiseOutcomeSourceKey(PromiseId promiseId, PromiseStatus status) =>
