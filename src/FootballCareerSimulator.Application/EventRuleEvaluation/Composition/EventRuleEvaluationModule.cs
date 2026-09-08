@@ -18,6 +18,8 @@ public sealed class EventRuleEvaluationModule : ICommandIdempotencyReset
         ReactionRuleDispatcher reactionDispatcher,
         WorldCalendarEventEvaluationService worldCalendarEvaluation,
         IScheduledEvaluationStore scheduledEvaluationStore,
+        ICausalityStore? causalityStore = null,
+        CausalityJournalQueryService? causalityJournal = null,
         TransferWindowCloseReactionScheduler? transferWindowCloseScheduler = null,
         DueScheduledEvaluationProcessor? dueProcessor = null)
     {
@@ -26,6 +28,8 @@ public sealed class EventRuleEvaluationModule : ICommandIdempotencyReset
         ReactionDispatcher = reactionDispatcher;
         WorldCalendarEvaluation = worldCalendarEvaluation;
         ScheduledEvaluationStore = scheduledEvaluationStore;
+        CausalityStore = causalityStore ?? new InMemoryCausalityStore();
+        CausalityJournal = causalityJournal ?? new CausalityJournalQueryService(CausalityStore);
         TransferWindowCloseScheduler = transferWindowCloseScheduler;
         DueProcessor = dueProcessor;
     }
@@ -40,6 +44,10 @@ public sealed class EventRuleEvaluationModule : ICommandIdempotencyReset
 
     public IScheduledEvaluationStore ScheduledEvaluationStore { get; }
 
+    public ICausalityStore CausalityStore { get; }
+
+    public CausalityJournalQueryService CausalityJournal { get; }
+
     public TransferWindowCloseReactionScheduler? TransferWindowCloseScheduler { get; }
 
     public DueScheduledEvaluationProcessor? DueProcessor { get; }
@@ -48,6 +56,7 @@ public sealed class EventRuleEvaluationModule : ICommandIdempotencyReset
     {
         Registry.Clear();
         ScheduledEvaluationStore.Clear();
+        CausalityStore.Clear();
     }
 
     public static EventRuleEvaluationModule Create()
@@ -63,7 +72,16 @@ public sealed class EventRuleEvaluationModule : ICommandIdempotencyReset
             ]);
         var evaluation = new WorldCalendarEventEvaluationService(gate, reactions);
         var scheduleStore = new InMemoryScheduledEvaluationStore();
-        return new EventRuleEvaluationModule(registry, gate, reactions, evaluation, scheduleStore);
+        var causalityStore = new InMemoryCausalityStore();
+        var causalityJournal = new CausalityJournalQueryService(causalityStore);
+        return new EventRuleEvaluationModule(
+            registry,
+            gate,
+            reactions,
+            evaluation,
+            scheduleStore,
+            causalityStore,
+            causalityJournal);
     }
 
     public static (
@@ -92,6 +110,8 @@ public sealed class EventRuleEvaluationModule : ICommandIdempotencyReset
             module.ReactionDispatcher,
             module.WorldCalendarEvaluation,
             module.ScheduledEvaluationStore,
+            module.CausalityStore,
+            module.CausalityJournal,
             scheduler,
             dueProcessor);
         return (wired, closeHandler, openHandler);

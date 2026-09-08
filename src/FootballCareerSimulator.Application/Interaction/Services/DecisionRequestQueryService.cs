@@ -1,7 +1,10 @@
+using FootballCareerSimulator.Application.EventRuleEvaluation.Queries;
+using FootballCareerSimulator.Application.EventRuleEvaluation.Services;
 using FootballCareerSimulator.Application.Interaction.Ports;
 using FootballCareerSimulator.Application.Interaction.Queries;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Ports;
+using FootballCareerSimulator.Domain.EventRuleEvaluation;
 using FootballCareerSimulator.Domain.Interaction;
 using FootballCareerSimulator.Domain.SocialContinuity;
 
@@ -14,19 +17,22 @@ public sealed class DecisionRequestQueryService
     private readonly IPromiseStore? _promises;
     private readonly IMemoryStore? _memories;
     private readonly IManagerCareerStore? _managerCareer;
+    private readonly CausalityJournalQueryService? _causalityJournal;
 
     public DecisionRequestQueryService(
         IDecisionRequestStore store,
         IRelationshipStore? relationships = null,
         IPromiseStore? promises = null,
         IMemoryStore? memories = null,
-        IManagerCareerStore? managerCareer = null)
+        IManagerCareerStore? managerCareer = null,
+        CausalityJournalQueryService? causalityJournal = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _relationships = relationships;
         _promises = promises;
         _memories = memories;
         _managerCareer = managerCareer;
+        _causalityJournal = causalityJournal;
     }
 
     public PendingDecisionsReadModel GetPending(int take = 8)
@@ -59,6 +65,121 @@ public sealed class DecisionRequestQueryService
         }
 
         return BuildCausality(request);
+    }
+
+    public CausalityExplanation? ExplainStructuredCausality(DecisionRequestId decisionRequestId)
+    {
+        var request = _store.Get(decisionRequestId);
+        if (request is null || !request.IsOpen)
+        {
+            return null;
+        }
+
+        var playerId = request.SubjectPlayerId.Value;
+        var managerId = request.ManagerId.Value;
+        var factors = new List<CausalFactor>();
+
+        var broken = _promises?.Promises
+            .Where(p =>
+                p.Status == PromiseStatus.Broken
+                && p.Promisee.Kind == ActorKind.Player
+                && p.Promisee.Id == playerId
+                && p.Promisor.Kind == ActorKind.Manager
+                && p.Promisor.Id == managerId)
+            .OrderByDescending(p => p.TerminalOn?.DayNumber ?? 0)
+            .ThenByDescending(p => p.PromiseId.Value)
+            .FirstOrDefault();
+
+        if (broken is not null)
+        {
+            factors.Add(new CausalFactor(
+                "PromiseBroken",
+                CausalFactorWeight.Primary,
+                $"Verilen forma sözünün tutulmaması (#{broken.PromiseId.Value})",
+                new ActorRef(ActorKind.Player, playerId),
+                -15,
+                broken.TerminalOn?.DayNumber ?? request.OpenedOn.DayNumber));
+        }
+
+        var relationship = _relationships?.FindPlayerToManager(playerId, managerId);
+        if (relationship is { Status: RelationshipStatus.Active }
+            && RelationshipDimensionBands.FromValue(relationship.Trust) == RelationshipDimensionBand.Low)
+        {
+            factors.Add(new CausalFactor(
+                "LowTrust",
+                broken is null ? CausalFactorWeight.Primary : CausalFactorWeight.Contributing,
+                "Menajere duyulan genel güvenin düşük seviyede olması",
+                new ActorRef(ActorKind.Player, playerId),
+                -10,
+                relationship.LastChangedOn.DayNumber));
+        }
+
+        var sittingOut = _memories is null
+            ? 0
+            : PostMatchPlayingTimeDemandTrigger.CountSittingOutEvents(
+                _memories.Memories,
+                request.SubjectPlayerId);
+
+        if (sittingOut >= PostMatchPlayingTimeDemandTrigger.SittingOutDemandThreshold)
+        {
+            factors.Add(new CausalFactor(
+                "SittingOutAccumulation",
+                broken is null && factors.Count == 0 ? CausalFactorWeight.Primary : CausalFactorWeight.Contributing,
+                $"Son {sittingOut} maçta yedek veya kadro dışı kalınması",
+                new ActorRef(ActorKind.Player, playerId),
+                -5,
+                request.OpenedOn.DayNumber));
+        }
+
+        if (factors.Count == 0)
+        {
+            var fallback = BuildCausality(request);
+            if (string.IsNullOrWhiteSpace(fallback))
+            {
+                return null;
+            }
+
+            factors.Add(new CausalFactor(
+                "GeneralContext",
+                CausalFactorWeight.Primary,
+                fallback,
+                new ActorRef(ActorKind.Player, playerId),
+                null,
+                request.OpenedOn.DayNumber));
+        }
+
+        var dimension = request.Kind switch
+        {
+            DecisionRequestKind.TransferRequest => CausalityDimension.TransferResult,
+            DecisionRequestKind.PlayingTimeRequest => CausalityDimension.PromiseOutcome,
+            DecisionRequestKind.StartingOpportunityRequest => CausalityDimension.PromiseOutcome,
+            DecisionRequestKind.BoardDemandRequest => CausalityDimension.BoardConfidenceDelta,
+            _ => CausalityDimension.RelationshipDelta,
+        };
+
+        var targetEventId = Guid.NewGuid();
+        var record = new CausalityRecord(
+            targetEventId,
+            dimension,
+            $"DecisionRequest.{request.Kind}",
+            request.OpenedOn.DayNumber,
+            factors);
+
+        _causalityJournal?.RecordCausality(record, null, $"Rule.Decision.{request.Kind}");
+
+        return _causalityJournal is not null
+            ? _causalityJournal.ExplainForPlayer(targetEventId)
+            : new CausalityExplanation(
+                targetEventId,
+                dimension,
+                "Karar Nedenselliği",
+                factors[0].SummaryKey,
+                factors.Skip(1).Select(f => f.SummaryKey).ToArray(),
+                Array.Empty<string>(),
+                null,
+                "Yüksek",
+                new[] { $"Player #{playerId}" },
+                request.OpenedOn.DayNumber);
     }
 
     private bool IsPromiseExitPressure(DecisionRequest request)
