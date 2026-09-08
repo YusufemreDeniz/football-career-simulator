@@ -18,7 +18,10 @@ public sealed class CoachingPedigree
         int leadershipReputation,
         GameDate transitionedOn)
     {
-        ArgumentNullException.ThrowIfNull(managerId);
+        if (managerId.Value <= 0)
+        {
+            throw new ManagerCareerInvariantViolationException("Manager ID must be positive.");
+        }
 
         if (originPlayerId <= 0)
         {
