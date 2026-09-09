@@ -37,21 +37,25 @@ namespace FootballCareerSimulator.Tests.Career;
 public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
 {
     private static readonly GameDate StartDay = GameDate.FromCalendarDate(2026, 7, 1);
+    private const int FixtureCheckpointInterval = 34;
 
     private readonly string _tempDirectory = Path.Combine(
         Path.GetTempPath(),
         "fcs-production-ten-season",
         Guid.NewGuid().ToString("N"));
     private readonly ITestOutputHelper _output;
+    private readonly AcceptanceProgressLog _progress;
 
     public ProductionTenSeasonAcceptanceTests(ITestOutputHelper output)
     {
         _output = output;
         Directory.CreateDirectory(_tempDirectory);
+        _progress = new AcceptanceProgressLog(CreateProgressLogPath(), _output);
     }
 
     public void Dispose()
     {
+        _progress.Dispose();
         SqliteConnection.ClearAllPools();
         if (Directory.Exists(_tempDirectory))
         {
@@ -68,131 +72,204 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
         var transferCompletions = 0;
         var dismissalCount = 0;
         var midSaveBytes = 0L;
+        var processedFixtures = 0;
 
-        for (var clubId = 1L; clubId <= CompetitionMvpConstraints.LeagueTeamCount; clubId++)
+        _progress.Mark("bootstrap.started");
+
+        try
         {
-            var id = new ClubId(clubId);
-            host.Players.Development.EnsureClub(id, host.World.TimelineStore.Timeline.RootSeed, StartDay);
-            host.Team.ClubSquad!.SyncFromActiveContracts(id, StartDay);
-        }
-
-        for (var seasonNumber = 1; seasonNumber <= 10; seasonNumber++)
-        {
-            var preseason = seasonNumber == 1
-                ? StartDay
-                : host.World.TimelineStore.Timeline.CurrentDate.AddDays(60);
-            AdvanceTo(host.World, preseason);
-
-            host.Competition.CreateSeason.Handle(
-                new CreateSeasonCommand(Guid.NewGuid(), seasonNumber, preseason.DayNumber));
             for (var clubId = 1L; clubId <= CompetitionMvpConstraints.LeagueTeamCount; clubId++)
             {
-                host.Competition.RegisterSeasonParticipant.Handle(
-                    new RegisterSeasonParticipantCommand(Guid.NewGuid(), seasonNumber, clubId));
+                var id = new ClubId(clubId);
+                host.Players.Development.EnsureClub(id, host.World.TimelineStore.Timeline.RootSeed, StartDay);
+                host.Team.ClubSquad!.SyncFromActiveContracts(id, StartDay);
             }
 
-            host.Competition.StartSeason.Handle(
-                new StartSeasonCommand(Guid.NewGuid(), seasonNumber, preseason.DayNumber));
-            var firstMatchday = preseason.AddDays(31);
-            host.Competition.PlanLeagueFixtures.Handle(
-                new PlanLeagueFixturesCommand(
-                    Guid.NewGuid(),
-                    seasonNumber,
-                    firstMatchday.DayNumber,
-                    StartingFixtureId: ((seasonNumber - 1L) * CompetitionMvpConstraints.TotalLeagueFixtures) + 1));
+            _progress.Mark("bootstrap.completed");
 
-            host.World.OpenTransferWindow.Handle(
-                new OpenTransferWindowCommand(Guid.NewGuid(), preseason.AddDays(20).DayNumber));
-            for (var tick = 0; tick < 3; tick++)
+            for (var seasonNumber = 1; seasonNumber <= 10; seasonNumber++)
             {
-                transferCompletions += host.Transfer.AiSimulation
-                    .RunWindowTick(preseason, host.World.TimelineStore.Timeline.RootSeed + seasonNumber + tick)
-                    .CompletedCount;
-            }
+                _progress.Mark("season.started", seasonNumber, processedFixtures);
+                var preseason = seasonNumber == 1
+                    ? StartDay
+                    : host.World.TimelineStore.Timeline.CurrentDate.AddDays(60);
+                AdvanceTo(host.World, preseason);
 
-            host.World.CloseTransferWindow.Handle(new CloseTransferWindowCommand(Guid.NewGuid()));
-            ApplyManagedTraining(host);
-
-            foreach (var fixture in host.Competition.Queries.GetSeasonFixtures(seasonNumber)
-                         .OrderBy(item => item.ScheduledDayNumber)
-                         .ThenBy(item => item.FixtureId))
-            {
-                var fixtureDay = GameDate.FromDayNumber(fixture.ScheduledDayNumber);
-                AdvanceTo(host.World, fixtureDay);
-                var employment = host.Manager.Store.Career.ActiveEmployment;
-                if (employment is { } active
-                    && (fixture.HomeClubId == active.ClubId.Value || fixture.AwayClubId == active.ClubId.Value))
+                host.Competition.CreateSeason.Handle(
+                    new CreateSeasonCommand(Guid.NewGuid(), seasonNumber, preseason.DayNumber));
+                for (var clubId = 1L; clubId <= CompetitionMvpConstraints.LeagueTeamCount; clubId++)
                 {
-                    ApplyManagedTraining(host);
-                    var squad = host.Team.ClubSquad!.SyncFromActiveContracts(active.ClubId, fixtureDay);
-                    if (squad.Members.Count < 18)
-                    {
-                        host.Contracts.Registration.RestorePopulationContinuity(fixtureDay);
-                        squad = host.Team.ClubSquad.SyncFromActiveContracts(active.ClubId, fixtureDay);
-                    }
-
-                    if (squad.Members.Count < MatchSelection.StartingXiSize)
-                    {
-                        throw new InvalidOperationException(
-                            $"Managed club {active.ClubId.Value} still below XI after continuity restore "
-                            + $"({squad.Members.Count}/{MatchSelection.StartingXiSize} on day {fixtureDay.DayNumber}).");
-                    }
-
-                    host.Team.SelectionStore.Upsert(MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
-                        new FixtureId(fixture.FixtureId),
-                        active.ClubId,
-                        fixtureDay,
-                        host.Training.Store.PhysicalBySlot,
-                        squad));
+                    host.Competition.RegisterSeasonParticipant.Handle(
+                        new RegisterSeasonParticipantCommand(Guid.NewGuid(), seasonNumber, clubId));
                 }
 
-                var played = host.Competition.PlayFixtureMatch!.Handle(
-                    new PlayFixtureMatchCommand(
+                host.Competition.StartSeason.Handle(
+                    new StartSeasonCommand(Guid.NewGuid(), seasonNumber, preseason.DayNumber));
+                var firstMatchday = preseason.AddDays(31);
+                host.Competition.PlanLeagueFixtures.Handle(
+                    new PlanLeagueFixturesCommand(
                         Guid.NewGuid(),
                         seasonNumber,
-                        fixture.FixtureId,
-                        fixture.ScheduledDayNumber));
-                if (played.Consequences?.ManagerDismissed == true)
+                        firstMatchday.DayNumber,
+                        StartingFixtureId: ((seasonNumber - 1L) * CompetitionMvpConstraints.TotalLeagueFixtures) + 1));
+                var fixtures = host.Competition.Queries.GetSeasonFixtures(seasonNumber)
+                    .OrderBy(item => item.ScheduledDayNumber)
+                    .ThenBy(item => item.FixtureId)
+                    .ToArray();
+                _progress.Mark("fixtures.planned", seasonNumber, processedFixtures, fixtures.Length);
+
+                host.World.OpenTransferWindow.Handle(
+                    new OpenTransferWindowCommand(Guid.NewGuid(), preseason.AddDays(20).DayNumber));
+                for (var tick = 0; tick < 3; tick++)
                 {
-                    dismissalCount++;
+                    transferCompletions += host.Transfer.AiSimulation
+                        .RunWindowTick(preseason, host.World.TimelineStore.Timeline.RootSeed + seasonNumber + tick)
+                        .CompletedCount;
                 }
 
-                if (!host.Manager.Store.Career.IsEmployed)
+                host.World.CloseTransferWindow.Handle(new CloseTransferWindowCommand(Guid.NewGuid()));
+                ApplyManagedTraining(host);
+                _progress.Mark(
+                    "transfers.completed",
+                    seasonNumber,
+                    processedFixtures,
+                    fixtures.Length,
+                    $"completed={transferCompletions}");
+
+                var seasonProcessedFixtures = 0;
+                var advanceElapsed = TimeSpan.Zero;
+                var selectionElapsed = TimeSpan.Zero;
+                var matchElapsed = TimeSpan.Zero;
+                var reemploymentElapsed = TimeSpan.Zero;
+                foreach (var fixture in fixtures)
                 {
-                    host.Manager.GenerateJobOffer!.Handle(
-                        new GenerateUnemployedJobOfferCommand(Guid.NewGuid()));
-                    host.Manager.AcceptJobOffer!.Handle(
-                        new AcceptPendingJobOfferCommand(Guid.NewGuid()));
-                    ApplyManagedTraining(host);
+                    var fixtureDay = GameDate.FromDayNumber(fixture.ScheduledDayNumber);
+                    var phaseStarted = Stopwatch.GetTimestamp();
+                    AdvanceTo(host.World, fixtureDay);
+                    advanceElapsed += Stopwatch.GetElapsedTime(phaseStarted);
+
+                    phaseStarted = Stopwatch.GetTimestamp();
+                    var employment = host.Manager.Store.Career.ActiveEmployment;
+                    if (employment is { } active
+                        && (fixture.HomeClubId == active.ClubId.Value || fixture.AwayClubId == active.ClubId.Value))
+                    {
+                        ApplyManagedTraining(host);
+                        var squad = host.Team.ClubSquad!.SyncFromActiveContracts(active.ClubId, fixtureDay);
+                        if (squad.Members.Count < 18)
+                        {
+                            host.Contracts.Registration.RestorePopulationContinuity(fixtureDay);
+                            squad = host.Team.ClubSquad.SyncFromActiveContracts(active.ClubId, fixtureDay);
+                        }
+
+                        if (squad.Members.Count < MatchSelection.StartingXiSize)
+                        {
+                            throw new InvalidOperationException(
+                                $"Managed club {active.ClubId.Value} still below XI after continuity restore "
+                                + $"({squad.Members.Count}/{MatchSelection.StartingXiSize} on day {fixtureDay.DayNumber}).");
+                        }
+
+                        host.Team.SelectionStore.Upsert(MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+                            new FixtureId(fixture.FixtureId),
+                            active.ClubId,
+                            fixtureDay,
+                            host.Training.Store.PhysicalBySlot,
+                            squad));
+                    }
+                    selectionElapsed += Stopwatch.GetElapsedTime(phaseStarted);
+
+                    phaseStarted = Stopwatch.GetTimestamp();
+                    var played = host.Competition.PlayFixtureMatch!.Handle(
+                        new PlayFixtureMatchCommand(
+                            Guid.NewGuid(),
+                            seasonNumber,
+                            fixture.FixtureId,
+                            fixture.ScheduledDayNumber));
+                    if (played.Consequences?.ManagerDismissed == true)
+                    {
+                        dismissalCount++;
+                    }
+                    matchElapsed += Stopwatch.GetElapsedTime(phaseStarted);
+
+                    phaseStarted = Stopwatch.GetTimestamp();
+                    if (!host.Manager.Store.Career.IsEmployed)
+                    {
+                        host.Manager.GenerateJobOffer!.Handle(
+                            new GenerateUnemployedJobOfferCommand(Guid.NewGuid()));
+                        host.Manager.AcceptJobOffer!.Handle(
+                            new AcceptPendingJobOfferCommand(Guid.NewGuid()));
+                        ApplyManagedTraining(host);
+                    }
+                    reemploymentElapsed += Stopwatch.GetElapsedTime(phaseStarted);
+
+                    seasonProcessedFixtures++;
+                    processedFixtures++;
+                    if (seasonProcessedFixtures % FixtureCheckpointInterval == 0
+                        || seasonProcessedFixtures == fixtures.Length)
+                    {
+                        _progress.Mark(
+                            "fixtures.progress",
+                            seasonNumber,
+                            processedFixtures,
+                            fixtures.Length,
+                            $"seasonFixtures={seasonProcessedFixtures}");
+                    }
+                }
+
+                var closeDay = host.World.TimelineStore.Timeline.CurrentDate;
+                var completed = host.Competition.CompleteSeason.Handle(
+                    new CompleteSeasonCommand(Guid.NewGuid(), seasonNumber, closeDay.DayNumber));
+                Assert.Equal(completed.RetiredPlayerCount, completed.GeneratedPlayerCount);
+                host.Competition.ArchiveSeason.Handle(
+                    new ArchiveSeasonCommand(Guid.NewGuid(), seasonNumber, closeDay.DayNumber));
+                _progress.Mark(
+                    "season.archived",
+                    seasonNumber,
+                    processedFixtures,
+                    fixtures.Length,
+                    FormattableString.Invariant($"retired={completed.RetiredPlayerCount}; advanceMs={advanceElapsed.TotalMilliseconds:F0}; selectionMs={selectionElapsed.TotalMilliseconds:F0}; matchMs={matchElapsed.TotalMilliseconds:F0}; reemploymentMs={reemploymentElapsed.TotalMilliseconds:F0}"));
+
+                AssertPopulationIntegrity(host, closeDay);
+                _progress.Mark("population.verified", seasonNumber, processedFixtures, fixtures.Length);
+
+                if (seasonNumber == 5)
+                {
+                    _progress.Mark("mid-save.started", seasonNumber, processedFixtures, fixtures.Length);
+                    var midPath = Path.Combine(_tempDirectory, "season-5.db");
+                    host.Session.Save(midPath);
+                    midSaveBytes = new FileInfo(midPath).Length;
+                    var loaded = host.Session.Load(midPath);
+                    Assert.True(loaded.Succeeded);
+                    Assert.True(loaded.WasMigrated is false);
+                    Assert.Equal(5 * CompetitionMvpConstraints.TotalLeagueFixtures, loaded.LoadedFixtureCount);
+                    _progress.Mark(
+                        "mid-save.completed",
+                        seasonNumber,
+                        processedFixtures,
+                        fixtures.Length,
+                        $"bytes={midSaveBytes}");
                 }
             }
-
-            var closeDay = host.World.TimelineStore.Timeline.CurrentDate;
-            var completed = host.Competition.CompleteSeason.Handle(
-                new CompleteSeasonCommand(Guid.NewGuid(), seasonNumber, closeDay.DayNumber));
-            Assert.Equal(completed.RetiredPlayerCount, completed.GeneratedPlayerCount);
-            host.Competition.ArchiveSeason.Handle(
-                new ArchiveSeasonCommand(Guid.NewGuid(), seasonNumber, closeDay.DayNumber));
-
-            AssertPopulationIntegrity(host, closeDay);
-
-            if (seasonNumber == 5)
-            {
-                var midPath = Path.Combine(_tempDirectory, "season-5.db");
-                host.Session.Save(midPath);
-                midSaveBytes = new FileInfo(midPath).Length;
-                var loaded = host.Session.Load(midPath);
-                Assert.True(loaded.Succeeded);
-                Assert.True(loaded.WasMigrated is false);
-                Assert.Equal(5 * CompetitionMvpConstraints.TotalLeagueFixtures, loaded.LoadedFixtureCount);
-            }
+        }
+        catch (Exception exception)
+        {
+            _progress.Mark(
+                "run.failed",
+                totalProcessedFixtures: processedFixtures,
+                detail: $"{exception.GetType().Name}: {exception.Message}");
+            throw;
         }
 
         stopwatch.Stop();
+        _progress.Mark("final-save.started", totalProcessedFixtures: processedFixtures);
         var finalPath = Path.Combine(_tempDirectory, "season-10.db");
         var saved = host.Session.Save(finalPath);
         var finalBytes = new FileInfo(finalPath).Length;
         var final = new CareerSqlitePersistence().Load(finalPath);
+        _progress.Mark(
+            "run.completed",
+            seasonNumber: 10,
+            totalProcessedFixtures: processedFixtures,
+            detail: $"bytes={finalBytes}; path={_progress.Path}");
 
         _output.WriteLine(
             "10-season acceptance: {0} fixtures, {1} active/{2} retired players, "
@@ -205,6 +282,7 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
             midSaveBytes,
             finalBytes,
             stopwatch.Elapsed);
+        _output.WriteLine("Progress telemetry: {0}", _progress.Path);
 
         Assert.True(saved.Succeeded);
         Assert.Equal(49, final.SchemaVersion);
@@ -232,6 +310,33 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
             $"Save growth is uncontrolled: mid={midSaveBytes}, final={finalBytes}.");
         Assert.True(stopwatch.Elapsed < TimeSpan.FromMinutes(12),
             $"Ten-season production acceptance took {stopwatch.Elapsed}.");
+    }
+
+    private static string CreateProgressLogPath()
+    {
+        var configuredDirectory = Environment.GetEnvironmentVariable("FCS_LONG_RUNNING_LOG_DIRECTORY");
+        var directory = string.IsNullOrWhiteSpace(configuredDirectory)
+            ? Path.Combine(FindRepositoryRoot(), "TestResults", "production-ten-season")
+            : Path.GetFullPath(configuredDirectory);
+        Directory.CreateDirectory(directory);
+        return Path.Combine(
+            directory,
+            $"progress-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Environment.ProcessId}.log");
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory);
+             directory is not null;
+             directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "FootballCareerSimulator.slnx")))
+            {
+                return directory.FullName;
+            }
+        }
+
+        return Environment.CurrentDirectory;
     }
 
     private static AcceptanceHost CreateHost()
@@ -464,4 +569,55 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
         SocialContinuityModule Social,
         InteractionModule Interaction,
         CareerGameSessionService Session);
+
+    private sealed class AcceptanceProgressLog : IDisposable
+    {
+        private readonly ITestOutputHelper _output;
+        private readonly StreamWriter _writer;
+        private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
+        private TimeSpan _lastCheckpoint;
+
+        public AcceptanceProgressLog(string path, ITestOutputHelper output)
+        {
+            Path = path;
+            _output = output;
+            _writer = new StreamWriter(new FileStream(
+                path,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.ReadWrite))
+            {
+                AutoFlush = true,
+            };
+            _writer.WriteLine(
+                $"# Production ten-season progress | UTC {DateTimeOffset.UtcNow:O} | PID {Environment.ProcessId}");
+        }
+
+        public string Path { get; }
+
+        public void Mark(
+            string stage,
+            int seasonNumber = 0,
+            int totalProcessedFixtures = 0,
+            int seasonFixtureCount = 0,
+            string? detail = null)
+        {
+            var elapsed = _stopwatch.Elapsed;
+            var checkpointElapsed = elapsed - _lastCheckpoint;
+            _lastCheckpoint = elapsed;
+            var managedMemoryMb = GC.GetTotalMemory(forceFullCollection: false) / (1024d * 1024d);
+            var workingSetMb = Environment.WorkingSet / (1024d * 1024d);
+            var metrics = FormattableString.Invariant($"{DateTimeOffset.UtcNow:O}\tstage={stage}\tseason={seasonNumber}\tfixtures={totalProcessedFixtures}\tseasonFixtureCount={seasonFixtureCount}\ttotalMs={elapsed.TotalMilliseconds:F0}\tdeltaMs={checkpointElapsed.TotalMilliseconds:F0}\tmanagedMb={managedMemoryMb:F1}\tworkingSetMb={workingSetMb:F1}");
+            var line = string.IsNullOrWhiteSpace(detail)
+                ? metrics
+                : $"{metrics}\tdetail={detail}";
+            _writer.WriteLine(line);
+            _output.WriteLine(line);
+        }
+
+        public void Dispose()
+        {
+            _writer.Dispose();
+        }
+    }
 }
