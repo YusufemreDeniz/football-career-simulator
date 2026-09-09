@@ -5,11 +5,12 @@ namespace FootballCareerSimulator.Presentation;
 public partial class MainMenuScreen : Control
 {
     private const float MinimumContentWidth = 288f;
-    private const float MaximumContentWidth = 430f;
+    private const float MaximumContentWidth = 960f;
     private const float HorizontalSafeMargin = 16f;
 
     private Label _statusLabel = null!;
     private VBoxContainer _content = null!;
+    private GridContainer _bodyGrid = null!;
 
     public event Action? NewCareerRequested;
 
@@ -52,27 +53,21 @@ public partial class MainMenuScreen : Control
 
         _content.AddChild(BuildTopBar());
 
-        var upperSpacer = new Control
+        _bodyGrid = new GridContainer
         {
-            CustomMinimumSize = new Vector2(0, 8),
+            Columns = 2,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
-            SizeFlagsStretchRatio = 0.65f,
         };
-        _content.AddChild(upperSpacer);
+        _bodyGrid.AddThemeConstantOverride("h_separation", CareerUiTheme.SpaceL);
+        _bodyGrid.AddThemeConstantOverride("v_separation", CareerUiTheme.SpaceM);
+        _content.AddChild(_bodyGrid);
 
         var hero = BuildHero(out var brandLine, out var emblem);
-        _content.AddChild(hero);
-
-        var lowerSpacer = new Control
-        {
-            CustomMinimumSize = new Vector2(0, 10),
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            SizeFlagsStretchRatio = 1f,
-        };
-        _content.AddChild(lowerSpacer);
+        _bodyGrid.AddChild(hero);
 
         var actionCard = BuildActionCard();
-        _content.AddChild(actionCard);
+        _bodyGrid.AddChild(actionCard);
 
         var footer = new Label
         {
@@ -113,6 +108,11 @@ public partial class MainMenuScreen : Control
         var viewportWidth = Size.X > 0 ? Size.X : GetViewportRect().Size.X;
         var availableWidth = Mathf.Max(MinimumContentWidth, viewportWidth - (HorizontalSafeMargin * 2f));
         _content.CustomMinimumSize = new Vector2(Mathf.Min(MaximumContentWidth, availableWidth), 0);
+        if (_bodyGrid is not null)
+        {
+            var viewportHeight = Size.Y > 0 ? Size.Y : GetViewportRect().Size.Y;
+            _bodyGrid.Columns = viewportWidth >= 700f && viewportWidth > viewportHeight ? 2 : 1;
+        }
     }
 
     private static Control BuildTopBar()
@@ -129,11 +129,12 @@ public partial class MainMenuScreen : Control
         return row;
     }
 
-    private static VBoxContainer BuildHero(out ColorRect brandLine, out PanelContainer emblem)
+    private static Control BuildHero(out ColorRect brandLine, out PanelContainer emblem)
     {
         var hero = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
             Alignment = BoxContainer.AlignmentMode.Center,
         };
         hero.AddThemeConstantOverride("separation", 7);
@@ -218,7 +219,14 @@ public partial class MainMenuScreen : Control
         facts.AddChild(BuildPill("HAFIZA", CareerUiTheme.InkMuted));
         hero.AddChild(facts);
 
-        return hero;
+        var heroPanel = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        heroPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.GlassPanel());
+        heroPanel.AddChild(hero);
+        return heroPanel;
     }
 
     private Control BuildActionCard()
@@ -226,6 +234,7 @@ public partial class MainMenuScreen : Control
         var panel = new PanelContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
         };
         panel.AddThemeStyleboxOverride("panel", CareerUiTheme.HeroPanel());
 
@@ -262,7 +271,7 @@ public partial class MainMenuScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             TooltipText = "Yeni bir teknik direktör kariyeri başlat",
         };
-        CareerUiTheme.StylePrimaryButton(newButton);
+        CareerUiTheme.StyleAccentButton(newButton);
         newButton.CustomMinimumSize = new Vector2(0, 52);
         newButton.Pressed += () => NewCareerRequested?.Invoke();
         actions.AddChild(newButton);
@@ -274,7 +283,7 @@ public partial class MainMenuScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             TooltipText = "Son yerel kariyer kaydını yükle",
         };
-        CareerUiTheme.StyleSecondaryButton(continueButton);
+        CareerUiTheme.StylePrimaryButton(continueButton);
         continueButton.CustomMinimumSize = new Vector2(0, 48);
         var savePath = Path.Combine(OS.GetUserDataDir(), "career_save.db");
         continueButton.Disabled = !File.Exists(savePath);

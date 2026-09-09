@@ -1,8 +1,10 @@
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.PlayerCareer.Queries;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Application.WorldCalendar.Commands;
 using Godot;
@@ -279,6 +281,20 @@ public static class CareerUiSmokeTest
                     advancedTactic.Pressing == Domain.TeamPreparation.PressingIntensity.HighPress
                     && advancedTactic.DefensiveLine == Domain.TeamPreparation.DefensiveLine.High
                     && advancedTactic.PassingStyle == Domain.TeamPreparation.PassingStyle.Short);
+                var presetResult = controller.ApplyTacticalPreset(
+                    Domain.TeamPreparation.Formation.F433,
+                    Domain.TeamPreparation.TacticalApproach.Attacking,
+                    Domain.TeamPreparation.PressingIntensity.HighPress,
+                    Domain.TeamPreparation.DefensiveLine.High,
+                    "Şok Pres");
+                var presetTactic = controller.GetManagedTacticPlan();
+                passed &= LogCheck(
+                    "FM26 Dinamik Senaryo Oyun Planı (Şok Pres)",
+                    presetResult.Succeeded
+                    && presetTactic.Formation == Domain.TeamPreparation.Formation.F433
+                    && presetTactic.Approach == Domain.TeamPreparation.TacticalApproach.Attacking
+                    && presetTactic.Pressing == Domain.TeamPreparation.PressingIntensity.HighPress
+                    && presetTactic.DefensiveLine == Domain.TeamPreparation.DefensiveLine.High);
                 var compatibility = controller.BuildLineupCompatibility();
                 passed &= LogCheck(
                     "Kadro uyumu önizlemesi",
@@ -303,10 +319,16 @@ public static class CareerUiSmokeTest
                         && !string.IsNullOrWhiteSpace(player.DisplayName)
                         && !string.IsNullOrWhiteSpace(player.PositionCode)));
                 var scout = controller.BuildScoutTransferDigest();
+                var scoutEuro = controller.BuildScoutTransferDigest(TransferMarketScope.EuropeanElite);
+                var scoutFree = controller.BuildScoutTransferDigest(TransferMarketScope.FreeAgents);
                 passed &= LogCheck(
-                    "Scout ve transfer merkezi",
+                    "Scout ve transfer merkezi (küresel + serbest)",
                     scout.HasClub
                     && scout.Candidates.Count > 0
+                    && scoutEuro.Candidates.Count > 0
+                    && scoutFree.Candidates.Count > 0
+                    && scoutEuro.Candidates.Any(c => c.IsInternational)
+                    && scoutFree.Candidates.Any(c => c.MarketValue == 0)
                     && scout.Candidates.All(candidate =>
                         candidate.PlayerId > 0
                         && !string.IsNullOrWhiteSpace(candidate.DisplayName)
@@ -330,6 +352,9 @@ public static class CareerUiSmokeTest
                     && trainingSelection.Message.Contains(
                         selectedTraining.Title,
                         StringComparison.Ordinal));
+                passed &= LogCheck(
+                    "Seçili maç antrenmanı önceliği",
+                    controller.PendingMatchTrainingPriority?.Priority == selectedTraining.Priority);
                 var preparationSavePath = Path.Combine(
                     OS.GetUserDataDir(),
                     "career_match_training_selfcheck.db");
@@ -371,6 +396,33 @@ public static class CareerUiSmokeTest
                     && economy.WeeklyWageLimit > 0
                     && economy.BoardObjectives.Count == 3);
 
+                var pos442 = TacticalPitchBoard.GetPositionsForFormation(Formation.F442);
+                var pos433 = TacticalPitchBoard.GetPositionsForFormation(Formation.F433);
+                var pos352 = TacticalPitchBoard.GetPositionsForFormation(Formation.F352);
+                passed &= LogCheck(
+                    "Taktik tahtası formasyon koordinatları",
+                    pos442.Length == 11
+                    && pos433.Length == 11
+                    && pos352.Length == 11
+                    && pos433[8] != pos442[8]
+                    && pos352[1] != pos442[1]);
+
+                var opponentDossier = controller.BuildOpponentDossier();
+                var matchupPlan = controller.BuildMatchupPlan();
+                passed &= LogCheck(
+                    "Rakip analizi ve eşleşme planı",
+                    opponentDossier is not null
+                    && !string.IsNullOrWhiteSpace(opponentDossier.Headline)
+                    && matchupPlan is not null
+                    && !string.IsNullOrWhiteSpace(matchupPlan.SelectionLine)
+                    && !string.IsNullOrWhiteSpace(matchupPlan.VerdictLine));
+
+                var tacticChange = controller.SetTacticFormation(Formation.F433);
+                passed &= LogCheck(
+                    "Taktik formasyon değişimi",
+                    tacticChange.Succeeded
+                    && controller.GetManagedTacticPlan().Formation == Formation.F433);
+
                 host.TeamPreparationModule.ApproveDefaultSelection.Handle(
                     new ApproveDefaultMatchSelectionCommand(
                         Guid.NewGuid(),
@@ -407,12 +459,35 @@ public static class CareerUiSmokeTest
                 leagueStatistics.HasData
                 && leagueStatistics.Teams.Count == ProductionCareerWorldConstraints.ClubCount
                 && leagueStatistics.Teams.Count(team => team.LastFiveForm != "—") == 2);
-            var careerLegacy = new CareerSessionController(host).BuildCareerLegacyDigest();
+            var sessionController = new CareerSessionController(host);
+            var seasonFixtures = sessionController.GetSeasonFixtures(CareerSessionController.DefaultSeasonId);
+            passed &= LogCheck(
+                "Sezon fikstür sorgusu",
+                seasonFixtures.Count > 0);
+            var sampleClubId = seasonFixtures[0].HomeClubId;
+            var clubDossier = sessionController.BuildClubDossier(sampleClubId);
+            passed &= LogCheck(
+                "Kulüp istihbarat & rakip dosyası",
+                clubDossier is not null
+                && !string.IsNullOrWhiteSpace(clubDossier.Headline)
+                && !string.IsNullOrWhiteSpace(clubDossier.StandingLine)
+                && !string.IsNullOrWhiteSpace(clubDossier.FormLine));
+            var careerLegacy = sessionController.BuildCareerLegacyDigest();
             passed &= LogCheck(
                 "Uzun süreli kariyer döngüsü",
                 careerLegacy.HasCareer
                 && careerLegacy.Seasons.Count == 1
                 && careerLegacy.Seasons[0].Record.Contains("1 maç", StringComparison.Ordinal));
+
+            var clubEconomy = sessionController.BuildClubEconomy();
+            var realizedFinance = sessionController.BuildRealizedClubFinance();
+            passed &= LogCheck(
+                "Yönetim & Kulüp Finans Masası",
+                clubEconomy is not null
+                && clubEconomy.BoardConfidence >= 0
+                && clubEconomy.BoardObjectives.Count > 0
+                && realizedFinance is not null
+                && !string.IsNullOrWhiteSpace(realizedFinance.BoardOutcome.Summary));
         }
         catch (Exception ex)
         {

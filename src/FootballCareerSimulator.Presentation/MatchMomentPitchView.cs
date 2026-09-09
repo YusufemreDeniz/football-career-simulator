@@ -95,6 +95,12 @@ public sealed partial class MatchMomentPitchView : Control
 
     public event Action? SequenceFinished;
 
+    /// <summary>
+    /// Optional checkpoint predicate (e.g. for half-time intermission). If it returns true,
+    /// playback pauses before the specified frame is presented.
+    /// </summary>
+    public Func<int, MatchMomentStoryboardFrame, bool>? ShouldPauseBeforeMoment { get; set; }
+
     public override void _Ready()
     {
         BuildTextOverlay();
@@ -122,6 +128,13 @@ public sealed partial class MatchMomentPitchView : Control
             _elapsed -= SecondsPerMoment;
             if (_frameIndex + 1 < _storyboard.Frames.Count)
             {
+                var nextFrame = _storyboard.Frames[_frameIndex + 1];
+                if (ShouldPauseBeforeMoment?.Invoke(_frameIndex + 1, nextFrame) == true)
+                {
+                    Pause();
+                    break;
+                }
+
                 PresentFrame(_frameIndex + 1);
                 continue;
             }

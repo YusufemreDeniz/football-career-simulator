@@ -69,6 +69,14 @@ public partial class CareerAppRoot : Control
             controller.EnsureLeagueReady();
             ShowHub(controller);
 
+            if (_currentScreen is CareerHubScreen hub && TryGetSnapshotPage(out var snapshotPage))
+            {
+                if (string.Equals(snapshotPage, "prep", StringComparison.OrdinalIgnoreCase))
+                {
+                    hub.ShowPrepPage();
+                }
+            }
+
             // Snapshot QA needs the final readable state, not a partially faded
             // transition frame. Normal interactive transitions remain unchanged.
             _screenTransition?.Kill();
@@ -92,6 +100,16 @@ public partial class CareerAppRoot : Control
             GD.PushError($"[CareerAppRoot] UI snapshot alınamadı: {ex}");
             GetTree().Quit(1);
         }
+    }
+
+    private static bool TryGetSnapshotPage(out string page)
+    {
+        const string prefix = "--career-snapshot-page=";
+        var argument = OS.GetCmdlineUserArgs()
+            .Concat(OS.GetCmdlineArgs())
+            .FirstOrDefault(arg => arg.StartsWith(prefix, StringComparison.Ordinal));
+        page = argument is null ? string.Empty : argument[prefix.Length..];
+        return !string.IsNullOrWhiteSpace(page);
     }
 
     private static bool TryGetSnapshotPath(out string path)
@@ -184,10 +202,16 @@ public partial class CareerAppRoot : Control
         try
         {
             _audioDirector.TryPlayCue(MatchAudioCue.Whistle);
-            var halfTime = controller.BuildManagedHalfTimeDigest();
-            if (halfTime.HasManagedMatch)
+            if (controller.HasDueContinentalMatch())
             {
-                ShowHalfTime(controller, halfTime);
+                var euroResults = controller.PlayDueContinentalMatch();
+                if (euroResults.Succeeded && euroResults.MatchLines.Count > 0)
+                {
+                    ShowLiveMatch(controller, euroResults);
+                    return;
+                }
+
+                ShowMatchDay(controller);
                 return;
             }
 

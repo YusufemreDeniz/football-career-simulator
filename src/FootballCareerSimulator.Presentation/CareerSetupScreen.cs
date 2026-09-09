@@ -21,6 +21,7 @@ public partial class CareerSetupScreen : Control
     private VBoxContainer _offerList = null!;
     private Label _offerHint = null!;
     private Button _startButton = null!;
+    private GridContainer _setupGrid = null!;
 
     public event Action<CareerStartConfiguration>? CareerConfirmed;
 
@@ -100,10 +101,19 @@ public partial class CareerSetupScreen : Control
         intro.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
         content.AddChild(intro);
 
-        content.AddChild(BuildWorldSection());
-        content.AddChild(BuildManagerSection());
-        content.AddChild(BuildBackgroundSection());
-        content.AddChild(BuildOfferSection());
+        _setupGrid = new GridContainer
+        {
+            Columns = 2,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _setupGrid.AddThemeConstantOverride("h_separation", CareerUiTheme.SpaceM);
+        _setupGrid.AddThemeConstantOverride("v_separation", CareerUiTheme.SpaceM);
+        content.AddChild(_setupGrid);
+
+        _setupGrid.AddChild(WrapSetupSection(BuildWorldSection()));
+        _setupGrid.AddChild(WrapSetupSection(BuildManagerSection()));
+        _setupGrid.AddChild(WrapSetupSection(BuildBackgroundSection()));
+        _setupGrid.AddChild(WrapSetupSection(BuildOfferSection()));
 
         _startButton = new Button
         {
@@ -246,6 +256,18 @@ public partial class CareerSetupScreen : Control
         section.AddChild(_offerList);
 
         return section;
+    }
+
+    private static PanelContainer WrapSetupSection(Control section)
+    {
+        var card = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        card.AddThemeStyleboxOverride("panel", CareerUiTheme.CardPanel());
+        card.AddChild(section);
+        return card;
     }
 
     private void RebuildWorldFromSeed()
@@ -391,7 +413,12 @@ public partial class CareerSetupScreen : Control
     private void UpdateContentWidth(Control content)
     {
         var available = Mathf.Max(288f, Size.X - 32f);
-        content.CustomMinimumSize = new Vector2(Mathf.Min(520f, available), 0);
+        content.CustomMinimumSize = new Vector2(Mathf.Min(980f, available), 0);
+        if (_setupGrid is not null)
+        {
+            var viewportHeight = Size.Y > 0 ? Size.Y : GetViewportRect().Size.Y;
+            _setupGrid.Columns = Size.X >= 700f && Size.X > viewportHeight ? 2 : 1;
+        }
     }
 
     private void UpdateContentWidthDeferred(Control content) => UpdateContentWidth(content);

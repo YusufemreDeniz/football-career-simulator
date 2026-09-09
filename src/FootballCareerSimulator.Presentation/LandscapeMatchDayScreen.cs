@@ -23,6 +23,10 @@ public partial class LandscapeMatchDayScreen : Control
     private int? _selectedSquadSlotIndex;
     private bool? _selectedSquadPlayerIsStarter;
 
+    private PanelContainer _readinessBadge = null!;
+    private Label _readinessLabel = null!;
+    private Label _opponentLabel = null!;
+
     public event Action? BackRequested;
     public event Action? KickoffRequested;
 
@@ -58,13 +62,20 @@ public partial class LandscapeMatchDayScreen : Control
 
         var heading = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         header.AddChild(heading);
-        var stage = new Label { Text = "MAÇ GÜNÜ  /  TAKTİK TAHTASI" };
-        CareerUiTheme.StyleEyebrow(stage, CareerUiTheme.Data);
+        var stage = new Label { Text = "🏆 MAÇ GÜNÜ  •  TAKTİK & KADRO BRİFİNGİ" };
+        CareerUiTheme.StyleEyebrow(stage, CareerUiTheme.Accent);
         heading.AddChild(stage);
         _fixtureLabel = new Label();
         CareerUiTheme.StyleHeadline(_fixtureLabel);
         _fixtureLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(22));
         heading.AddChild(_fixtureLabel);
+
+        _readinessBadge = new PanelContainer();
+        _readinessBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
+        _readinessLabel = new Label { Text = "✓ Kadro Onaylandı" };
+        CareerUiTheme.StyleEyebrow(_readinessLabel, CareerUiTheme.ActionBright);
+        _readinessBadge.AddChild(_readinessLabel);
+        header.AddChild(_readinessBadge);
 
         var body = new HBoxContainer
         {
@@ -81,9 +92,19 @@ public partial class LandscapeMatchDayScreen : Control
         body.AddChild(pitchPanel);
         var pitchStack = MatchScreenUi.VerticalStack(7);
         pitchPanel.AddChild(pitchStack);
-        var pitchTitle = new Label { Text = "SAHADAKI ILK 11" };
+        var pitchHeader = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        pitchHeader.AddThemeConstantOverride("separation", 8);
+        var pitchTitle = new Label { Text = "SAHADAKİ İLK 11", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         CareerUiTheme.StyleEyebrow(pitchTitle, CareerUiTheme.ActionBright);
-        pitchStack.AddChild(pitchTitle);
+        pitchHeader.AddChild(pitchTitle);
+
+        var autoAlignButton = SecondaryButton("⚡ Mevkilere Göre Diz");
+        autoAlignButton.CustomMinimumSize = new Vector2(170, 32);
+        autoAlignButton.TooltipText = "Sahadaki oyuncuları mevkilerine (GK, DEF, MID, FWD) en uygun diziliş konumlarına otomatik yerleştirir.";
+        autoAlignButton.Pressed += () => Apply(_controller.AutoAlignStartingXiByFormationForNextDueMatch());
+        pitchHeader.AddChild(autoAlignButton);
+
+        pitchStack.AddChild(pitchHeader);
         _pitchHost = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -110,17 +131,24 @@ public partial class LandscapeMatchDayScreen : Control
         _benchHost = MatchScreenUi.VerticalStack(0);
         commandStack.AddChild(_benchHost);
 
-        var tacticsTitle = new Label { Text = "MAC PLANI" };
+        var tacticsTitle = new Label { Text = "MAÇ PLANI" };
         CareerUiTheme.StyleEyebrow(tacticsTitle, CareerUiTheme.Data);
         commandStack.AddChild(tacticsTitle);
         _tacticHost = MatchScreenUi.VerticalStack(6);
         commandStack.AddChild(_tacticHost);
 
+        var opponentCard = MatchScreenUi.Card();
+        commandStack.AddChild(opponentCard);
+        var opponentStack = MatchScreenUi.VerticalStack(4);
+        opponentCard.AddChild(opponentStack);
+        var opponentTitle = new Label { Text = "🔍 RAKİP ANALİZİ & TEHLİKELER" };
+        CareerUiTheme.StyleEyebrow(opponentTitle, CareerUiTheme.Accent);
+        opponentStack.AddChild(opponentTitle);
         var dossier = _controller.BuildOpponentDossier();
-        var opponent = MatchScreenUi.BodyLine(
-            dossier is null ? "Rakip analizi hazirlaniyor." : dossier.Headline,
+        _opponentLabel = MatchScreenUi.BodyLine(
+            dossier is null ? "Rakip analizi hazırlanıyor." : dossier.Headline,
             muted: true);
-        commandStack.AddChild(opponent);
+        opponentStack.AddChild(_opponentLabel);
 
         _statusLabel = MatchScreenUi.BodyLine(string.Empty, muted: true);
         var statusPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -136,7 +164,7 @@ public partial class LandscapeMatchDayScreen : Control
         _approveButton.CustomMinimumSize = new Vector2(0, _layout.ActionButtonHeight);
         _approveButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
         footer.AddChild(_approveButton);
-        _kickoffButton = PrimaryButton("Dudugu Cal");
+        _kickoffButton = PrimaryButton("Düdüğü Çal");
         _kickoffButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         _kickoffButton.CustomMinimumSize = new Vector2(0, _layout.ActionButtonHeight);
         _kickoffButton.Pressed += () => Callable.From(() => KickoffRequested?.Invoke()).CallDeferred();
@@ -185,6 +213,24 @@ public partial class LandscapeMatchDayScreen : Control
         {
             CareerUiTheme.StyleSecondaryButton(_kickoffButton);
         }
+
+        _readinessBadge.Visible = briefing.HasMatch;
+        if (briefing.IsReadyToKickOff)
+        {
+            _readinessBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
+            _readinessLabel.Text = "✓ Kadro Onaylandı";
+            _readinessLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        }
+        else
+        {
+            _readinessBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning, 0.20f));
+            _readinessLabel.Text = "⚠️ Onay Bekliyor";
+            _readinessLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorWarning);
+        }
+
+        var dossier = _controller.BuildOpponentDossier();
+        _opponentLabel.Text = dossier is null ? "Rakip analizi hazırlanıyor." : dossier.Headline;
+
         RefreshPitch();
         RefreshTactics();
     }
@@ -209,35 +255,55 @@ public partial class LandscapeMatchDayScreen : Control
         }
 
         _selectionHintLabel.Text = _selectedSquadSlotIndex is null
-            ? "Bir oyuncuya, sonra karsisindaki gruptan degisecek oyuncuya dokun."
-            : "Degisiklik icin karsisindaki gruptan bir oyuncu sec.";
+            ? "Dokun ve yer değiştir: Saha ↔ Saha, Yedek ↔ Yedek veya Saha ↔ Yedek."
+            : "Yer değiştirmek istediğin ikinci oyuncuya dokun (aynısına dokunursan iptal olur).";
         _benchHost.AddChild(TacticalPitchBoardUi.BuildBench(
             board,
             _selectedSquadSlotIndex,
             SelectSquadPlayer,
             true,
             new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight)));
+        var tactic = _controller.GetManagedTacticPlan();
         _pitchHost.AddChild(TacticalPitchBoardUi.BuildPitch(
             board,
             _selectedSquadSlotIndex,
             SelectSquadPlayer,
             true,
             new Vector2(_layout.PitchMinimumWidth, _layout.PitchMinimumHeight),
-            new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight)));
+            new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight),
+            tactic.Formation));
     }
 
     private void RefreshTactics()
     {
         MatchScreenUi.ClearChildren(_tacticHost);
         var plan = _controller.GetManagedTacticPlan();
-        _tacticHost.AddChild(BuildOptionRow("DIZILIS", [
-            ("4-4-2", plan.Formation == Formation.F442, () => _controller.SetTacticFormation(Formation.F442)),
-            ("4-3-3", plan.Formation == Formation.F433, () => _controller.SetTacticFormation(Formation.F433)),
-            ("3-5-2", plan.Formation == Formation.F352, () => _controller.SetTacticFormation(Formation.F352)),
-        ]));
-        _tacticHost.AddChild(BuildOptionRow("YAKLASIM", [
+
+        var formationBlock = MatchScreenUi.VerticalStack(4);
+        var formationTitle = new Label { Text = "DİZİLİŞ" };
+        CareerUiTheme.StyleEyebrow(formationTitle);
+        formationBlock.AddChild(formationTitle);
+
+        var formationRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        formationRow.AddThemeConstantOverride("separation", 5);
+        formationBlock.AddChild(formationRow);
+
+        var changeFormationBtn = PrimaryButton($"📋 {FormationPickerModal.FormatLabel(plan.Formation)} (Tüm Dizilişler)");
+        changeFormationBtn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        changeFormationBtn.CustomMinimumSize = new Vector2(0, 38);
+        changeFormationBtn.Pressed += () =>
+        {
+            FormationPickerModal.Open(this, plan.Formation, formation =>
+            {
+                Apply(_controller.SetTacticFormation(formation));
+            });
+        };
+        formationRow.AddChild(changeFormationBtn);
+        _tacticHost.AddChild(formationBlock);
+
+        _tacticHost.AddChild(BuildOptionRow("YAKLAŞIM", [
             ("Dengeli", plan.Approach == TacticalApproach.Balanced, () => _controller.SetTacticApproach(TacticalApproach.Balanced)),
-            ("Hucum", plan.Approach == TacticalApproach.Attacking, () => _controller.SetTacticApproach(TacticalApproach.Attacking)),
+            ("Hücum", plan.Approach == TacticalApproach.Attacking, () => _controller.SetTacticApproach(TacticalApproach.Attacking)),
             ("Savunma", plan.Approach == TacticalApproach.Defensive, () => _controller.SetTacticApproach(TacticalApproach.Defensive)),
         ]));
     }
@@ -268,28 +334,43 @@ public partial class LandscapeMatchDayScreen : Control
         {
             _selectedSquadSlotIndex = null;
             _selectedSquadPlayerIsStarter = null;
-        }
-        else if (_selectedSquadSlotIndex is null || _selectedSquadPlayerIsStarter == player.IsStarter)
-        {
-            _selectedSquadSlotIndex = player.SlotIndex;
-            _selectedSquadPlayerIsStarter = player.IsStarter;
-        }
-        else
-        {
-            var starter = player.IsStarter ? player.SlotIndex : _selectedSquadSlotIndex.Value;
-            var bench = player.IsStarter ? _selectedSquadSlotIndex.Value : player.SlotIndex;
-            SwapSquadPlayers(starter, bench);
+            SetStatus("Seçim kaldırıldı.");
+            RefreshPitch();
             return;
         }
 
-        RefreshPitch();
-    }
+        if (_selectedSquadSlotIndex is null)
+        {
+            _selectedSquadSlotIndex = player.SlotIndex;
+            _selectedSquadPlayerIsStarter = player.IsStarter;
+            var groupName = player.IsStarter ? "Sahadaki" : "Yedekteki";
+            SetStatus($"{groupName} {player.DisplayName} ({player.PositionCode}) seçildi. Yer değiştirmek için ikinci bir oyuncuya dokun.");
+            RefreshPitch();
+            return;
+        }
 
-    private void SwapSquadPlayers(int starterSlotIndex, int benchSlotIndex)
-    {
+        var firstSlot = _selectedSquadSlotIndex.Value;
+        var firstIsStarter = _selectedSquadPlayerIsStarter.GetValueOrDefault(true);
+        var secondSlot = player.SlotIndex;
+        var secondIsStarter = player.IsStarter;
+
         _selectedSquadSlotIndex = null;
         _selectedSquadPlayerIsStarter = null;
-        Apply(_controller.SwapStarterWithBenchForNextDueMatch(starterSlotIndex, benchSlotIndex));
+
+        if (firstIsStarter && secondIsStarter)
+        {
+            Apply(_controller.SwapTwoStartersForNextDueMatch(firstSlot, secondSlot));
+        }
+        else if (!firstIsStarter && !secondIsStarter)
+        {
+            Apply(_controller.SwapTwoBenchForNextDueMatch(firstSlot, secondSlot));
+        }
+        else
+        {
+            var starter = firstIsStarter ? firstSlot : secondSlot;
+            var bench = firstIsStarter ? secondSlot : firstSlot;
+            Apply(_controller.SwapStarterWithBenchForNextDueMatch(starter, bench));
+        }
     }
 
     private void Apply(UiActionResult result)

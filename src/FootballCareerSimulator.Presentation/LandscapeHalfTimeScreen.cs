@@ -17,6 +17,7 @@ public partial class LandscapeHalfTimeScreen : Control
     private VBoxContainer _benchHost = null!;
     private Label _substitutionLabel = null!;
     private Label _statusLabel = null!;
+    private Button _formationBtn = null!;
     private int _substitutionCount;
     private int? _selectedSquadSlotIndex;
     private bool? _selectedSquadPlayerIsStarter;
@@ -57,16 +58,21 @@ public partial class LandscapeHalfTimeScreen : Control
         header.AddChild(back);
         var scoreBlock = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         header.AddChild(scoreBlock);
-        var stage = new Label { Text = "DEVRE ARASI  /  MAÇ KOMUTA MERKEZİ" };
+        var stage = new Label { Text = "⏸ DEVRE ARASI  •  MAÇ KOMUTA MERKEZİ" };
         CareerUiTheme.StyleEyebrow(stage, CareerUiTheme.Accent);
         scoreBlock.AddChild(stage);
         var fixture = new Label { Text = _digest.FixtureLine };
         CareerUiTheme.StyleBody(fixture, muted: true);
         scoreBlock.AddChild(fixture);
-        var score = new Label { Text = _digest.Scoreline, HorizontalAlignment = HorizontalAlignment.Right };
-        CareerUiTheme.StyleBrand(score);
-        score.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(34));
-        header.AddChild(score);
+
+        var scorePill = new PanelContainer();
+        scorePill.AddThemeStyleboxOverride("panel", CareerUiTheme.ScoreboardPill());
+        var score = new Label { Text = _digest.Scoreline, HorizontalAlignment = HorizontalAlignment.Center };
+        CareerUiTheme.ApplyDisplayFont(score);
+        score.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(28));
+        score.AddThemeColorOverride("font_color", Colors.White);
+        scorePill.AddChild(score);
+        header.AddChild(scorePill);
 
         var body = new HBoxContainer
         {
@@ -83,9 +89,45 @@ public partial class LandscapeHalfTimeScreen : Control
         body.AddChild(pitchPanel);
         var pitchStack = MatchScreenUi.VerticalStack(7);
         pitchPanel.AddChild(pitchStack);
+
+        var pitchHeader = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        pitchHeader.AddThemeConstantOverride("separation", 8);
+        var subPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        subPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.16f));
         _substitutionLabel = new Label();
         CareerUiTheme.StyleEyebrow(_substitutionLabel, CareerUiTheme.ActionBright);
-        pitchStack.AddChild(_substitutionLabel);
+        subPanel.AddChild(_substitutionLabel);
+        pitchHeader.AddChild(subPanel);
+
+        var autoAlignBtn = SecondaryButton("⚡ Otomatik Diz");
+        autoAlignBtn.CustomMinimumSize = new Vector2(140, 28);
+        autoAlignBtn.TooltipText = "Sahadaki oyuncuları mevkilerine göre en mantıklı pozisyonlara dizer.";
+        autoAlignBtn.Pressed += () =>
+        {
+            var result = _controller.AutoAlignStartingXiByFormationForNextDueMatch();
+            _statusLabel.Text = result.Message;
+            _statusLabel.AddThemeColorOverride("font_color", result.Succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
+            RefreshPitch();
+        };
+        pitchHeader.AddChild(autoAlignBtn);
+
+        _formationBtn = SecondaryButton("📋 Diziliş");
+        _formationBtn.CustomMinimumSize = new Vector2(110, 28);
+        _formationBtn.TooltipText = "Devre arasında takımın saha dizilişini değiştir.";
+        _formationBtn.Pressed += () =>
+        {
+            var currentFormation = _controller.GetManagedTacticPlan().Formation;
+            FormationPickerModal.Open(this, currentFormation, selected =>
+            {
+                var change = _controller.SetTacticFormation(selected);
+                _statusLabel.Text = change.Message;
+                _statusLabel.AddThemeColorOverride("font_color", change.Succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
+                RefreshPitch();
+            });
+        };
+        pitchHeader.AddChild(_formationBtn);
+
+        pitchStack.AddChild(pitchHeader);
         _pitchHost = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -142,61 +184,91 @@ public partial class LandscapeHalfTimeScreen : Control
         }
 
         _substitutionLabel.Text = _substitutionCount >= MaxSecondHalfSubstitutions
-            ? "DEGISIKLIK HAKKI KALMADI  /  5-5"
-            : $"DEGISIKLIK HAKKI  /  {_substitutionCount}-{MaxSecondHalfSubstitutions}";
+            ? "DEĞİŞİKLİK HAKKI DOLDU (5/5) · Saha içi taktik değişim serbest"
+            : $"DEĞİŞİKLİK HAKKI: {_substitutionCount} / {MaxSecondHalfSubstitutions}";
         _benchHost.AddChild(TacticalPitchBoardUi.BuildBench(
             board,
             _selectedSquadSlotIndex,
             SelectSquadPlayer,
-            _substitutionCount < MaxSecondHalfSubstitutions,
+            true,
             new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight)));
+        var currentFormation = _controller.GetManagedTacticPlan().Formation;
+        if (_formationBtn is not null)
+        {
+            _formationBtn.Text = $"📋 {FormationPickerModal.FormatLabel(currentFormation)}";
+        }
+
         _pitchHost.AddChild(TacticalPitchBoardUi.BuildPitch(
             board,
             _selectedSquadSlotIndex,
             SelectSquadPlayer,
-            _substitutionCount < MaxSecondHalfSubstitutions,
+            true,
             new Vector2(_layout.PitchMinimumWidth, _layout.PitchMinimumHeight),
-            new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight)));
+            new Vector2(_layout.PlayerButtonWidth, _layout.PlayerButtonHeight),
+            currentFormation));
     }
 
     private void SelectSquadPlayer(SquadSelectionPlayerDigest player)
     {
-        if (_substitutionCount >= MaxSecondHalfSubstitutions)
-        {
-            return;
-        }
-
         if (_selectedSquadSlotIndex == player.SlotIndex)
         {
             _selectedSquadSlotIndex = null;
             _selectedSquadPlayerIsStarter = null;
-        }
-        else if (_selectedSquadSlotIndex is null || _selectedSquadPlayerIsStarter == player.IsStarter)
-        {
-            _selectedSquadSlotIndex = player.SlotIndex;
-            _selectedSquadPlayerIsStarter = player.IsStarter;
-        }
-        else
-        {
-            var starter = player.IsStarter ? player.SlotIndex : _selectedSquadSlotIndex.Value;
-            var bench = player.IsStarter ? _selectedSquadSlotIndex.Value : player.SlotIndex;
-            SwapSquadPlayers(starter, bench);
+            _statusLabel.Text = "Seçim kaldırıldı.";
+            RefreshPitch();
             return;
         }
 
-        RefreshPitch();
+        if (_selectedSquadSlotIndex is null)
+        {
+            _selectedSquadSlotIndex = player.SlotIndex;
+            _selectedSquadPlayerIsStarter = player.IsStarter;
+            var groupName = player.IsStarter ? "Sahadaki" : "Yedekteki";
+            _statusLabel.Text = $"{groupName} {player.DisplayName} ({player.PositionCode}) seçildi. Yer değiştirmek için ikinci bir oyuncuya dokun.";
+            RefreshPitch();
+            return;
+        }
+
+        var firstSlot = _selectedSquadSlotIndex.Value;
+        var firstIsStarter = _selectedSquadPlayerIsStarter.GetValueOrDefault(true);
+        var secondSlot = player.SlotIndex;
+        var secondIsStarter = player.IsStarter;
+
+        _selectedSquadSlotIndex = null;
+        _selectedSquadPlayerIsStarter = null;
+
+        if (firstIsStarter && secondIsStarter)
+        {
+            var result = _controller.SwapTwoStartersForNextDueMatch(firstSlot, secondSlot);
+            _statusLabel.Text = result.Message;
+            _statusLabel.AddThemeColorOverride("font_color", result.Succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
+            RefreshPitch();
+        }
+        else if (!firstIsStarter && !secondIsStarter)
+        {
+            var result = _controller.SwapTwoBenchForNextDueMatch(firstSlot, secondSlot);
+            _statusLabel.Text = result.Message;
+            _statusLabel.AddThemeColorOverride("font_color", result.Succeeded ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
+            RefreshPitch();
+        }
+        else
+        {
+            var starter = firstIsStarter ? firstSlot : secondSlot;
+            var bench = firstIsStarter ? secondSlot : firstSlot;
+            SwapSquadPlayers(starter, bench);
+        }
     }
 
     private void SwapSquadPlayers(int starterSlotIndex, int benchSlotIndex)
     {
         if (_substitutionCount >= MaxSecondHalfSubstitutions)
         {
+            _statusLabel.Text = "Maksimum 5 oyuncu değişikliği hakkı kullanıldı.";
+            _statusLabel.AddThemeColorOverride("font_color", CareerUiTheme.DangerSoft);
             return;
         }
 
         var result = _controller.SwapStarterWithBenchForNextDueMatch(starterSlotIndex, benchSlotIndex);
-        _selectedSquadSlotIndex = null;
-        _selectedSquadPlayerIsStarter = null;
         if (result.Succeeded)
         {
             _substitutionCount++;

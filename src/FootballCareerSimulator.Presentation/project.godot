@@ -6,6 +6,7 @@ config_version=5
 [application]
 
 config/name="Football Career Simulator"
+config/icon="res://assets/app-icon/launcher-main-192.png"
 run/main_scene="res://CareerAppRoot.tscn"
 config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 

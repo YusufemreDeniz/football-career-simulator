@@ -40,8 +40,20 @@ public partial class MatchKickoffScreen : Control
         var content = MatchScreenUi.VerticalStack(16);
         scroll.AddChild(content);
 
+        var viewport = GetViewportRect().Size;
+        var bodyGrid = new GridContainer
+        {
+            Columns = viewport.X >= 700f && viewport.X > viewport.Y ? 2 : 1,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        bodyGrid.AddThemeConstantOverride("h_separation", CareerUiTheme.SpaceM);
+        bodyGrid.AddThemeConstantOverride("v_separation", CareerUiTheme.SpaceM);
+        content.AddChild(bodyGrid);
+
         var hero = MatchScreenUi.Card(emphasized: true);
-        content.AddChild(hero);
+        hero.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        hero.SizeFlagsVertical = SizeFlags.ExpandFill;
+        bodyGrid.AddChild(hero);
         var heroContent = MatchScreenUi.VerticalStack(9);
         hero.AddChild(heroContent);
 
@@ -90,9 +102,15 @@ public partial class MatchKickoffScreen : Control
         headline.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(24));
         heroContent.AddChild(headline);
 
-        content.AddChild(MatchScreenUi.SectionTitle("TÜNEL", "Maçın ilk nefesi"));
+        var tunnelColumn = MatchScreenUi.VerticalStack(8);
+        tunnelColumn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        tunnelColumn.SizeFlagsVertical = SizeFlags.ExpandFill;
+        bodyGrid.AddChild(tunnelColumn);
+
+        tunnelColumn.AddChild(MatchScreenUi.SectionTitle("TÜNEL", "Maçın ilk nefesi"));
         var beatsPanel = MatchScreenUi.Card();
-        content.AddChild(beatsPanel);
+        beatsPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
+        tunnelColumn.AddChild(beatsPanel);
         var beats = MatchScreenUi.VerticalStack(10);
         beatsPanel.AddChild(beats);
 
@@ -132,7 +150,7 @@ public partial class MatchKickoffScreen : Control
         readinessPanel.AddThemeStyleboxOverride(
             "panel",
             CareerUiTheme.BadgePanel(_moment.IsReadyToKickOff ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft));
-        content.AddChild(readinessPanel);
+        tunnelColumn.AddChild(readinessPanel);
 
         var readiness = MatchScreenUi.BodyLine(
             _moment.IsReadyToKickOff
@@ -144,10 +162,12 @@ public partial class MatchKickoffScreen : Control
             _moment.IsReadyToKickOff ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
         readinessPanel.AddChild(readiness);
 
-        var footer = MatchScreenUi.VerticalStack(8);
+        var footer = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        footer.AddThemeConstantOverride("separation", CareerUiTheme.SpaceS);
         shell.AddChild(footer);
 
         var proceedButton = PrimaryButton("Devam");
+        proceedButton.SizeFlagsStretchRatio = 1.35f;
         proceedButton.Disabled = !_moment.IsReadyToKickOff;
         proceedButton.Text = _moment.IsReadyToKickOff
             ? "Maçı Başlat"
@@ -156,6 +176,7 @@ public partial class MatchKickoffScreen : Control
         footer.AddChild(proceedButton);
 
         var backButton = SecondaryButton("Maç Gününe Dön");
+        backButton.SizeFlagsStretchRatio = 1f;
         backButton.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
         footer.AddChild(backButton);
 
