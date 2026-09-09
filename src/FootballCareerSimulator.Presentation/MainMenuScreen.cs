@@ -5,8 +5,8 @@ namespace FootballCareerSimulator.Presentation;
 public partial class MainMenuScreen : Control
 {
     private const float MinimumContentWidth = 288f;
-    private const float MaximumContentWidth = 960f;
-    private const float HorizontalSafeMargin = 16f;
+    private const float MaximumContentWidth = 1120f;
+    private const float HorizontalSafeMargin = 18f;
 
     private Label _statusLabel = null!;
     private VBoxContainer _content = null!;
@@ -20,18 +20,17 @@ public partial class MainMenuScreen : Control
     {
         CareerUiTheme.EnsureLoaded();
 
-        var atmosphere = CareerUiTheme.CreateAtmosphereBackground();
-        AddChild(atmosphere);
-        AnimateAtmosphere(atmosphere);
+        var backdrop = AddMenuBackdrop();
+        AnimateBackdrop(backdrop);
 
         var safeArea = new MarginContainer();
         safeArea.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         safeArea.GrowHorizontal = GrowDirection.Both;
         safeArea.GrowVertical = GrowDirection.Both;
         safeArea.AddThemeConstantOverride("margin_left", (int)HorizontalSafeMargin);
-        safeArea.AddThemeConstantOverride("margin_top", 20);
+        safeArea.AddThemeConstantOverride("margin_top", 12);
         safeArea.AddThemeConstantOverride("margin_right", (int)HorizontalSafeMargin);
-        safeArea.AddThemeConstantOverride("margin_bottom", 16);
+        safeArea.AddThemeConstantOverride("margin_bottom", 12);
         AddChild(safeArea);
 
         var center = new CenterContainer
@@ -123,9 +122,9 @@ public partial class MainMenuScreen : Control
         };
         row.AddThemeConstantOverride("separation", 8);
 
-        row.AddChild(BuildPill("●  KARİYER MODU", CareerUiTheme.ActionBright, live: true));
+        row.AddChild(BuildPill("●  FCS MANAGER", CareerUiTheme.ActionBright, live: true));
         row.AddChild(new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill });
-        row.AddChild(BuildPill("YEREL KAYIT", CareerUiTheme.InkMuted));
+        row.AddChild(BuildPill("v1.1  •  YEREL KARİYER", CareerUiTheme.InkMuted));
         return row;
     }
 
@@ -135,54 +134,62 @@ public partial class MainMenuScreen : Control
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
+            Alignment = BoxContainer.AlignmentMode.End,
         };
-        hero.AddThemeConstantOverride("separation", 7);
+        hero.AddThemeConstantOverride("separation", 4);
+
+        hero.AddChild(new Control
+        {
+            CustomMinimumSize = new Vector2(0, 12),
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        });
 
         emblem = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(64, 64),
-            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+            CustomMinimumSize = new Vector2(50, 50),
+            SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
             MouseFilter = MouseFilterEnum.Ignore,
         };
         emblem.AddThemeStyleboxOverride("panel", CareerUiTheme.EmblemPanel());
-        var emblemText = new Label
+        var emblemImage = new TextureRect
         {
-            Text = "FCS",
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
+            Texture = GD.Load<Texture2D>("res://assets/app-icon/launcher-adaptive-foreground-432.png"),
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+            CustomMinimumSize = new Vector2(44, 44),
+            MouseFilter = MouseFilterEnum.Ignore,
         };
-        CareerUiTheme.StyleHeadline(emblemText);
-        emblemText.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(19));
-        emblemText.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-        emblem.AddChild(emblemText);
+        emblem.AddChild(emblemImage);
         hero.AddChild(emblem);
 
         var eyebrow = new Label
         {
-            Text = "KARİYERİN SENİ HATIRLAR",
-            HorizontalAlignment = HorizontalAlignment.Center,
+            Text = "KARİYERİNİ YÖNET • MİRasını BIRAK",
+            HorizontalAlignment = HorizontalAlignment.Left,
         };
         CareerUiTheme.StyleEyebrow(eyebrow, CareerUiTheme.Accent);
         hero.AddChild(eyebrow);
 
         var brand = new Label
         {
-            Text = "FOOTBALL",
-            HorizontalAlignment = HorizontalAlignment.Center,
+            Text = "FOOTBALL\nCAREER",
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Bottom,
         };
         CareerUiTheme.StyleBrand(brand);
-        brand.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(34));
+        brand.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(31));
+        brand.AddThemeConstantOverride("line_spacing", -7);
         hero.AddChild(brand);
 
         var brandSecondLine = new Label
         {
             Text = "CAREER SIMULATOR",
-            HorizontalAlignment = HorizontalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Left,
         };
         CareerUiTheme.StyleHeadline(brandSecondLine);
-        brandSecondLine.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(20));
-        brandSecondLine.AddThemeColorOverride("font_color", CareerUiTheme.InkMuted);
+        brandSecondLine.Text = "SIMULATOR";
+        brandSecondLine.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(23));
+        brandSecondLine.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         hero.AddChild(brandSecondLine);
 
         brandLine = new ColorRect
@@ -193,15 +200,15 @@ public partial class MainMenuScreen : Control
                 CareerUiTheme.ActionBright.B,
                 0.86f),
             CustomMinimumSize = new Vector2(34, 3),
-            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+            SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
             MouseFilter = MouseFilterEnum.Ignore,
         };
         hero.AddChild(brandLine);
 
         var tagline = new Label
         {
-            Text = "Sportif kararların, insan ilişkilerin ve geçmişin\nyıllar boyunca aynı dünyada yaşamaya devam eder.",
-            HorizontalAlignment = HorizontalAlignment.Center,
+            Text = "Takımını kur. Kararını ver. Hikâyeni sahaya yaz.",
+            HorizontalAlignment = HorizontalAlignment.Left,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(tagline, muted: true);
@@ -210,8 +217,8 @@ public partial class MainMenuScreen : Control
 
         var facts = new HBoxContainer
         {
-            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
-            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsHorizontal = SizeFlags.ShrinkBegin,
+            Alignment = BoxContainer.AlignmentMode.Begin,
         };
         facts.AddThemeConstantOverride("separation", 6);
         facts.AddChild(BuildPill("KARARLAR", CareerUiTheme.InkMuted));
@@ -219,14 +226,16 @@ public partial class MainMenuScreen : Control
         facts.AddChild(BuildPill("HAFIZA", CareerUiTheme.InkMuted));
         hero.AddChild(facts);
 
-        var heroPanel = new PanelContainer
+        var heroMargin = new MarginContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        heroPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.GlassPanel());
-        heroPanel.AddChild(hero);
-        return heroPanel;
+        heroMargin.AddThemeConstantOverride("margin_left", 10);
+        heroMargin.AddThemeConstantOverride("margin_right", 10);
+        heroMargin.AddThemeConstantOverride("margin_bottom", 8);
+        heroMargin.AddChild(hero);
+        return heroMargin;
     }
 
     private Control BuildActionCard()
@@ -236,7 +245,7 @@ public partial class MainMenuScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ShrinkCenter,
         };
-        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.HeroPanel());
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.GlassPanel());
 
         var actions = new VBoxContainer
         {
@@ -247,48 +256,46 @@ public partial class MainMenuScreen : Control
 
         var title = new Label
         {
-            Text = "Teknik alan seni bekliyor",
-            HorizontalAlignment = HorizontalAlignment.Center,
+            Text = "MENAJER MERKEZİ",
+            HorizontalAlignment = HorizontalAlignment.Left,
         };
-        CareerUiTheme.StyleHeadline(title);
-        title.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(18));
+        CareerUiTheme.StyleEyebrow(title, CareerUiTheme.Accent);
+        title.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
         actions.AddChild(title);
 
         var subtitle = new Label
         {
-            Text = "Takımı hazırla. Kararını ver. Sonuçları sahiplen.",
-            HorizontalAlignment = HorizontalAlignment.Center,
+            Text = "Kariyerine kaldığın yerden devam et veya yeni bir dünya kur.",
+            HorizontalAlignment = HorizontalAlignment.Left,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(subtitle, muted: true);
         subtitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
         actions.AddChild(subtitle);
 
-        var newButton = new Button
-        {
-            Name = "NewCareerButton",
-            Text = "Yeni Menajer Kariyeri",
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            TooltipText = "Yeni bir teknik direktör kariyeri başlat",
-        };
-        CareerUiTheme.StyleAccentButton(newButton);
-        newButton.CustomMinimumSize = new Vector2(0, 52);
-        newButton.Pressed += () => NewCareerRequested?.Invoke();
-        actions.AddChild(newButton);
-
         var continueButton = new Button
         {
             Name = "ContinueButton",
-            Text = "Kariyere Devam Et",
+            Text = "▶   Kariyere Devam Et",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             TooltipText = "Son yerel kariyer kaydını yükle",
         };
-        CareerUiTheme.StylePrimaryButton(continueButton);
-        continueButton.CustomMinimumSize = new Vector2(0, 48);
+        CareerUiTheme.StyleMainMenuRailButton(continueButton, prominent: true);
         var savePath = Path.Combine(OS.GetUserDataDir(), "career_save.db");
         continueButton.Disabled = !File.Exists(savePath);
         continueButton.Pressed += () => ContinueRequested?.Invoke();
         actions.AddChild(continueButton);
+
+        var newButton = new Button
+        {
+            Name = "NewCareerButton",
+            Text = "◎   Yeni Menajer Kariyeri",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            TooltipText = "Yeni bir teknik direktör kariyeri başlat",
+        };
+        CareerUiTheme.StyleMainMenuRailButton(newButton);
+        newButton.Pressed += () => NewCareerRequested?.Invoke();
+        actions.AddChild(newButton);
 
         var statusPanel = new PanelContainer
         {
@@ -333,26 +340,64 @@ public partial class MainMenuScreen : Control
         return panel;
     }
 
-    private void AnimateAtmosphere(Control atmosphere)
+    private TextureRect AddMenuBackdrop()
     {
-        var glow = atmosphere.GetNodeOrNull<CanvasItem>("StadiumGlow");
-        if (glow is null)
+        var texture = GD.Load<Texture2D>("res://assets/menu/main-menu-stadium-v1.png");
+        var backdrop = new TextureRect
         {
-            return;
-        }
+            Name = "MainMenuStadiumBackdrop",
+            Texture = texture,
+            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+            StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        backdrop.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(backdrop);
 
-        glow.Modulate = new Color(1f, 1f, 1f, 0.68f);
+        var cinematicWash = new ColorRect
+        {
+            Color = new Color(0.005f, 0.018f, 0.040f, 0.20f),
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        cinematicWash.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        AddChild(cinematicWash);
+
+        var rightVeil = new ColorRect
+        {
+            Color = new Color(0.004f, 0.014f, 0.037f, 0.48f),
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        rightVeil.SetAnchor(Side.Left, 0.50f);
+        rightVeil.SetAnchor(Side.Right, 1f);
+        rightVeil.SetAnchor(Side.Top, 0f);
+        rightVeil.SetAnchor(Side.Bottom, 1f);
+        AddChild(rightVeil);
+
+        var lowerVeil = new ColorRect
+        {
+            Color = new Color(0.002f, 0.012f, 0.028f, 0.30f),
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        lowerVeil.SetAnchor(Side.Left, 0f);
+        lowerVeil.SetAnchor(Side.Right, 1f);
+        lowerVeil.SetAnchor(Side.Top, 0.58f);
+        lowerVeil.SetAnchor(Side.Bottom, 1f);
+        AddChild(lowerVeil);
+
+        return backdrop;
+    }
+
+    private void AnimateBackdrop(CanvasItem backdrop)
+    {
         if (CareerUiTheme.ReducedMotion)
         {
-            glow.Modulate = Colors.White;
+            backdrop.Modulate = Colors.White;
             return;
         }
 
-        var pulse = CreateTween().SetLoops();
-        pulse.TweenProperty(glow, "modulate:a", 1f, 3.2f)
-            .SetTrans(Tween.TransitionType.Sine)
-            .SetEase(Tween.EaseType.InOut);
-        pulse.TweenProperty(glow, "modulate:a", 0.68f, 3.2f)
+        backdrop.Modulate = new Color(0.90f, 0.92f, 0.96f, 1f);
+        var reveal = CreateTween();
+        reveal.TweenProperty(backdrop, "modulate", Colors.White, 1.2f)
             .SetTrans(Tween.TransitionType.Sine)
             .SetEase(Tween.EaseType.InOut);
     }
