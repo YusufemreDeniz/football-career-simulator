@@ -952,7 +952,7 @@ public partial class CareerHubScreen : Control
 
         var dim = new ColorRect
         {
-            Color = new Color(0.01f, 0.03f, 0.02f, 0.78f),
+            Color = new Color(0.005f, 0.02f, 0.025f, 0.88f),
             MouseFilter = MouseFilterEnum.Stop,
         };
         dim.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
@@ -968,10 +968,10 @@ public partial class CareerHubScreen : Control
 
         var panel = new PanelContainer
         {
-            CustomMinimumSize = new Vector2(660, 530),
+            CustomMinimumSize = new Vector2(720, 540),
             MouseFilter = MouseFilterEnum.Stop,
         };
-        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.HeroPanel());
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel(strongGlow: true));
         center.AddChild(panel);
 
         var content = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -984,12 +984,17 @@ public partial class CareerHubScreen : Control
         content.AddChild(topBar);
 
         var headerLabel = BodyLabel("DossierHeaderLabel");
-        headerLabel.Text = "FUTBOLCU DOSYASI & PROFİLİ";
+        headerLabel.Text = "📋 FUTBOLCU DOSYASI & TEKNİK ANALİZ RAPORU";
         CareerUiTheme.ApplyDisplayFont(headerLabel);
         headerLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
         headerLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         headerLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         topBar.AddChild(headerLabel);
+
+        var topCloseBtn = SecondaryButton("✕");
+        topCloseBtn.CustomMinimumSize = new Vector2(34, 26);
+        topCloseBtn.Pressed += ClosePlayerDossier;
+        topBar.AddChild(topCloseBtn);
 
         content.AddChild(UiComponents.Divider(2));
 
@@ -1217,6 +1222,7 @@ public partial class CareerHubScreen : Control
         _playerDossierNumberLabel.Text = $"#{player.SquadNumber}";
 
         var posColor = CareerUiTheme.PositionGroupColor(player.PositionCode);
+        _playerDossierPositionPill.AddThemeStyleboxOverride("panel", CareerUiTheme.PositionBadgePanel(player.PositionCode));
         _playerDossierPositionLabel.Text = $"{player.PositionCode} · {player.PositionName.ToUpperInvariant()}";
         _playerDossierPositionLabel.AddThemeColorOverride("font_color", posColor);
 
@@ -1291,6 +1297,7 @@ public partial class CareerHubScreen : Control
         _playerDossierNumberLabel.Text = "—";
 
         var posColor = CareerUiTheme.PositionGroupColor(candidate.PositionCode);
+        _playerDossierPositionPill.AddThemeStyleboxOverride("panel", CareerUiTheme.PositionBadgePanel(candidate.PositionCode));
         _playerDossierPositionLabel.Text = $"{candidate.PositionCode} · {candidate.ClubName.ToUpperInvariant()}";
         _playerDossierPositionLabel.AddThemeColorOverride("font_color", posColor);
 
