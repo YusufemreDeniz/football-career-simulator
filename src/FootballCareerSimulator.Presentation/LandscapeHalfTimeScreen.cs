@@ -49,16 +49,20 @@ public partial class LandscapeHalfTimeScreen : Control
         shell.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(shell);
 
+        var headerPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        headerPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.CardPanel(emphasized: false));
+        shell.AddChild(headerPanel);
+
         var header = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        header.AddThemeConstantOverride("separation", 10);
-        shell.AddChild(header);
-        var back = SecondaryButton("Geri");
-        back.CustomMinimumSize = new Vector2(74, _layout.ActionButtonHeight);
+        header.AddThemeConstantOverride("separation", 12);
+        headerPanel.AddChild(header);
+        var back = SecondaryButton("← Geri");
+        back.CustomMinimumSize = new Vector2(78, _layout.ActionButtonHeight);
         back.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
         header.AddChild(back);
         var scoreBlock = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         header.AddChild(scoreBlock);
-        var stage = new Label { Text = "⏸ DEVRE ARASI  •  MAÇ KOMUTA MERKEZİ" };
+        var stage = new Label { Text = "⏸ DEVRE ARASI  •  SOYUNMA ODASI & TAKTİK MASASI" };
         CareerUiTheme.StyleEyebrow(stage, CareerUiTheme.Accent);
         scoreBlock.AddChild(stage);
         var fixture = new Label { Text = _digest.FixtureLine };
@@ -111,8 +115,8 @@ public partial class LandscapeHalfTimeScreen : Control
         };
         pitchHeader.AddChild(autoAlignBtn);
 
-        _formationBtn = SecondaryButton("📋 Diziliş");
-        _formationBtn.CustomMinimumSize = new Vector2(110, 28);
+        _formationBtn = SecondaryButton("📋 Diziliş (14 Formasyon)");
+        _formationBtn.CustomMinimumSize = new Vector2(140, 28);
         _formationBtn.TooltipText = "Devre arasında takımın saha dizilişini değiştir.";
         _formationBtn.Pressed += () =>
         {
@@ -152,15 +156,23 @@ public partial class LandscapeHalfTimeScreen : Control
             deskStack.AddChild(MatchScreenUi.BeatLine(beat, muted: true));
         }
 
-        _benchHost = MatchScreenUi.VerticalStack(0);
-        deskStack.AddChild(_benchHost);
+        var benchCard = MatchScreenUi.Card(emphasized: false);
+        deskStack.AddChild(benchCard);
+        var benchStack = MatchScreenUi.VerticalStack(6);
+        benchCard.AddChild(benchStack);
+        var benchTitle = new Label { Text = "💺 YEDEK KULÜBESİ" };
+        CareerUiTheme.StyleEyebrow(benchTitle, CareerUiTheme.Data);
+        benchStack.AddChild(benchTitle);
 
-        var tacticTitle = new Label { Text = "İKİNCİ YARI PLANI" };
+        _benchHost = MatchScreenUi.VerticalStack(0);
+        benchStack.AddChild(_benchHost);
+
+        var tacticTitle = new Label { Text = "🎯 İKİNCİ YARI PLANI & SOYUNMA ODASI KONUŞMASI" };
         CareerUiTheme.StyleEyebrow(tacticTitle, CareerUiTheme.Data);
         deskStack.AddChild(tacticTitle);
-        deskStack.AddChild(DecisionButton("Aynı Planla Devam Et", MatchHalfTimeDigest.DecisionContinue, primary: false));
-        deskStack.AddChild(DecisionButton("Hücuma Geç", MatchHalfTimeDigest.DecisionAttack, primary: true));
-        deskStack.AddChild(DecisionButton("Savunmaya Çek", MatchHalfTimeDigest.DecisionDefend, primary: false));
+        deskStack.AddChild(DecisionButton("▶ Aynı Planla Devam Et", MatchHalfTimeDigest.DecisionContinue, primary: false));
+        deskStack.AddChild(DecisionButton("⚡ Hücuma Geç (Baskıyı Artır)", MatchHalfTimeDigest.DecisionAttack, primary: true));
+        deskStack.AddChild(DecisionButton("🛡️ Savunmaya Çek (Skoru Koru)", MatchHalfTimeDigest.DecisionDefend, primary: false));
 
         _statusLabel = MatchScreenUi.BodyLine(string.Empty, muted: true);
         var status = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
