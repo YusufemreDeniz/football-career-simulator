@@ -361,15 +361,32 @@ public partial class MainMenuScreen : Control
         cinematicWash.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(cinematicWash);
 
-        var rightVeil = new ColorRect
+        var rightVeil = new TextureRect
         {
-            Color = new Color(0.004f, 0.014f, 0.037f, 0.48f),
+            Name = "MainMenuRightVeil",
+            Texture = new GradientTexture2D
+            {
+                Width = 64,
+                Height = 8,
+                Fill = GradientTexture2D.FillEnum.Linear,
+                FillFrom = new Vector2(0f, 0.5f),
+                FillTo = new Vector2(1f, 0.5f),
+                Gradient = new Gradient
+                {
+                    Offsets = [0f, 0.36f, 0.60f, 1f],
+                    Colors =
+                    [
+                        Colors.Transparent,
+                        new Color(0.004f, 0.014f, 0.037f, 0.04f),
+                        new Color(0.004f, 0.014f, 0.037f, 0.42f),
+                        new Color(0.004f, 0.014f, 0.037f, 0.70f),
+                    ],
+                },
+            },
+            StretchMode = TextureRect.StretchModeEnum.Scale,
             MouseFilter = MouseFilterEnum.Ignore,
         };
-        rightVeil.SetAnchor(Side.Left, 0.50f);
-        rightVeil.SetAnchor(Side.Right, 1f);
-        rightVeil.SetAnchor(Side.Top, 0f);
-        rightVeil.SetAnchor(Side.Bottom, 1f);
+        rightVeil.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         AddChild(rightVeil);
 
         var lowerVeil = new ColorRect

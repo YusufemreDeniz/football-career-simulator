@@ -883,22 +883,31 @@ public partial class CareerHubScreen : Control
         navRow.AddThemeConstantOverride("separation", CareerUiTheme.SeparationNav);
         navPanel.AddChild(navRow);
 
-        // Referans: KARİYER, KADRO, TAKTİK, TRANSFER, TAKVİM, FİNANS/DOSYA
-        var labels = new[] { "KARİYER", "KADRO", "TAKTİK", "TRANSFER", "TAKVİM", "FİNANS" };
-        _navButtons = new Button[6];
-        for (var i = 0; i < labels.Length; i++)
+        // Sekme sırası ve hedef HubPage eşleşmesi:
+        var navItems = new (HubPage Page, string Label)[]
         {
-            var page = (HubPage)i;
+            (HubPage.Today, "KARİYER"),
+            (HubPage.Club, "KADRO"),
+            (HubPage.Prep, "TAKTİK"),
+            (HubPage.Transfer, "TRANSFER"),
+            (HubPage.World, "LİG"),
+            (HubPage.File, "FİNANS"),
+        };
+
+        _navButtons = new Button[6];
+        foreach (var (page, label) in navItems)
+        {
+            var targetPage = page;
             var button = new Button
             {
-                Text = labels[i],
+                Text = label,
                 ToggleMode = false,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
             };
-            button.Pressed += () => ShowPage(page);
-            CareerUiTheme.StyleHubNavButton(button, selected: i == 0);
+            button.Pressed += () => ShowPage(targetPage);
+            CareerUiTheme.StyleHubNavButton(button, selected: targetPage == HubPage.Today);
             navRow.AddChild(button);
-            _navButtons[i] = button;
+            _navButtons[(int)targetPage] = button;
         }
     }
 
@@ -1416,15 +1425,23 @@ public partial class CareerHubScreen : Control
     {
         ClosePlayerDossier();
         _currentPage = page;
-        var titles = new[] { "Merkez", "Kadro", "Transfer Merkezi", "Taktik & Antrenman", "Lig Merkezi", "Kariyer" };
+        var titles = new[]
+        {
+            "Kariyer Masası",
+            "Kadro & Takım",
+            "Transfer & Gözlemcilik",
+            "Taktik & Maç Planı",
+            "Lig & Takvim",
+            "Finans & Yönetim",
+        };
         var subtitles = new[]
         {
             "Bugünün kritik kararları ve sıradaki hamle",
-            "Oyuncular, sözler ve soyunma odası",
-            "İhtiyaçtan imzaya bütün transfer dosyaları",
-            "Haftanın yükü ve maç planı",
-            "Puan durumu, fikstür ve sezon akışı",
-            "Menajer yolculuğu, kayıt ve kulüp geleceği",
+            "Oyuncular, mevkiler, sözler ve soyunma odası",
+            "Gözlemcilik raporları, bütçe ve transfer masası",
+            "14 diziliş, taktiksel senaryolar ve maç hazırlığı",
+            "Puan durumu, haftanın fikstürü ve sezon akışı",
+            "Yönetim hedefleri, muhasebe bütçesi ve menajer mirası",
         };
         _pageTitleLabel.Text = titles[(int)page];
         _pageSubtitleLabel.Text = subtitles[(int)page];
@@ -1432,7 +1449,10 @@ public partial class CareerHubScreen : Control
         for (var i = 0; i < _pages.Length; i++)
         {
             _pages[i].Visible = i == (int)page;
-            CareerUiTheme.StyleHubNavButton(_navButtons[i], selected: i == (int)page);
+            if (_navButtons[i] is not null)
+            {
+                CareerUiTheme.StyleHubNavButton(_navButtons[i], selected: i == (int)page);
+            }
         }
 
         if (_topContinueButton is not null)
