@@ -244,7 +244,7 @@ public partial class MainMenuScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ShrinkCenter,
         };
-        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.GlassPanel());
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel(strongGlow: true));
 
         var actions = new VBoxContainer
         {

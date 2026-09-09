@@ -117,7 +117,7 @@ public partial class CareerSetupScreen : Control
 
         _startButton = new Button
         {
-            Text = "Teklifi Kabul Et",
+            Text = "⚽ Teklifi Kabul Et & Kariyeri Başlat",
             TooltipText = "Önce bir başlangıç geçmişi ve kulüp teklifi seç.",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             Disabled = true,
