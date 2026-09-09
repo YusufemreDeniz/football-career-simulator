@@ -3793,17 +3793,39 @@ public partial class CareerHubScreen : Control
         _wageUtilizationBadgePanel.AddChild(_wageUtilizationBadgeLabel);
         _govTelemetryBar.AddChild(_wageUtilizationBadgePanel);
 
-        // 2. Board Objectives Desk
-        var objectivesCard = AddCard(page, "YÖNETİM KURULU HEDEFLERİ & SEZON BEKLENTİSİ", emphasized: true);
-        _boardObjectivesContainer = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
+        // ----------------------------------------------------
+        // BENTO ROW 1: BOARD OBJECTIVES (1.4f) + JOB MARKET (1.0f)
+        // ----------------------------------------------------
+        var row1 = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        row1.AddThemeConstantOverride("separation", 12);
+        page.AddChild(row1);
+
+        // 2. Board Objectives Desk (1.4f)
+        var objectivesCard = AddCard(row1, "🎯 YÖNETİM KURULU HEDEFLERİ & SEZON BEKLENTİSİ", emphasized: true, expandVertical: true);
+        objectivesCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.4f;
+        _boardObjectivesContainer = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _boardObjectivesContainer.AddThemeConstantOverride("separation", 8);
         objectivesCard.AddChild(_boardObjectivesContainer);
 
-        // 3. Finance & Ledger Desk
-        var financeCard = AddCard(page, "KULÜP MUHASEBESİ & SEZONLUK BÜTÇE PROJEKSİYONU", emphasized: true);
+        // 5. Job Market Desk (1.0f)
+        var careerJobCard = AddCard(row1, "💼 İŞ PİYASASI & TEKLİFLER", emphasized: false, expandVertical: true);
+        careerJobCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.0f;
+        var careerJobRow = ActionFlow();
+        careerJobCard.AddChild(careerJobRow);
+        _generateOfferButton = PrimaryButton("İş Teklifi Ara");
+        _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
+        careerJobRow.AddChild(_generateOfferButton);
+        _acceptOfferButton = AccentButton("Teklifi Kabul Et");
+        _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
+        careerJobRow.AddChild(_acceptOfferButton);
+        _signFreeAgentButton = SecondaryButton("Serbest Oyuncu İmzala");
+        _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
+        careerJobRow.AddChild(_signFreeAgentButton);
+
+        // ----------------------------------------------------
+        // BENTO ROW 2: FINANCE & LEDGER DESK (Full Width)
+        // ----------------------------------------------------
+        var financeCard = AddCard(page, "💰 KULÜP MUHASEBESİ & SEZONLUK BÜTÇE PROJEKSİYONU", emphasized: true);
         var financeCols = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         financeCols.AddThemeConstantOverride("separation", 10);
         financeCard.AddChild(financeCols);
@@ -3853,8 +3875,16 @@ public partial class CareerHubScreen : Control
         _clubEconomyLabel.Visible = false;
         financeCard.AddChild(_clubEconomyLabel);
 
-        // 4. Manager Career Legacy
-        var legacyCard = AddCard(page, "TEKNİK DİREKTÖR PROFİLİ & KARİYER MİRASI", emphasized: true);
+        // ----------------------------------------------------
+        // BENTO ROW 3: MANAGER LEGACY (1.4f) + SAVE & RECORD (1.0f)
+        // ----------------------------------------------------
+        var row3 = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        row3.AddThemeConstantOverride("separation", 12);
+        page.AddChild(row3);
+
+        // 4. Manager Career Legacy (1.4f)
+        var legacyCard = AddCard(row3, "🎖️ TEKNİK DİREKTÖR PROFİLİ & KARİYER MİRASI", emphasized: true, expandVertical: true);
+        legacyCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.4f;
         var legacyHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         legacyHeaderRow.AddThemeConstantOverride("separation", 10);
         legacyCard.AddChild(legacyHeaderRow);
@@ -3883,10 +3913,10 @@ public partial class CareerHubScreen : Control
         statsGrid.AddThemeConstantOverride("separation", 8);
         legacyCard.AddChild(statsGrid);
 
-        _legacyStatMatchesLabel = CreateLegacyStatCard(statsGrid, "⚽ KARİYER MAÇLARI", "—", CareerUiTheme.Data);
-        _legacyStatWinRateLabel = CreateLegacyStatCard(statsGrid, "🏆 KULÜP PERFORMANSI", "—", CareerUiTheme.ActionBright);
-        _legacyStatYouthLabel = CreateLegacyStatCard(statsGrid, "🌱 KADRO MİRASI", "—", CareerUiTheme.Accent);
-        _legacyStatMilestoneLabel = CreateLegacyStatCard(statsGrid, "🎯 HEDEF KİLOMETRE TAŞI", "—", CareerUiTheme.TextPrimary);
+        _legacyStatMatchesLabel = CreateLegacyStatCard(statsGrid, "⚽ MAÇLAR", "—", CareerUiTheme.Data);
+        _legacyStatWinRateLabel = CreateLegacyStatCard(statsGrid, "🏆 PERFORMANS", "—", CareerUiTheme.ActionBright);
+        _legacyStatYouthLabel = CreateLegacyStatCard(statsGrid, "🌱 MİRAS", "—", CareerUiTheme.Accent);
+        _legacyStatMilestoneLabel = CreateLegacyStatCard(statsGrid, "🎯 HEDEF", "—", CareerUiTheme.TextPrimary);
 
         _careerLegacyRecordLabel = BodyLabel("CareerLegacyRecordLabel", autowrap: true);
         _careerLegacyRecordLabel.Visible = false;
@@ -3911,22 +3941,9 @@ public partial class CareerHubScreen : Control
         CareerUiTheme.StyleList(_careerSeasonList);
         legacyCard.AddChild(_careerSeasonList);
 
-        // 5. Job Market
-        var careerJobCard = AddCard(page, "İŞ PİYASASI & TEKLİFLER");
-        var careerJobRow = ActionFlow();
-        careerJobCard.AddChild(careerJobRow);
-        _generateOfferButton = PrimaryButton("İş Teklifi Ara");
-        _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
-        careerJobRow.AddChild(_generateOfferButton);
-        _acceptOfferButton = AccentButton("Teklifi Kabul Et");
-        _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
-        careerJobRow.AddChild(_acceptOfferButton);
-        _signFreeAgentButton = SecondaryButton("Serbest oyuncu imzala");
-        _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
-        careerJobRow.AddChild(_signFreeAgentButton);
-
-        // 6. Save / Load Desk
-        var saveCard = AddCard(page, "KARİYER DOSYASI & KAYIT", emphasized: true);
+        // 6. Save / Load Desk (1.0f)
+        var saveCard = AddCard(row3, "💾 KARİYER DOSYASI & KAYIT", emphasized: true, expandVertical: true);
+        saveCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.0f;
         _saveDeskLabel = BodyLabel("SaveDeskLabel", autowrap: true);
         saveCard.AddChild(_saveDeskLabel);
 
@@ -3945,8 +3962,10 @@ public partial class CareerHubScreen : Control
         menuButton.Pressed += () => BackToMenuRequested?.Invoke();
         saveLoadRow.AddChild(menuButton);
 
-        // 7. Experience & Device Settings
-        var experienceCard = AddCard(page, "OYUN DENEYİMİ & CİHAZ AYARLARI");
+        // ----------------------------------------------------
+        // BENTO ROW 4: EXPERIENCE & DEVICE SETTINGS
+        // ----------------------------------------------------
+        var experienceCard = AddCard(page, "⚙️ OYUN DENEYİMİ & CİHAZ AYARLARI");
         _deviceAcceptanceLabel = BodyLabel("DeviceAcceptanceLabel", autowrap: true);
         experienceCard.AddChild(_deviceAcceptanceLabel);
         _runtimeTelemetryLabel = BodyLabel("RuntimeTelemetryLabel", autowrap: true);
