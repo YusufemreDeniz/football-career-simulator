@@ -164,7 +164,7 @@ public partial class MainMenuScreen : Control
 
         var eyebrow = new Label
         {
-            Text = "KARİYERİNİ YÖNET • MİRasını BIRAK",
+            Text = "KARİYERİNİ YÖNET • MİRASINI BIRAK",
             HorizontalAlignment = HorizontalAlignment.Left,
         };
         CareerUiTheme.StyleEyebrow(eyebrow, CareerUiTheme.Accent);
@@ -183,11 +183,10 @@ public partial class MainMenuScreen : Control
 
         var brandSecondLine = new Label
         {
-            Text = "CAREER SIMULATOR",
+            Text = "SIMULATOR",
             HorizontalAlignment = HorizontalAlignment.Left,
         };
         CareerUiTheme.StyleHeadline(brandSecondLine);
-        brandSecondLine.Text = "SIMULATOR";
         brandSecondLine.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(23));
         brandSecondLine.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         hero.AddChild(brandSecondLine);
