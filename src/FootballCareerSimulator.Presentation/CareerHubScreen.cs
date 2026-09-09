@@ -89,6 +89,8 @@ public partial class CareerHubScreen : Control
     private Label _todayFitnessSummaryLabel = null!;
     private Button _openTacticsButton = null!;
     private Label _decisionLabel = null!;
+    private PanelContainer _decisionCausalityPanel = null!;
+    private Label _decisionCausalityLabel = null!;
     private Button _openDecisionButton = null!;
     private Button _openStartingDecisionButton = null!;
     private Button _openTransferDecisionButton = null!;
@@ -1862,27 +1864,40 @@ public partial class CareerHubScreen : Control
         _deskLabel = BodyLabel("DeskLabel", autowrap: true);
         decisionCard.AddChild(_deskLabel);
 
+        _decisionCausalityPanel = new PanelContainer
+        {
+            Visible = false,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _decisionCausalityPanel.AddThemeStyleboxOverride(
+            "panel",
+            CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning, 0.22f));
+        _decisionCausalityLabel = BodyLabel("DecisionCausalityLabel", autowrap: true);
+        _decisionCausalityLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorWarning);
+        _decisionCausalityPanel.AddChild(_decisionCausalityLabel);
+        decisionCard.AddChild(_decisionCausalityPanel);
+
         var deskRow = ActionFlow();
         decisionCard.AddChild(deskRow);
-        _grantDecisionButton = PrimaryButton("✓ Talebi Kabul Et");
+        _grantDecisionButton = AccentButton("✓ KABUL ET");
         _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
         deskRow.AddChild(_grantDecisionButton);
         _refuseDecisionButton = DangerButton("✕ Talebi Reddet");
         _refuseDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: false));
         deskRow.AddChild(_refuseDecisionButton);
-        _disciplineWarningButton = SecondaryButton("⚠ Uyarı Ver");
+        _disciplineWarningButton = SecondaryButton("⚠ UYARI VER");
         _disciplineWarningButton.Pressed += () =>
             Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueWarning));
         deskRow.AddChild(_disciplineWarningButton);
-        _disciplineFineButton = DangerButton("⚑ Para Cezası");
+        _disciplineFineButton = DangerButton("⛔ CEZA VER");
         _disciplineFineButton.Pressed += () =>
             Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueFine));
         deskRow.AddChild(_disciplineFineButton);
-        _disciplineSupportButton = SecondaryButton("♥ Destekle");
+        _disciplineSupportButton = PrimaryButton("♥ DESTEKLE");
         _disciplineSupportButton.Pressed += () =>
             Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionOfferSupport));
         deskRow.AddChild(_disciplineSupportButton);
-        _boardCounterButton = SecondaryButton("⚖ Karşı Teklif");
+        _boardCounterButton = AccentButton("⇄ KARŞI TEKLİF");
         _boardCounterButton.Pressed += () =>
             Apply(_controller.AnswerOldestPendingWithOption(
                 Domain.Interaction.DecisionRequest.OptionCounterBoardDemand));
@@ -6537,6 +6552,7 @@ public partial class CareerHubScreen : Control
 
         if (pending.OpenCount == 0)
         {
+            _decisionCausalityPanel.Visible = false;
             _decisionLabel.Text = "Kararlar: masada bekleyen yok — Karar Masası kartından yanıtla.";
             _grantDecisionButton.Disabled = true;
             _refuseDecisionButton.Disabled = true;
@@ -6558,6 +6574,15 @@ public partial class CareerHubScreen : Control
         }
 
         var first = pending.OpenRequests[0];
+        _decisionCausalityPanel.Visible = true;
+        _decisionCausalityLabel.Text = string.IsNullOrWhiteSpace(desk.CausalityLine)
+            ? "❔ BU NEDEN OLDU? Kararın bağlamı henüz oluşmadı; talep türü ve son tarih üzerinden değerlendir."
+            : $"❔ BU NEDEN OLDU?  {desk.CausalityLine}";
+        var causalityColor = desk.IsHardBlocker ? CareerUiTheme.DangerSoft : CareerUiTheme.ColorWarning;
+        _decisionCausalityPanel.AddThemeStyleboxOverride(
+            "panel",
+            CareerUiTheme.BadgePillPanel(causalityColor, 0.24f));
+        _decisionCausalityLabel.AddThemeColorOverride("font_color", causalityColor);
         var options = _controller.GetDialogueOptionsForDecision(first.DecisionRequestId);
         var grant = options.Options.FirstOrDefault(o =>
             o.OptionCode != Domain.Interaction.DecisionRequest.OptionRefuse
@@ -6583,7 +6608,7 @@ public partial class CareerHubScreen : Control
         if (grant is not null)
         {
             _grantDecisionButton.Visible = true;
-            _grantDecisionButton.Text = grant.DisplayText;
+            _grantDecisionButton.Text = $"✓ {grant.DisplayText}";
             _grantDecisionButton.Disabled = !grant.IsEligible;
         }
         else
@@ -6595,7 +6620,7 @@ public partial class CareerHubScreen : Control
         if (refuse is not null)
         {
             _refuseDecisionButton.Visible = true;
-            _refuseDecisionButton.Text = refuse.DisplayText;
+            _refuseDecisionButton.Text = $"✕ {refuse.DisplayText}";
             _refuseDecisionButton.Disabled = !refuse.IsEligible;
         }
         else
