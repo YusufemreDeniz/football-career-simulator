@@ -105,6 +105,10 @@ public partial class CareerHubScreen : Control
     private Label _transferWindowLabel = null!;
     private Label _transferBudgetLabel = null!;
     private Label _transferDeskLabel = null!;
+    private PanelContainer _transferWelcomePanel = null!;
+    private Label _transferWelcomeHeadlineLabel = null!;
+    private Label _transferWelcomeMetaLabel = null!;
+    private long? _newTransferPlayerId;
     private Label _transferScoutReportLabel = null!;
     private GridContainer _transferBentoGrid = null!;
     private PanelContainer _transferBudgetBadgePanel = null!;
@@ -2479,6 +2483,26 @@ public partial class CareerHubScreen : Control
         overviewCard.AddChild(UiComponents.PageHeader("🔄", "TRANSFER VE GÖZLEMCİLİK MERKEZİ"));
         overviewCard.AddChild(UiComponents.Divider(1));
 
+        _transferWelcomePanel = new PanelContainer
+        {
+            Visible = false,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _transferWelcomePanel.AddThemeStyleboxOverride(
+            "panel",
+            CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.28f));
+        var welcomeCard = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        welcomeCard.AddThemeConstantOverride("separation", 4);
+        _transferWelcomeHeadlineLabel = new Label { Text = "✍ HOŞ GELDİN" };
+        CareerUiTheme.StyleHeadline(_transferWelcomeHeadlineLabel);
+        _transferWelcomeHeadlineLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        _transferWelcomeHeadlineLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(20));
+        welcomeCard.AddChild(_transferWelcomeHeadlineLabel);
+        _transferWelcomeMetaLabel = BodyLabel("TransferWelcomeMetaLabel", autowrap: true);
+        welcomeCard.AddChild(_transferWelcomeMetaLabel);
+        _transferWelcomePanel.AddChild(welcomeCard);
+        overviewCard.AddChild(_transferWelcomePanel);
+
         var budgetRow = new GridContainer
         {
             Columns = 3,
@@ -2661,7 +2685,7 @@ public partial class CareerHubScreen : Control
         dealRow.AddChild(_withdrawProcessButton);
         _completeTransferButton = AccentButton("İmzayı Tamamla");
         _completeTransferButton.Pressed += () =>
-            Apply(_controller.CompleteOldestFinanciallyApprovedProcess());
+            CompleteTransferAndCelebrate(_controller.CompleteOldestFinanciallyApprovedProcess);
         dealRow.AddChild(_completeTransferButton);
 
         var sportingRow = ActionFlow();
@@ -3857,7 +3881,7 @@ public partial class CareerHubScreen : Control
         _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
         careerJobRow.AddChild(_acceptOfferButton);
         _signFreeAgentButton = SecondaryButton("Serbest Oyuncu İmzala");
-        _signFreeAgentButton.Pressed += () => Apply(_controller.SignNextFreeAgentToManagedClub());
+        _signFreeAgentButton.Pressed += () => CompleteTransferAndCelebrate(_controller.SignNextFreeAgentToManagedClub);
         careerJobRow.AddChild(_signFreeAgentButton);
 
         // ----------------------------------------------------
@@ -4302,6 +4326,34 @@ public partial class CareerHubScreen : Control
         {
             BindOfficeNextStepForFocus(result.NextFocusCode);
         }
+    }
+
+    private void CompleteTransferAndCelebrate(Func<UiActionResult> complete)
+    {
+        var beforePlayerIds = _controller.BuildPlayerManagementDigest().Players
+            .Select(player => player.PlayerId)
+            .ToHashSet();
+        var result = complete();
+        Apply(result);
+        if (!result.Succeeded)
+        {
+            return;
+        }
+
+        var signed = _controller.BuildPlayerManagementDigest().Players
+            .FirstOrDefault(player => !beforePlayerIds.Contains(player.PlayerId));
+        if (signed is null)
+        {
+            return;
+        }
+
+        _newTransferPlayerId = signed.PlayerId;
+        _transferWelcomeHeadlineLabel.Text = $"✍ HOŞ GELDİN, {signed.DisplayName.ToUpperInvariant()}!";
+        _transferWelcomeMetaLabel.Text =
+            $"#{signed.SquadNumber} · {signed.PositionName} ({signed.PositionCode}) · {signed.Rating} GÜÇ\n"
+            + "İmza tamamlandı; oyuncu A takım listesinde #YENİ rozetiyle işaretlendi.";
+        _transferWelcomePanel.Visible = true;
+        RefreshSquadList();
     }
 
     private void ApplySelectedPlayer(Func<long, UiActionResult> action)
@@ -7133,8 +7185,13 @@ public partial class CareerHubScreen : Control
                 ? "✓ Hazır"
                 : $"⚠ {player.Availability.ToUpperInvariant()}";
 
-            var formattedLine = $"#{player.SquadNumber,-2} [{player.PositionCode,-3}] {player.DisplayName}  ·  ⭐ {player.Rating} GÜÇ  ·  PA {player.PotentialAbility}  ·  {player.Age} Yaş  ·  %{player.Fitness} Fit  ·  {valStr}  ·  {availabilityIndicator}";
+            var newBadge = player.PlayerId == _newTransferPlayerId ? "  #YENİ" : string.Empty;
+            var formattedLine = $"#{player.SquadNumber,-2} [{player.PositionCode,-3}] {player.DisplayName}{newBadge}  ·  ⭐ {player.Rating} GÜÇ  ·  PA {player.PotentialAbility}  ·  {player.Age} Yaş  ·  %{player.Fitness} Fit  ·  {valStr}  ·  {availabilityIndicator}";
             _squadList.AddItem(formattedLine);
+            if (player.PlayerId == _newTransferPlayerId)
+            {
+                _squadList.SetItemCustomFgColor(_squadList.ItemCount - 1, CareerUiTheme.ActionBright);
+            }
         }
 
         if (capacity.IsOverCapacity
