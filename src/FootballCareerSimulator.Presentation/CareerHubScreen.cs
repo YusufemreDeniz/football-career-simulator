@@ -296,6 +296,7 @@ public partial class CareerHubScreen : Control
     private VBoxContainer _clubOverviewPanel = null!;
     private VBoxContainer _clubAllPlayersPanel = null!;
     private VBoxContainer _clubPlanPanel = null!;
+    private GridContainer _squadDepthGrid = null!;
     private VBoxContainer _clubPlanPitchHost = null!;
     private Label _clubOverviewHeadlineLabel = null!;
     private Label _clubDepthLabel = null!;
@@ -2423,6 +2424,14 @@ public partial class CareerHubScreen : Control
         var planCard = AddCard(_clubPlanPanel, "KADRO PLANI", emphasized: true);
         _clubPlanCaptionLabel = BodyLabel("ClubPlanCaption", autowrap: true);
         planCard.AddChild(_clubPlanCaptionLabel);
+        _squadDepthGrid = new GridContainer
+        {
+            Columns = 2,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _squadDepthGrid.AddThemeConstantOverride("h_separation", 10);
+        _squadDepthGrid.AddThemeConstantOverride("v_separation", 10);
+        planCard.AddChild(_squadDepthGrid);
         _clubPlanPitchHost = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -4524,6 +4533,7 @@ public partial class CareerHubScreen : Control
     private void RefreshClubPlanBoard()
     {
         MatchScreenUi.ClearChildren(_clubPlanPitchHost);
+        RefreshSquadDepthChart();
         var board = _controller.BuildSquadSelectionBoard();
         var tactic = _controller.GetManagedClubTacticPlan();
         var formation = tactic?.Formation ?? Formation.F442;
@@ -4556,6 +4566,68 @@ public partial class CareerHubScreen : Control
                 interactionEnabled: true,
                 formation: formation));
     }
+
+    private void RefreshSquadDepthChart()
+    {
+        MatchScreenUi.ClearChildren(_squadDepthGrid);
+        var players = _controller.BuildPlayerManagementDigest().Players;
+        var groups = new[]
+        {
+            (Code: "GK", Title: "🧤 KALECİ", Minimum: 2, Color: CareerUiTheme.Data),
+            (Code: "DEF", Title: "🛡️ SAVUNMA", Minimum: 7, Color: CareerUiTheme.ActionBright),
+            (Code: "MID", Title: "⚙️ ORTA SAHA", Minimum: 6, Color: CareerUiTheme.Accent),
+            (Code: "FWD", Title: "⚡ HÜCUM", Minimum: 4, Color: CareerUiTheme.DangerSoft),
+        };
+
+        foreach (var group in groups)
+        {
+            var line = players
+                .Where(player => PositionDepthGroup(player.PositionCode) == group.Code)
+                .OrderByDescending(player => player.Rating)
+                .ThenByDescending(player => player.Fitness)
+                .ToArray();
+            var sufficient = line.Length >= group.Minimum;
+            var card = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            card.AddThemeStyleboxOverride(
+                "panel",
+                CareerUiTheme.BadgePillPanel(sufficient ? group.Color : CareerUiTheme.DangerSoft, 0.16f));
+            _squadDepthGrid.AddChild(card);
+
+            var body = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            body.AddThemeConstantOverride("separation", 5);
+            card.AddChild(body);
+            var title = new Label
+            {
+                Text = $"{group.Title} · {line.Length} OYUNCU · {(sufficient ? "✓ YETERLİ" : "⚠ EKSİK")}",
+            };
+            CareerUiTheme.StyleEyebrow(title, sufficient ? group.Color : CareerUiTheme.DangerSoft);
+            body.AddChild(title);
+
+            var starter = line.FirstOrDefault();
+            var starterLabel = BodyLabel($"Depth{group.Code}Starter", autowrap: true);
+            starterLabel.Text = starter is null
+                ? "AS: Atanmış oyuncu yok"
+                : $"AS: #{starter.SquadNumber} {starter.DisplayName} · {starter.PositionCode} · {starter.Rating} GÜÇ";
+            body.AddChild(starterLabel);
+
+            var alternatives = line.Skip(1).Take(4)
+                .Select(player => $"#{player.SquadNumber} {player.DisplayName} ({player.PositionCode}/{player.Rating})")
+                .ToArray();
+            var benchLabel = BodyLabel($"Depth{group.Code}Bench", muted: true, autowrap: true);
+            benchLabel.Text = alternatives.Length == 0
+                ? "YEDEK: Alternatif yok"
+                : $"YEDEK: {string.Join(" · ", alternatives)}";
+            body.AddChild(benchLabel);
+        }
+    }
+
+    private static string PositionDepthGroup(string positionCode) => positionCode switch
+    {
+        "KL" or "GK" => "GK",
+        "CB" or "LB" or "RB" or "STP" or "SLB" or "SĞB" or "KB" => "DEF",
+        "CM" or "DM" or "AM" or "MO" or "DOS" or "OOS" => "MID",
+        _ => "FWD",
+    };
 
     private void OnClubPlanPlayerSelected(Application.TeamPreparation.Queries.SquadSelectionPlayerDigest player)
     {
