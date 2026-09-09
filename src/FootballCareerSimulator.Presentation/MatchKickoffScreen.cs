@@ -32,7 +32,7 @@ public partial class MatchKickoffScreen : Control
         shell.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(shell);
 
-        shell.AddChild(MatchScreenUi.StageMarker("02  •  SAHAYA ÇIKIŞ", "CANLI", CareerUiTheme.ActionBright));
+        shell.AddChild(MatchScreenUi.StageMarker("02  •  SAHAYA ÇIKIŞ & TÜNEL ATMOSFERİ", "CANLI MAÇ", CareerUiTheme.ActionBright));
 
         var scroll = MatchScreenUi.ScrollArea();
         shell.AddChild(scroll);
@@ -54,12 +54,12 @@ public partial class MatchKickoffScreen : Control
         hero.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         hero.SizeFlagsVertical = SizeFlags.ExpandFill;
         bodyGrid.AddChild(hero);
-        var heroContent = MatchScreenUi.VerticalStack(9);
+        var heroContent = MatchScreenUi.VerticalStack(10);
         hero.AddChild(heroContent);
 
         var live = new Label
         {
-            Text = "●  DÜDÜK ÖNCESİ",
+            Text = "●  DÜDÜK ÖNCESİ  •  STADYUM TÜNELİ",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleEyebrow(live, CareerUiTheme.ActionBright);
@@ -86,7 +86,7 @@ public partial class MatchKickoffScreen : Control
 
         var divider = new ColorRect
         {
-            Color = new Color(CareerUiTheme.Action.R, CareerUiTheme.Action.G, CareerUiTheme.Action.B, 0.64f),
+            Color = new Color(CareerUiTheme.ActionBright.R, CareerUiTheme.ActionBright.G, CareerUiTheme.ActionBright.B, 0.75f),
             CustomMinimumSize = new Vector2(0, 2),
             MouseFilter = MouseFilterEnum.Ignore,
         };
@@ -107,8 +107,8 @@ public partial class MatchKickoffScreen : Control
         tunnelColumn.SizeFlagsVertical = SizeFlags.ExpandFill;
         bodyGrid.AddChild(tunnelColumn);
 
-        tunnelColumn.AddChild(MatchScreenUi.SectionTitle("TÜNEL", "Maçın ilk nefesi"));
-        var beatsPanel = MatchScreenUi.Card();
+        tunnelColumn.AddChild(MatchScreenUi.SectionTitle("TÜNEL BRİFİNGİ", "Son direktifler & stadyum nabzı"));
+        var beatsPanel = MatchScreenUi.Card(emphasized: false);
         beatsPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
         tunnelColumn.AddChild(beatsPanel);
         var beats = MatchScreenUi.VerticalStack(10);
@@ -124,13 +124,17 @@ public partial class MatchKickoffScreen : Control
             row.AddThemeConstantOverride("separation", 10);
             beats.AddChild(row);
 
+            var numBadge = new PanelContainer();
+            numBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.15f));
             var number = new Label
             {
                 Text = beatIndex.ToString("00"),
                 CustomMinimumSize = new Vector2(28, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
             };
             CareerUiTheme.StyleEyebrow(number, CareerUiTheme.ActionBright);
-            row.AddChild(number);
+            numBadge.AddChild(number);
+            row.AddChild(numBadge);
 
             var line = MatchScreenUi.BodyLine(beat);
             line.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -149,13 +153,13 @@ public partial class MatchKickoffScreen : Control
         };
         readinessPanel.AddThemeStyleboxOverride(
             "panel",
-            CareerUiTheme.BadgePanel(_moment.IsReadyToKickOff ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft));
+            CareerUiTheme.BadgePillPanel(_moment.IsReadyToKickOff ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft, 0.22f));
         tunnelColumn.AddChild(readinessPanel);
 
         var readiness = MatchScreenUi.BodyLine(
             _moment.IsReadyToKickOff
-                ? "Kadro kilitli. Tribün hazır. Maç başlıyor."
-                : "Başlama düdüğü için maç hazırlığının tamamlanması gerekiyor.",
+                ? "✓ 11 KİLİTLENDİ • TRİBÜNLER HAZIR • MAÇ BAŞLIYOR"
+                : "⚠️ BAŞLAMA DÜDÜĞÜ İÇİN MAÇ HAZIRLIĞI EKSİK",
             alignment: HorizontalAlignment.Center);
         readiness.AddThemeColorOverride(
             "font_color",
@@ -168,15 +172,17 @@ public partial class MatchKickoffScreen : Control
 
         var proceedButton = PrimaryButton("Devam");
         proceedButton.SizeFlagsStretchRatio = 1.35f;
+        proceedButton.CustomMinimumSize = new Vector2(0, 48);
         proceedButton.Disabled = !_moment.IsReadyToKickOff;
         proceedButton.Text = _moment.IsReadyToKickOff
-            ? "Maçı Başlat"
+            ? "⚽ DÜDÜKLE SAHAYA ÇIK (CANLI MAÇ)"
             : "Maçı Başlat (düdük kapalı)";
         proceedButton.Pressed += () => Callable.From(() => ProceedRequested?.Invoke()).CallDeferred();
         footer.AddChild(proceedButton);
 
-        var backButton = SecondaryButton("Maç Gününe Dön");
+        var backButton = SecondaryButton("← Kadro & Taktik Masasına Dön");
         backButton.SizeFlagsStretchRatio = 1f;
+        backButton.CustomMinimumSize = new Vector2(0, 48);
         backButton.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
         footer.AddChild(backButton);
 
