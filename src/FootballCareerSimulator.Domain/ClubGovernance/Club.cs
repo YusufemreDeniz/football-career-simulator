@@ -225,6 +225,25 @@ public sealed class Club
         return WithWageReservation(ReservedWeeklyWage - amount);
     }
 
+    public Club CreditTransferPrize(int amount)
+    {
+        if (amount < 0)
+        {
+            throw new ClubGovernanceInvariantViolationException("Prize amount cannot be negative.");
+        }
+
+        return new Club(
+            Id,
+            DisplayName,
+            Code,
+            SportiveStrength,
+            TransferBudgetLimit + amount,
+            ReservedTransferFunds,
+            SpentTransferFunds,
+            WageBudgetLimit,
+            ReservedWeeklyWage);
+    }
+
     private Club WithTransferFunds(int reserved, int spent)
     {
         ValidateTransferFunds(TransferBudgetLimit, reserved, spent);
