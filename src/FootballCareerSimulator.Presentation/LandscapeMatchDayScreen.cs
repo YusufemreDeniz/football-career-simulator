@@ -52,11 +52,15 @@ public partial class LandscapeMatchDayScreen : Control
         shell.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(shell);
 
+        var headerPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        headerPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.CardPanel(emphasized: false));
+        shell.AddChild(headerPanel);
+
         var header = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        header.AddThemeConstantOverride("separation", 10);
-        shell.AddChild(header);
+        header.AddThemeConstantOverride("separation", 12);
+        headerPanel.AddChild(header);
         var back = SecondaryButton("← Geri");
-        back.CustomMinimumSize = new Vector2(74, _layout.ActionButtonHeight);
+        back.CustomMinimumSize = new Vector2(78, _layout.ActionButtonHeight);
         back.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
         header.AddChild(back);
 
@@ -90,12 +94,20 @@ public partial class LandscapeMatchDayScreen : Control
         pitchPanel.SizeFlagsStretchRatio = 1.7f;
         pitchPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
         body.AddChild(pitchPanel);
-        var pitchStack = MatchScreenUi.VerticalStack(7);
+        var pitchStack = MatchScreenUi.VerticalStack(8);
         pitchPanel.AddChild(pitchStack);
         var pitchHeader = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         pitchHeader.AddThemeConstantOverride("separation", 8);
-        var pitchTitle = new Label { Text = "SAHADAKİ İLK 11", SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        CareerUiTheme.StyleEyebrow(pitchTitle, CareerUiTheme.ActionBright);
+        var pitchIconBadge = new PanelContainer();
+        pitchIconBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.22f));
+        var pitchIconLabel = new Label { Text = "🏟️ SAHA DİZİLİŞİ" };
+        CareerUiTheme.StyleEyebrow(pitchIconLabel, CareerUiTheme.ActionBright);
+        pitchIconBadge.AddChild(pitchIconLabel);
+        pitchHeader.AddChild(pitchIconBadge);
+
+        var pitchTitle = new Label { Text = "İLK 11 YERLEŞİMİ", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        CareerUiTheme.ApplyDisplayFont(pitchTitle);
+        pitchTitle.AddThemeColorOverride("font_color", CareerUiTheme.TextPrimary);
         pitchHeader.AddChild(pitchTitle);
 
         var autoAlignButton = SecondaryButton("⚡ Mevkilere Göre Diz");
@@ -128,18 +140,26 @@ public partial class LandscapeMatchDayScreen : Control
         _selectionHintLabel = MatchScreenUi.BodyLine(string.Empty, muted: true);
         commandStack.AddChild(_selectionHintLabel);
 
-        _benchHost = MatchScreenUi.VerticalStack(0);
-        commandStack.AddChild(_benchHost);
+        var benchCard = MatchScreenUi.Card(emphasized: false);
+        commandStack.AddChild(benchCard);
+        var benchStack = MatchScreenUi.VerticalStack(6);
+        benchCard.AddChild(benchStack);
+        var benchTitle = new Label { Text = "💺 YEDEK KULÜBESİ" };
+        CareerUiTheme.StyleEyebrow(benchTitle, CareerUiTheme.Data);
+        benchStack.AddChild(benchTitle);
 
-        var tacticsTitle = new Label { Text = "MAÇ PLANI" };
+        _benchHost = MatchScreenUi.VerticalStack(0);
+        benchStack.AddChild(_benchHost);
+
+        var tacticsTitle = new Label { Text = "🎯 MAÇ PLANI" };
         CareerUiTheme.StyleEyebrow(tacticsTitle, CareerUiTheme.Data);
         commandStack.AddChild(tacticsTitle);
         _tacticHost = MatchScreenUi.VerticalStack(6);
         commandStack.AddChild(_tacticHost);
 
-        var opponentCard = MatchScreenUi.Card();
+        var opponentCard = MatchScreenUi.Card(emphasized: true);
         commandStack.AddChild(opponentCard);
-        var opponentStack = MatchScreenUi.VerticalStack(4);
+        var opponentStack = MatchScreenUi.VerticalStack(6);
         opponentCard.AddChild(opponentStack);
         var opponentTitle = new Label { Text = "🔍 RAKİP ANALİZİ & TEHLİKELER" };
         CareerUiTheme.StyleEyebrow(opponentTitle, CareerUiTheme.Accent);
@@ -288,7 +308,7 @@ public partial class LandscapeMatchDayScreen : Control
         formationRow.AddThemeConstantOverride("separation", 5);
         formationBlock.AddChild(formationRow);
 
-        var changeFormationBtn = PrimaryButton($"📋 {FormationPickerModal.FormatLabel(plan.Formation)} (Tüm Dizilişler)");
+        var changeFormationBtn = PrimaryButton($"📋 {FormationPickerModal.FormatLabel(plan.Formation)} (14 Diziliş)");
         changeFormationBtn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         changeFormationBtn.CustomMinimumSize = new Vector2(0, 38);
         changeFormationBtn.Pressed += () =>
