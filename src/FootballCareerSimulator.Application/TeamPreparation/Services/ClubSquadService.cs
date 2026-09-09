@@ -4,9 +4,12 @@ using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Services;
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.DataPacks;
+using FootballCareerSimulator.Simulation.TeamPreparation;
 
 namespace FootballCareerSimulator.Application.TeamPreparation.Services;
 
@@ -37,7 +40,7 @@ public sealed class ClubSquadService
     {
         var active = _contractStore.GetForClub(clubId)
             .Where(c => c.IsActiveOn(day))
-            .Where(c => _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId && !career.IsRetired))
+            .Where(c => !_playerCareerStore.Careers.Any(career => career.Id == c.PlayerId && career.IsRetired))
             .OrderBy(c => c.PlayerId.Value)
             .ToArray();
 
@@ -86,6 +89,8 @@ public sealed class ClubSquadService
 
             members.Add(SquadMember.Create(contract.PlayerId, slot, contract.StartDate));
             usedSlots.Add(slot);
+
+            EnsurePlayerCareer(contract.PlayerId, clubId, slot, day);
         }
 
         var squad = ClubSquad.Rehydrate(clubId, members);
@@ -96,6 +101,42 @@ public sealed class ClubSquadService
         }
 
         return squad;
+    }
+
+    private void EnsurePlayerCareer(PlayerId playerId, ClubId clubId, int slot, GameDate day)
+    {
+        if (_playerCareerStore.Careers.Any(c => c.Id == playerId))
+        {
+            return;
+        }
+
+        int ca = 65, pa = 75, birthYear = day.Year - 24;
+        if (EuropeanElite202627DataPack.TryResolvePlayer(playerId.Value, out _, out _, out _, out var euroProfile) && euroProfile is not null)
+        {
+            ca = euroProfile.CurrentAbility ?? 75;
+            pa = euroProfile.PotentialAbility ?? Math.Min(99, ca + 5);
+            birthYear = day.Year - (euroProfile.Age ?? 25);
+        }
+        else if (playerId.Value >= 1001 && playerId.Value <= 99999)
+        {
+            var srcClub = (playerId.Value - 1) / 1000L;
+            var srcSlot = (int)((playerId.Value - 1) % 1000L);
+            ca = MvpSquadStrengthCalculator.GetPlayerRating(new ClubId(srcClub), 0, srcSlot);
+            pa = Math.Min(99, ca + 5);
+            birthYear = day.Year - 24;
+        }
+
+        var career = Domain.PlayerCareer.PlayerCareer.Rehydrate(
+            playerId,
+            clubId,
+            slot,
+            ca,
+            pa,
+            developmentPoints: 0,
+            lastDevelopedOn: null,
+            birthYear: birthYear,
+            lastAgedCalendarYear: null);
+        _playerCareerStore.Upsert(career);
     }
 
     public void SyncClubs(IEnumerable<long> clubIds, GameDate day)
@@ -110,7 +151,7 @@ public sealed class ClubSquadService
     public int CountActiveContracts(ClubId clubId, GameDate day) =>
         _contractStore.GetForClub(clubId)
             .Count(c => c.IsActiveOn(day)
-                && _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId && !career.IsRetired));
+                && !_playerCareerStore.Careers.Any(career => career.Id == c.PlayerId && career.IsRetired));
 
     public bool HasFreeSquadCapacity(ClubId clubId, GameDate day) =>
         CountActiveContracts(clubId, day) < ClubSquad.MaxMembers;
@@ -119,7 +160,7 @@ public sealed class ClubSquadService
     {
         var activeIds = _contractStore.GetForClub(clubId)
             .Where(c => c.IsActiveOn(day))
-            .Where(c => _playerCareerStore.Careers.Any(career => career.Id == c.PlayerId && !career.IsRetired))
+            .Where(c => !_playerCareerStore.Careers.Any(career => career.Id == c.PlayerId && career.IsRetired))
             .Select(c => c.PlayerId.Value)
             .Distinct()
             .OrderBy(id => id)

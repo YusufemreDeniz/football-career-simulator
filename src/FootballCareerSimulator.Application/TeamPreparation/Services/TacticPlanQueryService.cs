@@ -50,6 +50,17 @@ public sealed class TacticPlanQueryService
         Formation.F442 => "4-4-2",
         Formation.F433 => "4-3-3",
         Formation.F352 => "3-5-2",
+        Formation.F4231 => "4-2-3-1",
+        Formation.F4312 => "4-3-1-2",
+        Formation.F4222 => "4-2-2-2",
+        Formation.F343 => "3-4-3",
+        Formation.F3241 => "3-2-4-1",
+        Formation.F3331 => "3-3-3-1",
+        Formation.F4141 => "4-1-4-1",
+        Formation.F532 => "5-3-2",
+        Formation.F523 => "5-2-3",
+        Formation.F424 => "4-2-4",
+        Formation.F451 => "4-5-1",
         _ => formation.ToString(),
     };
 

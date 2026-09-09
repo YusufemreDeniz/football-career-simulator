@@ -36,6 +36,9 @@ public sealed class ClubTransferBudgetService
     public void ApplyReservedSpend(ClubId clubId, int amount) =>
         Replace(clubId, club => club.ApplyReservedTransferSpend(amount));
 
+    public void CreditPrize(ClubId clubId, int amount) =>
+        Replace(clubId, club => club.CreditTransferPrize(amount));
+
     private void Replace(ClubId clubId, Func<Club, Club> mutate)
     {
         var current = _store.Registry.GetClubOrThrow(clubId);

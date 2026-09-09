@@ -124,7 +124,18 @@ public sealed record LineupCompatibilityDigest(
             Formation.F442 => Requirements(goalkeepers: 1, defenders: 4, midfielders: 4, forwards: 2),
             Formation.F433 => Requirements(goalkeepers: 1, defenders: 4, midfielders: 3, forwards: 3),
             Formation.F352 => Requirements(goalkeepers: 1, defenders: 3, midfielders: 5, forwards: 2),
-            _ => throw new ArgumentOutOfRangeException(nameof(formation), formation, "Unknown formation."),
+            Formation.F4231 => Requirements(goalkeepers: 1, defenders: 4, midfielders: 5, forwards: 1),
+            Formation.F4312 => Requirements(goalkeepers: 1, defenders: 4, midfielders: 4, forwards: 2),
+            Formation.F4222 => Requirements(goalkeepers: 1, defenders: 4, midfielders: 4, forwards: 2),
+            Formation.F343 => Requirements(goalkeepers: 1, defenders: 3, midfielders: 4, forwards: 3),
+            Formation.F3241 => Requirements(goalkeepers: 1, defenders: 3, midfielders: 6, forwards: 1),
+            Formation.F3331 => Requirements(goalkeepers: 1, defenders: 3, midfielders: 6, forwards: 1),
+            Formation.F4141 => Requirements(goalkeepers: 1, defenders: 4, midfielders: 5, forwards: 1),
+            Formation.F532 => Requirements(goalkeepers: 1, defenders: 5, midfielders: 3, forwards: 2),
+            Formation.F523 => Requirements(goalkeepers: 1, defenders: 5, midfielders: 2, forwards: 3),
+            Formation.F424 => Requirements(goalkeepers: 1, defenders: 4, midfielders: 2, forwards: 4),
+            Formation.F451 => Requirements(goalkeepers: 1, defenders: 4, midfielders: 5, forwards: 1),
+            _ => Requirements(goalkeepers: 1, defenders: 4, midfielders: 4, forwards: 2),
         };
 
     private static string[] MissingRoleLabels(

@@ -71,15 +71,15 @@ public static class MvpTacticMatchModifier
         };
         score += plan.DefensiveLine switch
         {
-            DefensiveLine.High when plan.Formation is Formation.F433 or Formation.F352 => 1,
+            DefensiveLine.High when plan.Formation is Formation.F433 or Formation.F352 or Formation.F4231 or Formation.F343 or Formation.F3241 or Formation.F424 => 1,
             DefensiveLine.Deep when plan.Approach == TacticalApproach.Defensive => 1,
             DefensiveLine.Deep when plan.Approach == TacticalApproach.Attacking => -1,
             _ => 0,
         };
         score += plan.PassingStyle switch
         {
-            PassingStyle.Direct when plan.Formation == Formation.F442 => 1,
-            PassingStyle.Short when plan.Formation == Formation.F433 => 1,
+            PassingStyle.Direct when plan.Formation is Formation.F442 or Formation.F532 or Formation.F343 or Formation.F424 => 1,
+            PassingStyle.Short when plan.Formation is Formation.F433 or Formation.F4231 or Formation.F4312 or Formation.F3241 => 1,
             PassingStyle.Short when plan.Formation == Formation.F352 => -1,
             _ => 0,
         };

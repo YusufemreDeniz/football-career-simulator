@@ -1,17 +1,26 @@
 using FootballCareerSimulator.Application.ClubGovernance.Composition;
+using FootballCareerSimulator.Application.ClubGovernance.Infrastructure;
+using FootballCareerSimulator.Application.ContractRegistration.Infrastructure;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
 using FootballCareerSimulator.Application.TeamPreparation.Commands;
 using FootballCareerSimulator.Application.TeamPreparation.Composition;
 using FootballCareerSimulator.Application.TeamPreparation.Infrastructure;
+using FootballCareerSimulator.Application.TeamPreparation.Services;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
 using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Domain.ClubGovernance;
 using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ContractRegistration;
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
 using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Simulation.DataPacks;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 
@@ -229,5 +238,42 @@ public sealed class CustomMatchSelectionTests
 
         Assert.Equal(MatchSelection.StartingXiSize, selection.StartingSlotIndices.Count);
         Assert.Equal(1, goalkeeperCount);
+    }
+
+    [Fact]
+    public void TransferredPlayer_EnrolledInClubSquad_AppearsInSquadQueryWithRealProfile()
+    {
+        var squadStore = new InMemoryClubSquadStore();
+        var contractStore = new InMemoryContractStore();
+        var careerStore = new InMemoryPlayerCareerStore();
+        var trainingStore = new InMemoryTrainingPhysicalStateStore();
+
+        var squadService = new ClubSquadService(squadStore, contractStore, careerStore, trainingStore);
+        var squadQuery = new SquadQueryService(squadStore, careerStore);
+
+        var clubId = new ClubId(1);
+        var depayPlayerId = new PlayerId(9001); // Memphis Depay (Free Agent)
+
+        // Sign contract with club 1
+        var contract = PlayerContract.Activate(
+            depayPlayerId,
+            clubId,
+            Day,
+            Day.AddDays(365),
+            weeklyWage: 20_000);
+        contractStore.Upsert(contract);
+
+        // Sync squad from active contracts
+        var squad = squadService.SyncFromActiveContracts(clubId, Day);
+
+        // Verify squad has Depay
+        Assert.Contains(squad.Members, m => m.PlayerId == depayPlayerId);
+
+        // Verify squad query returns real name and rating
+        var readModels = squadQuery.GetClubSquad(clubId.Value, rootSeed: 0);
+        var depayModel = readModels.FirstOrDefault(p => p.DisplayName == "Memphis Depay");
+        Assert.NotNull(depayModel);
+        Assert.Equal("Memphis Depay", depayModel.DisplayName);
+        Assert.Equal(81, depayModel.Rating);
     }
 }

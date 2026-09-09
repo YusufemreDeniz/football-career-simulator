@@ -65,6 +65,17 @@ public sealed class LeagueTacticalMetaSnapshot
         Formation.F433 => Formation.F352, // 5'li orta saha ile 3'lü merkeze üstünlük
         Formation.F352 => Formation.F442, // Kanat bindirmeleriyle 3'lü stoperin arkasına sarkma
         Formation.F442 => Formation.F433, // Hatlar arası üçgenlerle 2'li merkeze sayısal üstünlük
+        Formation.F4231 => Formation.F433, // Üçlü orta saha ile çift ön liberoyu çevreleme
+        Formation.F4312 => Formation.F352, // Geniş kanat beklerle dar elmas ortayı aşma
+        Formation.F4222 => Formation.F4231, // Merkezde kompakt 3'lü hatla karşılama
+        Formation.F343 => Formation.F4231, // Kanat bek arkalarını işleme
+        Formation.F3241 => Formation.F442, // Hızlı kenar kontra atakları
+        Formation.F3331 => Formation.F433, // Geniş kanat hücumlarıyla üçgenleri kırma
+        Formation.F4141 => Formation.F4231, // Tek ön libero çevresine 10 numara yükleme
+        Formation.F532 => Formation.F433, // Kanat forvetlerle 5'li bloğu açma
+        Formation.F523 => Formation.F4231, // Orta saha ikilisini sayısal üstünlükle ezme
+        Formation.F424 => Formation.F4141, // Kalabalık orta saha ile 2'li merkezi düşürme
+        Formation.F451 => Formation.F343, // Agresif hücum hattıyla kilidi açma
         _ => Formation.F442,
     };
 

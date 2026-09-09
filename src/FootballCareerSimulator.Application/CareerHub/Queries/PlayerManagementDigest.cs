@@ -44,8 +44,8 @@ public sealed record PlayerManagementLine(
     string CausalitySummary)
 {
     public string ToListLabel() =>
-        $"{SquadNumber}. {DisplayName} · {PositionCode} · GÜÇ {Rating} · {FatigueRiskBand}"
-        + (Availability == "Hazır" ? string.Empty : $" · {Availability.ToUpperInvariant()}");
+        $"#{SquadNumber,-2} [{PositionCode,-3}] {DisplayName} · GÜÇ {Rating} · %{Fitness} Fit ({FatigueRiskBand})"
+        + (Availability == "Hazır" ? string.Empty : $" · ⚠ {Availability.ToUpperInvariant()}");
 
     public string ToSaleLabel() => $"{DisplayName} ({PositionCode} · GÜÇ {Rating})";
 

@@ -2,6 +2,14 @@ using FootballCareerSimulator.Simulation.TeamPreparation;
 
 namespace FootballCareerSimulator.Application.CareerHub.Queries;
 
+public enum TransferMarketScope
+{
+    All = 0,
+    Domestic = 1,
+    EuropeanElite = 2,
+    FreeAgents = 3,
+}
+
 public sealed record ScoutCandidateSource(
     long PlayerId,
     long ClubId,
@@ -15,7 +23,9 @@ public sealed record ScoutCandidateSource(
     int ManagedClubStrength,
     int SourceClubStrength,
     int? ShortlistedOnDayNumber,
-    bool IsListedTarget);
+    bool IsListedTarget,
+    string OriginLeague = "Trendyol Süper Lig",
+    bool IsInternational = false);
 
 public sealed record ScoutCandidateLine(
     long PlayerId,
@@ -37,20 +47,25 @@ public sealed record ScoutCandidateLine(
     string RecommendedSquadRole,
     bool IsAffordable,
     bool IsShortlisted,
-    bool IsListedTarget)
+    bool IsListedTarget,
+    string OriginLeague = "Trendyol Süper Lig",
+    bool IsInternational = false)
 {
     public string ToListLabel() =>
-        $"{DisplayName} · {PositionCode} · GÜÇ {EstimatedAbilityLow}-{EstimatedAbilityHigh} · {Age} yaş\n"
-        + $"{ClubName} · İlgi {InterestLabel} · Değer {MarketValue:N0}"
-        + (IsAffordable ? string.Empty : " · BÜTÇE ÜSTÜ")
-        + (IsListedTarget ? " · HEDEF" : IsShortlisted ? " · KISA LİSTE" : string.Empty);
+        $"[{PositionCode,-3}] {DisplayName} · GÜÇ {EstimatedAbilityLow}-{EstimatedAbilityHigh} · {Age} yaş\n"
+        + $"       {ClubName} {(IsInternational ? $"[{OriginLeague}] " : string.Empty)}· İlgi {InterestLabel} · Değer {(MarketValue == 0 ? "SERBEST" : $"{MarketValue:N0} TRY")}"
+        + (IsAffordable ? " · ✓ Bütçe İçi" : " · ⚠️ BÜTÇE ÜSTÜ")
+        + (IsListedTarget ? " · ⭐ HEDEF" : IsShortlisted ? " · 📋 KISA LİSTE" : string.Empty);
 
     public string ToDetailText() =>
-        $"{DisplayName} · {PositionCode} · {ClubName}\n"
+        $"{DisplayName} · {PositionCode} · {ClubName}" + (IsInternational ? $" ({OriginLeague})" : string.Empty) + "\n"
         + $"Neden önerildi? {RecommendedSquadRole} ihtiyacına uyuyor · ilgi {InterestLabel}\n"
         + $"Scout bilgisi %{KnowledgePercent} · güç {EstimatedAbilityLow}-{EstimatedAbilityHigh} · potansiyel {PotentialAbility}\n"
-        + $"Piyasa değeri {MarketValue:N0} · beklenen aralık {EstimatedFeeLow:N0}-{EstimatedFeeHigh:N0}\n"
-        + $"Açılış teklifi {SuggestedOpeningFee:N0} · önerilen maaş {SuggestedWeeklyWage:N0}/hafta"
+        + (MarketValue == 0
+            ? "Transfer durumu: SERBEST OYUNCU (Bonservis bedeli yok)\n"
+            : $"Piyasa değeri {MarketValue:N0} · beklenen aralık {EstimatedFeeLow:N0}-{EstimatedFeeHigh:N0}\n"
+              + $"Açılış teklifi {SuggestedOpeningFee:N0} · ")
+        + $"önerilen maaş {SuggestedWeeklyWage:N0}/hafta"
         + (IsAffordable ? string.Empty : "\nUyarı: bütçe üstü — teklifi düşür veya başka aday seç.");
 }
 
@@ -60,7 +75,8 @@ public sealed record ScoutTransferDigest(
     string Headline,
     string NeedLine,
     bool HasDepthGap,
-    IReadOnlyList<ScoutCandidateLine> Candidates)
+    IReadOnlyList<ScoutCandidateLine> Candidates,
+    TransferMarketScope Scope = TransferMarketScope.All)
 {
     private static readonly IReadOnlyDictionary<MvpSquadPositionGroup, int> IdealDepth =
         new Dictionary<MvpSquadPositionGroup, int>
@@ -80,7 +96,8 @@ public sealed record ScoutTransferDigest(
         IReadOnlyList<MvpSquadPlayerProfile> managedProfiles,
         IReadOnlyDictionary<int, int> managedRatingsBySlot,
         IReadOnlyList<ScoutCandidateSource> candidates,
-        int? transferBudgetAvailable = null)
+        int? transferBudgetAvailable = null,
+        TransferMarketScope scope = TransferMarketScope.All)
     {
         ArgumentNullException.ThrowIfNull(managedProfiles);
         ArgumentNullException.ThrowIfNull(managedRatingsBySlot);
@@ -104,13 +121,26 @@ public sealed record ScoutTransferDigest(
             .ThenBy(item => item.Average)
             .First();
 
-        var lines = candidates
-            .Where(candidate => candidate.PositionGroup == needGroup.Group)
+        var scopedCandidates = (scope switch
+        {
+            TransferMarketScope.Domestic => candidates.Where(c => !c.IsInternational && c.ClubId > 0),
+            TransferMarketScope.EuropeanElite => candidates.Where(c => c.IsInternational && c.ClubId >= 100),
+            TransferMarketScope.FreeAgents => candidates.Where(c => c.ClubId == 0 || c.OriginLeague.Contains("Serbest")),
+            _ => candidates,
+        }).ToList();
+
+        var matchingNeed = scopedCandidates.Where(c => c.PositionGroup == needGroup.Group).ToList();
+        var pool = (matchingNeed.Count > 0 && scope != TransferMarketScope.FreeAgents)
+            ? matchingNeed
+            : (matchingNeed.Count > 0 ? matchingNeed.Concat(scopedCandidates.Where(c => c.PositionGroup != needGroup.Group)).ToList() : scopedCandidates);
+
+        var lines = pool
             .OrderByDescending(candidate => candidate.IsListedTarget)
+            .ThenByDescending(candidate => candidate.PositionGroup == needGroup.Group)
             .ThenByDescending(candidate => candidate.PotentialAbility)
             .ThenByDescending(candidate => candidate.Rating)
             .ThenBy(candidate => candidate.Age)
-            .Take(8)
+            .Take(12)
             .Select(candidate => ToLine(
                 candidate,
                 currentDayNumber,
@@ -120,15 +150,24 @@ public sealed record ScoutTransferDigest(
         var positionCode = GroupCode(needGroup.Group);
         var hasDepthGap = needGroup.Count < IdealDepth[needGroup.Group] || needGroup.Average < 72;
 
+        var scopeTitle = scope switch
+        {
+            TransferMarketScope.Domestic => "Süper Lig",
+            TransferMarketScope.EuropeanElite => "Avrupa Eliti",
+            TransferMarketScope.FreeAgents => "Serbest Oyuncular",
+            _ => "Tüm Dünya",
+        };
+
         return new ScoutTransferDigest(
             true,
             positionCode,
-            $"Scout merkezi · {managedClubName} · {lines.Length} öncelikli aday",
+            $"Scout merkezi · {managedClubName} · {scopeTitle} ({lines.Length} aday)",
             $"Kadro ihtiyacı: {GroupName(needGroup.Group)} ({positionCode})"
             + $" · mevcut {needGroup.Count}/{IdealDepth[needGroup.Group]}"
             + $" · ortalama güç {needGroup.Average}",
             hasDepthGap,
-            lines);
+            lines,
+            scope);
     }
 
     private static ScoutCandidateLine ToLine(
@@ -146,6 +185,7 @@ public sealed record ScoutTransferDigest(
                 ? Math.Min(95, 55 + watchedDays * 5)
                 : 40;
         var uncertainty = Math.Max(1, (105 - knowledge) / 8);
+        var isFreeAgent = candidate.ClubId == 0 || candidate.OriginLeague.Contains("Serbest");
         var valuation = ScoutTransferValuationModel.Evaluate(
             candidate.Rating,
             candidate.PotentialAbility,
@@ -153,9 +193,10 @@ public sealed record ScoutTransferDigest(
             candidate.ManagedClubStrength,
             candidate.SourceClubStrength,
             positionalAverage,
-            transferBudgetAvailable);
+            transferBudgetAvailable,
+            isFreeAgent);
         var uncertaintyPercent = Math.Max(5, (110 - knowledge) / 2);
-        var feeSpread = Math.Max(100_000, valuation.MarketValue * uncertaintyPercent / 100);
+        var feeSpread = isFreeAgent ? 0 : Math.Max(100_000, valuation.MarketValue * uncertaintyPercent / 100);
 
         return new ScoutCandidateLine(
             candidate.PlayerId,
@@ -167,7 +208,7 @@ public sealed record ScoutTransferDigest(
             Math.Max(40, candidate.Rating - uncertainty),
             Math.Min(99, candidate.Rating + uncertainty),
             candidate.PotentialAbility,
-            Math.Max(100_000, valuation.MarketValue - feeSpread),
+            Math.Max(isFreeAgent ? 0 : 100_000, valuation.MarketValue - feeSpread),
             valuation.MarketValue + feeSpread,
             valuation.MarketValue,
             valuation.SuggestedOpeningFee,
@@ -177,7 +218,9 @@ public sealed record ScoutTransferDigest(
             valuation.RecommendedSquadRole,
             valuation.IsAffordable,
             candidate.ShortlistedOnDayNumber is not null,
-            candidate.IsListedTarget);
+            candidate.IsListedTarget,
+            candidate.OriginLeague,
+            candidate.IsInternational);
     }
 
     private static string GroupCode(MvpSquadPositionGroup group) => group switch
@@ -215,7 +258,8 @@ public static class ScoutTransferValuationModel
         int managedClubStrength,
         int sourceClubStrength,
         int positionalAverage,
-        int? transferBudgetAvailable = null)
+        int? transferBudgetAvailable = null,
+        bool isFreeAgent = false)
     {
         var ability = Math.Clamp(currentAbility, 40, 99);
         var potential = Math.Clamp(potentialAbility, ability, 99);
@@ -232,8 +276,8 @@ public static class ScoutTransferValuationModel
             * Math.Pow(1.16, ability - 60)
             * ageMultiplier
             * potentialMultiplier;
-        var marketValue = RoundTo((int)Math.Clamp(rawValue, 250_000, 90_000_000), 50_000);
-        var suggestedOpeningFee = RoundTo((int)(marketValue * 0.90), 50_000);
+        var marketValue = isFreeAgent ? 0 : RoundTo((int)Math.Clamp(rawValue, 250_000, 90_000_000), 50_000);
+        var suggestedOpeningFee = isFreeAgent ? 0 : RoundTo((int)(marketValue * 0.90), 50_000);
 
         var role = ability switch
         {
@@ -249,17 +293,20 @@ public static class ScoutTransferValuationModel
             "Gelecek yatırımı" => 0.80,
             _ => 1.00,
         };
+        var freeAgentWageMultiplier = isFreeAgent ? 1.20 : 1.0;
         var suggestedWage = RoundTo(
-            Math.Max(5_000, (int)(Math.Pow(Math.Max(0, ability - 50), 2) * 35 * roleWageMultiplier)),
+            Math.Max(5_000, (int)(Math.Pow(Math.Max(0, ability - 50), 2) * 35 * roleWageMultiplier * freeAgentWageMultiplier)),
             500);
 
-        var interest = Math.Clamp(
-            55
-            + ((managedClubStrength - sourceClubStrength) * 2)
-            + (role is "Kilit oyuncu" or "İlk 11" ? 10 : 3)
-            - Math.Max(0, ability - managedClubStrength),
-            10,
-            95);
+        var interest = isFreeAgent
+            ? Math.Clamp(70 + (role is "Kilit oyuncu" or "İlk 11" ? 15 : 5) - Math.Max(0, ability - managedClubStrength), 30, 95)
+            : Math.Clamp(
+                55
+                + ((managedClubStrength - sourceClubStrength) * 2)
+                + (role is "Kilit oyuncu" or "İlk 11" ? 10 : 3)
+                - Math.Max(0, ability - managedClubStrength),
+                10,
+                95);
         var interestLabel = interest switch
         {
             >= 80 => "Çok yüksek",
@@ -276,7 +323,7 @@ public static class ScoutTransferValuationModel
             interest,
             interestLabel,
             role,
-            transferBudgetAvailable is null || suggestedOpeningFee <= transferBudgetAvailable.Value);
+            isFreeAgent || transferBudgetAvailable is null || suggestedOpeningFee <= transferBudgetAvailable.Value);
     }
 
     private static int RoundTo(int value, int step) =>
