@@ -3584,6 +3584,13 @@ public partial class CareerHubScreen : Control
         standingsHint.AddThemeColorOverride("font_color", CareerUiTheme.InkMuted);
         tableCard.AddChild(standingsHint);
 
+        var zoneLegend = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        zoneLegend.AddThemeConstantOverride("separation", 8);
+        tableCard.AddChild(zoneLegend);
+        CreateStandingsLegendBadge(zoneLegend, "▌ Şampiyonlar Ligi", CareerUiTheme.Accent);
+        CreateStandingsLegendBadge(zoneLegend, "▌ Avrupa Kupaları", CareerUiTheme.Data);
+        CreateStandingsLegendBadge(zoneLegend, "▌ Küme Düşme", CareerUiTheme.DangerSoft);
+
         _standingsTable = new Tree
         {
             Name = "StandingsTable",
@@ -4167,11 +4174,36 @@ public partial class CareerHubScreen : Control
             return "—";
         }
 
-        return form
-            .Replace("G", "🟢G")
-            .Replace("B", "⚪B")
-            .Replace("M", "🔴M");
+        var results = form
+            .Where(result => result is 'G' or 'B' or 'M' or 'W' or 'D' or 'L')
+            .TakeLast(5)
+            .Select(result => result switch
+            {
+                'G' or 'W' => $"🟢{result}",
+                'B' or 'D' => $"⚪{result}",
+                'M' or 'L' => $"🔴{result}",
+                _ => result.ToString(),
+            });
+        return string.Join(" ", results);
     }
+
+    private static void CreateStandingsLegendBadge(Control parent, string text, Color color)
+    {
+        var panel = new PanelContainer();
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(color, 0.18f));
+        var label = new Label { Text = text };
+        CareerUiTheme.StyleEyebrow(label, color);
+        panel.AddChild(label);
+        parent.AddChild(panel);
+    }
+
+    private static Color? StandingsZoneColor(int index, int teamCount) => index switch
+    {
+        0 => CareerUiTheme.Accent,
+        <= 3 => CareerUiTheme.Data,
+        _ when index >= Math.Max(0, teamCount - 3) => CareerUiTheme.DangerSoft,
+        _ => null,
+    };
 
     private static void ConfigureStandingsColumns(Tree table)
     {
@@ -8187,13 +8219,12 @@ public partial class CareerHubScreen : Control
                 rowToSelect = row;
             }
 
+            var zoneColor = StandingsZoneColor(index, standings.Count);
             var rankDisplay = index switch
             {
-                0 => "🏆 1",
-                1 => "⭐ 2",
-                2 => "⭐ 3",
-                3 => "⭐ 4",
-                >= 15 => $"🔻 {index + 1}",
+                0 => "▌🏆 1",
+                <= 3 => $"▌⭐ {index + 1}",
+                _ when index >= standings.Count - 3 => $"▌🔻 {index + 1}",
                 _ => (index + 1).ToString(),
             };
 
@@ -8236,6 +8267,11 @@ public partial class CareerHubScreen : Control
             row.SetCustomColor(9, CareerUiTheme.Ink);
             row.SetCustomColor(10, CareerUiTheme.Accent);
 
+            if (zoneColor is Color zone)
+            {
+                row.SetCustomBgColor(0, new Color(zone.R, zone.G, zone.B, 0.30f));
+            }
+
             if (managedClubId == entry.ClubId)
             {
                 for (var column = 0; column < values.Length; column++)
@@ -8247,6 +8283,10 @@ public partial class CareerHubScreen : Control
                             CareerUiTheme.Action.G,
                             CareerUiTheme.Action.B,
                             0.20f));
+                }
+                if (zoneColor is Color managedZone)
+                {
+                    row.SetCustomBgColor(0, new Color(managedZone.R, managedZone.G, managedZone.B, 0.38f));
                 }
             }
         }
