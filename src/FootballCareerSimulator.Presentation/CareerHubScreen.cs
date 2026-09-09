@@ -106,6 +106,7 @@ public partial class CareerHubScreen : Control
     private Label _transferBudgetLabel = null!;
     private Label _transferDeskLabel = null!;
     private Label _transferScoutReportLabel = null!;
+    private GridContainer _transferBentoGrid = null!;
     private PanelContainer _transferBudgetBadgePanel = null!;
     private Label _transferBudgetBadgeLabel = null!;
     private PanelContainer _wageBudgetBadgePanel = null!;
@@ -131,6 +132,10 @@ public partial class CareerHubScreen : Control
     private Button _scopeFreeButton = null!;
     private ItemList _scoutCandidateList = null!;
     private Label _scoutCandidateDetailLabel = null!;
+    private PanelContainer _scoutCandidateSummaryPanel = null!;
+    private Label _scoutMarketValueBadgeLabel = null!;
+    private Label _scoutWageExpectationBadgeLabel = null!;
+    private Label _scoutTransferChanceBadgeLabel = null!;
     private IReadOnlyList<ScoutCandidateLine> _scoutCandidates = Array.Empty<ScoutCandidateLine>();
     private long? _selectedScoutPlayerId;
     private Label _shortlistTargetLabel = null!;
@@ -1536,6 +1541,10 @@ public partial class CareerHubScreen : Control
         }
         _statusLabel.CustomMinimumSize = new Vector2(0, profile.IsCompact ? 46 : 42);
         _standingsTable.CustomMinimumSize = new Vector2(0, 500);
+        if (_transferBentoGrid is not null)
+        {
+            _transferBentoGrid.Columns = Size.X >= 1500f ? 3 : Size.X >= 900f ? 2 : 1;
+        }
     }
 
     private VBoxContainer PageRoot()
@@ -2470,26 +2479,30 @@ public partial class CareerHubScreen : Control
         overviewCard.AddChild(UiComponents.PageHeader("🔄", "TRANSFER VE GÖZLEMCİLİK MERKEZİ"));
         overviewCard.AddChild(UiComponents.Divider(1));
 
-        var budgetRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var budgetRow = new GridContainer
+        {
+            Columns = 3,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
         budgetRow.AddThemeConstantOverride("separation", 8);
         overviewCard.AddChild(budgetRow);
 
-        _transferBudgetBadgePanel = new PanelContainer();
-        _transferBudgetBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.16f));
+        _transferBudgetBadgePanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _transferBudgetBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.28f));
         _transferBudgetBadgeLabel = new Label { Text = "💰 Transfer Bütçesi: —" };
         CareerUiTheme.StyleEyebrow(_transferBudgetBadgeLabel, CareerUiTheme.Accent);
         _transferBudgetBadgePanel.AddChild(_transferBudgetBadgeLabel);
         budgetRow.AddChild(_transferBudgetBadgePanel);
 
-        _wageBudgetBadgePanel = new PanelContainer();
-        _wageBudgetBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data, 0.16f));
+        _wageBudgetBadgePanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _wageBudgetBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data, 0.28f));
         _wageBudgetBadgeLabel = new Label { Text = "💵 Maaş: —" };
         CareerUiTheme.StyleEyebrow(_wageBudgetBadgeLabel, CareerUiTheme.Data);
         _wageBudgetBadgePanel.AddChild(_wageBudgetBadgeLabel);
         budgetRow.AddChild(_wageBudgetBadgePanel);
 
-        _transferWindowBadgePanel = new PanelContainer();
-        _transferWindowBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
+        _transferWindowBadgePanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _transferWindowBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.32f));
         _transferWindowBadgeLabel = new Label { Text = "🟢 Transfer Penceresi Açık" };
         CareerUiTheme.StyleEyebrow(_transferWindowBadgeLabel, CareerUiTheme.ActionBright);
         _transferWindowBadgePanel.AddChild(_transferWindowBadgeLabel);
@@ -2532,10 +2545,19 @@ public partial class CareerHubScreen : Control
         _closeTransferWindowButton.Pressed += () => Apply(_controller.CloseTransferWindow());
         windowRow.AddChild(_closeTransferWindowButton);
 
+        _transferBentoGrid = new GridContainer
+        {
+            Columns = 3,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _transferBentoGrid.AddThemeConstantOverride("h_separation", CareerUiTheme.SpaceM);
+        _transferBentoGrid.AddThemeConstantOverride("v_separation", CareerUiTheme.SpaceM);
+        page.AddChild(_transferBentoGrid);
+
         // 1 — Kadro İhtiyaçları
         var needsNeonPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         needsNeonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel());
-        page.AddChild(needsNeonPanel);
+        _transferBentoGrid.AddChild(needsNeonPanel);
         var needsCard = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         needsCard.AddThemeConstantOverride("separation", CareerUiTheme.SeparationCard);
         needsNeonPanel.AddChild(needsCard);
@@ -2561,7 +2583,7 @@ public partial class CareerHubScreen : Control
         // 2 — Önerilen / İzlenen
         var scoutNeonPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         scoutNeonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel());
-        page.AddChild(scoutNeonPanel);
+        _transferBentoGrid.AddChild(scoutNeonPanel);
         var scoutCard = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         scoutCard.AddThemeConstantOverride("separation", CareerUiTheme.SeparationCard);
         scoutNeonPanel.AddChild(scoutCard);
@@ -2599,6 +2621,15 @@ public partial class CareerHubScreen : Control
         _scoutCandidateDetailLabel = BodyLabel("ScoutCandidateDetailLabel", muted: true, autowrap: true);
         _scoutCandidateDetailLabel.Text = "Aday seç — neden önerildiğini ve maliyeti gör.";
         scoutCard.AddChild(_scoutCandidateDetailLabel);
+        _scoutCandidateSummaryPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _scoutCandidateSummaryPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel());
+        var candidateSummary = new GridContainer { Columns = 1, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        candidateSummary.AddThemeConstantOverride("v_separation", 6);
+        _scoutMarketValueBadgeLabel = CreateTransferSummaryBadge(candidateSummary, "💎 Piyasa Değeri: —", CareerUiTheme.Accent);
+        _scoutWageExpectationBadgeLabel = CreateTransferSummaryBadge(candidateSummary, "💵 Maaş Beklentisi: —", CareerUiTheme.Data);
+        _scoutTransferChanceBadgeLabel = CreateTransferSummaryBadge(candidateSummary, "🎯 Transfer İhtimali: —", CareerUiTheme.ActionBright);
+        _scoutCandidateSummaryPanel.AddChild(candidateSummary);
+        scoutCard.AddChild(_scoutCandidateSummaryPanel);
         _shortlistTargetLabel = BodyLabel("ShortlistTargetLabel", autowrap: true);
         scoutCard.AddChild(_shortlistTargetLabel);
         var targetRow = ActionFlow();
@@ -2617,7 +2648,7 @@ public partial class CareerHubScreen : Control
         targetRow.AddChild(_openDossierFromScoutButton);
 
         // 3 — Aktif Görüşmeler
-        var dealCard = AddCard(page, "3 · AKTİF GÖRÜŞMELER", emphasized: true);
+        var dealCard = AddCard(_transferBentoGrid, "3 · AKTİF GÖRÜŞMELER", emphasized: true, expandVertical: true);
         _transferProcessLabel = BodyLabel("TransferProcessLabel", autowrap: true);
         dealCard.AddChild(_transferProcessLabel);
         var dealRow = ActionFlow();
@@ -4518,6 +4549,11 @@ public partial class CareerHubScreen : Control
     private void BindScoutCandidateDetail(ScoutCandidateLine candidate)
     {
         _scoutCandidateDetailLabel.Text = candidate.ToDetailText();
+        _scoutMarketValueBadgeLabel.Text = candidate.MarketValue == 0
+            ? "💎 Piyasa Değeri: SERBEST"
+            : $"💎 Piyasa Değeri: {candidate.MarketValue:N0} TRY";
+        _scoutWageExpectationBadgeLabel.Text = $"💵 Maaş Beklentisi: {candidate.SuggestedWeeklyWage:N0} TRY/hf";
+        _scoutTransferChanceBadgeLabel.Text = $"🎯 Transfer İhtimali: %{candidate.InterestPercent} · {candidate.InterestLabel}";
         _transferFeeInput.Value = candidate.SuggestedOpeningFee;
         _transferWageInput.Value = candidate.SuggestedWeeklyWage;
         _contractYearsInput.Value = candidate.Age switch
@@ -4527,6 +4563,17 @@ public partial class CareerHubScreen : Control
             <= 32 => 3,
             _ => 2,
         };
+    }
+
+    private static Label CreateTransferSummaryBadge(Control parent, string text, Color color)
+    {
+        var panel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(color, 0.24f));
+        var label = new Label { Text = text };
+        CareerUiTheme.StyleEyebrow(label, color);
+        panel.AddChild(label);
+        parent.AddChild(panel);
+        return label;
     }
 
     private void AddSelectedScoutCandidate()
