@@ -22,6 +22,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
+if /I "%~1"=="--build-only" (
+    echo [BASARILI] C# derlemesi ve Android APK exportu tamamlandi. Cihaz kurulumu atlandi.
+    exit /b 0
+)
+
 echo [3/4] APK telefona yukleniyor (ADB Install)...
 "%ADB%" install -r "%APK_PATH%"
 if errorlevel 1 (

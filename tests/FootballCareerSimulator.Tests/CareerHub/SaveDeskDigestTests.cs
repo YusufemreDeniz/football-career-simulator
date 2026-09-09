@@ -51,4 +51,30 @@ public sealed class SaveDeskDigestTests
         Assert.Contains(digest.BeatLines, b => b.StartsWith("Diskteki kayıt:", StringComparison.Ordinal));
         Assert.Contains("üzerine yazabilir", digest.Headline, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Telemetry_PreservesSlotSeedTimestampAndFileSize()
+    {
+        var stamp = new DateTimeOffset(2026, 9, 9, 16, 45, 0, TimeSpan.Zero);
+        var digest = SaveDeskDigest.Compose(
+            savePath: @"C:\saves\career_save.db",
+            saveExists: true,
+            saveLastWriteUtc: stamp,
+            currentDayNumber: 30,
+            currentIsoDate: "2026-09-09",
+            managerDisplayName: "Yusuf",
+            clubDisplayName: "Home FC",
+            seasonId: 1,
+            seasonStatus: "Active",
+            acceptedFixtureCount: 8,
+            totalFixtureCount: 34,
+            saveSizeBytes: 2_621_440,
+            activeSlot: "career_slot_01",
+            worldSeed: 741852);
+
+        Assert.Equal(stamp, digest.SaveLastWriteUtc);
+        Assert.Equal(2_621_440, digest.SaveSizeBytes);
+        Assert.Equal("career_slot_01", digest.ActiveSlot);
+        Assert.Equal(741852, digest.WorldSeed);
+    }
 }
