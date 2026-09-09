@@ -3,6 +3,7 @@ using FootballCareerSimulator.Application.Career.Services;
 using FootballCareerSimulator.Application.ClubGovernance.Composition;
 using FootballCareerSimulator.Application.Competition.Commands;
 using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.Competition.Services;
 using FootballCareerSimulator.Application.ContractRegistration.Composition;
 using FootballCareerSimulator.Application.Interaction.Composition;
 using FootballCareerSimulator.Application.ManagerCareer.Commands;
@@ -45,16 +46,19 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
         Guid.NewGuid().ToString("N"));
     private readonly ITestOutputHelper _output;
     private readonly AcceptanceProgressLog _progress;
+    private readonly MatchPhaseAccumulator _matchPhases;
 
     public ProductionTenSeasonAcceptanceTests(ITestOutputHelper output)
     {
         _output = output;
         Directory.CreateDirectory(_tempDirectory);
         _progress = new AcceptanceProgressLog(CreateProgressLogPath(), _output);
+        _matchPhases = new MatchPhaseAccumulator();
     }
 
     public void Dispose()
     {
+        _matchPhases.Dispose();
         _progress.Dispose();
         SqliteConnection.ClearAllPools();
         if (Directory.Exists(_tempDirectory))
@@ -221,12 +225,13 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
                 Assert.Equal(completed.RetiredPlayerCount, completed.GeneratedPlayerCount);
                 host.Competition.ArchiveSeason.Handle(
                     new ArchiveSeasonCommand(Guid.NewGuid(), seasonNumber, closeDay.DayNumber));
+                var matchPhaseSummary = _matchPhases.SnapshotAndReset();
                 _progress.Mark(
                     "season.archived",
                     seasonNumber,
                     processedFixtures,
                     fixtures.Length,
-                    FormattableString.Invariant($"retired={completed.RetiredPlayerCount}; advanceMs={advanceElapsed.TotalMilliseconds:F0}; selectionMs={selectionElapsed.TotalMilliseconds:F0}; matchMs={matchElapsed.TotalMilliseconds:F0}; reemploymentMs={reemploymentElapsed.TotalMilliseconds:F0}"));
+                    FormattableString.Invariant($"retired={completed.RetiredPlayerCount}; advanceMs={advanceElapsed.TotalMilliseconds:F0}; selectionMs={selectionElapsed.TotalMilliseconds:F0}; matchMs={matchElapsed.TotalMilliseconds:F0}; reemploymentMs={reemploymentElapsed.TotalMilliseconds:F0}; phases=[{matchPhaseSummary}]"));
 
                 AssertPopulationIntegrity(host, closeDay);
                 _progress.Mark("population.verified", seasonNumber, processedFixtures, fixtures.Length);
@@ -618,6 +623,54 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
         public void Dispose()
         {
             _writer.Dispose();
+        }
+    }
+
+    private sealed class MatchPhaseAccumulator : IDisposable
+    {
+        private readonly object _gate = new();
+        private readonly Dictionary<string, TimeSpan> _durationByPhase = new(StringComparer.Ordinal);
+        private readonly ActivityListener _listener;
+
+        public MatchPhaseAccumulator()
+        {
+            _listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == MatchExecutionDiagnostics.ActivitySourceName,
+                Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                SampleUsingParentId = static (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllData,
+                ActivityStopped = RecordStoppedActivity,
+            };
+            ActivitySource.AddActivityListener(_listener);
+        }
+
+        public string SnapshotAndReset()
+        {
+            KeyValuePair<string, TimeSpan>[] snapshot;
+            lock (_gate)
+            {
+                snapshot = _durationByPhase.ToArray();
+                _durationByPhase.Clear();
+            }
+
+            return string.Join(
+                ", ",
+                snapshot
+                    .OrderByDescending(pair => pair.Value)
+                    .ThenBy(pair => pair.Key, StringComparer.Ordinal)
+                    .Select(pair => FormattableString.Invariant(
+                        $"{pair.Key}Ms={pair.Value.TotalMilliseconds:F0}")));
+        }
+
+        public void Dispose() => _listener.Dispose();
+
+        private void RecordStoppedActivity(Activity activity)
+        {
+            lock (_gate)
+            {
+                _durationByPhase[activity.OperationName] =
+                    _durationByPhase.GetValueOrDefault(activity.OperationName) + activity.Duration;
+            }
         }
     }
 }

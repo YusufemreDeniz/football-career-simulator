@@ -135,7 +135,10 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         var awayClub = _clubRegistryStore.Registry.GetClubOrThrow(fixture.AwayClubId);
         var rootSeed = _timelineStore.Timeline.RootSeed;
 
-        RecoverInjuriesToDate(occurredAt);
+        using (MatchExecutionDiagnostics.StartPhase("injuries.recover", command.SeasonId, command.FixtureId))
+        {
+            RecoverInjuriesToDate(occurredAt);
+        }
 
         var homeTactic = ResolveTacticModifier(fixture.HomeClubId);
         var awayTactic = ResolveTacticModifier(fixture.AwayClubId);
@@ -160,16 +163,21 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             ? fixture.HomeClubId == managedRoleClub ? homeLineupRole : awayLineupRole
             : (int?)null;
 
-        var homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
-            + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
-            + homeTactic
-            + homeLineupRole
-            + (homeAiPlan?.MatchStrengthModifier ?? 0);
-        var awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed, occurredAt)
-            + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
-            + awayTactic
-            + awayLineupRole
-            + (awayAiPlan?.MatchStrengthModifier ?? 0);
+        int homeBonus;
+        int awayBonus;
+        using (MatchExecutionDiagnostics.StartPhase("preparation.resolve", command.SeasonId, command.FixtureId))
+        {
+            homeBonus = ResolveLineupBonus(fixture.Id, fixture.HomeClubId, rootSeed, occurredAt)
+                + ResolvePhysicalModifier(fixture.Id, fixture.HomeClubId, occurredAt)
+                + homeTactic
+                + homeLineupRole
+                + (homeAiPlan?.MatchStrengthModifier ?? 0);
+            awayBonus = ResolveLineupBonus(fixture.Id, fixture.AwayClubId, rootSeed, occurredAt)
+                + ResolvePhysicalModifier(fixture.Id, fixture.AwayClubId, occurredAt)
+                + awayTactic
+                + awayLineupRole
+                + (awayAiPlan?.MatchStrengthModifier ?? 0);
+        }
 
         var managedPreparationModifier = isManagedMatch
             ? Math.Clamp(command.ManagedPreparationModifier, -4, 4)
@@ -209,66 +217,94 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             forcedHalfTime = new MatchScore(forcedHome, forcedAway);
         }
 
-        var simulation = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
-            rootSeed,
-            command.FixtureId,
-            homeClub.SportiveStrength,
-            awayClub.SportiveStrength,
-            homeBonus,
-            awayBonus,
-            homeSecondHalfDelta,
-            awaySecondHalfDelta,
-            forcedHalfTime);
+        MatchSimulationOutcome simulation;
+        using (MatchExecutionDiagnostics.StartPhase("simulation.run", command.SeasonId, command.FixtureId))
+        {
+            simulation = MvpFixtureMatchSimulator.SimulateWithKeyMoments(
+                rootSeed,
+                command.FixtureId,
+                homeClub.SportiveStrength,
+                awayClub.SportiveStrength,
+                homeBonus,
+                awayBonus,
+                homeSecondHalfDelta,
+                awaySecondHalfDelta,
+                forcedHalfTime);
+        }
         var score = simulation.Score;
 
-        _competitionStore.League.AcceptFixtureResult(
-            new SeasonId(command.SeasonId),
-            new FixtureId(command.FixtureId),
-            score,
-            occurredAt);
+        using (MatchExecutionDiagnostics.StartPhase("standings.update", command.SeasonId, command.FixtureId))
+        {
+            _competitionStore.League.AcceptFixtureResult(
+                new SeasonId(command.SeasonId),
+                new FixtureId(command.FixtureId),
+                score,
+                occurredAt);
+        }
 
-        var injuredBefore = isManagedMatch && managedClubBefore is ClubId clubForInjury
-            ? SnapshotInjuredSlots(clubForInjury)
-            : Array.Empty<int>();
+        int[] newlyInjured;
+        using (MatchExecutionDiagnostics.StartPhase("physical.apply", command.SeasonId, command.FixtureId))
+        {
+            var injuredBefore = isManagedMatch && managedClubBefore is ClubId clubForInjury
+                ? SnapshotInjuredSlots(clubForInjury)
+                : Array.Empty<int>();
+            ApplyMatchPhysicalConsequences(
+                fixture,
+                occurredAt,
+                rootSeed,
+                managedClubBefore,
+                command.ManagedSecondHalfDelta);
+            newlyInjured = isManagedMatch && managedClubBefore is ClubId clubAfterInjury
+                ? DiffNewlyInjuredSlots(clubAfterInjury, injuredBefore)
+                : Array.Empty<int>();
+        }
 
-        ApplyMatchPhysicalConsequences(
-            fixture,
-            occurredAt,
-            rootSeed,
-            managedClubBefore,
-            command.ManagedSecondHalfDelta);
-        var newlyInjured = isManagedMatch && managedClubBefore is ClubId clubAfterInjury
-            ? DiffNewlyInjuredSlots(clubAfterInjury, injuredBefore)
-            : Array.Empty<int>();
+        using (MatchExecutionDiagnostics.StartPhase("development.apply", command.SeasonId, command.FixtureId))
+        {
+            ApplyMatchDevelopment(fixture, occurredAt, rootSeed);
+        }
 
-        ApplyMatchDevelopment(fixture, occurredAt, rootSeed);
-        ApplySocialContinuityAfterMatch(fixture, occurredAt);
-        ApplyMatchPerformanceMemory(fixture, score, occurredAt);
-        var pressOpened = TryOpenPressQuestionAfterBlowoutLoss(fixture, score, occurredAt);
-        var playingTimeDemand = TryOpenPlayingTimeDemandAfterSittingOut(fixture, occurredAt);
-        var disciplineDemand = TryOpenDisciplineAfterManagedRedCard(
-            fixture,
-            simulation.KeyMoments,
-            occurredAt);
-        ApplyRelationshipSelectionEffects(fixture, occurredAt);
-        var reencounter = ApplyFormerEncounters(fixture, managedClubBefore, occurredAt);
+        bool pressOpened;
+        Domain.Interaction.DecisionRequest? playingTimeDemand;
+        Domain.Interaction.DecisionRequest? disciplineDemand;
+        (bool FormerClubEncounter, int FormerPlayerCount) reencounter;
+        using (MatchExecutionDiagnostics.StartPhase("social.apply", command.SeasonId, command.FixtureId))
+        {
+            ApplySocialContinuityAfterMatch(fixture, occurredAt);
+            ApplyMatchPerformanceMemory(fixture, score, occurredAt);
+            pressOpened = TryOpenPressQuestionAfterBlowoutLoss(fixture, score, occurredAt);
+            playingTimeDemand = TryOpenPlayingTimeDemandAfterSittingOut(fixture, occurredAt);
+            disciplineDemand = TryOpenDisciplineAfterManagedRedCard(
+                fixture,
+                simulation.KeyMoments,
+                occurredAt);
+            ApplyRelationshipSelectionEffects(fixture, occurredAt);
+            reencounter = ApplyFormerEncounters(fixture, managedClubBefore, occurredAt);
+        }
         _matchSelectionStore?.RemoveForFixture(fixture.Id);
 
         var invalidated = 0;
-        if (_selectionRevalidation is not null)
+        using (MatchExecutionDiagnostics.StartPhase("selection.revalidate", command.SeasonId, command.FixtureId))
         {
-            invalidated += _selectionRevalidation.InvalidateUnavailableForClub(
-                fixture.HomeClubId,
-                occurredAt);
-            invalidated += _selectionRevalidation.InvalidateUnavailableForClub(
-                fixture.AwayClubId,
-                occurredAt);
+            if (_selectionRevalidation is not null)
+            {
+                invalidated += _selectionRevalidation.InvalidateUnavailableForClub(
+                    fixture.HomeClubId,
+                    occurredAt);
+                invalidated += _selectionRevalidation.InvalidateUnavailableForClub(
+                    fixture.AwayClubId,
+                    occurredAt);
+            }
         }
 
         var updatedSeason = CompetitionSeasonCommandSupport.GetSeasonOrThrow(
             _competitionStore,
             command.SeasonId);
-        var board = TryApplyBoardAssessment(fixture, score, updatedSeason, occurredAt);
+        BoardConsequenceSummary? board;
+        using (MatchExecutionDiagnostics.StartPhase("board.assess", command.SeasonId, command.FixtureId))
+        {
+            board = TryApplyBoardAssessment(fixture, score, updatedSeason, occurredAt);
+        }
         updatedSeason.ClearUncommittedEvents();
 
         ManagedMatchConsequenceSummary? consequences = null;
@@ -293,39 +329,44 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                 reencounter.FormerPlayerCount);
         }
 
-        var keyMoments = simulation.KeyMoments
-            .Select(moment => MapMomentToReadModel(moment, fixture.Id, fixture.HomeClubId, fixture.AwayClubId, rootSeed))
-            .ToList();
-
-        if (newlyInjured.Length > 0 && managedClubBefore is ClubId injuredClub)
+        MatchKeyMomentReadModel[] keyMomentArray;
+        MatchStatisticsReadModel statistics;
+        using (MatchExecutionDiagnostics.StartPhase("read-model.build", command.SeasonId, command.FixtureId))
         {
-            var injuredStarting = ResolveStartingSlots(fixture.Id, injuredClub);
-            var injuredNames = MvpSquadRosterGenerator.GeneratePlayerNames(injuredClub, rootSeed);
-            AppendInjuryMoments(
-                keyMoments,
-                newlyInjured,
-                fixture.HomeClubId == injuredClub,
-                injuredStarting,
-                injuredNames,
-                rootSeed,
-                command.FixtureId);
-        }
+            var keyMoments = simulation.KeyMoments
+                .Select(moment => MapMomentToReadModel(moment, fixture.Id, fixture.HomeClubId, fixture.AwayClubId, rootSeed))
+                .ToList();
 
-        var keyMomentArray = keyMoments
-            .OrderBy(moment => moment.Minute)
-            .ThenBy(moment => moment.Kind, StringComparer.Ordinal)
-            .ThenBy(moment => moment.IsHomeSide ? 0 : 1)
-            .ThenBy(moment => moment.PrimarySlotIndex)
-            .ToArray();
-        var statistics = new MatchStatisticsReadModel(
-            simulation.Statistics.HomePossessionPercent,
-            simulation.Statistics.AwayPossessionPercent,
-            simulation.Statistics.HomeShots,
-            simulation.Statistics.AwayShots,
-            simulation.Statistics.HomeShotsOnTarget,
-            simulation.Statistics.AwayShotsOnTarget,
-            simulation.Statistics.HomeCorners,
-            simulation.Statistics.AwayCorners);
+            if (newlyInjured.Length > 0 && managedClubBefore is ClubId injuredClub)
+            {
+                var injuredStarting = ResolveStartingSlots(fixture.Id, injuredClub);
+                var injuredNames = MvpSquadRosterGenerator.GeneratePlayerNames(injuredClub, rootSeed);
+                AppendInjuryMoments(
+                    keyMoments,
+                    newlyInjured,
+                    fixture.HomeClubId == injuredClub,
+                    injuredStarting,
+                    injuredNames,
+                    rootSeed,
+                    command.FixtureId);
+            }
+
+            keyMomentArray = keyMoments
+                .OrderBy(moment => moment.Minute)
+                .ThenBy(moment => moment.Kind, StringComparer.Ordinal)
+                .ThenBy(moment => moment.IsHomeSide ? 0 : 1)
+                .ThenBy(moment => moment.PrimarySlotIndex)
+                .ToArray();
+            statistics = new MatchStatisticsReadModel(
+                simulation.Statistics.HomePossessionPercent,
+                simulation.Statistics.AwayPossessionPercent,
+                simulation.Statistics.HomeShots,
+                simulation.Statistics.AwayShots,
+                simulation.Statistics.HomeShotsOnTarget,
+                simulation.Statistics.AwayShotsOnTarget,
+                simulation.Statistics.HomeCorners,
+                simulation.Statistics.AwayCorners);
+        }
 
         var result = new PlayFixtureMatchResult(
             true,
