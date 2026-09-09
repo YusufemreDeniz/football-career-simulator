@@ -147,7 +147,7 @@ public partial class CareerAppRoot : Control
         bool showExperienceSettings = false)
     {
         _audioDirector.StopAtmosphere();
-        var hub = new CareerHubScreen(controller);
+        var hub = new CareerHubScreen(controller, _audioDirector);
         hub.BackToMenuRequested += ShowMainMenu;
         hub.MatchDayRequested += () => ShowMatchDay(controller);
         hub.ExperienceSettingsChanged += () =>

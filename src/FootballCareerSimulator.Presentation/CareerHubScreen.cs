@@ -16,6 +16,7 @@ namespace FootballCareerSimulator.Presentation;
 public partial class CareerHubScreen : Control
 {
     private readonly CareerSessionController _controller;
+    private readonly ProceduralMatchAudioDirector? _audioDirector;
 
     private Label _dateLabel = null!;
     private Label _managerLabel = null!;
@@ -453,9 +454,12 @@ public partial class CareerHubScreen : Control
 
     public event Action? ExperienceSettingsChanged;
 
-    public CareerHubScreen(CareerSessionController controller)
+    public CareerHubScreen(
+        CareerSessionController controller,
+        ProceduralMatchAudioDirector? audioDirector = null)
     {
         _controller = controller ?? throw new ArgumentNullException(nameof(controller));
+        _audioDirector = audioDirector;
     }
 
     public override void _Ready()
@@ -1444,6 +1448,10 @@ public partial class CareerHubScreen : Control
 
     private void ShowPage(HubPage page)
     {
+        if (_layoutBuilt && page != _currentPage)
+        {
+            PlayInterfaceFeedback(MatchAudioCue.Button, vibrationDurationMs: 12);
+        }
         ClosePlayerDossier();
         _currentPage = page;
         var titles = new[]
@@ -1894,31 +1902,33 @@ public partial class CareerHubScreen : Control
         var deskRow = ActionFlow();
         decisionCard.AddChild(deskRow);
         _grantDecisionButton = AccentButton("✓ KABUL ET");
-        _grantDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: true));
+        _grantDecisionButton.Pressed += () => ApplyDecision(
+            () => _controller.AnswerOldestPendingDecision(grantPromise: true));
         deskRow.AddChild(_grantDecisionButton);
         _refuseDecisionButton = DangerButton("✕ Talebi Reddet");
-        _refuseDecisionButton.Pressed += () => Apply(_controller.AnswerOldestPendingDecision(grantPromise: false));
+        _refuseDecisionButton.Pressed += () => ApplyDecision(
+            () => _controller.AnswerOldestPendingDecision(grantPromise: false));
         deskRow.AddChild(_refuseDecisionButton);
         _disciplineWarningButton = SecondaryButton("⚠ UYARI VER");
         _disciplineWarningButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueWarning));
+            ApplyDecision(() => _controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueWarning));
         deskRow.AddChild(_disciplineWarningButton);
         _disciplineFineButton = DangerButton("⛔ CEZA VER");
         _disciplineFineButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueFine));
+            ApplyDecision(() => _controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueFine));
         deskRow.AddChild(_disciplineFineButton);
         _disciplineSupportButton = PrimaryButton("♥ DESTEKLE");
         _disciplineSupportButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionOfferSupport));
+            ApplyDecision(() => _controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionOfferSupport));
         deskRow.AddChild(_disciplineSupportButton);
         _boardCounterButton = AccentButton("⇄ KARŞI TEKLİF");
         _boardCounterButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(
+            ApplyDecision(() => _controller.AnswerOldestPendingWithOption(
                 Domain.Interaction.DecisionRequest.OptionCounterBoardDemand));
         deskRow.AddChild(_boardCounterButton);
         _pressCriticizeButton = DangerButton("🎙 Kamuya Eleştir");
         _pressCriticizeButton.Pressed += () =>
-            Apply(_controller.AnswerOldestPendingWithOption(
+            ApplyDecision(() => _controller.AnswerOldestPendingWithOption(
                 Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
         deskRow.AddChild(_pressCriticizeButton);
 
@@ -4354,6 +4364,7 @@ public partial class CareerHubScreen : Control
 
     private void OnPlayMatches()
     {
+        PlayInterfaceFeedback(MatchAudioCue.Whistle, vibrationDurationMs: 24);
         var currentDay = _controller.GetCurrentGameDate().DayNumber;
         if (_controller.HasDueContinentalMatch())
         {
@@ -4416,12 +4427,30 @@ public partial class CareerHubScreen : Control
         }
 
         _newTransferPlayerId = signed.PlayerId;
+        _audioDirector?.TryPlayCue(MatchAudioCue.ResultWin, signed.SquadNumber);
         _transferWelcomeHeadlineLabel.Text = $"✍ HOŞ GELDİN, {signed.DisplayName.ToUpperInvariant()}!";
         _transferWelcomeMetaLabel.Text =
             $"#{signed.SquadNumber} · {signed.PositionName} ({signed.PositionCode}) · {signed.Rating} GÜÇ\n"
             + "İmza tamamlandı; oyuncu A takım listesinde #YENİ rozetiyle işaretlendi.";
         _transferWelcomePanel.Visible = true;
         RefreshSquadList();
+    }
+
+    private void ApplyDecision(Func<UiActionResult> decide)
+    {
+        var result = decide();
+        _audioDirector?.TryPlayCue(result.Succeeded ? MatchAudioCue.Button : MatchAudioCue.YellowCard);
+        Apply(result);
+    }
+
+    private void PlayInterfaceFeedback(MatchAudioCue cue, int vibrationDurationMs)
+    {
+        _audioDirector?.TryPlayCue(cue, (int)_currentPage);
+        var strength = GameExperienceSettingsStore.Current.EffectiveHapticsStrengthPercent;
+        if (OS.HasFeature("mobile") && strength > 0)
+        {
+            Input.VibrateHandheld(Math.Max(1, vibrationDurationMs * strength / 100));
+        }
     }
 
     private void ApplySelectedPlayer(Func<long, UiActionResult> action)
