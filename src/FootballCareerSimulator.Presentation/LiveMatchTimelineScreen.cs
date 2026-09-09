@@ -294,22 +294,22 @@ public sealed partial class LiveMatchTimelineScreen : Control
         var controlsBar = new HBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 36),
+            CustomMinimumSize = new Vector2(0, 38),
         };
         controlsBar.AddThemeConstantOverride("separation", 6);
         stack.AddChild(controlsBar);
 
-        _previousButton = AddControlButton(controlsBar, "◀ Önceki", () =>
+        _previousButton = AddControlButton(controlsBar, "⏮ Önceki", () =>
         {
             _pitch.Pause();
             _pitch.Retreat();
             RecalculateLiveScore(_pitch.CurrentFrameIndex);
             RefreshControls();
-        }, minWidth: 68);
+        }, minWidth: 72);
 
-        _playPauseButton = AddControlButton(controlsBar, "⏸ Duraklat", TogglePlayback, minWidth: 84);
+        _playPauseButton = AddControlButton(controlsBar, "⏸ Duraklat", TogglePlayback, minWidth: 88);
 
-        _nextButton = AddControlButton(controlsBar, "Sonraki ▶", () =>
+        _nextButton = AddControlButton(controlsBar, "Sonraki ⏭", () =>
         {
             _pitch.Pause();
             if (!_hasHalfTimeEnded && _pitch.CurrentFrameIndex + 1 < _pitch.Storyboard.Frames.Count)
@@ -329,7 +329,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
             }
             RecalculateLiveScore(_pitch.CurrentFrameIndex);
             RefreshControls();
-        }, minWidth: 68);
+        }, minWidth: 72);
 
         // Spacer
         var spacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -337,11 +337,11 @@ public sealed partial class LiveMatchTimelineScreen : Control
 
         // Speed multipliers
         _speedHalfButton = AddControlButton(controlsBar, "0.5x", () => SetSpeed(0.5f), minWidth: 44);
-        _speed1xButton = AddControlButton(controlsBar, "1x", () => SetSpeed(1f), minWidth: 40);
-        _speed2xButton = AddControlButton(controlsBar, "2x", () => SetSpeed(2f), minWidth: 40);
+        _speed1xButton = AddControlButton(controlsBar, "1.0x", () => SetSpeed(1f), minWidth: 44);
+        _speed2xButton = AddControlButton(controlsBar, "2.0x", () => SetSpeed(2f), minWidth: 44);
 
         // Fast forward / Skip to end
-        _fastForwardButton = AddControlButton(controlsBar, "⏩ Hızlı Bitir", FastForwardToEnd, minWidth: 88);
+        _fastForwardButton = AddControlButton(controlsBar, "⏩ Hızlı Bitir", FastForwardToEnd, minWidth: 92);
         CareerUiTheme.StyleAccentButton(_fastForwardButton);
 
         return pitchCard;
@@ -358,7 +358,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         deskCard.AddChild(stack);
 
         // 1. Live Commentary Feed
-        var feedHeader = new Label { Text = "CANLI MAÇ ANLATIMI" };
+        var feedHeader = new Label { Text = "📻 CANLI MAÇ ANLATIMI" };
         CareerUiTheme.StyleEyebrow(feedHeader, CareerUiTheme.ActionBright);
         stack.AddChild(feedHeader);
 
@@ -383,12 +383,12 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _eventFeedContainer.AddChild(kickoffChip);
 
         // 2. In-Match Telemetry
-        var statsHeader = new Label { Text = "MAÇ İSTATİSTİKLERİ" };
+        var statsHeader = new Label { Text = "📊 ANLIK MAÇ İSTATİSTİKLERİ" };
         CareerUiTheme.StyleEyebrow(statsHeader, CareerUiTheme.Data);
         stack.AddChild(statsHeader);
 
         var statsPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        statsPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatusPanel());
+        statsPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.CardPanel(emphasized: false));
         stack.AddChild(statsPanel);
 
         var statsStack = MatchScreenUi.VerticalStack(4);
