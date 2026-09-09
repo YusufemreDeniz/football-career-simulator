@@ -60,6 +60,38 @@ public sealed class SelectionMemoryTests : IDisposable
     }
 
     [Fact]
+    public void ReplaceAll_RebuildsSelectionIndexesAndNextIdentity()
+    {
+        var original = SocialContinuityModule.Create();
+        var player = new PlayerId(101);
+        original.SelectionMemory.RecordStarts(new FixtureId(1), [player], Day);
+        original.SelectionMemory.RecordStarts(new FixtureId(2), [player], Day.AddDays(1));
+
+        var restored = SocialContinuityModule.Create();
+        restored.MemoryStore.ReplaceAll(original.MemoryStore.Memories);
+
+        Assert.Equal(0, restored.SelectionMemory.RecordStarts(
+            new FixtureId(2),
+            [player],
+            Day.AddDays(1)));
+        Assert.Equal(1, restored.SelectionMemory.RecordStarts(
+            new FixtureId(3),
+            [player],
+            Day.AddDays(2)));
+        Assert.Equal(1, restored.SelectionMemory.RecordStarts(
+            new FixtureId(4),
+            [new PlayerId(202)],
+            Day.AddDays(3)));
+
+        Assert.Equal(2, restored.MemoryStore.Memories.Count);
+        Assert.Equal(2, restored.MemoryStore.Memories.Max(memory => memory.MemoryId.Value));
+        Assert.Equal(
+            2,
+            restored.MemoryStore.Memories.Single(memory => memory.RememberingActor.Id == player.Value)
+                .ReinforcementCount);
+    }
+
+    [Fact]
     public void RepeatedOmission_ReinforcesExistingMemory_Idempotently()
     {
         var social = SocialContinuityModule.Create();

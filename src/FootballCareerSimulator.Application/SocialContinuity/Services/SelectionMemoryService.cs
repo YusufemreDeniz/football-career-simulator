@@ -102,15 +102,7 @@ public sealed class SelectionMemoryService
             return MemoryCandidateDecision.Rejected;
         }
 
-        var existing = _store.Memories
-            .Where(m =>
-                m.RememberingActor == remembering
-                && m.RuleId == ruleId
-                && m.RuleVersion == ruleVersion
-                && m.Status is MemoryStatus.Active or MemoryStatus.Dormant)
-            .OrderByDescending(m => m.LastReinforcedOn.DayNumber)
-            .ThenByDescending(m => m.MemoryId.Value)
-            .FirstOrDefault();
+        var existing = _store.FindLatestActiveOrDormant(remembering, ruleId, ruleVersion);
 
         if (existing is not null)
         {
@@ -147,9 +139,7 @@ public sealed class SelectionMemoryService
             return MemoryCandidateDecision.Rejected;
         }
 
-        var nextId = _store.Memories.Count == 0
-            ? 1L
-            : _store.Memories.Max(m => m.MemoryId.Value) + 1;
+        var nextId = _store.NextMemoryId;
 
         _store.Upsert(factory(new MemoryId(nextId), remembering, fixtureId, day));
         return MemoryCandidateDecision.Created;
@@ -160,11 +150,5 @@ public sealed class SelectionMemoryService
         string sourceKey,
         string ruleId,
         int ruleVersion) =>
-        _store.Memories.Any(m =>
-            (m.SourceEventKey == sourceKey
-             && m.RememberingActor == remembering
-             && m.RuleId == ruleId
-             && m.RuleVersion == ruleVersion)
-            || (m.RememberingActor == remembering
-                && m.ProcessedReinforcementKeys.Contains(sourceKey)));
+        _store.WasProcessed(remembering, sourceKey, ruleId, ruleVersion);
 }
