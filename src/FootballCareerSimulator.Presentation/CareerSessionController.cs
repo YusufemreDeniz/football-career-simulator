@@ -4991,9 +4991,11 @@ public sealed partial class CareerSessionController
         var path = Host.DefaultSavePath;
         var exists = File.Exists(path);
         DateTimeOffset? stamp = null;
+        long sizeBytes = 0;
         if (exists)
         {
             stamp = File.GetLastWriteTimeUtc(path);
+            sizeBytes = new FileInfo(path).Length;
         }
 
         var day = Host.WorldModule.Queries.GetCurrentGameDate();
@@ -5024,7 +5026,10 @@ public sealed partial class CareerSessionController
             seasonId,
             seasonStatus,
             accepted,
-            total);
+            total,
+            sizeBytes,
+            Path.GetFileNameWithoutExtension(path),
+            Host.WorldModule.TimelineStore.Timeline.RootSeed);
     }
 
     public UiActionResult SaveGame()

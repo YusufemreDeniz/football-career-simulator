@@ -251,6 +251,10 @@ public partial class CareerHubScreen : Control
     private long? _selectedFixtureAwayClubId;
     private Label _statusLabel = null!;
     private Label _saveDeskLabel = null!;
+    private Label _saveLastWriteBadgeLabel = null!;
+    private Label _saveActiveSlotBadgeLabel = null!;
+    private Label _saveWorldSeedBadgeLabel = null!;
+    private Label _saveFileSizeBadgeLabel = null!;
     private HBoxContainer _govTelemetryBar = null!;
     private PanelContainer _boardConfidenceBadgePanel = null!;
     private Label _boardConfidenceBadgeLabel = null!;
@@ -4107,17 +4111,29 @@ public partial class CareerHubScreen : Control
         // 6. Save / Load Desk (1.0f)
         var saveCard = AddCard(row3, "💾 KARİYER DOSYASI & KAYIT", emphasized: true, expandVertical: true);
         saveCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.0f;
+        var saveTelemetryGrid = new GridContainer
+        {
+            Columns = 2,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        saveTelemetryGrid.AddThemeConstantOverride("h_separation", 7);
+        saveTelemetryGrid.AddThemeConstantOverride("v_separation", 7);
+        saveCard.AddChild(saveTelemetryGrid);
+        _saveLastWriteBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "🕒 Son Kayıt: —", CareerUiTheme.ActionBright);
+        _saveActiveSlotBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "📁 Aktif Slot: —", CareerUiTheme.Data);
+        _saveWorldSeedBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "🌍 Dünya Seed: —", CareerUiTheme.Accent);
+        _saveFileSizeBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "💽 Dosya Boyutu: —", CareerUiTheme.ColorWarning);
         _saveDeskLabel = BodyLabel("SaveDeskLabel", autowrap: true);
         saveCard.AddChild(_saveDeskLabel);
 
         var saveLoadRow = ActionFlow();
         saveCard.AddChild(saveLoadRow);
 
-        _saveGameButton = AccentButton("💾 Oyunu Kaydet");
-        _saveGameButton.Pressed += () => Apply(_controller.SaveGame());
+        _saveGameButton = AccentButton("⚡ Hızlı Kaydet");
+        _saveGameButton.Pressed += OnSaveGamePressed;
         saveLoadRow.AddChild(_saveGameButton);
 
-        _loadGameButton = PrimaryButton("📂 Kayıtlı Oyunu Yükle");
+        _loadGameButton = PrimaryButton("↻ Yeniden Yükle");
         _loadGameButton.Pressed += OnLoadGamePressed;
         saveLoadRow.AddChild(_loadGameButton);
 
@@ -4908,14 +4924,53 @@ public partial class CareerHubScreen : Control
 
     private void OnLoadGamePressed()
     {
-        var result = _controller.LoadGame();
-        if (result.Succeeded && _controller.LastCareerResume is { } resume)
+        BeginSaveAction(_loadGameButton, "⏳ Yükleniyor...");
+        Callable.From(() =>
         {
-            ApplyCareerResume(resume);
-            return;
-        }
+            var result = _controller.LoadGame();
+            if (result.Succeeded && _controller.LastCareerResume is { } resume)
+            {
+                ApplyCareerResume(resume);
+            }
+            else
+            {
+                Apply(result);
+            }
+            EndSaveAction(_loadGameButton, "↻ Yeniden Yükle", result.Succeeded);
+        }).CallDeferred();
+    }
 
-        Apply(result);
+    private void OnSaveGamePressed()
+    {
+        BeginSaveAction(_saveGameButton, "⏳ Kaydediliyor...");
+        Callable.From(() =>
+        {
+            var result = _controller.SaveGame();
+            Apply(result);
+            EndSaveAction(_saveGameButton, "⚡ Hızlı Kaydet", result.Succeeded);
+        }).CallDeferred();
+    }
+
+    private static void BeginSaveAction(Button button, string busyText)
+    {
+        button.Disabled = true;
+        button.Text = busyText;
+        button.Modulate = new Color(1f, 1f, 1f, 0.55f);
+    }
+
+    private void EndSaveAction(Button button, string idleText, bool succeeded)
+    {
+        button.Disabled = false;
+        button.Text = succeeded ? $"✓ {idleText}" : $"⚠ {idleText}";
+        button.Modulate = Colors.White;
+        if (!CareerUiTheme.ReducedMotion)
+        {
+            button.Scale = new Vector2(0.97f, 0.97f);
+            CreateTween().TweenProperty(button, "scale", Vector2.One, 0.18f)
+                .SetTrans(Tween.TransitionType.Back)
+                .SetEase(Tween.EaseType.Out);
+        }
+        Callable.From(() => button.Text = idleText).CallDeferred();
     }
 
     private void RefreshUi()
@@ -5199,8 +5254,33 @@ public partial class CareerHubScreen : Control
 
         var desk = _controller.BuildSaveDeskDigest();
         _saveDeskLabel.Text = desk.ToDisplayText();
+        _saveLastWriteBadgeLabel.Text = desk.SaveLastWriteUtc is DateTimeOffset stamp
+            ? $"🕒 Son Kayıt: {stamp.ToLocalTime():g}"
+            : "🕒 Son Kayıt: Henüz yok";
+        _saveActiveSlotBadgeLabel.Text = $"📁 Aktif Slot: {desk.ActiveSlot}";
+        _saveWorldSeedBadgeLabel.Text = $"🌍 Dünya Seed: {desk.WorldSeed}";
+        _saveFileSizeBadgeLabel.Text = $"💽 Dosya Boyutu: {FormatFileSize(desk.SaveSizeBytes)}";
         UpdateSaveDeskButtons();
     }
+
+    private static Label CreateSaveTelemetryBadge(Control parent, string text, Color color)
+    {
+        var panel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(color, 0.18f));
+        var label = new Label { Text = text };
+        CareerUiTheme.StyleEyebrow(label, color);
+        panel.AddChild(label);
+        parent.AddChild(panel);
+        return label;
+    }
+
+    private static string FormatFileSize(long bytes) => bytes switch
+    {
+        <= 0 => "—",
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024d:0.0} KB",
+        _ => $"{bytes / (1024d * 1024d):0.00} MB",
+    };
 
     private void RefreshClubEconomy()
     {
@@ -5575,7 +5655,7 @@ public partial class CareerHubScreen : Control
     {
         var exists = _controller.SaveFileExists();
         _loadGameButton.Disabled = !exists;
-        _loadGameButton.Text = exists ? "📂 Kayıtlı Oyunu Yükle" : "📂 Kayıtlı Oyunu Yükle (kayıt yok)";
+        _loadGameButton.Text = exists ? "↻ Yeniden Yükle" : "↻ Yeniden Yükle (kayıt yok)";
     }
 
     private void RefreshTransferWindowStatus()

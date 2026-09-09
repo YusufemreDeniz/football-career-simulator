@@ -12,6 +12,14 @@ public sealed record SaveDeskDigest(
     bool SaveExists,
     IReadOnlyList<string> BeatLines)
 {
+    public DateTimeOffset? SaveLastWriteUtc { get; init; }
+
+    public long SaveSizeBytes { get; init; }
+
+    public string ActiveSlot { get; init; } = "career_save";
+
+    public int WorldSeed { get; init; }
+
     public const string Brand = "Kayıt Masası";
 
     public static SaveDeskDigest Compose(
@@ -25,7 +33,10 @@ public sealed record SaveDeskDigest(
         long? seasonId,
         string? seasonStatus,
         int acceptedFixtureCount,
-        int totalFixtureCount)
+        int totalFixtureCount,
+        long saveSizeBytes = 0,
+        string activeSlot = "career_save",
+        int worldSeed = 0)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(savePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(currentIsoDate);
@@ -68,7 +79,13 @@ public sealed record SaveDeskDigest(
             ? "Önemli maç/ilerleme öncesi Kaydet; Yükle mevcut oturumu değiştirir."
             : "İlk Kaydet ile devam noktası aç — Ana Menü'den de Devam Et çalışır.";
 
-        return new SaveDeskDigest(Brand, headline, advice, saveExists, beats);
+        return new SaveDeskDigest(Brand, headline, advice, saveExists, beats)
+        {
+            SaveLastWriteUtc = saveLastWriteUtc,
+            SaveSizeBytes = Math.Max(0, saveSizeBytes),
+            ActiveSlot = string.IsNullOrWhiteSpace(activeSlot) ? "career_save" : activeSlot.Trim(),
+            WorldSeed = worldSeed,
+        };
     }
 
     public string ToDisplayText()
