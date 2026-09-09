@@ -32,6 +32,8 @@ using FootballCareerSimulator.Simulation.Match;
 using FootballCareerSimulator.Simulation.ClubGovernance;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 using FootballCareerSimulator.Simulation.TrainingPhysicalState;
+using FootballCareerSimulator.Simulation.DataPacks;
+using FootballCareerSimulator.Simulation.Continental;
 
 namespace FootballCareerSimulator.Presentation;
 
@@ -281,6 +283,208 @@ public sealed partial class CareerSessionController
         catch (Exception ex)
         {
             return UiActionResult.Fail($"Kadro değişim hatası: {FormatLineupFailure(ex)}");
+        }
+    }
+
+    public UiActionResult SwapTwoStartersForNextDueMatch(int starterSlotA, int starterSlotB)
+    {
+        try
+        {
+            if (starterSlotA == starterSlotB)
+            {
+                return UiActionResult.Ok("Aynı oyuncu seçildi.");
+            }
+
+            var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+            var pending = Host.TeamPreparationModule.SelectionQueries.GetNextDueManagedFixture(currentDay)
+                ?? throw new InvalidOperationException("Değiştirilecek vadesi gelmiş maç yok.");
+
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+
+            var fixtureId = new Domain.Competition.FixtureId(pending.FixtureId);
+            var cid = new Domain.Shared.ClubId(clubId);
+            var current = Host.TeamPreparationModule.SelectionStore.Get(fixtureId, cid);
+            var clubSquad = Host.TeamPreparationModule.SquadStore.Get(cid);
+            if (current is null)
+            {
+                current = Host.TrainingModule.Store is not null
+                    ? Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+                        fixtureId,
+                        cid,
+                        Host.WorldModule.TimelineStore.Timeline.CurrentDate,
+                        Host.TrainingModule.Store.PhysicalBySlot,
+                        clubSquad)
+                    : Domain.TeamPreparation.MatchSelection.ApproveDefault(fixtureId, cid, clubSquad);
+            }
+
+            var startingList = current.StartingSlotIndices.ToList();
+            var idxA = startingList.IndexOf(starterSlotA);
+            var idxB = startingList.IndexOf(starterSlotB);
+            if (idxA < 0 || idxB < 0)
+            {
+                throw new Domain.TeamPreparation.TeamPreparationInvariantViolationException(
+                    "Seçilen oyuncular ilk 11 listesinde bulunamadı.");
+            }
+
+            startingList[idxA] = starterSlotB;
+            startingList[idxB] = starterSlotA;
+
+            var updated = Domain.TeamPreparation.MatchSelection.Approve(
+                current.FixtureId,
+                current.ClubId,
+                startingList,
+                current.BenchSlotIndices,
+                clubSquad);
+            Host.TeamPreparationModule.SelectionStore.Upsert(updated);
+
+            var profiles = GetSquadProfiles(cid);
+            var nameA = starterSlotA < profiles.Count ? profiles[starterSlotA].DisplayName : $"#{starterSlotA}";
+            var posA = starterSlotA < profiles.Count ? profiles[starterSlotA].PositionCode : "";
+            var nameB = starterSlotB < profiles.Count ? profiles[starterSlotB].DisplayName : $"#{starterSlotB}";
+            var posB = starterSlotB < profiles.Count ? profiles[starterSlotB].PositionCode : "";
+
+            return UiActionResult.Ok($"🔄 Saha İçi Konum Değişimi: {nameA} ({posA}) ⇄ {nameB} ({posB}) yer değiştirdi.");
+        }
+        catch (Domain.TeamPreparation.TeamPreparationInvariantViolationException ex)
+        {
+            return UiActionResult.Fail($"Konum değiştirilemedi: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Konum değişim hatası: {FormatLineupFailure(ex)}");
+        }
+    }
+
+    public UiActionResult SwapTwoBenchForNextDueMatch(int benchSlotA, int benchSlotB)
+    {
+        try
+        {
+            if (benchSlotA == benchSlotB)
+            {
+                return UiActionResult.Ok("Aynı yedek seçildi.");
+            }
+
+            var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+            var pending = Host.TeamPreparationModule.SelectionQueries.GetNextDueManagedFixture(currentDay)
+                ?? throw new InvalidOperationException("Değiştirilecek vadesi gelmiş maç yok.");
+
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+
+            var fixtureId = new Domain.Competition.FixtureId(pending.FixtureId);
+            var cid = new Domain.Shared.ClubId(clubId);
+            var current = Host.TeamPreparationModule.SelectionStore.Get(fixtureId, cid);
+            var clubSquad = Host.TeamPreparationModule.SquadStore.Get(cid);
+            if (current is null)
+            {
+                current = Host.TrainingModule.Store is not null
+                    ? Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+                        fixtureId,
+                        cid,
+                        Host.WorldModule.TimelineStore.Timeline.CurrentDate,
+                        Host.TrainingModule.Store.PhysicalBySlot,
+                        clubSquad)
+                    : Domain.TeamPreparation.MatchSelection.ApproveDefault(fixtureId, cid, clubSquad);
+            }
+
+            var benchList = current.BenchSlotIndices.ToList();
+            var idxA = benchList.IndexOf(benchSlotA);
+            var idxB = benchList.IndexOf(benchSlotB);
+            if (idxA < 0 || idxB < 0)
+            {
+                throw new Domain.TeamPreparation.TeamPreparationInvariantViolationException(
+                    "Seçilen oyuncular yedek kulübesinde bulunamadı.");
+            }
+
+            benchList[idxA] = benchSlotB;
+            benchList[idxB] = benchSlotA;
+
+            var updated = Domain.TeamPreparation.MatchSelection.Approve(
+                current.FixtureId,
+                current.ClubId,
+                current.StartingSlotIndices,
+                benchList,
+                clubSquad);
+            Host.TeamPreparationModule.SelectionStore.Upsert(updated);
+
+            var profiles = GetSquadProfiles(cid);
+            var nameA = benchSlotA < profiles.Count ? profiles[benchSlotA].DisplayName : $"#{benchSlotA}";
+            var nameB = benchSlotB < profiles.Count ? profiles[benchSlotB].DisplayName : $"#{benchSlotB}";
+
+            return UiActionResult.Ok($"🔄 Yedek Sıralaması: {nameA} ⇄ {nameB} yer değiştirdi.");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Yedek değişim hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult AutoAlignStartingXiByFormationForNextDueMatch(Formation? targetFormation = null)
+    {
+        try
+        {
+            var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+            var pending = Host.TeamPreparationModule.SelectionQueries.GetNextDueManagedFixture(currentDay)
+                ?? throw new InvalidOperationException("Vadesi gelmiş maç yok.");
+
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+
+            var fixtureId = new Domain.Competition.FixtureId(pending.FixtureId);
+            var cid = new Domain.Shared.ClubId(clubId);
+            var current = Host.TeamPreparationModule.SelectionStore.Get(fixtureId, cid);
+            var clubSquad = Host.TeamPreparationModule.SquadStore.Get(cid);
+            if (current is null)
+            {
+                current = Host.TrainingModule.Store is not null
+                    ? Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+                        fixtureId,
+                        cid,
+                        Host.WorldModule.TimelineStore.Timeline.CurrentDate,
+                        Host.TrainingModule.Store.PhysicalBySlot,
+                        clubSquad)
+                    : Domain.TeamPreparation.MatchSelection.ApproveDefault(fixtureId, cid, clubSquad);
+            }
+
+            var plan = Host.TeamPreparationModule.TacticPlanStore.Get(cid);
+            var formation = targetFormation ?? plan?.Formation ?? Formation.F442;
+
+            var profiles = GetSquadProfiles(cid);
+            var currentStarters = current.StartingSlotIndices;
+            if (currentStarters.Count != Domain.TeamPreparation.MatchSelection.StartingXiSize)
+            {
+                return UiActionResult.Fail("İlk 11'de 11 oyuncu bulunamadı.");
+            }
+
+            var starterProfiles = currentStarters
+                .Select(slot => slot < profiles.Count
+                    ? profiles[slot]
+                    : new Simulation.TeamPreparation.MvpSquadPlayerProfile($"Oyuncu #{slot}", Simulation.TeamPreparation.MvpSquadPositionGroup.Midfielder))
+                .ToList();
+
+            var assignment = Simulation.TeamPreparation.MvpLineupRoleFitCalculator
+                .ComputeOptimalPitchSlots(formation, starterProfiles);
+
+            var newStarting = new int[Domain.TeamPreparation.MatchSelection.StartingXiSize];
+            for (var slot = 0; slot < Domain.TeamPreparation.MatchSelection.StartingXiSize; slot++)
+            {
+                newStarting[slot] = currentStarters[assignment[slot]];
+            }
+
+            var updated = Domain.TeamPreparation.MatchSelection.Approve(
+                current.FixtureId,
+                current.ClubId,
+                newStarting,
+                current.BenchSlotIndices,
+                clubSquad);
+            Host.TeamPreparationModule.SelectionStore.Upsert(updated);
+
+            return UiActionResult.Ok($"⚡ Kadro {formation} dizilişine ve mevkilere göre otomatik yerleştirildi.");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Otomatik dizilim hatası: {ex.Message}");
         }
     }
 
@@ -1011,6 +1215,29 @@ public sealed partial class CareerSessionController
     public PreMatchBriefing BuildNextMatchBriefing()
     {
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        if (HasDueContinentalMatch())
+        {
+            var nextEuro = GetNextContinentalFixture();
+            if (nextEuro is not null)
+            {
+                var isHome = nextEuro.HomeClubId == GetOrInitContinentalTournament().ManagedClubId;
+                var opp = isHome ? nextEuro.AwayClubName : nextEuro.HomeClubName;
+                return new PreMatchBriefing(
+                    HasMatch: true,
+                    IsReadyToKickOff: true,
+                    HasPromiseRisk: false,
+                    BrandTitle: "⭐ Avrupa Kupası",
+                    Headline: $"Avrupa Gecesi: {nextEuro.HomeClubName} vs {nextEuro.AwayClubName}",
+                    FixtureLine: $"⭐ {nextEuro.StageName} · {(isHome ? "Ev" : "Dep")} vs {opp}",
+                    BeatLines: new[]
+                    {
+                        $"⭐ Avrupa Şampiyonlar Kupası Müsabakası ({nextEuro.StageName})",
+                        $"Galibiyet primi: +{ContinentalTournamentEngine.WinPrizeMoney:N0} TRY",
+                        $"Beraberlik primi: +{ContinentalTournamentEngine.DrawPrizeMoney:N0} TRY"
+                    });
+            }
+        }
+
         var pending = Host.TeamPreparationModule.SelectionQueries
             .GetNextDueManagedFixture(currentDay);
         return ComposePreMatchBriefing(currentDay, pending);
@@ -1058,16 +1285,114 @@ public sealed partial class CareerSessionController
         GetManagedSquadMembers().FirstOrDefault(member => member.PlayerId.Value == playerId)
         ?? throw new InvalidOperationException("Seçili oyuncu yönetilen kulübün A takımında değil.");
 
-    public string GetPlayerDisplayName(long playerId) =>
-        DescribeManagedPlayer(playerId).Name ?? "kenar oyuncu";
+    public string GetPlayerDisplayName(long playerId)
+    {
+        if (EuropeanElite202627DataPack.TryResolvePlayer(playerId, out var euroName, out _, out _, out _))
+        {
+            return euroName;
+        }
+
+        var managed = DescribeManagedPlayer(playerId).Name;
+        if (!string.IsNullOrEmpty(managed))
+        {
+            return managed;
+        }
+
+        if (playerId >= 1001 && playerId <= 18999)
+        {
+            var clubId = (playerId - 1) / 1000L;
+            var slot = (int)((playerId - 1) % 1000L);
+            var club = Host.ClubModule.Queries.GetClub(clubId);
+            if (club is not null)
+            {
+                var profiles = GetSquadProfiles(new ClubId(clubId));
+                if (slot >= 0 && slot < profiles.Count)
+                {
+                    return profiles[slot].DisplayName;
+                }
+            }
+        }
+
+        return "kenar oyuncu";
+    }
 
     private IReadOnlyList<MvpSquadPlayerProfile> GetSquadProfiles(ClubId clubId)
     {
         var name = Host.ClubModule.Queries.GetClub(clubId.Value)?.DisplayName;
-        return MvpSquadRosterGenerator.GeneratePlayerProfiles(
+        var seed = Host.WorldModule.TimelineStore.Timeline.RootSeed;
+        var defaultProfiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(
             clubId,
-            Host.WorldModule.TimelineStore.Timeline.RootSeed,
+            seed,
             name);
+
+        var squad = Host.TeamPreparationModule.SquadStore?.Get(clubId);
+        if (squad is null || squad.Members.Count == 0)
+        {
+            return defaultProfiles;
+        }
+
+        var result = defaultProfiles.ToList();
+        foreach (var member in squad.Members)
+        {
+            if (member.SlotIndex < 0)
+            {
+                continue;
+            }
+
+            var playerId = member.PlayerId.Value;
+            var expectedNativeId = (clubId.Value * 1000L) + member.SlotIndex + 1;
+            if (playerId == expectedNativeId && member.SlotIndex < defaultProfiles.Count)
+            {
+                continue;
+            }
+
+            var resolved = ResolvePlayerProfile(member.PlayerId, seed);
+            if (resolved is not null)
+            {
+                while (result.Count <= member.SlotIndex)
+                {
+                    result.Add(new MvpSquadPlayerProfile($"Oyuncu #{result.Count + 1}", MvpSquadPositionGroup.Midfielder));
+                }
+
+                result[member.SlotIndex] = resolved;
+            }
+        }
+
+        return result;
+    }
+
+    private MvpSquadPlayerProfile? ResolvePlayerProfile(PlayerId playerId, int seed)
+    {
+        if (EuropeanElite202627DataPack.TryResolvePlayer(playerId.Value, out _, out _, out _, out var euroProfile) && euroProfile is not null)
+        {
+            return euroProfile;
+        }
+
+        if (playerId.Value >= 1001 && playerId.Value <= 99999)
+        {
+            var srcClub = (playerId.Value - 1) / 1000L;
+            var srcSlot = (int)((playerId.Value - 1) % 1000L);
+            var srcProfiles = MvpSquadRosterGenerator.GeneratePlayerProfiles(new ClubId(srcClub), seed);
+            if (srcSlot < srcProfiles.Count)
+            {
+                return srcProfiles[srcSlot];
+            }
+        }
+
+        var career = Host.PlayerCareerModule.Store.Careers.FirstOrDefault(c => c.Id == playerId);
+        if (career is not null)
+        {
+            var pName = GetPlayerDisplayName(playerId.Value);
+            return new MvpSquadPlayerProfile(
+                pName,
+                PositionGroup: MvpSquadPositionGroup.Midfielder,
+                PositionRole: MvpSquadPositionRole.CentralMidfielder,
+                CurrentAbility: career.CurrentAbility,
+                PotentialAbility: career.PotentialAbility,
+                Age: 24);
+        }
+
+        return null;
     }
 
     private (string? Name, string? Detail) DescribeManagedPlayer(long? playerId)
@@ -1310,6 +1635,29 @@ public sealed partial class CareerSessionController
             .GetNextDueManagedFixture(currentDay);
         if (pending is null)
         {
+            if (HasDueContinentalMatch())
+            {
+                var euroClubId = new Domain.Shared.ClubId(GetOrInitContinentalTournament().ManagedClubId);
+                var euroProfiles = GetSquadProfiles(euroClubId);
+                var euroTimeline = Host.WorldModule.TimelineStore.Timeline;
+                var euroRatings = Host.TeamPreparationModule.SquadQueries
+                    .GetClubSquad(euroClubId.Value, euroTimeline.RootSeed)
+                    .ToDictionary(player => player.SlotIndex, player => player.Rating);
+                var euroSquad = Host.TeamPreparationModule.SquadStore.Get(euroClubId);
+                var euroPhysical = Host.TrainingModule.Store.PhysicalBySlot;
+                var euroStarting = Enumerable.Range(0, Math.Min(11, euroProfiles.Count)).ToList();
+                var euroBench = Enumerable.Range(11, Math.Max(0, Math.Min(7, euroProfiles.Count - 11))).ToList();
+                return SquadSelectionBoardDigest.Compose(
+                    euroClubId,
+                    euroTimeline.CurrentDate,
+                    true,
+                    euroStarting,
+                    euroBench,
+                    euroProfiles,
+                    euroRatings,
+                    euroPhysical);
+            }
+
             return SquadSelectionBoardDigest.Clear();
         }
 
@@ -1648,7 +1996,7 @@ public sealed partial class CareerSessionController
             Host.ManagerModule.Queries.GetCareer().EmployedClubId);
     }
 
-    public ScoutTransferDigest BuildScoutTransferDigest()
+    public ScoutTransferDigest BuildScoutTransferDigest(TransferMarketScope scope = TransferMarketScope.All)
     {
         var manager = Host.ManagerModule.Queries.GetCareer();
         if (manager.EmployedClubId is not long clubId)
@@ -1672,14 +2020,49 @@ public sealed partial class CareerSessionController
             .Where(target => target.IsListed)
             .Select(target => target.PlayerId.Value)
             .ToHashSet();
+        var candidates = GetAllScoutCandidates(
+            managedClub.SportiveStrength,
+            timeline.RootSeed,
+            timeline.CurrentDate,
+            shortlist,
+            listedIds,
+            clubId);
+
+        var digest = ScoutTransferDigest.Compose(
+            GetClubDisplayName(clubId),
+            timeline.CurrentDate.DayNumber,
+            managedProfiles,
+            managedRatings,
+            candidates,
+            Host.ClubModule.TransferBudget.Get(managedId).Available,
+            scope);
+        var injured = Host.TrainingModule.Queries.GetManagedClubSummary().InjuredSlotCount;
+        return injured > 0
+            ? digest with
+            {
+                NeedLine = digest.NeedLine
+                    + $" · sakatlık kapağı riski ({injured} oyuncu)",
+            }
+            : digest;
+    }
+
+    private IReadOnlyList<ScoutCandidateSource> GetAllScoutCandidates(
+        int managedStrength,
+        int rootSeed,
+        GameDate currentDate,
+        IReadOnlyDictionary<long, int> shortlist,
+        ISet<long> listedIds,
+        long managedClubId)
+    {
         var candidates = new List<ScoutCandidateSource>();
 
-        foreach (var club in Host.ClubModule.Queries.GetAllClubs().Where(club => club.ClubId != clubId))
+        // 1. Süper Lig Kulüpleri
+        foreach (var club in Host.ClubModule.Queries.GetAllClubs().Where(c => c.ClubId != managedClubId))
         {
             var sourceId = new Domain.Shared.ClubId(club.ClubId);
             var profiles = GetSquadProfiles(sourceId);
             var ratings = Host.TeamPreparationModule.SquadQueries
-                .GetClubSquad(club.ClubId, timeline.RootSeed)
+                .GetClubSquad(club.ClubId, rootSeed)
                 .ToDictionary(player => player.SlotIndex, player => player.Rating);
             for (var slot = 0; slot < profiles.Count; slot++)
             {
@@ -1694,30 +2077,169 @@ public sealed partial class CareerSessionController
                     profiles[slot].PositionGroup,
                     profiles[slot].PositionCode,
                     rating,
-                    career?.AgeYears(timeline.CurrentDate) ?? 20 + slot % 10,
+                    career?.AgeYears(currentDate) ?? 20 + slot % 10,
                     career?.PotentialAbility ?? Math.Min(99, rating + 5),
-                    managedClub.SportiveStrength,
+                    managedStrength,
                     club.SportiveStrength,
                     shortlist.GetValueOrDefault(playerId.Value),
-                    listedIds.Contains(playerId.Value)));
+                    listedIds.Contains(playerId.Value),
+                    OriginLeague: "Trendyol Süper Lig",
+                    IsInternational: false));
             }
         }
 
-        var digest = ScoutTransferDigest.Compose(
-            GetClubDisplayName(clubId),
-            timeline.CurrentDate.DayNumber,
-            managedProfiles,
-            managedRatings,
-            candidates,
-            Host.ClubModule.TransferBudget.Get(managedId).Available);
-        var injured = Host.TrainingModule.Queries.GetManagedClubSummary().InjuredSlotCount;
-        return injured > 0
-            ? digest with
+        // 2. Avrupa Eliti
+        foreach (var eliteClub in EuropeanElite202627DataPack.AllClubs)
+        {
+            for (var slot = 0; slot < eliteClub.Players.Count; slot++)
             {
-                NeedLine = digest.NeedLine
-                    + $" · sakatlık kapağı riski ({injured} oyuncu)",
+                var profile = eliteClub.Players[slot];
+                var playerId = EuropeanElite202627DataPack.MakePlayerId(eliteClub.ClubId, slot);
+                candidates.Add(new ScoutCandidateSource(
+                    playerId,
+                    eliteClub.ClubId,
+                    eliteClub.OfficialName,
+                    profile.DisplayName,
+                    profile.PositionGroup,
+                    profile.PositionCode,
+                    profile.CurrentAbility ?? 80,
+                    profile.Age ?? 25,
+                    profile.PotentialAbility ?? 85,
+                    managedStrength,
+                    eliteClub.SportiveStrength,
+                    shortlist.GetValueOrDefault(playerId),
+                    listedIds.Contains(playerId),
+                    OriginLeague: eliteClub.LeagueName,
+                    IsInternational: true));
             }
-            : digest;
+        }
+
+        // 3. Serbest Oyuncular
+        foreach (var fa in EuropeanElite202627DataPack.FreeAgents)
+        {
+            candidates.Add(new ScoutCandidateSource(
+                fa.PlayerId,
+                0,
+                "Serbest Oyuncu",
+                fa.DisplayName,
+                fa.PositionRole.ToPositionGroup(),
+                fa.PositionRole.ToPositionCode(),
+                fa.CurrentAbility,
+                fa.Age,
+                fa.PotentialAbility,
+                managedStrength,
+                65,
+                shortlist.GetValueOrDefault(fa.PlayerId),
+                listedIds.Contains(fa.PlayerId),
+                OriginLeague: "Serbest Oyuncular",
+                IsInternational: true));
+        }
+
+        return candidates;
+    }
+
+    private ScoutCandidateSource? TryFindScoutCandidate(long playerId)
+    {
+        var manager = Host.ManagerModule.Queries.GetCareer();
+        if (manager.EmployedClubId is not long clubId)
+        {
+            return null;
+        }
+
+        var timeline = Host.WorldModule.TimelineStore.Timeline;
+        var managedId = new Domain.Shared.ClubId(clubId);
+        var managedClub = Host.ClubModule.Queries.GetClub(clubId);
+        var managedStrength = managedClub?.SportiveStrength ?? 75;
+        var shortlist = Host.TransferModule.ShortlistStore.GetForClub(managedId)
+            .Where(entry => entry.IsActive)
+            .GroupBy(entry => entry.PlayerId.Value)
+            .ToDictionary(group => group.Key, group => group.Min(entry => entry.AddedOn.DayNumber));
+        var listedIds = Host.TransferModule.TargetStore.GetForClub(managedId)
+            .Where(target => target.IsListed)
+            .Select(target => target.PlayerId.Value)
+            .ToHashSet();
+
+        if (EuropeanElite202627DataPack.TryResolvePlayer(playerId, out _, out _, out var eliteClub, out var profile))
+        {
+            if (eliteClub is not null && profile is not null)
+            {
+                return new ScoutCandidateSource(
+                    playerId,
+                    eliteClub.ClubId,
+                    eliteClub.OfficialName,
+                    profile.DisplayName,
+                    profile.PositionGroup,
+                    profile.PositionCode,
+                    profile.CurrentAbility ?? 80,
+                    profile.Age ?? 25,
+                    profile.PotentialAbility ?? 85,
+                    managedStrength,
+                    eliteClub.SportiveStrength,
+                    shortlist.GetValueOrDefault(playerId),
+                    listedIds.Contains(playerId),
+                    OriginLeague: eliteClub.LeagueName,
+                    IsInternational: true);
+            }
+
+            var fa = EuropeanElite202627DataPack.FreeAgents.FirstOrDefault(f => f.PlayerId == playerId);
+            if (fa is not null)
+            {
+                return new ScoutCandidateSource(
+                    fa.PlayerId,
+                    0,
+                    "Serbest Oyuncu",
+                    fa.DisplayName,
+                    fa.PositionRole.ToPositionGroup(),
+                    fa.PositionRole.ToPositionCode(),
+                    fa.CurrentAbility,
+                    fa.Age,
+                    fa.PotentialAbility,
+                    managedStrength,
+                    65,
+                    shortlist.GetValueOrDefault(fa.PlayerId),
+                    listedIds.Contains(fa.PlayerId),
+                    OriginLeague: "Serbest Oyuncular",
+                    IsInternational: true);
+            }
+        }
+
+        if (playerId >= 1001 && playerId <= 18999)
+        {
+            var sourceClubId = (playerId - 1) / 1000L;
+            var slot = (int)((playerId - 1) % 1000L);
+            var sourceClub = Host.ClubModule.Queries.GetClub(sourceClubId);
+            if (sourceClub is not null)
+            {
+                var sourceId = new Domain.Shared.ClubId(sourceClubId);
+                var profiles = GetSquadProfiles(sourceId);
+                if (slot >= 0 && slot < profiles.Count)
+                {
+                    var ratings = Host.TeamPreparationModule.SquadQueries
+                        .GetClubSquad(sourceClubId, timeline.RootSeed)
+                        .ToDictionary(player => player.SlotIndex, player => player.Rating);
+                    var career = Host.PlayerCareerModule.Store.Get(sourceId, slot);
+                    var rating = ratings.GetValueOrDefault(slot, career?.CurrentAbility ?? 60);
+                    return new ScoutCandidateSource(
+                        playerId,
+                        sourceClubId,
+                        sourceClub.DisplayName,
+                        profiles[slot].DisplayName,
+                        profiles[slot].PositionGroup,
+                        profiles[slot].PositionCode,
+                        rating,
+                        career?.AgeYears(timeline.CurrentDate) ?? 20 + slot % 10,
+                        career?.PotentialAbility ?? Math.Min(99, rating + 5),
+                        managedStrength,
+                        sourceClub.SportiveStrength,
+                        shortlist.GetValueOrDefault(playerId),
+                        listedIds.Contains(playerId),
+                        OriginLeague: "Trendyol Süper Lig",
+                        IsInternational: false);
+                }
+            }
+        }
+
+        return null;
     }
 
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>
@@ -1851,6 +2373,8 @@ public sealed partial class CareerSessionController
         }
     }
 
+    public MatchTrainingPrioritySelectionOutcome? PendingMatchTrainingPriority => _pendingMatchTrainingPriority;
+
     public UiActionResult SetTacticApproach(TacticalApproach approach)
     {
         try
@@ -1891,6 +2415,7 @@ public sealed partial class CareerSessionController
                 new Domain.Shared.ClubId(clubId),
                 formation,
                 day);
+            _ = AutoAlignStartingXiByFormationForNextDueMatch(formation);
             var view = Host.TeamPreparationModule.TacticQueries.GetManagedClubPlan();
             var plan = Host.TeamPreparationModule.TacticPlanStore.Get(new Domain.Shared.ClubId(clubId));
             var tacticMod = MvpTacticMatchModifier.ComputeTacticModifier(plan);
@@ -2019,16 +2544,16 @@ public sealed partial class CareerSessionController
                 ?? throw new InvalidOperationException("Menajer kulübü yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
             var id = new Domain.Shared.ClubId(clubId);
-            var scout = BuildScoutTransferDigest();
-            var candidate = scout.Candidates.FirstOrDefault(player => player.PlayerId == playerId)
+            var candidate = TryFindScoutCandidate(playerId)
                 ?? throw new InvalidOperationException("Seçili futbolcu güncel scout adayları arasında değil.");
+            var scout = BuildScoutTransferDigest();
             if (Host.TransferModule.Queries.GetManagedClubNeeds().OpenCount == 0)
             {
                 Host.TransferModule.Needs.Declare(
                     id,
                     TransferNeedKind.PositionGap,
                     priority: 4,
-                    $"ScoutPosition:{scout.NeedPositionCode}",
+                    $"ScoutPosition:{candidate.PositionCode}",
                     day);
             }
 
@@ -2050,8 +2575,7 @@ public sealed partial class CareerSessionController
                 day);
             return UiActionResult.Ok(
                 $"Scout hedefi listelendi: {candidate.DisplayName} · {candidate.PositionCode}"
-                + $" · {candidate.ClubName} · bilgi %{candidate.KnowledgePercent}"
-                + $" · hedef #{target.TargetId.Value} · ihtiyaç #{target.NeedId.Value}.");
+                + $" · {candidate.ClubName} · hedef #{target.TargetId.Value} · ihtiyaç #{target.NeedId.Value}.");
         }
         catch (TransferInvariantViolationException ex)
         {
@@ -2688,8 +3212,49 @@ public sealed partial class CareerSessionController
         return process;
     }
 
-    private ScoutCandidateLine? ResolveScoutTerms(long playerId) =>
-        BuildScoutTransferDigest().Candidates.FirstOrDefault(candidate => candidate.PlayerId == playerId);
+    private ScoutCandidateLine? ResolveScoutTerms(long playerId)
+    {
+        var candidate = TryFindScoutCandidate(playerId);
+        if (candidate is null) return null;
+        var manager = Host.ManagerModule.Queries.GetCareer();
+        var clubId = manager.EmployedClubId ?? 1;
+        var managedClub = Host.ClubModule.Queries.GetClub(clubId);
+        var managedStrength = managedClub?.SportiveStrength ?? 75;
+        var isFreeAgent = candidate.ClubId == 0 || candidate.OriginLeague.Contains("Serbest");
+        var valuation = ScoutTransferValuationModel.Evaluate(
+            candidate.Rating,
+            candidate.PotentialAbility,
+            candidate.Age,
+            managedStrength,
+            candidate.SourceClubStrength,
+            75,
+            Host.ClubModule.TransferBudget.Get(new Domain.Shared.ClubId(clubId)).Available,
+            isFreeAgent);
+
+        return new ScoutCandidateLine(
+            candidate.PlayerId,
+            candidate.DisplayName,
+            candidate.ClubName,
+            candidate.PositionCode,
+            candidate.Age,
+            candidate.IsListedTarget ? 100 : 70,
+            candidate.Rating,
+            candidate.Rating,
+            candidate.PotentialAbility,
+            valuation.MarketValue,
+            valuation.MarketValue,
+            valuation.MarketValue,
+            valuation.SuggestedOpeningFee,
+            valuation.SuggestedWeeklyWage,
+            valuation.InterestPercent,
+            valuation.InterestLabel,
+            valuation.RecommendedSquadRole,
+            valuation.IsAffordable,
+            candidate.ShortlistedOnDayNumber is not null,
+            candidate.IsListedTarget,
+            candidate.OriginLeague,
+            candidate.IsInternational);
+    }
 
     public UiActionResult ResolvePendingClubResponse()
     {
@@ -3971,6 +4536,32 @@ public sealed partial class CareerSessionController
                 day),
             "Pas stili");
 
+    public UiActionResult ApplyTacticalPreset(
+        Formation formation,
+        TacticalApproach approach,
+        PressingIntensity pressing,
+        DefensiveLine defensiveLine,
+        string presetName)
+    {
+        try
+        {
+            var r1 = SetTacticFormation(formation);
+            if (!r1.Succeeded) return r1;
+            var r2 = SetTacticApproach(approach);
+            if (!r2.Succeeded) return r2;
+            var r3 = SetTacticPressing(pressing);
+            if (!r3.Succeeded) return r3;
+            var r4 = SetTacticDefensiveLine(defensiveLine);
+            if (!r4.Succeeded) return r4;
+
+            return UiActionResult.Ok($"'{presetName}' oyun planı taktiğe başarıyla uygulandı.");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Oyun planı uygulanamadı: {ex.Message}");
+        }
+    }
+
     private UiActionResult UpdateTeamInstruction(
         Action<Domain.Shared.ClubId, Domain.WorldCalendar.GameDate> update,
         string label)
@@ -4235,6 +4826,7 @@ public sealed partial class CareerSessionController
 
             // FixtureId sezonlar arası yeniden kullanılır; eski onaylar hayalet kapı açmasın.
             ClearMatchSelections();
+            _continentalTournament = null;
 
             competition.CreateSeason.Handle(
                 new CreateSeasonCommand(Guid.NewGuid(), nextSeasonId, currentDay));
@@ -4567,7 +5159,7 @@ public sealed partial class CareerSessionController
         return OfficeNextStepGuide.ResolveFromPulse(
             pulseFocus,
             hasDueUnapprovedMatch: pending is { IsApproved: false },
-            hasDuePlayableMatch: pending is { IsApproved: true },
+            hasDuePlayableMatch: (pending is { IsApproved: true }) || HasDueContinentalMatch(),
             canAdvanceDay: blocker.CanAdvance,
             primaryBlockerCode: blocker.PrimaryBlockerCode,
             seasonTransitionReady: CanTransitionToNextSeason(),
@@ -4619,8 +5211,15 @@ public sealed partial class CareerSessionController
         }
     }
 
-    public string GetClubDisplayName(long clubId) =>
-        Host.ClubModule.Queries.GetClub(clubId)?.DisplayName ?? $"Kulüp {clubId}";
+    public string GetClubDisplayName(long clubId)
+    {
+        if (EuropeanElite202627DataPack.TryGetClub(clubId, out var euroClub))
+        {
+            return euroClub.OfficialName;
+        }
+
+        return Host.ClubModule.Queries.GetClub(clubId)?.DisplayName ?? $"Kulüp {clubId}";
+    }
 
     private static int? FindStandingRank(
         IReadOnlyList<StandingEntryReadModel> standings,

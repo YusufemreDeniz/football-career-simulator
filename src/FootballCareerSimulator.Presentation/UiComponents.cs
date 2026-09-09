@@ -158,15 +158,16 @@ internal static class UiComponents
     }
 
     /// <summary>
-    /// Mevki badge: GK, CB, ST gibi pozisyon kısaltması.
+    /// Mevki badge: GK, CB, ST gibi pozisyon kısaltması (mevki grup rengiyle otomatik stilize edilir).
     /// </summary>
     public static PanelContainer PositionBadge(string positionCode)
     {
+        var color = CareerUiTheme.PositionGroupColor(positionCode);
         var panel = new PanelContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         panel.AddThemeStyleboxOverride("panel", CareerUiTheme.PositionTagPanel());
 
         var label = new Label { Text = positionCode };
-        CareerUiTheme.StylePositionTag(label, CareerUiTheme.Data);
+        CareerUiTheme.StylePositionTag(label, color);
         panel.AddChild(label);
 
         return panel;
@@ -447,6 +448,400 @@ internal static class UiComponents
         }
 
         return bg;
+    }
+
+    // ── Neon Card ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Referans tasarımın imzası: neon yeşil glow çerçeveli kart container.
+    /// İçeriği child olarak döndürülen VBoxContainer'a ekleyin.
+    /// </summary>
+    public static (PanelContainer panel, VBoxContainer content) NeonCard(bool strongGlow = false)
+    {
+        var panel = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel(strongGlow));
+
+        var content = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        content.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
+        panel.AddChild(content);
+
+        return (panel, content);
+    }
+
+    // ── Page Header ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Referans tasarımdaki sayfa başlığı: yeşil ikon kutusu + büyük beyaz başlık.
+    /// icon parametresi unicode sembol (örn. "⚽", "★", "⚙") veya kısa metin olabilir.
+    /// </summary>
+    public static HBoxContainer PageHeader(string icon, string title, Control? rightWidget = null)
+    {
+        var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        row.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
+
+        // Yeşil ikon kutucuğu
+        var iconBox = new PanelContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        iconBox.AddThemeStyleboxOverride("panel", CareerUiTheme.PageIconBoxPanel());
+        var iconLabel = new Label
+        {
+            Text = icon,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        CareerUiTheme.StyleHeadline(iconLabel);
+        iconLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(16));
+        iconLabel.AddThemeColorOverride("font_color", new Color(0.02f, 0.08f, 0.04f, 1f));
+        iconBox.AddChild(iconLabel);
+        row.AddChild(iconBox);
+
+        // Başlık metni
+        var titleLabel = new Label
+        {
+            Text = title,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        CareerUiTheme.StylePageTitle(titleLabel);
+        row.AddChild(titleLabel);
+
+        if (rightWidget is not null)
+        {
+            rightWidget.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+            row.AddChild(rightWidget);
+        }
+
+        return row;
+    }
+
+    // ── Filled Position Badge ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Referans tasarımına uygun tam dolgu pozisyon rozeti.
+    /// KL=yeşil, DEF=turuncu, MO=cyan, HÜC=magenta.
+    /// </summary>
+    public static PanelContainer FilledPositionBadge(string positionCode)
+    {
+        var color = CareerUiTheme.PositionGroupColor(positionCode);
+        var panel = new PanelContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.PositionBadgePanel(positionCode));
+
+        var label = new Label
+        {
+            Text = positionCode,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.ApplyBodyFont(label);
+        label.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        // Koyu metin rengi — tam dolgu arka plan üzerinde okunabilir
+        label.AddThemeColorOverride("font_color", new Color(0.02f, 0.05f, 0.03f, 1f));
+        panel.AddChild(label);
+
+        return panel;
+    }
+
+    // ── Mini Stat Card ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Ana sayfadaki 6'lı stat kutusu: ikon + başlık + değer.
+    /// </summary>
+    public static PanelContainer MiniStatCard(
+        string icon,
+        string title,
+        string value,
+        string? subtitle = null,
+        Color? valueColor = null)
+    {
+        var panel = new PanelContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+        };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.MiniStatCardPanel());
+
+        var col = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        col.AddThemeConstantOverride("separation", CareerUiTheme.SpaceXs);
+        panel.AddChild(col);
+
+        // İkon + başlık satırı
+        var topRow = new HBoxContainer();
+        topRow.AddThemeConstantOverride("separation", CareerUiTheme.SpaceXs);
+        col.AddChild(topRow);
+
+        var iconLabel = new Label { Text = icon };
+        iconLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(16));
+        topRow.AddChild(iconLabel);
+
+        var titleLabel = new Label
+        {
+            Text = title,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        CareerUiTheme.StyleTableText(titleLabel, muted: true);
+        titleLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        topRow.AddChild(titleLabel);
+
+        // Değer
+        var valueLabel = new Label { Text = value };
+        CareerUiTheme.StyleStatValueMedium(valueLabel, valueColor ?? CareerUiTheme.Ink);
+        valueLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(16));
+        col.AddChild(valueLabel);
+
+        if (subtitle is not null)
+        {
+            var subLabel = new Label { Text = subtitle };
+            CareerUiTheme.StyleTableText(subLabel, muted: true);
+            subLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+            col.AddChild(subLabel);
+        }
+
+        return panel;
+    }
+
+    // ── News Row ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Haberler sayfası satırı: thumbnail alanı + başlık + özet + zaman.
+    /// </summary>
+    public static PanelContainer NewsRow(
+        string headline,
+        string summary,
+        string timeAgo,
+        bool isFirst = false)
+    {
+        var panel = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.ListRowPanel(isNext: isFirst));
+
+        var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        row.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
+        panel.AddChild(row);
+
+        // Thumbnail placeholder
+        var thumb = new Panel
+        {
+            CustomMinimumSize = new Vector2(64, 48),
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        thumb.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.04f, 0.14f, 0.14f, 0.9f),
+            BorderColor = new Color(0.149f, 0.898f, 0.588f, 0.25f),
+            BorderWidthLeft = 1, BorderWidthTop = 1,
+            BorderWidthRight = 1, BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 6, CornerRadiusTopRight = 6,
+            CornerRadiusBottomRight = 6, CornerRadiusBottomLeft = 6,
+        });
+        row.AddChild(thumb);
+
+        // Metin bloğu
+        var textCol = new VBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        textCol.AddThemeConstantOverride("separation", 2);
+        row.AddChild(textCol);
+
+        var headlineLabel = new Label
+        {
+            Text = headline,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StyleBody(headlineLabel);
+        headlineLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
+        textCol.AddChild(headlineLabel);
+
+        var summaryLabel = new Label
+        {
+            Text = summary,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StyleTableText(summaryLabel, muted: true);
+        summaryLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        textCol.AddChild(summaryLabel);
+
+        // Zaman damgası
+        var timeLabel = new Label
+        {
+            Text = timeAgo,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        CareerUiTheme.StyleTableText(timeLabel, muted: true);
+        timeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        row.AddChild(timeLabel);
+
+        return panel;
+    }
+
+    // ── Fixture Row ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Takvim fikstür satırı: gün + gün kodu + rakip ismi + lig/kupa etiketi.
+    /// </summary>
+    public static PanelContainer FixtureRow(
+        string day,
+        string dayCode,
+        string opponentName,
+        string competitionLabel,
+        bool isNext = false)
+    {
+        var panel = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        panel.AddThemeStyleboxOverride("panel", CareerUiTheme.ListRowPanel(isNext: isNext));
+
+        var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        row.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
+        panel.AddChild(row);
+
+        // Gün numarası
+        var dayLabel = new Label
+        {
+            Text = day,
+            CustomMinimumSize = new Vector2(36, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        CareerUiTheme.StyleHeadline(dayLabel);
+        dayLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(22));
+        if (isNext)
+        {
+            dayLabel.AddThemeColorOverride("font_color", CareerUiTheme.Action);
+        }
+        row.AddChild(dayLabel);
+
+        // Gün kodu (Cts, Çar, vb.)
+        var dayCodeLabel = new Label
+        {
+            Text = dayCode,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        CareerUiTheme.StyleTableText(dayCodeLabel, muted: true);
+        dayCodeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        row.AddChild(dayCodeLabel);
+
+        // Dikey ayırıcı
+        var sep = new ColorRect
+        {
+            Color = new Color(0.149f, 0.898f, 0.588f, 0.30f),
+            CustomMinimumSize = new Vector2(1, 24),
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        row.AddChild(sep);
+
+        // Rakip ismi
+        var opponentLabel = new Label
+        {
+            Text = opponentName,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        CareerUiTheme.StyleBody(opponentLabel);
+        opponentLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(14));
+        row.AddChild(opponentLabel);
+
+        // Lig/kupa etiketi
+        var compLabel = new Label
+        {
+            Text = competitionLabel,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        CareerUiTheme.StyleTableText(compLabel, muted: true);
+        compLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        compLabel.AddThemeColorOverride("font_color", CareerUiTheme.InkMuted);
+        row.AddChild(compLabel);
+
+        return panel;
+    }
+
+    // ── Squad Player Row ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Kadro sayfası oyuncu satırı: No + İsim + Pozisyon rozeti (dolgu) + Genel puan.
+    /// </summary>
+    public static PanelContainer SquadPlayerRow(
+        int number,
+        string name,
+        string position,
+        int overall,
+        bool isAlternate = false)
+    {
+        var panel = new PanelContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        panel.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = isAlternate
+                ? new Color(0.02f, 0.08f, 0.09f, 0.60f)
+                : new Color(0.012f, 0.055f, 0.059f, 0.40f),
+            BorderColor = new Color(0.149f, 0.898f, 0.588f, 0.08f),
+            BorderWidthLeft = 0,
+            BorderWidthTop = 0,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 1,
+            ContentMarginLeft = 12,
+            ContentMarginRight = 12,
+            ContentMarginTop = 10,
+            ContentMarginBottom = 10,
+        });
+
+        var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        row.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
+        panel.AddChild(row);
+
+        // Forma numarası
+        var numLabel = new Label
+        {
+            Text = number.ToString(),
+            CustomMinimumSize = new Vector2(32, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        CareerUiTheme.StyleBody(numLabel, muted: true);
+        numLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(14));
+        row.AddChild(numLabel);
+
+        // Avatar placeholder (küçük daire)
+        var avatar = new Panel { CustomMinimumSize = new Vector2(32, 32), SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
+        avatar.AddThemeStyleboxOverride("panel", new StyleBoxFlat
+        {
+            BgColor = new Color(0.06f, 0.18f, 0.18f, 0.80f),
+            CornerRadiusTopLeft = 999, CornerRadiusTopRight = 999,
+            CornerRadiusBottomRight = 999, CornerRadiusBottomLeft = 999,
+            BorderColor = new Color(0.149f, 0.898f, 0.588f, 0.30f),
+            BorderWidthLeft = 1, BorderWidthTop = 1,
+            BorderWidthRight = 1, BorderWidthBottom = 1,
+        });
+        row.AddChild(avatar);
+
+        // İsim
+        var nameLabel = new Label
+        {
+            Text = name,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            VerticalAlignment = VerticalAlignment.Center,
+            ClipText = true,
+        };
+        CareerUiTheme.StyleBody(nameLabel);
+        nameLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(14));
+        row.AddChild(nameLabel);
+
+        // Pozisyon rozeti (tam dolgu)
+        row.AddChild(FilledPositionBadge(position));
+
+        // Genel puan
+        var ovrLabel = new Label
+        {
+            Text = overall.ToString(),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Center,
+            CustomMinimumSize = new Vector2(36, 0),
+        };
+        CareerUiTheme.StyleHeadline(ovrLabel);
+        ovrLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(18));
+        var ovrColor = CareerUiTheme.RatingColor(overall);
+        ovrLabel.AddThemeColorOverride("font_color", ovrColor);
+        row.AddChild(ovrLabel);
+
+        return panel;
     }
 }
 

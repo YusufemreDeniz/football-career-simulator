@@ -207,4 +207,47 @@ public sealed partial class CareerSessionController
     /// <summary>Güncel puan durumunu döner.</summary>
     public IReadOnlyList<StandingEntryReadModel> GetStandings(long seasonId) =>
         Host.CompetitionModule.Queries.GetStandings(seasonId) ?? Array.Empty<StandingEntryReadModel>();
+
+    /// <summary>Puan durumu özet şeridini döner.</summary>
+    public StandingStripReadModel GetStandingsStrip(long seasonId, long? managedClubId = null, int topCount = 5) =>
+        Host.CompetitionModule.Queries.GetStandingsStrip(seasonId, managedClubId, topCount);
+
+    /// <summary>Tüm sezon fikstür maçlarını döner.</summary>
+    public IReadOnlyList<FixtureReadModel> GetSeasonFixtures(long seasonId) =>
+        Host.CompetitionModule.Queries.GetSeasonFixtures(seasonId) ?? Array.Empty<FixtureReadModel>();
+
+    /// <summary>Belirtilen kulüp için kulüp/rakip istihbarat dosyasını döner.</summary>
+    public OpponentDossierDigest? BuildClubDossier(long clubId)
+    {
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        if (season is null)
+        {
+            return null;
+        }
+
+        var targetClub = Host.ClubModule.Queries.GetClub(clubId);
+        if (targetClub is null)
+        {
+            return null;
+        }
+
+        var managedClubId = GetEmployedClubId();
+        var managedClub = managedClubId.HasValue ? Host.ClubModule.Queries.GetClub(managedClubId.Value) : null;
+        var managedStrength = managedClub?.SportiveStrength ?? 50;
+
+        var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+        var nextManaged = Host.TeamPreparationModule.SelectionQueries
+            .GetNextPlannedManagedFixture(currentDay);
+        var isNextOpponent = nextManaged is not null && nextManaged.OpponentClubId == clubId;
+        var isHome = !isNextOpponent || nextManaged!.IsHome;
+
+        return OpponentDossierDigest.Compose(
+            clubId,
+            targetClub.DisplayName,
+            isHome,
+            managedStrength,
+            targetClub.SportiveStrength,
+            Host.CompetitionModule.Queries.GetStandings(season.SeasonId),
+            Host.CompetitionModule.Queries.GetSeasonFixtures(season.SeasonId));
+    }
 }
