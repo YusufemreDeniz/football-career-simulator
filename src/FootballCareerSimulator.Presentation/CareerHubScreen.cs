@@ -472,10 +472,58 @@ public partial class CareerHubScreen : Control
 
     public override void _Notification(int what)
     {
+        if (what == NotificationWMGoBackRequest)
+        {
+            HandleHardwareBackRequest();
+            return;
+        }
+
         if (what == NotificationResized && _layoutBuilt)
         {
             ApplyResponsiveLayout();
         }
+    }
+
+    private void HandleHardwareBackRequest()
+    {
+        if (TryCloseFormationPicker())
+        {
+            return;
+        }
+
+        if (_playerDossierOverlay is { Visible: true })
+        {
+            ClosePlayerDossier();
+            return;
+        }
+
+        if (_currentPage == HubPage.Club && _clubSubPage != ClubSubPage.Overview)
+        {
+            ShowClubSubPage(ClubSubPage.Overview);
+            return;
+        }
+
+        if (_currentPage != HubPage.Today)
+        {
+            ShowPage(HubPage.Today);
+            return;
+        }
+
+        Callable.From(() => BackToMenuRequested?.Invoke()).CallDeferred();
+    }
+
+    private bool TryCloseFormationPicker()
+    {
+        foreach (var child in GetChildren())
+        {
+            if (child is FormationPickerModal modal)
+            {
+                modal.QueueFree();
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public override void _UnhandledInput(InputEvent @event)

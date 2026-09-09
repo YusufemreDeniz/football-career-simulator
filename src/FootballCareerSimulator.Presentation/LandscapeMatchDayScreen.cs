@@ -194,6 +194,25 @@ public partial class LandscapeMatchDayScreen : Control
         MatchScreenUi.FadeIn(body, this);
     }
 
+    public override void _Notification(int what)
+    {
+        if (what != NotificationWMGoBackRequest)
+        {
+            return;
+        }
+
+        foreach (var child in GetChildren())
+        {
+            if (child is FormationPickerModal modal)
+            {
+                modal.QueueFree();
+                return;
+            }
+        }
+
+        Callable.From(() => BackRequested?.Invoke()).CallDeferred();
+    }
+
     public void SetStatus(string message)
     {
         _statusLabel.Text = message;
