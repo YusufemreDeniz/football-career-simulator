@@ -1192,8 +1192,18 @@ Phase 10: Career Chronicle (Kariyer Belgeseli)
 
 1. [x] Phase 0 dokümantasyon blueprint'i (`docs/20_POST_MVP_INNOVATION_PROGRAM.md`) eksiksiz oluşturuldu.
 2. [x] `docs/00_PROJECT_INDEX.md` ve `docs/15_DECISION_LOG.md` güncellendi.
-3. [ ] Her yenilik fazı sırayla, testleri yeşil olmadan sonraki faza geçmeden tamamlandı.
-4. [ ] Tüm hızlı testler (`Category!=LongRunning`) %100 yeşil kalmaya devam etti.
+3. [x] Her yenilik fazı sırayla, testleri yeşil olmadan sonraki faza geçmeden tamamlandı.
+   - [x] Faz 1: Causality Foundation — `CausalityRecordTests`, `CausalityExplanationBuilderTests`, `RelationshipCausalityIntegrationTests`
+   - [x] Faz 2: Behavioral Evidence — `BehavioralEvidenceAggregatorTests`, `YouthPromiseTransferReactionTests`
+   - [x] Faz 3: Redemption Memory — `MemoryResolutionLifecycleTests`, `RedemptionToRelationshipIntegrationTests`
+   - [x] Faz 4: Club DNA — `ClubDnaCalculationTests`, `ClubDnaManagerConflictIntegrationTests`
+   - [x] Faz 5: Negotiation Behavioral Memory — `NegotiationMemoryEvaluationTests`, `TransferProcessWithMemoryTests`
+   - [x] Faz 6: Epistemic Layer — `EpistemicBoundaryTests`
+   - [x] Faz 7: Social Contagion — `SparseInfluenceGraphTests`, `CaptainFalloutContagionTests`
+   - [x] Faz 8: Dynamic Tactical Ecosystem — `TacticalMetaEvaluationTests`, `AiTacticalAdaptationIntegrationTests`
+   - [x] Faz 9: Coaching Lineage — `PlayerToManagerTransitionTests`, `FormerPlayerReunionFixtureTests`
+   - [x] Faz 10: Career Chronicle — `DeterministicChronicleBuilderTests`, `FullSeasonToChronicleIntegrationTests`
+4. [x] Tüm hızlı testler (`Category!=LongRunning`) %100 yeşil kalmaya devam etti (1124 / 1124).
 5. [ ] 10 sezonluk long-running kabul testi başarıyla geçti.
 6. [ ] Save migration ve backward compatibility kanıtlandı.
-7. [ ] Sıfır yabancı mutasyon, sıfır gizli RNG, sıfır aktör her şeyi bilme (omniscience) ihlali doğrulandı.
+7. [x] Sıfır yabancı mutasyon, sıfır gizli RNG, sıfır aktör her şeyi bilme (omniscience) ihlali doğrulandı.
