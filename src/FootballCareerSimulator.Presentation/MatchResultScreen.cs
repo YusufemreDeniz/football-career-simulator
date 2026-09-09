@@ -52,8 +52,9 @@ public partial class MatchResultScreen : Control
         _continueButton = new Button
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 48),
         };
-        CareerUiTheme.StyleAccentButton(_continueButton);
+        CareerUiTheme.StylePrimaryButton(_continueButton);
         _continueButton.Pressed += OnContinuePressed;
         _shell.AddChild(_continueButton);
 
@@ -124,6 +125,11 @@ public partial class MatchResultScreen : Control
         CareerUiTheme.StyleEyebrow(brand, CareerUiTheme.Accent);
         heroContent.AddChild(brand);
 
+        var scoreBox = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+        };
+        scoreBox.AddThemeStyleboxOverride("panel", CareerUiTheme.ScoreboardPill());
         var score = new Label
         {
             Text = _narrative.Scoreline,
@@ -131,7 +137,8 @@ public partial class MatchResultScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         StyleScore(score);
-        heroContent.AddChild(score);
+        scoreBox.AddChild(score);
+        heroContent.AddChild(scoreBox);
 
         var tone = new Label
         {
@@ -382,11 +389,25 @@ public partial class MatchResultScreen : Control
 
         if (!string.IsNullOrWhiteSpace(report.StandoutLine))
         {
+            var standoutCard = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            standoutCard.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.18f));
+            var standoutStack = MatchScreenUi.VerticalStack(4);
+            standoutCard.AddChild(standoutStack);
+
+            var standoutHeader = new Label
+            {
+                Text = "⭐ MAÇIN OYUNCUSU & KRİTİK KATKI",
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            CareerUiTheme.StyleEyebrow(standoutHeader, CareerUiTheme.ActionBright);
+            standoutStack.AddChild(standoutHeader);
+
             var standout = MatchScreenUi.BodyLine(
                 report.StandoutLine,
                 alignment: HorizontalAlignment.Center);
-            standout.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-            reportStack.AddChild(standout);
+            standout.AddThemeColorOverride("font_color", CareerUiTheme.TextPrimary);
+            standoutStack.AddChild(standout);
+            reportStack.AddChild(standoutCard);
         }
 
         if (!string.IsNullOrWhiteSpace(report.InjuryLine))
@@ -439,9 +460,9 @@ public partial class MatchResultScreen : Control
     private static void StyleScore(Label label)
     {
         CareerUiTheme.EnsureLoaded();
-        CareerUiTheme.StyleBrand(label);
+        CareerUiTheme.ApplyDisplayFont(label);
         label.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(42));
-        label.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
+        label.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
     }
 
     private static string FormatSigned(int value) => value > 0 ? $"+{value}" : value.ToString();
