@@ -88,6 +88,8 @@ public partial class CareerHubScreen : Control
     private Label _todayTacticsSummaryLabel = null!;
     private Label _todayFitnessSummaryLabel = null!;
     private Button _openTacticsButton = null!;
+    private Button _restEntireTeamButton = null!;
+    private Button _lightRegenerationButton = null!;
     private Label _decisionLabel = null!;
     private PanelContainer _decisionCausalityPanel = null!;
     private Label _decisionCausalityLabel = null!;
@@ -1798,6 +1800,17 @@ public partial class CareerHubScreen : Control
         _openTacticsButton.Pressed += () => ShowPage(HubPage.Prep);
         tacticsCard.AddChild(_openTacticsButton);
 
+        var recoveryActions = ActionFlow();
+        tacticsCard.AddChild(recoveryActions);
+        _restEntireTeamButton = AccentButton("🛌 Tüm Takımı Dinlendir");
+        _restEntireTeamButton.TooltipText = "Yoğun takvimde ağır dinlenme planı uygular; sakatlık riskini ve yorgunluğu hedefler.";
+        _restEntireTeamButton.Pressed += () => Apply(_controller.RestEntireTeam());
+        recoveryActions.AddChild(_restEntireTeamButton);
+        _lightRegenerationButton = SecondaryButton("♻ Hafif Rejenerasyon");
+        _lightRegenerationButton.TooltipText = "Maç ritmini koruyan düşük yoğunluklu toparlanma planı uygular.";
+        _lightRegenerationButton.Pressed += () => Apply(_controller.ApplyLightRegeneration());
+        recoveryActions.AddChild(_lightRegenerationButton);
+
         // Club Dispatch & Pulse Card — güçlü neon (emphasized)
         var newsNeonPanel = new PanelContainer
         {
@@ -2185,8 +2198,7 @@ public partial class CareerHubScreen : Control
         _swotRestFatiguedButton = SecondaryButton("⚡ Yorgunları Dinlendir (Toparlanma)");
         _swotRestFatiguedButton.Pressed += () =>
         {
-            Apply(_controller.SetWeeklyTrainingFocus(TrainingFocus.Recovery));
-            Apply(_controller.SetWeeklyTrainingRest(RestApproach.Heavy));
+            Apply(_controller.RestEntireTeam());
             ShowPage(HubPage.Prep);
         };
         swotActionRow.AddChild(_swotRestFatiguedButton);

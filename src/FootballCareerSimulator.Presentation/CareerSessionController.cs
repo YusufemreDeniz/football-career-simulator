@@ -3380,6 +3380,60 @@ public sealed partial class CareerSessionController
         return ApplyWeeklyTrainingPlan();
     }
 
+    public UiActionResult RestEntireTeam() =>
+        ApplyConditionProtectionPlan(
+            TrainingIntensity.Low,
+            TrainingFocus.Recovery,
+            RestApproach.Heavy,
+            "Tüm takım dinlenmeye alındı");
+
+    public UiActionResult ApplyLightRegeneration() =>
+        ApplyConditionProtectionPlan(
+            TrainingIntensity.Low,
+            TrainingFocus.Recovery,
+            RestApproach.Normal,
+            "Hafif rejenerasyon planlandı");
+
+    private UiActionResult ApplyConditionProtectionPlan(
+        TrainingIntensity intensity,
+        TrainingFocus focus,
+        RestApproach rest,
+        string actionLabel)
+    {
+        var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
+        var states = clubId is long managedClubId
+            ? Host.TrainingModule.Store.PhysicalStates
+                .Where(state => state.ClubId?.Value == managedClubId)
+                .ToArray()
+            : Array.Empty<PlayerPhysicalState>();
+        var beforeFitness = states.Length == 0
+            ? PlayerPhysicalState.DefaultFitness
+            : (int)Math.Round(states.Average(state => state.Fitness), MidpointRounding.AwayFromZero);
+        var beforeFatigue = states.Length == 0
+            ? PlayerPhysicalState.DefaultFatigue
+            : (int)Math.Round(states.Average(state => state.Fatigue), MidpointRounding.AwayFromZero);
+
+        _trainingIntensity = intensity;
+        _trainingFocus = focus;
+        _trainingRest = rest;
+        var result = ApplyWeeklyTrainingPlan();
+        if (!result.Succeeded)
+        {
+            return result;
+        }
+
+        var fatigueRelief = rest == RestApproach.Heavy ? 10 : 6;
+        var fitnessBump = rest == RestApproach.Heavy ? 1 : 0;
+        var projectedFitness = Math.Clamp(beforeFitness + fitnessBump, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel);
+        var projectedFatigue = Math.Clamp(beforeFatigue - fatigueRelief, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel);
+        return result with
+        {
+            Message = $"{actionLabel}. Kondisyon telemetrisi (sonraki maçsız gün): "
+                + $"fitness %{beforeFitness} → %{projectedFitness}, yorgunluk %{beforeFatigue} → %{projectedFatigue}.\n"
+                + result.Message,
+        };
+    }
+
     public UiActionResult ApplySuggestedPreparationPlan()
     {
         var suggestion = BuildPreparationBriefing().Suggestion;
