@@ -20,7 +20,11 @@ internal static class UiComponents
         var container = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         container.AddThemeConstantOverride("separation", CareerUiTheme.SpaceXs);
 
-        var label = new Label { Text = title };
+        var label = new Label
+        {
+            Text = title,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
         CareerUiTheme.StyleSectionTitle(label);
         container.AddChild(label);
 
@@ -500,6 +504,7 @@ internal static class UiComponents
             Text = title,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             VerticalAlignment = VerticalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StylePageTitle(titleLabel);
         row.AddChild(titleLabel);

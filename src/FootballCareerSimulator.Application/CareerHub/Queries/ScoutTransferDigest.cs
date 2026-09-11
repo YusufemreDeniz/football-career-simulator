@@ -259,25 +259,25 @@ public static class ScoutTransferValuationModel
         int sourceClubStrength,
         int positionalAverage,
         int? transferBudgetAvailable = null,
-        bool isFreeAgent = false)
+        bool isFreeAgent = false,
+        PlayerValuationBalanceProfile? balanceProfile = null)
     {
         var ability = Math.Clamp(currentAbility, 40, 99);
         var potential = Math.Clamp(potentialAbility, ability, 99);
-        var ageMultiplier = age switch
-        {
-            <= 21 => 1.18,
-            <= 25 => 1.08,
-            <= 29 => 1.00,
-            <= 32 => 0.80,
-            _ => 0.60,
-        };
-        var potentialMultiplier = 1.0 + Math.Min(0.50, (potential - ability) * 0.05);
-        var rawValue = 750_000d
-            * Math.Pow(1.16, ability - 60)
-            * ageMultiplier
-            * potentialMultiplier;
-        var marketValue = isFreeAgent ? 0 : RoundTo((int)Math.Clamp(rawValue, 250_000, 90_000_000), 50_000);
-        var suggestedOpeningFee = isFreeAgent ? 0 : RoundTo((int)(marketValue * 0.90), 50_000);
+        balanceProfile ??= PlayerValuationBalanceProfile.Default;
+        var valuation = PlayerMarketValuationModel.Evaluate(
+            new PlayerMarketValuationInput(
+                ability,
+                potential,
+                age,
+                ContractYearsRemaining: 2.0,
+                SourceClubStrength: sourceClubStrength,
+                IsFreeAgent: isFreeAgent),
+            balanceProfile);
+        var marketValue = valuation.MarketValue;
+        var suggestedOpeningFee = isFreeAgent
+            ? 0
+            : RoundTo((int)(marketValue * balanceProfile.BuyerOpeningOfferFactor), balanceProfile.RoundingStep);
 
         var role = ability switch
         {

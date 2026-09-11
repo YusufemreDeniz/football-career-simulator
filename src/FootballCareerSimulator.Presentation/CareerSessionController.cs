@@ -15,6 +15,7 @@ using FootballCareerSimulator.Application.WorldCalendar.Composition;
 using FootballCareerSimulator.Application.Interaction.Queries;
 using FootballCareerSimulator.Application.PlayerCareer.Queries;
 using FootballCareerSimulator.Application.PlayerCareer.Services;
+using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.WorldCalendar.Queries;
 using FootballCareerSimulator.Domain.Competition;
 using FootballCareerSimulator.Domain.ContractRegistration;
@@ -278,7 +279,7 @@ public sealed partial class CareerSessionController
         }
         catch (TeamPreparationInvariantViolationException ex)
         {
-            return UiActionResult.Fail($"Kadro değiştirilemedi: {ex.Message}");
+            return UiActionResult.Fail($"Kadro değiştirilemedi: {FormatLineupFailure(ex)}");
         }
         catch (Exception ex)
         {
@@ -978,6 +979,42 @@ public sealed partial class CareerSessionController
         catch (Exception ex)
         {
             return UiActionResult.Fail($"Karar hatası: {ex.Message}");
+        }
+    }
+
+    public UiActionResult ConductPrivateMeeting(long playerId, PrivateMeetingTopic topic)
+    {
+        try
+        {
+            var manager = GetManagerCareer();
+            if (manager.EmployedClubId is null)
+            {
+                return UiActionResult.Fail("Özel görüşme için aktif kulüp görevi gerekiyor.");
+            }
+
+            var player = BuildPlayerManagementDigest().Players
+                .FirstOrDefault(candidate => candidate.PlayerId == playerId);
+            if (player is null)
+            {
+                return UiActionResult.Fail("Oyuncu aktif kadroda bulunamadı.");
+            }
+
+            var outcome = Host.SocialContinuityModule.RelationshipEvaluation.ApplyPrivateMeeting(
+                new PlayerId(playerId),
+                new ManagerId(manager.ManagerId),
+                Host.WorldModule.TimelineStore.Timeline.CurrentDate,
+                topic,
+                manager.ManagerReputation,
+                player.PotentialAbility);
+            return outcome.Applied
+                ? UiActionResult.Ok(
+                    $"{player.DisplayName}: {outcome.Summary} "
+                    + $"Güven {outcome.TrustDelta:+#;-#;0}, saygı {outcome.RespectDelta:+#;-#;0}, uyum {outcome.CompatibilityDelta:+#;-#;0}.")
+                : UiActionResult.Fail(outcome.Summary);
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Özel görüşme tamamlanamadı: {ex.Message}");
         }
     }
 
@@ -1700,10 +1737,8 @@ public sealed partial class CareerSessionController
                     Domain.TeamPreparation.MatchSelection.MaxSquadSlot
                     - Domain.TeamPreparation.MatchSelection.MinSquadSlot + 1).ToArray();
             bench = candidates
-                .Where(slot => !starting.Contains(slot))
-                .OrderBy(slot => physical.TryGetValue((clubId.Value, slot), out var state)
-                    && !state.IsAvailableOn(timeline.CurrentDate))
-                .ThenBy(slot => slot)
+                .Where(slot => !starting.Contains(slot)
+                    && !(physical.TryGetValue((clubId.Value, slot), out var state) && !state.IsAvailableOn(timeline.CurrentDate)))
                 .Take(Domain.TeamPreparation.MatchSelection.MaxBenchSize)
                 .ToArray();
         }

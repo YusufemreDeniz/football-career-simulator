@@ -40,6 +40,55 @@ public sealed class RelationshipEvaluationService
     public const string DecisionPressExpiredRuleId = "DecisionPressExpired";
     public const int RuleVersion = 1;
 
+    public PrivateMeetingOutcome ApplyPrivateMeeting(
+        PlayerId playerId,
+        ManagerId managerId,
+        GameDate day,
+        PrivateMeetingTopic topic,
+        int managerAuthority,
+        int playerAmbition)
+    {
+        var current = Ensure(playerId, managerId, day);
+        var authority = Math.Clamp(managerAuthority, 0, 100);
+        var ambition = Math.Clamp(playerAmbition, 0, 100);
+        var (trust, respect, compatibility, summary) = topic switch
+        {
+            PrivateMeetingTopic.PlayingTime =>
+                (4, authority >= 60 ? 2 : 0, ambition >= 70 ? -1 : 1,
+                    "Oyuncuya rolü ve süre yolu açıkça anlatıldı."),
+            PrivateMeetingTopic.PerformanceWarning =>
+                (authority >= 55 ? -2 : -5, authority >= 55 ? 5 : 1, 0,
+                    "Performans standardı ve takım içindeki sorumluluğu netleştirildi."),
+            PrivateMeetingTopic.Captaincy =>
+                (ambition >= 65 ? 6 : 3, 4, ambition >= 65 ? 3 : 1,
+                    "Liderlik sorumluluğu ve kaptanlık beklentisi konuşuldu."),
+            PrivateMeetingTopic.Contract =>
+                (3, 1, ambition >= 75 ? -1 : 3,
+                    "Gelecek planı ve yeni sözleşme beklentileri masaya yatırıldı."),
+            _ =>
+                (6, authority >= 45 ? 1 : -1, 2,
+                    "Menajer oyuncuya desteğini ve güvenini doğrudan iletti."),
+        };
+        var effectKey = $"Rel:PrivateMeeting:v1:{day.DayNumber}:{playerId.Value}:{topic}";
+        var applied = Apply(
+            playerId,
+            managerId,
+            effectKey,
+            trust,
+            respect,
+            compatibility,
+            $"PrivateMeeting{topic}",
+            day) > 0;
+        var updated = _store.FindPlayerToManager(playerId.Value, managerId.Value) ?? current;
+        return new PrivateMeetingOutcome(
+            applied,
+            topic,
+            updated.Trust - current.Trust,
+            updated.Respect - current.Respect,
+            updated.ProfessionalCompatibility - current.ProfessionalCompatibility,
+            applied ? summary : "Bu görüşme bugün zaten yapıldı.");
+    }
+
     private readonly IRelationshipStore _store;
     private readonly RelationshipMilestoneService? _milestones;
 
@@ -470,3 +519,20 @@ public sealed class RelationshipEvaluationService
         return created;
     }
 }
+
+public enum PrivateMeetingTopic
+{
+    Reassurance = 0,
+    PlayingTime = 1,
+    PerformanceWarning = 2,
+    Captaincy = 3,
+    Contract = 4,
+}
+
+public sealed record PrivateMeetingOutcome(
+    bool Applied,
+    PrivateMeetingTopic Topic,
+    int TrustDelta,
+    int RespectDelta,
+    int CompatibilityDelta,
+    string Summary);

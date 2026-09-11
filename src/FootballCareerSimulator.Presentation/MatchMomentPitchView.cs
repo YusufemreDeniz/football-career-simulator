@@ -159,7 +159,8 @@ public sealed partial class MatchMomentPitchView : Control
             new Vector2(4, 4),
             new Vector2(Mathf.Max(1, Size.X - 8), Mathf.Max(1, Size.Y - 8)));
         DrawPitch(field);
-        DrawTeams(field);
+        DrawPhaseChannels(field, CurrentFrame, FrameProgress);
+        DrawTeams(field, CurrentFrame, FrameProgress);
 
         if (CurrentFrame is { } frame)
         {
@@ -415,21 +416,143 @@ public sealed partial class MatchMomentPitchView : Control
             width: 2);
     }
 
-    private void DrawTeams(Rect2 field)
+    private void DrawPhaseChannels(
+        Rect2 field,
+        MatchMomentStoryboardFrame? frame,
+        float progress)
+    {
+        if (frame is null || ReducedMotion)
+        {
+            return;
+        }
+
+        var direction = frame.IsHomeSide ? 1f : -1f;
+        var eased = EaseOutCubic(progress);
+        var alpha = 0.05f + (0.05f * Mathf.Sin(progress * Mathf.Pi));
+        var channelWidth = field.Size.X * 0.22f;
+        var channelX = direction > 0
+            ? Mathf.Lerp(field.Position.X + (field.Size.X * 0.42f), field.End.X - channelWidth, eased)
+            : Mathf.Lerp(field.End.X - (field.Size.X * 0.42f) - channelWidth, field.Position.X, eased);
+        DrawRect(
+            new Rect2(channelX, field.Position.Y, channelWidth, field.Size.Y),
+            new Color(0.34f, 1f, 0.60f, alpha));
+
+        var pressLineX = direction > 0
+            ? field.Position.X + (field.Size.X * (0.53f + (0.16f * eased)))
+            : field.Position.X + (field.Size.X * (0.47f - (0.16f * eased)));
+        DrawLine(
+            new Vector2(pressLineX, field.Position.Y + 8),
+            new Vector2(pressLineX, field.End.Y - 8),
+            new Color(0.66f, 1f, 0.78f, 0.22f),
+            1.5f);
+    }
+
+    private void DrawTeams(
+        Rect2 field,
+        MatchMomentStoryboardFrame? frame,
+        float progress)
     {
         var radius = Mathf.Clamp(Mathf.Min(field.Size.X, field.Size.Y) * 0.019f, 3.2f, 7f);
+        var nearestDefenderSlot = frame is null
+            ? -1
+            : FindNearestDefenderSlot(frame.ActorPosition, defendingHomeSide: !frame.IsHomeSide);
         for (var slot = 0; slot < 11; slot++)
         {
+            var homePosition = ResolveAnimatedPlayerPosition(
+                slot,
+                isHomeSide: true,
+                frame,
+                progress,
+                nearestDefenderSlot);
+            var awayPosition = ResolveAnimatedPlayerPosition(
+                slot,
+                isHomeSide: false,
+                frame,
+                progress,
+                nearestDefenderSlot);
+
             DrawPlayer(
-                ToPixel(MatchMomentStoryboard.ResolvePlayerPosition(slot, isHomeSide: true), field),
+                ToPixel(homePosition, field),
                 HomeTeamColor,
-                radius);
+                radius,
+                slot + 1,
+                frame is { IsHomeSide: true } && frame.PrimarySlotIndex == slot);
             DrawPlayer(
-                ToPixel(MatchMomentStoryboard.ResolvePlayerPosition(slot, isHomeSide: false), field),
+                ToPixel(awayPosition, field),
                 AwayTeamColor,
-                radius);
+                radius,
+                slot + 1,
+                frame is { IsHomeSide: false } && frame.PrimarySlotIndex == slot);
         }
     }
+
+    private MatchMomentPitchPoint ResolveAnimatedPlayerPosition(
+        int slot,
+        bool isHomeSide,
+        MatchMomentStoryboardFrame? frame,
+        float progress,
+        int nearestDefenderSlot)
+    {
+        var origin = MatchMomentStoryboard.ResolvePlayerPosition(slot, isHomeSide);
+        if (frame is null || ReducedMotion)
+        {
+            return origin;
+        }
+
+        var eased = EaseOutCubic(progress);
+        var attacking = isHomeSide == frame.IsHomeSide;
+        var direction = frame.IsHomeSide ? 1f : -1f;
+        var phaseShift = attacking ? 0.075f : 0.045f;
+        var lateralBreath = Mathf.Sin((slot * 0.91f) + (progress * Mathf.Pi)) * 0.012f;
+        var target = new MatchMomentPitchPoint(
+            origin.X + (direction * phaseShift * eased),
+            origin.Y + lateralBreath);
+
+        if (attacking && slot == frame.PrimarySlotIndex)
+        {
+            target = LerpPoint(target, frame.BallEnd, 0.22f + (0.32f * eased));
+        }
+        else if (attacking && frame.AssistSlotIndex == slot)
+        {
+            target = LerpPoint(target, frame.ActorPosition, 0.16f + (0.18f * eased));
+        }
+        else if (!attacking && slot == nearestDefenderSlot)
+        {
+            target = LerpPoint(target, frame.ActorPosition, 0.18f + (0.20f * eased));
+        }
+
+        return target.Clamped();
+    }
+
+    private static int FindNearestDefenderSlot(
+        MatchMomentPitchPoint actor,
+        bool defendingHomeSide)
+    {
+        var nearestSlot = 0;
+        var nearestDistance = float.MaxValue;
+        for (var slot = 0; slot < 11; slot++)
+        {
+            var candidate = MatchMomentStoryboard.ResolvePlayerPosition(slot, defendingHomeSide);
+            var dx = candidate.X - actor.X;
+            var dy = candidate.Y - actor.Y;
+            var distance = (dx * dx) + (dy * dy);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearestSlot = slot;
+            }
+        }
+
+        return nearestSlot;
+    }
+
+    private static MatchMomentPitchPoint LerpPoint(
+        MatchMomentPitchPoint from,
+        MatchMomentPitchPoint to,
+        float weight) =>
+        new(
+            Mathf.Lerp(from.X, to.X, weight),
+            Mathf.Lerp(from.Y, to.Y, weight));
 
     private void DrawMoment(
         Rect2 field,
@@ -517,11 +640,38 @@ public sealed partial class MatchMomentPitchView : Control
         }
     }
 
-    private void DrawPlayer(Vector2 position, Color shirt, float radius)
+    private void DrawPlayer(
+        Vector2 position,
+        Color shirt,
+        float radius,
+        int squadNumber,
+        bool active)
     {
+        if (active)
+        {
+            DrawCircle(position, radius + 7f, new Color(0.38f, 1f, 0.62f, 0.14f));
+            DrawArc(position, radius + 5f, 0, Mathf.Tau, 24, CareerUiTheme.ActionBright, 2f);
+        }
+
         DrawCircle(position + new Vector2(0, 1.5f), radius + 2f, new Color(0f, 0f, 0f, 0.45f));
         DrawCircle(position, radius + 1f, new Color(0.91f, 0.97f, 0.93f, 0.88f));
         DrawCircle(position, radius, shirt);
+
+        if (radius >= 5.2f)
+        {
+            var font = ThemeDB.FallbackFont;
+            var fontSize = Math.Max(7, Mathf.RoundToInt(radius * 1.35f));
+            var text = squadNumber.ToString();
+            var size = font.GetStringSize(text, HorizontalAlignment.Center, -1, fontSize);
+            DrawString(
+                font,
+                position + new Vector2(-size.X * 0.5f, size.Y * 0.34f),
+                text,
+                HorizontalAlignment.Center,
+                -1,
+                fontSize,
+                Colors.White);
+        }
     }
 
     private static Vector2 ToPixel(MatchMomentPitchPoint point, Rect2 field) =>

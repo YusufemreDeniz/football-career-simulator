@@ -127,13 +127,14 @@ public partial class MatchResultScreen : Control
 
         var scoreBox = new PanelContainer
         {
-            SizeFlagsHorizontal = SizeFlags.ShrinkCenter,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         scoreBox.AddThemeStyleboxOverride("panel", CareerUiTheme.ScoreboardPill());
         var score = new Label
         {
             Text = _narrative.Scoreline,
             HorizontalAlignment = HorizontalAlignment.Center,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         StyleScore(score);

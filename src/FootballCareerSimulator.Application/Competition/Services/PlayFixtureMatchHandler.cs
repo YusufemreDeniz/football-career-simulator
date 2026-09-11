@@ -594,11 +594,6 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
                     day,
                     physical,
                     squad);
-                MvpAvailabilityAwareSelection.EnsureBenchAvailable(
-                    clubId,
-                    selection.BenchSlotIndices,
-                    day,
-                    physical);
             }
 
             return MvpSquadStrengthCalculator.ComputeLineupBonus(

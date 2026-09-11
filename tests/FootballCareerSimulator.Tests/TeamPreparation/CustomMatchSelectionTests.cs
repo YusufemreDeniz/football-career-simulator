@@ -276,4 +276,79 @@ public sealed class CustomMatchSelectionTests
         Assert.Equal("Memphis Depay", depayModel.DisplayName);
         Assert.Equal(81, depayModel.Rating);
     }
+
+    [Fact]
+    public void SwapStarterWithBench_AllowsSubstitution_WhenAnotherBenchPlayerIsUnavailable()
+    {
+        var (_, _, _, teamPrep, training) = CreateStack();
+        teamPrep.ApproveDefaultSelection.Handle(
+            new ApproveDefaultMatchSelectionCommand(Guid.NewGuid(), FixtureId: 1, ClubId: 1));
+
+        var before = teamPrep.SelectionQueries.Get(1, 1)!;
+        var injuredBenchSlot = before.BenchSlotIndices[1];
+        var healthyBenchSlot = before.BenchSlotIndices[0];
+
+        training.Store.UpsertPhysical(PlayerPhysicalState.CreateRested(new ClubId(1), injuredBenchSlot)
+            .WithInjury(InjurySeverity.Moderate, Day.AddDays(14)));
+
+        var swapped = teamPrep.SwapStarterWithBench.Handle(
+            new SwapStarterWithBenchCommand(
+                Guid.NewGuid(),
+                FixtureId: 1,
+                ClubId: 1,
+                StartingIndex: MatchSelection.StartingXiSize - 1,
+                BenchIndex: 0));
+
+        Assert.Equal(healthyBenchSlot, swapped.StartingSlotIndices[^1]);
+        Assert.Contains(injuredBenchSlot, swapped.BenchSlotIndices);
+    }
+
+    [Fact]
+    public void SwapStarterWithBench_AllowsSubbingOffInjuredStarter_ToBench()
+    {
+        var (_, _, _, teamPrep, training) = CreateStack();
+        teamPrep.ApproveDefaultSelection.Handle(
+            new ApproveDefaultMatchSelectionCommand(Guid.NewGuid(), FixtureId: 1, ClubId: 1));
+
+        var before = teamPrep.SelectionQueries.Get(1, 1)!;
+        var injuredStarterSlot = before.StartingSlotIndices[0];
+        var healthyBenchSlot = before.BenchSlotIndices[0];
+
+        training.Store.UpsertPhysical(PlayerPhysicalState.CreateRested(new ClubId(1), injuredStarterSlot)
+            .WithInjury(InjurySeverity.Serious, Day.AddDays(30)));
+
+        var swapped = teamPrep.SwapStarterWithBench.Handle(
+            new SwapStarterWithBenchCommand(
+                Guid.NewGuid(),
+                FixtureId: 1,
+                ClubId: 1,
+                StartingIndex: 0,
+                BenchIndex: 0));
+
+        Assert.Equal(healthyBenchSlot, swapped.StartingSlotIndices[0]);
+        Assert.Equal(injuredStarterSlot, swapped.BenchSlotIndices[0]);
+    }
+
+    [Fact]
+    public void SwapStarterWithBench_RejectsMovingInjuredBenchPlayer_IntoStartingXi()
+    {
+        var (_, _, _, teamPrep, training) = CreateStack();
+        teamPrep.ApproveDefaultSelection.Handle(
+            new ApproveDefaultMatchSelectionCommand(Guid.NewGuid(), FixtureId: 1, ClubId: 1));
+
+        var before = teamPrep.SelectionQueries.Get(1, 1)!;
+        var injuredBenchSlot = before.BenchSlotIndices[0];
+
+        training.Store.UpsertPhysical(PlayerPhysicalState.CreateRested(new ClubId(1), injuredBenchSlot)
+            .WithInjury(InjurySeverity.Serious, Day.AddDays(30)));
+
+        Assert.Throws<TeamPreparationInvariantViolationException>(() =>
+            teamPrep.SwapStarterWithBench.Handle(
+                new SwapStarterWithBenchCommand(
+                    Guid.NewGuid(),
+                    FixtureId: 1,
+                    ClubId: 1,
+                    StartingIndex: 0,
+                    BenchIndex: 0)));
+    }
 }

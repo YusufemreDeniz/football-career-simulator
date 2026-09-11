@@ -120,16 +120,9 @@ public static class MvpAvailabilityAwareSelection
     {
         ArgumentNullException.ThrowIfNull(benchSlotIndices);
         ArgumentNullException.ThrowIfNull(physicalBySlot);
-
-        foreach (var slot in benchSlotIndices)
-        {
-            if (physicalBySlot.TryGetValue((clubId.Value, slot), out var state)
-                && !state.IsAvailableOn(day))
-            {
-                throw new TeamPreparationInvariantViolationException(
-                    $"Bench cannot include unavailable slot {slot}.");
-            }
-        }
+        // Yedek kulübesinde sakat/uygunsuz oyuncu bulunması (ör. sakatlanan as oyuncunun yedek kulübesine alınması
+        // veya hafta içi sakatlanan oyuncunun kadroda kalması) oyuncu değişimini ve maç oynanmasını kilitlemez.
+        // Asıl kritik kural: İlk 11'de sakat/uygunsuz oyuncunun bulunmamasıdır (EnsureStartingXiAvailable).
     }
 
     public static bool HasUnavailableStarter(
@@ -363,7 +356,6 @@ public static class MvpAvailabilityAwareSelection
         if (physicalBySlot is not null)
         {
             EnsureStartingXiAvailable(selection.ClubId, starting, day, physicalBySlot);
-            EnsureBenchAvailable(selection.ClubId, bench, day, physicalBySlot);
         }
 
         return MatchSelection.Approve(

@@ -101,6 +101,9 @@ public static class CareerUiSmokeTest
                 == MobileScrollContainer.DragAxis.Vertical
             && MobileScrollContainer.ResolveDragAxis(new Vector2(20, 2), false, true)
                 == MobileScrollContainer.DragAxis.None);
+        passed &= LogCheck(
+            "Android geri tuşu uygulama akışına bırakılıyor",
+            !ProjectSettings.GetSetting("application/config/quit_on_go_back", true).AsBool());
         var landscapeMatchLayout = Application.TeamPreparation.Queries.LandscapeMatchLayoutProfile.Resolve(844, 390);
         passed &= LogCheck(
             "Kompakt yatay maç yerleşimi",

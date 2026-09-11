@@ -1,0 +1,15 @@
+# Supplied proprietary/binary research inputs and generated analysis trees.
+/original/
+/il2cpp/
+/cpp2il/
+/isil/
+/call_analysis/
+/tools/
+
+# Reproducible generated outputs.
+/notes/*.arm64.txt
+/notes/*.isil.txt
+/simulations/*.csv
+/scripts/__pycache__/
+/scripts/**/bin/
+/scripts/**/obj/

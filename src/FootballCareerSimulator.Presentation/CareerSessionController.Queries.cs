@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.ClubGovernance.Queries;
 using FootballCareerSimulator.Application.ClubGovernance.Services;
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Competition.Queries;
 using FootballCareerSimulator.Application.ContractRegistration.Queries;
 using FootballCareerSimulator.Application.Interaction.Queries;
@@ -207,6 +208,54 @@ public sealed partial class CareerSessionController
     /// <summary>Güncel puan durumunu döner.</summary>
     public IReadOnlyList<StandingEntryReadModel> GetStandings(long seasonId) =>
         Host.CompetitionModule.Queries.GetStandings(seasonId) ?? Array.Empty<StandingEntryReadModel>();
+
+    public FanPulseDigest BuildFanPulseDigest()
+    {
+        var manager = GetManagerCareer();
+        if (manager.EmployedClubId is not long clubId || GetCurrentSeason() is not { } season)
+        {
+            return FanPulseDigest.Empty;
+        }
+
+        var standings = GetStandings(season.SeasonId);
+        var tableIndex = standings
+            .Select((entry, index) => (entry, index))
+            .FirstOrDefault(item => item.entry.ClubId == clubId);
+        if (tableIndex.entry is null)
+        {
+            return FanPulseDigest.Empty;
+        }
+
+        var recent = GetSeasonFixtures(season.SeasonId)
+            .Where(fixture =>
+                fixture.HomeGoals.HasValue
+                && (fixture.HomeClubId == clubId || fixture.AwayClubId == clubId))
+            .OrderBy(fixture => fixture.Round)
+            .TakeLast(5)
+            .ToArray();
+        var recentPoints = recent.Sum(fixture =>
+        {
+            var managedGoals = fixture.HomeClubId == clubId ? fixture.HomeGoals!.Value : fixture.AwayGoals!.Value;
+            var opponentGoals = fixture.HomeClubId == clubId ? fixture.AwayGoals!.Value : fixture.HomeGoals!.Value;
+            return managedGoals > opponentGoals ? 3 : managedGoals == opponentGoals ? 1 : 0;
+        });
+        var lastMargin = recent.LastOrDefault() is { } last
+            ? (last.HomeClubId == clubId
+                ? last.HomeGoals!.Value - last.AwayGoals!.Value
+                : last.AwayGoals!.Value - last.HomeGoals!.Value)
+            : 0;
+
+        return FanPulseDigest.Compose(
+            GetClubDisplayName(clubId),
+            tableIndex.index + 1,
+            standings.Count,
+            recentPoints,
+            recent.Length,
+            tableIndex.entry.GoalDifference,
+            lastMargin,
+            manager.ManagerReputation,
+            manager.BoardConfidence ?? 50);
+    }
 
     /// <summary>Puan durumu özet şeridini döner.</summary>
     public StandingStripReadModel GetStandingsStrip(long seasonId, long? managedClubId = null, int topCount = 5) =>

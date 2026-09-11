@@ -15,14 +15,19 @@ public sealed record MobileUiLayoutProfile(
 
     public int RightMargin { get; init; } = HorizontalMargin;
 
-    public static MobileUiLayoutProfile Resolve(int viewportWidth, int viewportHeight, int safeBottomInset)
+    public static MobileUiLayoutProfile Resolve(
+        int viewportWidth,
+        int viewportHeight,
+        int safeBottomInset,
+        bool mobileRuntime = false)
         => Resolve(
             viewportWidth,
             viewportHeight,
             safeLeftInset: 0,
             safeTopInset: 0,
             safeRightInset: 0,
-            safeBottomInset);
+            safeBottomInset,
+            mobileRuntime);
 
     public static MobileUiLayoutProfile Resolve(
         int viewportWidth,
@@ -30,7 +35,8 @@ public sealed record MobileUiLayoutProfile(
         int safeLeftInset,
         int safeTopInset,
         int safeRightInset,
-        int safeBottomInset)
+        int safeBottomInset,
+        bool mobileRuntime = false)
     {
         if (viewportWidth <= 0 || viewportHeight <= 0)
         {
@@ -40,10 +46,13 @@ public sealed record MobileUiLayoutProfile(
                 safeLeftInset,
                 safeTopInset,
                 safeRightInset,
-                safeBottomInset);
+                safeBottomInset,
+                mobileRuntime);
         }
 
-        var compact = viewportWidth < 720;
+        // Godot'un yatay Android viewport'u çoğunlukla 1280x720 veya daha geniştir.
+        // Yalnızca piksel genişliğine bakmak telefonu masaüstü sanıyordu.
+        var compact = mobileRuntime || viewportWidth < 720;
         var horizontalMargin = compact ? 8 : 16;
         var topMargin = compact ? 8 : 14;
         var bottomMargin = compact ? 8 : 10;

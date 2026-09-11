@@ -43,6 +43,26 @@ public sealed class MobileUiLayoutProfileTests
         Assert.Equal(22, profile.BottomMargin);
     }
 
+    [Theory]
+    [InlineData(1280, 720)]
+    [InlineData(1600, 720)]
+    [InlineData(844, 390)]
+    public void Resolve_UsesCompactLayoutForLandscapeMobileRuntime(int width, int height)
+    {
+        var profile = MobileUiLayoutProfile.Resolve(
+            width,
+            height,
+            safeLeftInset: 0,
+            safeTopInset: 0,
+            safeRightInset: 0,
+            safeBottomInset: 0,
+            mobileRuntime: true);
+
+        Assert.True(profile.IsCompact);
+        Assert.Equal(52, profile.TouchTargetHeight);
+        Assert.Equal(8, profile.HorizontalMargin);
+    }
+
     [Fact]
     public void DeviceAcceptance_DistinguishesAutomatedLayoutFromRealTouchEvidence()
     {

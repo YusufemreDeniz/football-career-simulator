@@ -56,11 +56,6 @@ public sealed class ApproveMatchSelectionHandler : ICommandIdempotencyReset
                 command.StartingSlotIndices,
                 day,
                 physical);
-            MvpAvailabilityAwareSelection.EnsureBenchAvailable(
-                clubId,
-                command.BenchSlotIndices,
-                day,
-                physical);
         }
 
         var selection = MatchSelection.Approve(

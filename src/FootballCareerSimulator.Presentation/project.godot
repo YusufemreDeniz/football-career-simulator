@@ -9,6 +9,7 @@ config/name="Football Career Simulator"
 config/icon="res://assets/app-icon/launcher-main-192.png"
 run/main_scene="res://CareerAppRoot.tscn"
 config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
+config/quit_on_go_back=false
 
 [display]
 
