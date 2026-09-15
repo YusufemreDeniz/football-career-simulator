@@ -210,9 +210,10 @@ public sealed class AiClubTransferSimulationService
             _clubOffers.SubmitClubOffer(process.ProcessId, DefaultClubTransferFee, day, buyerActor);
             // Satıcı = insan kulübü; AI satıcı auto-accept yasak — menajer kabul eder.
             _clubOffers.AcceptPendingOffer(process.ProcessId, TransferActingParty.HumanManager);
+            var weeklyWage = _proposals.ResolveAcceptableWeeklyWage(process.ProcessId, day);
             _proposals.SubmitContractProposal(
                 process.ProcessId,
-                DefaultWeeklyWage,
+                weeklyWage,
                 DefaultContractYears,
                 day,
                 buyerActor);
@@ -365,9 +366,10 @@ public sealed class AiClubTransferSimulationService
                 _clubOffers.AcceptPendingOffer(process.ProcessId, actor);
             }
 
+            var weeklyWage = _proposals.ResolveAcceptableWeeklyWage(process.ProcessId, day);
             _proposals.SubmitContractProposal(
                 process.ProcessId,
-                DefaultWeeklyWage,
+                weeklyWage,
                 DefaultContractYears,
                 day,
                 actor);

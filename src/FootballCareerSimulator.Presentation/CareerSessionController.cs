@@ -3153,8 +3153,8 @@ public sealed partial class CareerSessionController
             var proposal = Host.TransferModule.ContractProposals.AcceptPendingProposal(
                 new TransferProcessId(process.ProcessId));
             return UiActionResult.Ok(
-                $"Sözleşme kabul: #{proposal.ProposalId.Value}"
-                + $" · maaş {proposal.WeeklyWage} × {proposal.ContractYears} yıl.");
+                $"Oyuncu sözleşmeyi kabul etti: {GetPlayerDisplayName(process.PlayerId)}"
+                + $" · {proposal.WeeklyWage:N0}/hafta · {proposal.ContractYears} yıl.");
         }
         catch (TransferInvariantViolationException ex)
         {

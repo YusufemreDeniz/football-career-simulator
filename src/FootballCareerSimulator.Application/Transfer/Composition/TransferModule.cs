@@ -5,6 +5,7 @@ using FootballCareerSimulator.Application.ContractRegistration.Infrastructure;
 using FootballCareerSimulator.Application.ContractRegistration.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.SocialContinuity.Services;
 using FootballCareerSimulator.Application.TeamPreparation.Ports;
 using FootballCareerSimulator.Application.TeamPreparation.Services;
@@ -103,7 +104,9 @@ public sealed class TransferModule
         TransferMemoryService? transferMemory = null,
         ClubHistoryMemoryService? clubHistoryMemory = null,
         RelationshipEvaluationService? relationships = null,
-        ITrainingPhysicalStateStore? trainingStore = null)
+        ITrainingPhysicalStateStore? trainingStore = null,
+        IPlayerCareerStore? playerCareerStore = null,
+        int gameSeed = 0)
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(clubSquad);
@@ -132,7 +135,9 @@ public sealed class TransferModule
             processes,
             managerCareerStore,
             window,
-            wageBudget);
+            wageBudget,
+            playerCareerStore,
+            gameSeed);
         var completionService = new TransferCompletionService(
             processes,
             proposals,

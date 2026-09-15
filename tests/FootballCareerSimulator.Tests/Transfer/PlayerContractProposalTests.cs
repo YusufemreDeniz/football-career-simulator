@@ -119,6 +119,72 @@ public sealed class PlayerContractProposalTests : IDisposable
     }
 
     [Fact]
+    public void Accept_WithCareerAndLowWage_IsRejectedByPlayer()
+    {
+        var modules = CreateModulesWithClubAgreement();
+        var process = modules.Transfer.ProcessStore.Processes.Single();
+        SeedCareer(modules, process.PlayerId, currentAbility: 82, potentialAbility: 86, birthYear: 1998);
+        var demanded = modules.Transfer.ContractProposals.ResolveAcceptableWeeklyWage(process.ProcessId, Day);
+        Assert.True(demanded > 2);
+        modules.Transfer.ContractProposals.SubmitContractProposal(
+            process.ProcessId,
+            demanded - 1,
+            3,
+            Day);
+
+        var ex = Assert.Throws<TransferInvariantViolationException>(() =>
+            modules.Transfer.ContractProposals.AcceptPendingProposal(process.ProcessId));
+
+        Assert.Contains("ücreti kabul etmedi", ex.Message, StringComparison.Ordinal);
+        Assert.Equal(
+            PlayerContractProposalStatus.Rejected,
+            modules.Transfer.ProposalStore.GetForProcess(process.ProcessId).Last().Status);
+        Assert.Equal(
+            TransferProcessStatus.PlayerNegotiation,
+            modules.Transfer.ProcessStore.Get(process.ProcessId)!.Status);
+    }
+
+    [Fact]
+    public void Accept_WithCareerAndDemandedWage_ReachesPlayerAgreement()
+    {
+        var modules = CreateModulesWithClubAgreement();
+        var process = modules.Transfer.ProcessStore.Processes.Single();
+        SeedCareer(modules, process.PlayerId, currentAbility: 70, potentialAbility: 74, birthYear: 2000);
+        var demanded = modules.Transfer.ContractProposals.ResolveAcceptableWeeklyWage(process.ProcessId, Day);
+        modules.Transfer.ContractProposals.SubmitContractProposal(process.ProcessId, demanded, 3, Day);
+
+        var accepted = modules.Transfer.ContractProposals.AcceptPendingProposal(process.ProcessId);
+
+        Assert.Equal(PlayerContractProposalStatus.Accepted, accepted.Status);
+        Assert.Equal(
+            TransferProcessStatus.PlayerAgreementReached,
+            modules.Transfer.ProcessStore.Get(process.ProcessId)!.Status);
+    }
+
+    private static void SeedCareer(
+        (WorldCalendarModule World,
+            ClubGovernanceModule Clubs,
+            ManagerCareerModule Manager,
+            TransferModule Transfer,
+            InMemoryPlayerCareerStore Players) modules,
+        PlayerId playerId,
+        int currentAbility,
+        int potentialAbility,
+        int birthYear)
+    {
+        modules.Players.Upsert(Domain.PlayerCareer.PlayerCareer.Rehydrate(
+            playerId,
+            new ClubId(2),
+            slotIndex: 0,
+            currentAbility,
+            potentialAbility,
+            developmentPoints: 0,
+            lastDevelopedOn: null,
+            birthYear,
+            lastAgedCalendarYear: null));
+    }
+
+    [Fact]
     public void SaveLoad_PreservesProposalsAtSchemaV24()
     {
         var modules = CreateModulesWithClubAgreement();
@@ -163,7 +229,8 @@ public sealed class PlayerContractProposalTests : IDisposable
         WorldCalendarModule World,
         ClubGovernanceModule Clubs,
         ManagerCareerModule Manager,
-        TransferModule Transfer) CreateModulesWithClubAgreement()
+        TransferModule Transfer,
+        InMemoryPlayerCareerStore Players) CreateModulesWithClubAgreement()
     {
         var modules = CreateBaseModules();
         modules.Transfer.Needs.Declare(
@@ -185,7 +252,8 @@ public sealed class PlayerContractProposalTests : IDisposable
         WorldCalendarModule World,
         ClubGovernanceModule Clubs,
         ManagerCareerModule Manager,
-        TransferModule Transfer) CreateModulesWithFreeAgentSportingApproval()
+        TransferModule Transfer,
+        InMemoryPlayerCareerStore Players) CreateModulesWithFreeAgentSportingApproval()
     {
         var modules = CreateBaseModules();
         modules.Transfer.Needs.Declare(
@@ -214,7 +282,8 @@ public sealed class PlayerContractProposalTests : IDisposable
         WorldCalendarModule World,
         ClubGovernanceModule Clubs,
         ManagerCareerModule Manager,
-        TransferModule Transfer) CreateBaseModules()
+        TransferModule Transfer,
+        InMemoryPlayerCareerStore Players) CreateBaseModules()
     {
         var world = WorldCalendarModule.Create(Day, rootSeed: 61);
         var clubs = ClubGovernanceModule.CreateMvpLeague();
@@ -239,7 +308,15 @@ public sealed class PlayerContractProposalTests : IDisposable
             timelineStore: world.TimelineStore,
             contractStore: contracts.Store,
             playerCareerStore: playerStore);
-        var transfer = TransferModule.Create(contracts.Store, teamPrep.SquadStore, manager.Store, contracts.Registration, teamPrep.ClubSquad!, transferBudget: clubs.TransferBudget);
-        return (world, clubs, manager, transfer);
+        var transfer = TransferModule.Create(
+            contracts.Store,
+            teamPrep.SquadStore,
+            manager.Store,
+            contracts.Registration,
+            teamPrep.ClubSquad!,
+            transferBudget: clubs.TransferBudget,
+            playerCareerStore: playerStore,
+            gameSeed: 61);
+        return (world, clubs, manager, transfer, playerStore);
     }
 }

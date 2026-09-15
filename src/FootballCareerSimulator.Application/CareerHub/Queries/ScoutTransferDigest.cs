@@ -260,7 +260,9 @@ public static class ScoutTransferValuationModel
         int positionalAverage,
         int? transferBudgetAvailable = null,
         bool isFreeAgent = false,
-        PlayerValuationBalanceProfile? balanceProfile = null)
+        PlayerValuationBalanceProfile? balanceProfile = null,
+        int? managedLeagueStrength = null,
+        PlayerWageBalanceProfile? wageBalanceProfile = null)
     {
         var ability = Math.Clamp(currentAbility, 40, 99);
         var potential = Math.Clamp(potentialAbility, ability, 99);
@@ -278,6 +280,7 @@ public static class ScoutTransferValuationModel
         var suggestedOpeningFee = isFreeAgent
             ? 0
             : RoundTo((int)(marketValue * balanceProfile.BuyerOpeningOfferFactor), balanceProfile.RoundingStep);
+        wageBalanceProfile ??= PlayerWageBalanceProfile.Default;
 
         var role = ability switch
         {
@@ -288,15 +291,24 @@ public static class ScoutTransferValuationModel
         };
         var roleWageMultiplier = role switch
         {
-            "Kilit oyuncu" => 1.25,
-            "İlk 11" => 1.10,
-            "Gelecek yatırımı" => 0.80,
-            _ => 1.00,
+            "Kilit oyuncu" => wageBalanceProfile.KeyPlayerRoleFactor,
+            "İlk 11" => wageBalanceProfile.StartingRoleFactor,
+            "Gelecek yatırımı" => wageBalanceProfile.ProspectRoleFactor,
+            _ => wageBalanceProfile.RotationRoleFactor,
         };
-        var freeAgentWageMultiplier = isFreeAgent ? 1.20 : 1.0;
-        var suggestedWage = RoundTo(
-            Math.Max(5_000, (int)(Math.Pow(Math.Max(0, ability - 50), 2) * 35 * roleWageMultiplier * freeAgentWageMultiplier)),
-            500);
+        var wage = PlayerWageModel.Evaluate(
+            new PlayerWageCalculationInput(
+                ability,
+                potential,
+                age,
+                managedClubStrength,
+                managedLeagueStrength ?? managedClubStrength,
+                ContractLengthYears: wageBalanceProfile.SuggestedContractYears,
+                IsPeaked: age >= wageBalanceProfile.SuggestedPeakedAge || potential <= ability,
+                SquadRoleFactor: roleWageMultiplier,
+                MarketStatusFactor: isFreeAgent ? wageBalanceProfile.FreeAgentMarketStatusFactor : 1.0),
+            wageBalanceProfile);
+        var suggestedWage = wage.WeeklyWage;
 
         var interest = isFreeAgent
             ? Math.Clamp(70 + (role is "Kilit oyuncu" or "İlk 11" ? 15 : 5) - Math.Max(0, ability - managedClubStrength), 30, 95)

@@ -60,20 +60,85 @@ public sealed class PlayerWageModelTests
     }
 
     [Fact]
-    public void NegotiationDiscount_ReducesWageDemand()
+    public void ManagerTrait_ReducesWageDemandWhenEnabled()
     {
-        var standard = Evaluate(85, 88, age: 26, discount: 0.0).WeeklyWage;
-        var discounted = Evaluate(85, 88, age: 26, discount: 0.15).WeeklyWage;
+        var standard = Evaluate(85, 88, age: 26).WeeklyWage;
+        var discounted = Evaluate(85, 88, age: 26, managerTraitPercentage: -15).WeeklyWage;
 
         Assert.True(discounted < standard, $"Discounted wage {discounted} should be lower than standard {standard}.");
     }
 
     [Fact]
+    public void StaffNegotiator_ReducesWageDemandWhenEnabled()
+    {
+        var standard = Evaluate(85, 88, age: 26).WeeklyWage;
+        var discounted = Evaluate(85, 88, age: 26, staffNegotiatorPercentage: -10).WeeklyWage;
+
+        Assert.True(discounted < standard, $"Staff-adjusted wage {discounted} should be lower than standard {standard}.");
+    }
+
+    [Fact]
     public void MinimumWageFloor_IsStrictlyPreservedForLowestInputs()
     {
-        var result = Evaluate(40, 40, age: 16, clubRating: 40, leagueRating: 40, discount: 0.35);
+        var result = Evaluate(
+            40,
+            40,
+            age: 16,
+            clubRating: 40,
+            leagueRating: 40,
+            managerTraitPercentage: -35,
+            staffNegotiatorPercentage: -35);
 
-        Assert.True(result.WeeklyWage >= PlayerWageBalanceProfile.Default.MinimumWeeklyWage);
+        Assert.Equal(PlayerWageBalanceProfile.Default.MinimumWeeklyWage, result.WeeklyWage);
+        Assert.True(result.MinimumApplied);
+    }
+
+    [Fact]
+    public void NativeMinimumAndSimulatorBalanceMinimum_AreExplicitlySeparated()
+    {
+        Assert.Equal(50, PlayerWageBalanceProfile.Sm25NativeMinimumWeeklyWage);
+        Assert.Equal(100, PlayerWageBalanceProfile.Default.MinimumWeeklyWage);
+    }
+
+    [Fact]
+    public void MaximumWageCap_IsAppliedAfterRounding()
+    {
+        var profile = new PlayerWageBalanceProfile { MaximumWeeklyWage = 100_250 };
+        var result = PlayerWageModel.Evaluate(
+            new PlayerWageCalculationInput(
+                99,
+                99,
+                25,
+                99,
+                99,
+                ContractLengthYears: 5,
+                IsPeaked: true,
+                ManagerTraitPercentage: 35,
+                StaffNegotiatorPercentage: 35,
+                SquadRoleFactor: 1.30,
+                MarketStatusFactor: 1.25),
+            profile);
+
+        Assert.Equal(profile.MaximumWeeklyWage, result.WeeklyWage);
+        Assert.True(result.MaximumApplied);
+        Assert.True(result.RoundedWeeklyWage > result.WeeklyWage);
+    }
+
+    [Fact]
+    public void MaximumWageCap_PreservesJustBelowAndClampsJustAboveBoundary()
+    {
+        var input = new PlayerWageCalculationInput(92, 92, 27, 70, 68, IsPeaked: true);
+        var justBelow = PlayerWageModel.Evaluate(
+            input,
+            new PlayerWageBalanceProfile { MaximumWeeklyWage = 132_000 });
+        var justAbove = PlayerWageModel.Evaluate(
+            input,
+            new PlayerWageBalanceProfile { MaximumWeeklyWage = 130_000 });
+
+        Assert.Equal(131_000, justBelow.WeeklyWage);
+        Assert.False(justBelow.MaximumApplied);
+        Assert.Equal(130_000, justAbove.WeeklyWage);
+        Assert.True(justAbove.MaximumApplied);
     }
 
     [Fact]
@@ -89,6 +154,9 @@ public sealed class PlayerWageModelTests
         Assert.Equal(0, mediumWage % profile.RoundingStepMedium);
         Assert.Equal(0, largeWage % profile.RoundingStepLarge);
         Assert.Equal(0, eliteWage % profile.RoundingStepElite);
+        Assert.Equal(1_000, PlayerWageModel.RoundWage(987.5, profile));
+        Assert.Equal(1_100, PlayerWageModel.RoundWage(1_050.0, profile));
+        Assert.Equal(10_500, PlayerWageModel.RoundWage(10_250.0, profile));
     }
 
     [Fact]
@@ -102,6 +170,15 @@ public sealed class PlayerWageModelTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             PlayerWageModel.Evaluate(new PlayerWageCalculationInput(75, 80, 24, 75, 75, SquadRoleFactor: double.NaN)));
+
+        Assert.Throws<ArgumentException>(() =>
+            PlayerWageModel.Evaluate(
+                new PlayerWageCalculationInput(75, 80, 24, 75, 75),
+                new PlayerWageBalanceProfile
+                {
+                    NonPeakedCurrentAbilityWeight = 0.9,
+                    NonPeakedPotentialWeight = 0.2,
+                }));
     }
 
     [Fact]
@@ -123,7 +200,10 @@ public sealed class PlayerWageModelTests
         int leagueRating = 75,
         int contractYears = 3,
         bool isPeaked = false,
-        double discount = 0.0) =>
+        double managerTraitPercentage = 0.0,
+        double staffNegotiatorPercentage = 0.0,
+        double squadRoleFactor = 1.0,
+        double marketStatusFactor = 1.0) =>
         PlayerWageModel.Evaluate(
             new PlayerWageCalculationInput(
                 ability,
@@ -133,5 +213,8 @@ public sealed class PlayerWageModelTests
                 leagueRating,
                 contractYears,
                 isPeaked,
-                discount));
+                managerTraitPercentage,
+                staffNegotiatorPercentage,
+                squadRoleFactor,
+                marketStatusFactor));
 }

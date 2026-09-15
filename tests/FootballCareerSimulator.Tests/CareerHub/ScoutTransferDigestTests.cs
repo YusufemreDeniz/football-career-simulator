@@ -52,6 +52,42 @@ public sealed class ScoutTransferDigestTests
     }
 
     [Fact]
+    public void Valuation_UsesCleanRoomWageModelForSuggestedWeeklyWage()
+    {
+        var actual = ScoutTransferValuationModel.Evaluate(
+            currentAbility: 84,
+            potentialAbility: 90,
+            age: 23,
+            managedClubStrength: 81,
+            sourceClubStrength: 75,
+            positionalAverage: 76,
+            managedLeagueStrength: 79);
+        var expected = PlayerWageModel.Evaluate(
+            new PlayerWageCalculationInput(
+                84,
+                90,
+                23,
+                81,
+                79,
+                ContractLengthYears: 3,
+                IsPeaked: false,
+                SquadRoleFactor: 1.25));
+
+        Assert.Equal(expected.WeeklyWage, actual.SuggestedWeeklyWage);
+    }
+
+    [Fact]
+    public void Valuation_FreeAgentStateRaisesSuggestedWageWithoutChangingDeterminism()
+    {
+        var contracted = ScoutTransferValuationModel.Evaluate(82, 86, 25, 80, 75, 78);
+        var freeAgent = ScoutTransferValuationModel.Evaluate(82, 86, 25, 80, 75, 78, isFreeAgent: true);
+        var repeated = ScoutTransferValuationModel.Evaluate(82, 86, 25, 80, 75, 78, isFreeAgent: true);
+
+        Assert.True(freeAgent.SuggestedWeeklyWage > contracted.SuggestedWeeklyWage);
+        Assert.Equal(freeAgent.SuggestedWeeklyWage, repeated.SuggestedWeeklyWage);
+    }
+
+    [Fact]
     public void Compose_ExposesFifaStyleInterestRoleAndAffordability()
     {
         var profiles = Enumerable.Range(0, 25)

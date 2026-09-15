@@ -1,4 +1,4 @@
-# Kurtarılan Matematiksel Modeller (Recovered Mathematical Models)
+# Kurtarılan Matematiksel Modeller
 
 Bu dokümanda Soccer Manager 2025 (SM25) IL2CPP AArch64 makine kodundan birebir çıkarılan ve matematiksel olarak doğrulanan modeller yer almaktadır.
 
@@ -128,42 +128,193 @@ Tüm finansal değerler (bonservis teklifleri, maaşlar, tazminatlar) `MonetaryH
 
 ---
 
-## 5. Haftalık Maaş Üretim Hattı (Weekly Wage Pipeline)
+## 5. Nihai Haftalık Ücret Sistemi
 
-### Adım 5.1: Temel Maaş (Base Wage)
+### 5.1 Ücret kavramlarının ayrımı
+
+| Kavram | Kaynak / alan | Anlam | Güven |
+|---|---|---|---|
+| Mevcut sözleşme ücreti | `PlayerContract.Wage`, alan `+0x18`; getter VA `0x02FBFB18` | Önceden hesaplanıp sözleşmeye kaydedilmiş haftalık tamsayıdır. Getter yeni hesap yapmaz. | KESİN |
+| Otomatik yeni sözleşme ücreti | `PlayerContract.Generate`, VA `0x02FBFB30` | AI/otomatik üretimde kompleks ücret, personel çarpanı ve parasal yuvarlama sonucudur. | KESİN |
+| Kabul edilebilir ücret | `PlayerData.GetAcceptableNewContractWage`, VA `0x02FC3E9C` | Hedef kulüp ve süreyle üretilen eşiktir. Yönetilen kulüpte yenilemeyi reddeden oyuncu için `1,5x` yapılır. | KESİN |
+| Talep edilen yeni sözleşme ücreti | `PlayerData.GetRequestedNewContractWage`, VA `0x02FC3F80` | Kabul edilebilir ücretin tohumlu deterministik rastgele `[1,00, 1,10]` çarpanla yükseltilip yuvarlanmış biçimidir. | KESİN |
+| Görüşme ekranı beklentisi | `ContractInfo.GetNegotiationWageForUserManager`, VA `0x03027D28` | Kompleks tabanın tohumlu deterministik rastgele `[1,10, 1,25]` aralığındaki, `100` adımına yuvarlanmış gösterimidir. `DemandedWages` alanını bu rastgele değere çevirmeden döner. | KESİN |
+| Kullanıcı görüşmesindeki nihai ücret | `PlayerContract.CreateNew`, VA `0x02FC01EC` | `WillAcceptWage` kabulünden sonra `ContractInfo.Wage +0x18` teklifinin sözleşmenin `Wage +0x18` alanına kopyalanmış halidir. | KESİN |
+
+### 5.2 Temel ücret
+
 ```text
-baseWage = GetPlayerBasicValue(Rating, IsPeaked, Potential)
+ratingFactor    = (R / 99,0)^20
+potentialFactor = (P / 99,0)^20
+
+Peaked ise:
+    Base = 750000 × ratingFactor
+Değilse:
+    Base = 750000 × (0,9 × ratingFactor + 0,1 × potentialFactor)
 ```
 
-### Adım 5.2: Kulüp ve Lig Düzeltmesi (WageModifierForClub)
-- **Kaynak**: VA `0x02FC08B4` (Club overload) ve VA `0x02FC03F4` (Helper overload)
-```text
-teamFit    = 0.5 + 0.5 * (playerRating / clubAverageRating)
-teamTier   = clubAverageRating / 94.0
-leagueTier = leagueRating / 89.0
+Kaynak `PlayerData.GetPlayerBasicValue`, VA `0x02FC3FBC`; güven `KESİN`.
 
-wageModifier = baseWage * teamFit * teamTier * leagueTier
+### 5.3 İki `WageModifierForClub` overload'u
+
+Overload'lar birbirlerini çağırmaz ve takım uyumu kesrinin yönü farklıdır.
+
+`PlayerData.WageModifierForClub(Club)`, VA `0x02FC08B4`:
+
+```text
+ClubAdjusted = Base
+    × (0,5 + 0,5 × PlayerRating / ClubAverageRating)
+    × (ClubAverageRating / 94,0)
+    × (LeagueRating / 89,0)
 ```
 
-### Adım 5.3: Sözleşme Süresi Çarpanı (Contract Length)
-- **Kaynak**: `PlayerContract.GenerateInitialWage` (VA `0x02FC0388`)
-```text
-contractLengthMultiplier = 1.0 + (contractLengthYears - 1) / 40.0
-```
-Her ek sözleşme yılı haftalık maaş talebini %2.5 artırır.
+Bu overload `PlayerContract.Generate` ve kullanıcı sözleşme görüşmesi zincirinde kullanılır. Güven `KESİN`.
 
-### Adım 5.4: Menajer Özellikleri ve Personel İndirimleri
-- **Manager Traits**:
-  - Trait `36` (Sözleşme Yenileme İndirimi)
-  - Trait `38` (Transfer Maaş İndirimi)
-- **Staff**: `ModifierType.WageNegotiator` (ID `9`)
+`PlayerData.WageModifierForClub(PlayerContractHelper)`, VA `0x02FC03F4`:
 
-### Adım 5.5: Asgari Maaş Tabanı (Minimum Wage Floor)
-- **Kaynak**: `PlayerContract.GenerateNewContractWages` (VA `0x02FC0160`)
 ```text
-rawWage = wageModifier * contractLengthMultiplier * traitModifiers
-finalWage = Math.Max(rawWage, 50.0)  // Minimum asgari haftalık taban: £50
+HelperAdjusted = Base
+    × (0,5 + 0,5 × Helper.TeamAverageRating / PlayerRating)
+    × Helper.TeamRatingMultiplier
+    × Helper.LeagueRatingMultiplier
 ```
+
+`TeamRatingMultiplier = ClubAverageRating / 94,0`, `LeagueRatingMultiplier = LeagueRating / 89,0`; `SetupClub` takım çarpanını en az `0,7`, takım ortalamasını en az `60` yapar. Bu yol toplu lig/AI sözleşme üretiminde kullanılır. Güven `YÜKSEK GÜVEN`.
+
+### 5.4 Sözleşme süresi
+
+`PlayerContract.LengthMultiplier`, VA `0x02FBFCB4`:
+
+```text
+LengthMultiplier = 1,0 + (ContractLengthYears - 1) / 40,0
+```
+
+| Yıl | Çarpan |
+|---:|---:|
+| 1 | 1,000 |
+| 2 | 1,025 |
+| 3 | 1,050 |
+| 4 | 1,075 |
+| 5 | 1,100 |
+
+Güven `KESİN`.
+
+### 5.5 Menajer özelliği ve personel değiştiricisi
+
+Kompleks üretici `PlayerContract.GenerateNewContractWages(PlayerData, Club, double)`, VA `0x02FBFCD4`, yalnızca hedef kullanıcı kulübüyse bir menajer özelliği uygular:
+
+- Oyuncu başka kulüptense `TraitId 38`.
+- Oyuncu kullanıcı kulübündeyse `TraitId 36`.
+- İki özellik aynı hesapta birlikte uygulanmaz.
+- Seviye verisindeki `float +0x24` yüzde alanı `Helpers.ApplyPercentageModifier`, VA `0x02FD6058` ile uygulanır.
+
+```text
+TraitAdjusted = Trunc(LengthAdjusted)
+TraitAdjusted = Trunc(TraitAdjusted × (1 + TraitPercentage / 100))
+TraitAdjusted = max(TraitAdjusted, 0)
+```
+
+`PlayerContract.Generate` daha sonra yalnızca kullanıcı tarafından yönetilen hedef kulüpte `ModifierType.WageNegotiator = 9` çağırır. `ValueModifierController.ApplyModifier`, VA `0x02F20E54`, kaynak veriden aldığı `float +0x18` çarpanını doğrudan uygular:
+
+```text
+StaffAdjusted = TraitAdjusted × WageNegotiatorDataMultiplier
+```
+
+Yerleşim ve işlem `KESİN`; asset verisinde `TraitId 36 = %−5`, `TraitId 38 = %−5` ve `WageNegotiator = 0,90` doğrulanmıştır.
+
+Oyuncunun hırsı, sadakati, açgözlülüğü, profesyonelliği, morali, formu, itibarı, yaşı ve kadro rolü bu nihai üretici içinde doğrudan okunmaz. Potansiyel ve zirve durumu yalnızca `Base` içinde etkilidir. Sadakat, ayrı `PlayerConcernContractWage` memnuniyet eşiğinde kullanılır; final ücret formülüne dahil değildir. Güven `YÜKSEK GÜVEN`.
+
+### 5.6 Tamsayı dönüşümü, taban, tavan ve yuvarlama
+
+Kompleks üreticide kulüp ve süre çarpımı `FCVTZS` ile sıfıra doğru kesilir. Menajer özelliğinden sonra yeniden `FCVTZS` uygulanır. Sonra `Math.Max(value, 50)` ile haftalık `£50` tabanı konur.
+
+`PlayerContract.Generate` zincirinde personel çarpanından sonra ikinci bir `£50` kontrolü yoktur; sonuç doğrudan `MonetaryHelpers.RoundMonetaryValue` ile yuvarlanır. Native zincirde global üst ücret tavanı, kulüp bütçe tavanı veya mevcut ücrete bağlı alt sınır bulunmadı. Güven `KESİN`.
+
+Yuvarlama bankacı yuvarlamasıdır ve bölüm 4'teki büyüklüğe bağlı basamakları kullanır. `5.000.000` kontrolünden sonra yer alan `1.000.000` karşılaştırması erişilemez olduğundan `10.000` adımı fiilen kullanılmaz. Güven `KESİN`.
+
+### 5.7 Otomatik nihai ücret formülü
+
+```text
+Base              = GetPlayerBasicValue(R, IsPeaked, P)
+ClubAdjusted      = Base × TeamFit × ClubTier × LeagueTier
+LengthAdjusted    = ClubAdjusted × (1 + (Years - 1) / 40)
+IntegerAdjusted   = Trunc(LengthAdjusted)
+TraitAdjusted     = hedef kullanıcı kulübüyse
+                      max(Trunc(IntegerAdjusted × (1 + TraitPct / 100)), 0)
+                    değilse IntegerAdjusted
+Floored           = max(TraitAdjusted, 50)
+StaffAdjusted     = hedef kullanıcı kulübüyse Floored × WageNegotiatorMultiplier
+                    değilse Floored
+FinalWeeklyWage   = RoundMonetaryValue(StaffAdjusted)
+```
+
+Bu otomatik/AI sözleşme formülü ve veri katsayıları `KESİN`dir.
+
+Kullanıcı görüşmesinde kabul edilen nihai haftalık ücret için:
+
+```text
+DemandedWages   = GetAcceptableNewContractWage(...)
+Acceptance      = ContractInfo.WillAcceptWage(OfferedWage, DemandedWages, IsTransferWanted)
+Accepted        = Acceptance == eContractRejectReason.Accepted (10)
+FinalWeeklyWage = Accepted ise ContractInfo.Wage teklifinin PlayerContract.Wage alanına kopyası
+```
+
+### 5.8 Etkileşimli görüşme karar formülü
+
+```text
+PatienceAfter = PatienceBefore
+                - 1
+                - SquadStatusPenalty
+                - ContractLengthPenalty
+                - WagePenalty
+
+if OfferedWage <= DemandedWages / 2:
+    Result = Insulted(7)
+else if !WillPlayerRenewContract and OfferedWage < 2 * DemandedWages:
+    Result = Wages(2)
+else if OfferedWage < DemandedWages:
+    Result = Wages(2)
+else if OfferedSquadStatus kabul edilmiyorsa:
+    Result = SquadStatus(4)
+else if OfferedYears < MinimumContractOfferLength:
+    Result = ContractTooShort(1)
+else if OfferedYears > (Age < 32 ? 5 : 3):
+    Result = ContractTooLong(0)
+else:
+    Result = Accepted(10)
+
+Terminate = Result == Accepted
+            or Result == Insulted
+            or PatienceAfter <= 0
+```
+
+Bu formülde signing fee ve bonus kabul kapısı yoktur. Güven `KESİN`.
+
+### 5.9 Signing-on fee
+
+```text
+if Renewal:
+    Factor = Rating > ClubAverage
+        ? SeededRand(0.05, 0.10)
+        : SeededRand(0.025, 0.05)
+else if FreeAgent:
+    Factor = Age < 23 ? 0.10 : 0.25
+else:
+    Factor = 0.10
+
+PlayerFee = RoundMonetaryValue(PlayerValue * Factor)
+PlayerFee = UserClub ? RoundMonetaryValue(PlayerFee * 0.90) : PlayerFee
+Compensation = FreeAgent and Age <= 23
+    ? RoundMonetaryValue(PlayerValue * 0.20)
+    : 0
+Total = PlayerFee + Compensation
+Total = UserClub and Trait33
+    ? max(Total * (1 + Trait33Percentage / 100), 0)
+    : Total
+SigningFee = Trunc(Total)
+```
+
+`TraitId 33` seviyeleri `%−5/%−10`; `TransferNegotiator=8` çarpanı `0,90`dır. Tohum `PlayerId + Game.Seed`dir. Güven `KESİN`.
 
 ---
 
@@ -240,3 +391,62 @@ currentPreciseRating = peakRating - ratingLoss
   - Eğer `Age <= YouthAgeLimit` (21 yaş) ise: `trainingGain *= (1.0 + YouthMod)`
 - **Menajer Özelliği**: Trait `27` (Training Boost).
 - **Tesisler**: Kulüp antrenman tesis seviyesi (`TrainingGround`) ve antrenör kalitesi çarpanı.
+
+---
+
+## 7. Sözleşme Talebi ve Müzakere Ücret Modeli (ContractInfo.DemandedWages +0x24)
+
+- **Kaynaklar**:
+  - `PlayerContract.LengthMultiplier` (VA `0x02FBFCB4`)
+  - `PlayerContract.GenerateNewContractWages` (VA `0x02FBFCD4`)
+  - `PlayerData.GetAcceptableNewContractWage` (VA `0x02FC3E9C`)
+  - `PlayerData.GetRequestedNewContractWage` (VA `0x02FC3F80`)
+  - `PlayerData.GetRequestedWageMultiplier` (VA `0x02FC3A0C`)
+  - `ContractInfo.GetNegotiationWageForUserManager` (VA `0x03027D28`)
+- **Güven Seviyesi**: KESİN (ARM64 disassembled and verified)
+
+### 7.1 Sözleşme Süresi Çarpanı (LengthMultiplier)
+```text
+LengthMultiplier = 1.0 + (ContractYears - 1) / 40.0
+```
+- 1 Yıl: 1.000 (+%0.0)
+- 2 Yıl: 1.025 (+%2.5)
+- 3 Yıl: 1.050 (+%5.0)
+- 4 Yıl: 1.075 (+%7.5)
+- 5 Yıl: 1.100 (+%10.0)
+
+### 7.2 Taban Kontrat Ücreti ve Menajer Trait İndirimi
+```text
+WageBase = WageModifierForClub(TargetClub)
+WageLength = (int)(WageBase * LengthMultiplier)
+
+if IsTargetUserClub:
+    if IsTransfer and HasTrait(38):  // HardBargain (-5%)
+        WageLength = ApplyPercentageModifier(WageLength, -5.0)
+    if IsRenewal and HasTrait(36):   // ToughNegotiator (-5%)
+        WageLength = ApplyPercentageModifier(WageLength, -5.0)
+
+BaseContractWage = Math.Max(50, WageLength)
+```
+
+### 7.3 Kabul Edilebilir Eşik ve Ayrılmak İsteyen Oyuncu Cezası
+```text
+AcceptableWage = BaseContractWage
+if IsRenewal and not WillPlayerRenewContract():
+    AcceptableWage = AcceptableWage + (AcceptableWage / 2)  // +50% ceza
+```
+
+### 7.4 İlk Görüşme Gösterim Talebi (UI Initial Demanded Wage)
+```text
+Seed = PlayerId + Game.Seed
+RandMultiplier = RNG.GetRand(1.10, 1.25)
+InitialDemandedWage = Extensions.Round(BaseContractWage * RandMultiplier, 100)
+```
+
+### 7.5 Ret Sonrası Yeni Talep (Rejection Recalculation)
+```text
+Seed = PlayerId + ClubId
+RandMultiplier = RNG.GetRand(1.00, 1.10)
+RequestedWage = MonetaryHelpers.RoundMonetaryValue(AcceptableWage * RandMultiplier)
+ContractInfo.DemandedWages = RequestedWage
+```

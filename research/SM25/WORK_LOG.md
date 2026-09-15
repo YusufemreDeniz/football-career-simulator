@@ -1,4 +1,4 @@
-# SM25 Araştırma İş Günlüğü (Work Log)
+# SM25 Araştırma İş Günlüğü
 
 ---
 
@@ -24,7 +24,7 @@
 
 ---
 
-## Oturum 3: Clean-Room Entegrasyonu, Terminoloji Düzeltmeleri ve Testler
+## Oturum 3: Temiz Oda Model Başlangıcı, Terminoloji Düzeltmeleri ve Testler
 - **Terminoloji ve Semantik Düzeltmeler**:
   - `Math.Max(wage, 50)` ifadesinin bir tavan (cap) değil, **asgari maaş tabanı (minimum wage floor)** olduğu netleştirildi. SM25'te üst tavanın olmadığı kanıtlandı.
   - `750,000` değerinin final maaş tavanı değil, **Haftalık Temel Referans Maaş Skalası** olduğu, kulüp ve sözleşme çarpanlarıyla aşılabildiği açıklandı.
@@ -32,9 +32,30 @@
   - Dahili ekonomik değer (`int32` GBP) ile kullanıcı arayüzü gösterimi (`MonetaryHelpers.GetValueText`, `exchangeRate`, `B/M/K` formatı) kesin sınırlarla ayrıldı.
   - `(R - 55)^8` çift üs negatif sayı anomalisinin analizi yapıldı.
 - **Clean-Room Mimarisi**:
-  - `PlayerWageModel.cs` ve `PlayerWageBalanceProfile.cs` yazıldı.
+  - `PlayerWageModel.cs` içinde `PlayerWageModel` ve `PlayerWageBalanceProfile` başlangıç modeli yazıldı; bu aşamada production çağrısına henüz bağlanmadı.
   - `PlayerWageModelTests.cs` (11 test) eklendi ve tüm testler geçti.
   - `PlayerMarketValuationModelTests.cs` (10 test) korundu ve çalıştırıldı.
   - Çözüm genelindeki **1167 testin tamamı firesiz geçti** (`dotnet test`).
   - Karşılaştırmalı simülasyon üretildi: `comparative_player_valuation.csv` ve `comparative_wage_matrix.csv`.
-- Dokümantasyon dili tamamen Türkçe'ye çevrildi.
+- İlgili dokümantasyon bölümleri Türkçeleştirildi.
+
+---
+
+## Oturum 4: Nihai Haftalık Ücret Zinciri ve Production Adaptörü
+
+- `PlayerContract.Wage +0x18` alanının saklı mevcut ücret olduğu doğrudan getter talimatıyla doğrulandı.
+- `PlayerContract.Generate`, kompleks üretici, personel değiştiricisi ve parasal yuvarlama sırası ARM64 seviyesinde kapatıldı.
+- Sözleşme süresi formülü 1-5 yıl için `1 + (yıl-1)/40` olarak kesinleştirildi.
+- Transfer `TraitId 38` ile yenileme `TraitId 36` yolları ayrıldı; özellik yüzdesinin `1 + yüzde/100` formülü doğrulandı.
+- `WageNegotiator = 9` değiştiricisinin kaynak veri `+0x18` çarpanını ücrete doğrudan uyguladığı bulundu.
+- Yeni sözleşme talebinin deterministik `[1,00,1,10]`, görüşme ekranı beklentisinin `[1,10,1,25]` aralığı çözüldü.
+- Kullanıcı görüşmesinde kaydedilen nihai ücretin, talep hesabı değil kabul edilmiş `ContractInfo.Wage` teklifi olduğu kanıtlandı.
+- İki `WageModifierForClub` overload'unun farklı oran yönleri ve farklı çağrı yerleri dokümante edildi.
+- `PlayerWageModel` kırılımı ham, yuvarlanmış ve sınırlandırılmış değerlerle genişletildi; magic number'lar profile taşındı.
+- `ScoutTransferValuationModel` içindeki eski kuadratik öneri kaldırıldı ve temiz oda ücret modeline minimal adaptörle bağlandı.
+- Menajer özelliği, personel, alt/üst sınır, yuvarlama ve adapter senaryolarını kapsayan testler eklendi.
+- `weekly_wage_simulation.csv` için 2.340 satırlık kontrollü grid üretildi.
+- `verify_wage_chain.py`, belirli VA'lardaki talimatları ve doğrudan çağrı hedeflerini doğrulayacak şekilde güçlendirildi.
+- Son doğrulamada native verifier geçti; 29/29 odaklı test, 1.171/1.171 seri hızlı test ve 1/1 seri 10 sezon kabul testi başarılı oldu.
+- Production Presentation build 0 hata/0 uyarıyla, Godot career smoke `PASS` sonucu ile tamamlandı.
+- Commit, push veya branch değişikliği yapılmadı.

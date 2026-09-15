@@ -227,7 +227,9 @@ public sealed class CareerPresentationHost
             transferMemory: socialContinuity.TransferMemory,
             clubHistoryMemory: socialContinuity.ClubHistoryMemory,
             relationships: socialContinuity.RelationshipEvaluation,
-            trainingStore: training.Store);
+            trainingStore: training.Store,
+            playerCareerStore: playerCareer.Store,
+            gameSeed: worldModule.TimelineStore.Timeline.RootSeed);
         var eventRuleForBind = worldModule.EventRuleEvaluation
             ?? throw new InvalidOperationException("Event & Rule Evaluation iskeleti bağlı değil.");
         worldModule.CloseTransferWindow.BindWindowClosedConsequences(

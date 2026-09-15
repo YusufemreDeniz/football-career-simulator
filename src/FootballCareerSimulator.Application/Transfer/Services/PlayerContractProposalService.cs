@@ -1,5 +1,7 @@
+using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
+using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.Transfer.Infrastructure;
 using FootballCareerSimulator.Application.Transfer.Ports;
 using FootballCareerSimulator.Domain.ClubGovernance;
@@ -19,13 +21,17 @@ public sealed class PlayerContractProposalService
     private readonly IManagerCareerStore _managerCareerStore;
     private readonly ITransferWindowQuery _transferWindow;
     private readonly ClubWageBudgetService? _wageBudget;
+    private readonly IPlayerCareerStore? _playerCareers;
+    private readonly int _gameSeed;
 
     public PlayerContractProposalService(
         IPlayerContractProposalStore proposalStore,
         ITransferProcessStore processStore,
         IManagerCareerStore managerCareerStore,
         ITransferWindowQuery? transferWindow = null,
-        ClubWageBudgetService? wageBudget = null)
+        ClubWageBudgetService? wageBudget = null,
+        IPlayerCareerStore? playerCareers = null,
+        int gameSeed = 0)
     {
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
@@ -33,6 +39,8 @@ public sealed class PlayerContractProposalService
             ?? throw new ArgumentNullException(nameof(managerCareerStore));
         _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
         _wageBudget = wageBudget;
+        _playerCareers = playerCareers;
+        _gameSeed = gameSeed;
     }
 
     public PlayerContractProposal SubmitContractProposal(
@@ -90,6 +98,7 @@ public sealed class PlayerContractProposalService
         }
 
         var pending = RequirePending(processId);
+        EnsurePlayerWouldAccept(process, pending);
         ReserveWage(process.BuyingClubId, pending.WeeklyWage, pending.SubmittedOn);
         var accepted = pending.Accept();
         _proposalStore.Upsert(accepted);
@@ -144,6 +153,103 @@ public sealed class PlayerContractProposalService
         _proposalStore.Upsert(counter);
         return counter;
     }
+
+    public int ResolveAcceptableWeeklyWage(TransferProcessId processId, GameDate day)
+    {
+        var process = RequireProcess(processId);
+        var demand = TryBuildDemand(process, day);
+        return demand?.WeeklyWage ?? AiClubTransferSimulationService.DefaultWeeklyWage;
+    }
+
+    private void EnsurePlayerWouldAccept(TransferProcess process, PlayerContractProposal pending)
+    {
+        var demand = TryBuildDemand(process, pending.SubmittedOn);
+        if (demand is null)
+        {
+            return;
+        }
+
+        var offer = new ContractOffer(
+            pending.WeeklyWage,
+            SigningFee: 0,
+            pending.ContractYears,
+            ContractSquadStatus.FirstTeam);
+        var evaluation = ContractOfferEvaluator.Evaluate(
+            demand,
+            offer,
+            ContractNegotiationState.Start(isTransferWanted: false, hasActiveConcerns: false),
+            profile: ContractNegotiationProfile.Sm25NativeParity);
+        if (evaluation.Accepted)
+        {
+            return;
+        }
+
+        _proposalStore.Upsert(pending.Reject());
+        throw new TransferInvariantViolationException(DescribeRejection(evaluation.Reason));
+    }
+
+    private PlayerContractDemand? TryBuildDemand(TransferProcess process, GameDate day)
+    {
+        var career = _playerCareers?.Careers.FirstOrDefault(candidate => candidate.Id == process.PlayerId);
+        if (career is null)
+        {
+            return null;
+        }
+
+        var age = career.AgeYears(day);
+        var clubRatings = _playerCareers!.Careers
+            .Where(candidate => candidate.OriginClubId == process.BuyingClubId)
+            .Select(candidate => candidate.CurrentAbility)
+            .ToArray();
+        var clubAverage = clubRatings.Length == 0
+            ? career.CurrentAbility
+            : (int)Math.Round(clubRatings.Average());
+        var wage = PlayerWageModel.Evaluate(new PlayerWageCalculationInput(
+            career.CurrentAbility,
+            career.PotentialAbility,
+            age,
+            clubAverage,
+            clubAverage,
+            ContractLengthYears: 3,
+            IsPeaked: age >= PlayerWageBalanceProfile.Default.SuggestedPeakedAge,
+            MarketStatusFactor: process.IsFreeAgent
+                ? PlayerWageBalanceProfile.Default.FreeAgentMarketStatusFactor
+                : 1.0));
+
+        return PlayerContractDemandModel.Generate(new PlayerContractDemandInput(
+            PlayerId: unchecked((int)process.PlayerId.Value),
+            GameSeed: _gameSeed,
+            BaseAcceptableWeeklyWage: Math.Max(1, wage.WeeklyWage),
+            PlayerValue: 0,
+            Age: age,
+            PlayerRating: career.CurrentAbility,
+            TargetClubAverageRating: clubAverage,
+            DesiredContractYears: 3,
+            MinimumContractYears: 1,
+            DesiredSquadStatus: ContractSquadStatus.FirstTeam,
+            IsFreeAgent: process.IsFreeAgent,
+            IsTargetUserClub: true));
+    }
+
+    private static string DescribeRejection(ContractNegotiationRejectionReason reason) =>
+        reason switch
+        {
+            ContractNegotiationRejectionReason.Wages =>
+                "Oyuncu haftalık ücreti kabul etmedi. Teklifi yükselt.",
+            ContractNegotiationRejectionReason.Insulted =>
+                "Teklif hakaret sayıldı; görüşme kapandı.",
+            ContractNegotiationRejectionReason.SquadStatus =>
+                "Oyuncu önerilen kadro rolünü kabul etmedi.",
+            ContractNegotiationRejectionReason.ContractTooShort =>
+                "Oyuncu daha uzun sözleşme istiyor.",
+            ContractNegotiationRejectionReason.ContractTooLong =>
+                "Oyuncu bu kadar uzun sözleşmeyi kabul etmedi.",
+            ContractNegotiationRejectionReason.SigningFee =>
+                "Oyuncu imza parasını yetersiz buldu.",
+            ContractNegotiationRejectionReason.Bonuses =>
+                "Oyuncu bonus maddesini yetersiz buldu.",
+            _ => "Oyuncu sözleşmeyi reddetti."
+        };
 
     private PlayerContractProposal RequirePending(TransferProcessId processId) =>
         _proposalStore.GetForProcess(processId).LastOrDefault(p => p.IsPending)
