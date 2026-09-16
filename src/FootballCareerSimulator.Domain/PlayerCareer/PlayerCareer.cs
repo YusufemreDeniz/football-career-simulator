@@ -197,6 +197,8 @@ public sealed class PlayerCareer
 
     public int AgeYears(GameDate day) => Math.Max(15, day.Year - BirthYear);
 
+    public PositionDeclineProfile DeclineProfile => PositionDeclineProfile.ForSlot(SlotIndex);
+
     public CareerPhase GetPhase(GameDate day)
     {
         if (IsRetired)
@@ -205,17 +207,7 @@ public sealed class PlayerCareer
         }
 
         var age = AgeYears(day);
-        if (age < PeakStartAge)
-        {
-            return CareerPhase.Developing;
-        }
-
-        if (age < DeclineStartAge)
-        {
-            return CareerPhase.Peak;
-        }
-
-        return CareerPhase.Declining;
+        return DeclineProfile.GetPhase(age);
     }
 
     public PlayerCareer ApplyDevelopmentGain(int points, GameDate day)
@@ -262,6 +254,27 @@ public sealed class PlayerCareer
             Generation);
     }
 
+    /// <summary>
+    /// SM25 SinWave büyüme eğrisini kullanarak organik gelişim puanı hesaplar ve uygular.
+    /// </summary>
+    public PlayerCareer ApplySinWaveDevelopmentGain(int points, GameDate day)
+    {
+        if (IsRetired || points <= 0)
+        {
+            return this;
+        }
+
+        var age = AgeYears(day);
+        var effectivePoints = SinWaveGrowthCalculator.CalculateEffectivePoints(
+            points,
+            CurrentAbility,
+            PotentialAbility,
+            age,
+            DeclineProfile.PeakStartAge);
+
+        return ApplyDevelopmentGain(effectivePoints, day);
+    }
+
     public PlayerCareer ApplyAnnualAging(GameDate day)
     {
         if (IsRetired || LastAgedCalendarYear is int agedYear && agedYear >= day.Year)
@@ -273,11 +286,11 @@ public sealed class PlayerCareer
         var ability = CurrentAbility;
         var potential = PotentialAbility;
 
-        if (age >= DeclineStartAge)
+        var (abilityDrop, potentialDrop) = DeclineProfile.CalculateAnnualDrop(age);
+        if (abilityDrop > 0)
         {
-            var drop = age >= 33 ? 2 : 1;
-            ability = Math.Max(MinAbility, ability - drop);
-            potential = Math.Max(ability, potential - (age >= 34 ? 1 : 0));
+            ability = Math.Max(MinAbility, ability - abilityDrop);
+            potential = Math.Max(ability, potential - potentialDrop);
         }
 
         return new PlayerCareer(
@@ -305,10 +318,11 @@ public sealed class PlayerCareer
             return this;
         }
 
-        if (AgeYears(day) < RetirementEligibleAge)
+        var minRetirementAge = Math.Min(RetirementEligibleAge, DeclineProfile.RetirementEligibleAge);
+        if (AgeYears(day) < minRetirementAge)
         {
             throw new PlayerCareerInvariantViolationException(
-                $"Player must be at least {RetirementEligibleAge} to retire.");
+                $"Player must be at least {minRetirementAge} to retire.");
         }
 
         return new PlayerCareer(
