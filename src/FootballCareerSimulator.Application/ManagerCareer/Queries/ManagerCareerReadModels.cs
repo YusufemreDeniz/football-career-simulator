@@ -20,4 +20,11 @@ public sealed record ManagerCareerReadModel(
     string? PendingOfferStatus,
     int ManagerReputation,
     string? LastReputationReasonCode,
-    string? StartingBackground);
+    string? StartingBackground,
+    int ManagerLevel = 1,
+    int ExperiencePoints = 0,
+    int XpToNextLevel = 500,
+    int TacticalAcumen = 50,
+    int YouthDevelopment = 50,
+    int ManManagement = 50,
+    int NegotiationSkill = 50);

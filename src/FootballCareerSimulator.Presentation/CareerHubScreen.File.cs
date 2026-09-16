@@ -216,6 +216,42 @@ public partial class CareerHubScreen
         _legacyReputationBadgePanel.AddChild(_legacyReputationBadgeLabel);
         legacyHeaderRow.AddChild(_legacyReputationBadgePanel);
 
+        _fileManagerLevelBadgePanel = new PanelContainer();
+        _fileManagerLevelBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.25f));
+        _fileManagerLevelBadgeLabel = new Label { Text = "🎖️ Seviye 1 (0 XP)" };
+        CareerUiTheme.StyleHeadline(_fileManagerLevelBadgeLabel);
+        _fileManagerLevelBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        _fileManagerLevelBadgeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        _fileManagerLevelBadgePanel.AddChild(_fileManagerLevelBadgeLabel);
+        legacyHeaderRow.AddChild(_fileManagerLevelBadgePanel);
+
+        // Menajer Becerileri Kartı
+        var skillsTitle = new Label { Text = "🧠 MENAJER GELİŞİMİ & BECERİLERİ (SKILLS)" };
+        CareerUiTheme.StyleHeadline(skillsTitle);
+        skillsTitle.AddThemeColorOverride("font_color", CareerUiTheme.TextMuted);
+        skillsTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        legacyCard.AddChild(skillsTitle);
+
+        _managerSkillsGrid = new GridContainer
+        {
+            Columns = 2,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _managerSkillsGrid.AddThemeConstantOverride("h_separation", 8);
+        _managerSkillsGrid.AddThemeConstantOverride("v_separation", 8);
+        legacyCard.AddChild(_managerSkillsGrid);
+
+        _managerSkillTacticalLabel = CreateLegacyStatCard(_managerSkillsGrid, "🧠 TAKTİKSEL ZEKA", "—", CareerUiTheme.ActionBright);
+        _managerSkillYouthLabel = CreateLegacyStatCard(_managerSkillsGrid, "🌱 GENÇ GELİŞTİRME", "—", CareerUiTheme.Accent);
+        _managerSkillManMgmtLabel = CreateLegacyStatCard(_managerSkillsGrid, "🤝 İNSAN YÖNETİMİ", "—", CareerUiTheme.Data);
+        _managerSkillNegotiationLabel = CreateLegacyStatCard(_managerSkillsGrid, "💼 TRANSFER PAZARLIĞI", "—", CareerUiTheme.ColorWarning);
+
+        var statsTitle = new Label { Text = "📊 KARİYER İSTATİSTİKLERİ" };
+        CareerUiTheme.StyleHeadline(statsTitle);
+        statsTitle.AddThemeColorOverride("font_color", CareerUiTheme.TextMuted);
+        statsTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        legacyCard.AddChild(statsTitle);
+
         _fileLegacyStatsGrid = new GridContainer
         {
             Columns = 2,

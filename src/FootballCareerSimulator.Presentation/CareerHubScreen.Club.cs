@@ -81,6 +81,14 @@ public partial class CareerHubScreen
         _squadWageBillBadgePanel.AddChild(_squadWageBillBadgeLabel);
         _squadTelemetryRow.AddChild(_squadWageBillBadgePanel);
 
+        _squadFacilityBadgePanel = new PanelContainer();
+        _squadFacilityBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning, 0.20f));
+        _squadFacilityBadgeLabel = new Label { Text = "🏗️ Tesis: —" };
+        CareerUiTheme.StyleTableText(_squadFacilityBadgeLabel);
+        _squadFacilityBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorWarning);
+        _squadFacilityBadgePanel.AddChild(_squadFacilityBadgeLabel);
+        _squadTelemetryRow.AddChild(_squadFacilityBadgePanel);
+
         _clubOverviewPanel = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -88,6 +96,40 @@ public partial class CareerHubScreen
         };
         _clubOverviewPanel.AddThemeConstantOverride("separation", 10);
         page.AddChild(_clubOverviewPanel);
+
+        // 🏛️ KULÜP TESİSLERİ VE ALTYAPI KARTI
+        var facilityCard = AddCard(_clubOverviewPanel, "🏛️ KULÜP TESİSLERİ & ALTYAPI (FACILITIES)", emphasized: true);
+        var facilityRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        facilityRow.AddThemeConstantOverride("separation", 12);
+        facilityCard.AddChild(facilityRow);
+
+        var facilityInfoBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        facilityInfoBox.AddThemeConstantOverride("separation", 4);
+        facilityRow.AddChild(facilityInfoBox);
+
+        _clubFacilityLevelLabel = BodyLabel("ClubFacilityLevel", autowrap: true);
+        CareerUiTheme.StyleHeadline(_clubFacilityLevelLabel);
+        _clubFacilityLevelLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(15));
+        facilityInfoBox.AddChild(_clubFacilityLevelLabel);
+
+        _clubFacilityMultiplierLabel = BodyLabel("ClubFacilityMultiplier", muted: true, autowrap: true);
+        _clubFacilityMultiplierLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        facilityInfoBox.AddChild(_clubFacilityMultiplierLabel);
+
+        _clubFacilityCostLabel = BodyLabel("ClubFacilityCost", muted: true, autowrap: true);
+        _clubFacilityCostLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        facilityInfoBox.AddChild(_clubFacilityCostLabel);
+
+        _upgradeFacilityButton = PrimaryButton("🏗️ Tesisleri Geliştir");
+        _upgradeFacilityButton.CustomMinimumSize = new Vector2(190, 44);
+        _upgradeFacilityButton.Pressed += () =>
+        {
+            var res = _controller.UpgradeFacilities();
+            Apply(res);
+            RefreshUi();
+            RefreshSquadList();
+        };
+        facilityRow.AddChild(_upgradeFacilityButton);
 
         var spotlightCard = AddCard(_clubOverviewPanel, "⭐ YILDIZLAR", emphasized: true);
         _starSpotlightHeadline = BodyLabel("StarSpotlightHeadline", muted: true, autowrap: true);

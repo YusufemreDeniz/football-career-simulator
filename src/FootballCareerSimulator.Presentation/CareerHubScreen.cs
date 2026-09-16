@@ -169,6 +169,12 @@ public partial class CareerHubScreen : Control
     private Label _squadTotalValueBadgeLabel = null!;
     private PanelContainer _squadWageBillBadgePanel = null!;
     private Label _squadWageBillBadgeLabel = null!;
+    private PanelContainer _squadFacilityBadgePanel = null!;
+    private Label _squadFacilityBadgeLabel = null!;
+    private Label _clubFacilityLevelLabel = null!;
+    private Label _clubFacilityMultiplierLabel = null!;
+    private Label _clubFacilityCostLabel = null!;
+    private Button _upgradeFacilityButton = null!;
     private HBoxContainer _starSpotlightDesk = null!;
     private Label _starSpotlightHeadline = null!;
     private readonly PanelContainer[] _starCards = new PanelContainer[3];
@@ -279,6 +285,15 @@ public partial class CareerHubScreen : Control
     private Label _boardOutcomeSummaryLabel = null!;
     private PanelContainer _boardFinanceStatusBadgePanel = null!;
     private Label _boardFinanceStatusBadgeLabel = null!;
+    private PanelContainer _managerLevelBadgePanel = null!;
+    private Label _managerLevelBadgeLabel = null!;
+    private PanelContainer _fileManagerLevelBadgePanel = null!;
+    private Label _fileManagerLevelBadgeLabel = null!;
+    private GridContainer _managerSkillsGrid = null!;
+    private Label _managerSkillTacticalLabel = null!;
+    private Label _managerSkillYouthLabel = null!;
+    private Label _managerSkillManMgmtLabel = null!;
+    private Label _managerSkillNegotiationLabel = null!;
     private PanelContainer _legacyReputationBadgePanel = null!;
     private Label _legacyReputationBadgeLabel = null!;
     private Label _legacyTenureLabel = null!;
@@ -792,7 +807,7 @@ public partial class CareerHubScreen : Control
         _nextMatchLabel.AddThemeColorOverride("font_color", CareerUiTheme.TextPrimary);
         _nextMatchPill.AddChild(_nextMatchLabel);
 
-        // Right: Tarih + Ana Loop Continue CTA + Dosya
+        // Right: Seviye + Tarih + Ana Loop Continue CTA + Dosya
         var topBarRight = new HBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ShrinkEnd,
@@ -800,6 +815,28 @@ public partial class CareerHubScreen : Control
         };
         topBarRight.AddThemeConstantOverride("separation", CareerUiTheme.SpaceS);
         _topBar.AddChild(topBarRight);
+
+        _managerLevelBadgePanel = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        _managerLevelBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.20f));
+        _managerLevelBadgePanel.TooltipText = "Menajer seviyesi ve XP durumu (Detay için tıkla)";
+        _managerLevelBadgePanel.GuiInput += @event =>
+        {
+            if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+            {
+                ShowPage(HubPage.File);
+            }
+        };
+        topBarRight.AddChild(_managerLevelBadgePanel);
+
+        _managerLevelBadgeLabel = new Label
+        {
+            Text = "⭐ SVY 1",
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.StyleTableText(_managerLevelBadgeLabel);
+        _managerLevelBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        _managerLevelBadgeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        _managerLevelBadgePanel.AddChild(_managerLevelBadgeLabel);
 
         _datePanel = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
         _datePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.PillPanel());
@@ -960,11 +997,11 @@ public partial class CareerHubScreen : Control
         var navItems = new (HubPage Page, string Label)[]
         {
             (HubPage.Today, "ANA SAYFA"),
-            (HubPage.Club, "KADRO"),
+            (HubPage.Club, "KULÜP"),
             (HubPage.Prep, "TAKTİK"),
             (HubPage.Transfer, "TRANSFER"),
             (HubPage.World, "TAKVİM"),
-            (HubPage.File, "DAHA"),
+            (HubPage.File, "PROFİL"),
         };
 
         _navButtons = new Button[6];
@@ -995,20 +1032,20 @@ public partial class CareerHubScreen : Control
         var titles = new[]
         {
             "Ana Sayfa",
-            "Kadro",
+            "Kulüp & Kadro",
             "Transfer",
             "Taktik",
             "Takvim",
-            "Kulüp",
+            "Menajer Profili",
         };
         var subtitles = new[]
         {
             "Bugünün kritik kararları ve sıradaki hamle",
-            "Oyuncular, mevkiler, sözler ve soyunma odası",
+            "Kulüp tesisleri, altyapı, kadro ve oyuncu gelişimi",
             "Gözlemcilik raporları, bütçe ve transfer masası",
             "14 diziliş, taktiksel senaryolar ve maç hazırlığı",
             "Puan durumu, haftanın fikstürü ve sezon akışı",
-            "Yönetim hedefleri, muhasebe bütçesi ve menajer mirası",
+            "Menajer seviyesi, beceriler, yönetim hedefleri ve mirası",
         };
         _pageTitleLabel.Text = titles[(int)page];
         _pageSubtitleLabel.Text = subtitles[(int)page];
@@ -1135,15 +1172,19 @@ public partial class CareerHubScreen : Control
         }
 
         _navButtons[(int)HubPage.Today].Text = profile.IsCompact ? "⌂ ANA" : "ANA SAYFA";
-        _navButtons[(int)HubPage.Club].Text = profile.IsCompact ? "👥 KADRO" : "KADRO";
+        _navButtons[(int)HubPage.Club].Text = profile.IsCompact ? "🏛️ KULÜP" : "KULÜP";
         _navButtons[(int)HubPage.Prep].Text = profile.IsCompact ? "🎯 TAKTİK" : "TAKTİK";
         _navButtons[(int)HubPage.Transfer].Text = profile.IsCompact ? "⇄ TRANSFER" : "TRANSFER";
         _navButtons[(int)HubPage.World].Text = profile.IsCompact ? "📅 TAKVİM" : "TAKVİM";
-        _navButtons[(int)HubPage.File].Text = profile.IsCompact ? "••• DAHA" : "DAHA";
+        _navButtons[(int)HubPage.File].Text = profile.IsCompact ? "👤 PROFİL" : "PROFİL";
 
         _squadAvgAgeBadgePanel.Visible = !profile.IsCompact;
         _squadTotalValueBadgePanel.Visible = !profile.IsCompact;
         _squadWageBillBadgePanel.Visible = !profile.IsCompact;
+        if (_squadFacilityBadgePanel is not null)
+        {
+            _squadFacilityBadgePanel.Visible = !profile.IsCompact;
+        }
         _standingsTable.Visible = !profile.IsCompact;
         _compactStandingsList.Visible = profile.IsCompact;
 
@@ -2082,6 +2123,12 @@ public partial class CareerHubScreen : Control
         _dateLabel.Text = $"{current.Day:D2}.{current.Month:D2}.{current.Year}";
         RefreshClubBranding();
 
+        if (_managerLevelBadgeLabel is not null)
+        {
+            _managerLevelBadgeLabel.Text = $"⭐ SVY {manager.ManagerLevel} ({manager.ExperiencePoints} XP)";
+            _managerLevelBadgePanel.TooltipText = $"Menajer Seviyesi: {manager.ManagerLevel}\nToplam Deneyim: {manager.ExperiencePoints} XP\nSonraki Seviyeye Kalan: {Math.Max(0, manager.XpToNextLevel - manager.ExperiencePoints)} XP";
+        }
+
         if (string.Equals(manager.EmploymentStatus, "Unemployed", StringComparison.Ordinal))
         {
             var lastClub = manager.LastClubId is long lastClubId
@@ -2089,9 +2136,9 @@ public partial class CareerHubScreen : Control
                 : "—";
             var offerText = manager.PendingOfferClubId is long offerClubId
                 ? $"Aktif teklif: {GetClubDisplayNameSafe(offerClubId)}"
-                : "Aktif teklif yok · Kadro ekranından iş ara";
+                : "Aktif teklif yok · Kulüp ekranından iş ara";
             _managerLabel.Text = "SERBEST MENAJER";
-            _seasonLabel.Text = $"{manager.DisplayName} · Son kulüp: {lastClub} · İtibar {manager.ManagerReputation}";
+            _seasonLabel.Text = $"{manager.DisplayName} · 🎖️ Seviye {manager.ManagerLevel} ({manager.ExperiencePoints} XP) · Son kulüp: {lastClub} · İtibar {manager.ManagerReputation}";
             _progressLabel.Text = offerText;
         }
         else
@@ -2103,7 +2150,7 @@ public partial class CareerHubScreen : Control
                 ? $"Yönetim {confidence} · {TranslateRisk(manager.EmploymentRiskBand)} · {TranslateExpectation(manager.SeasonExpectation)}"
                 : string.Empty;
             _managerLabel.Text = clubName.ToUpperInvariant();
-            _seasonLabel.Text = $"{manager.DisplayName} · {boardText} · İtibar {manager.ManagerReputation}";
+            _seasonLabel.Text = $"{manager.DisplayName} · 🎖️ Seviye {manager.ManagerLevel} ({manager.ExperiencePoints} XP) · {boardText} · İtibar {manager.ManagerReputation}";
         }
 
         var periodText = period is null
@@ -2217,12 +2264,12 @@ public partial class CareerHubScreen : Control
         var todayLabel = _compactLayout ? "⌂ ANA" : "ANA SAYFA";
         _navButtons[(int)HubPage.Today].Text = pendingCount > 0 ? $"{todayLabel} {pendingCount}" : todayLabel;
 
-        // KADRO: onay bekleyen maç varsa uyarı
+        // KULÜP: onay bekleyen maç varsa uyarı
         var currentDay = _controller.GetCurrentGameDate().DayNumber;
         var pendingMatch = _controller.GetNextDueManagedFixture(currentDay);
         _navButtons[(int)HubPage.Club].Text = pendingMatch is { IsApproved: false }
-            ? (_compactLayout ? "👥 KADRO !" : "KADRO (!)")
-            : (_compactLayout ? "👥 KADRO" : "KADRO");
+            ? (_compactLayout ? "🏛️ KULÜP !" : "KULÜP (!)")
+            : (_compactLayout ? "🏛️ KULÜP" : "KULÜP");
 
         // TRANSFER: bekleyen teklif veya pencere açık
         var window = _controller.GetTransferWindow();
@@ -2243,7 +2290,7 @@ public partial class CareerHubScreen : Control
             : (_compactLayout ? "🎯 TAKTİK" : "TAKTİK");
 
         _navButtons[(int)HubPage.World].Text = _compactLayout ? "📅 TAKVİM" : "TAKVİM";
-        _navButtons[(int)HubPage.File].Text = _compactLayout ? "••• DAHA" : "DAHA";
+        _navButtons[(int)HubPage.File].Text = _compactLayout ? "👤 PROFİL" : "PROFİL";
     }
 
     private void RefreshClubBranding()
@@ -2296,6 +2343,32 @@ public partial class CareerHubScreen : Control
             var rep = career.Reputation.Value;
             var repTitle = rep >= 80 ? "Elit Menajer" : (rep >= 60 ? "Kıdemli Menajer" : (rep >= 40 ? "Profesyonel" : "Çaylak"));
             _legacyReputationBadgeLabel.Text = $"⭐ İtibar: {rep} ({repTitle})";
+        }
+
+        var managerCareer = _controller.GetManagerCareer();
+        if (_fileManagerLevelBadgeLabel is not null)
+        {
+            _fileManagerLevelBadgeLabel.Text = $"🎖️ Seviye {managerCareer.ManagerLevel} ({managerCareer.ExperiencePoints} / {managerCareer.XpToNextLevel} XP)";
+        }
+
+        if (_managerSkillTacticalLabel is not null)
+        {
+            _managerSkillTacticalLabel.Text = $"{managerCareer.TacticalAcumen} / 100";
+        }
+
+        if (_managerSkillYouthLabel is not null)
+        {
+            _managerSkillYouthLabel.Text = $"{managerCareer.YouthDevelopment} / 100";
+        }
+
+        if (_managerSkillManMgmtLabel is not null)
+        {
+            _managerSkillManMgmtLabel.Text = $"{managerCareer.ManManagement} / 100";
+        }
+
+        if (_managerSkillNegotiationLabel is not null)
+        {
+            _managerSkillNegotiationLabel.Text = $"{managerCareer.NegotiationSkill} / 100";
         }
 
         if (_legacyStatMatchesLabel is not null)
@@ -4507,6 +4580,14 @@ public partial class CareerHubScreen : Control
             _squadAvgAgeBadgeLabel.Text = "🎂 Yaş —";
             _squadTotalValueBadgeLabel.Text = "💰 Değer —";
             _squadWageBillBadgeLabel.Text = "💵 Maaş —";
+            if (_squadFacilityBadgeLabel is not null)
+            {
+                _squadFacilityBadgeLabel.Text = "🏗️ Tesis —";
+                _clubFacilityLevelLabel.Text = "Kulüp görevi yok.";
+                _clubFacilityMultiplierLabel.Text = "Antrenman çarpanı: —";
+                _clubFacilityCostLabel.Text = "İşsiz durumda tesis geliştirilemez.";
+                _upgradeFacilityButton.Disabled = true;
+            }
             for (var i = 0; i < 3; i++)
             {
                 _starCards[i].Visible = false;
@@ -4519,6 +4600,28 @@ public partial class CareerHubScreen : Control
         _squadStatusLabel.Text = persisted is null || persisted.Members.Count == 0
             ? "A takım: henüz yok — lig kur / gün ilerle / antrenman ile oluşur."
             : $"A takım: {persisted.Members.Count} üye · {clubName}";
+
+        var club = _controller.GetClub(clubId);
+        if (club is not null && _clubFacilityLevelLabel is not null)
+        {
+            _squadFacilityBadgeLabel.Text = $"🏗️ Tesis: Lv {club.FacilityLevel}/5 (x{club.FacilityTrainingMultiplier:0.00})";
+            _clubFacilityLevelLabel.Text = $"🏗️ {club.DisplayName} Tesis & Altyapı: Seviye {club.FacilityLevel} / 5";
+            _clubFacilityMultiplierLabel.Text = $"⚡ Antrenman & Gelişim Çarpanı: x{club.FacilityTrainingMultiplier:0.00} (+{(int)Math.Round((club.FacilityTrainingMultiplier - 1.0) * 100)}% hızlandırılmış oyuncu gelişimi)";
+            if (club.FacilityLevel >= 5)
+            {
+                _clubFacilityCostLabel.Text = "⭐ Tesisler maksimum seviyede (Dünya Standartlarında Altyapı).";
+                _upgradeFacilityButton.Disabled = true;
+                _upgradeFacilityButton.Text = "✅ Maksimum Seviye (5/5)";
+            }
+            else
+            {
+                _clubFacilityCostLabel.Text = $"💰 Sonraki Seviye Maliyeti: ₺{club.NextFacilityUpgradeCost:N0} · Mevcut Bütçe: ₺{club.AvailableTransferFunds:N0}";
+                _upgradeFacilityButton.Disabled = club.AvailableTransferFunds < club.NextFacilityUpgradeCost;
+                _upgradeFacilityButton.Text = club.AvailableTransferFunds >= club.NextFacilityUpgradeCost
+                    ? $"🏗️ Seviye {club.FacilityLevel + 1}'e Yükselt (₺{club.NextFacilityUpgradeCost:N0})"
+                    : $"⚠️ Yetersiz Bütçe (₺{club.NextFacilityUpgradeCost:N0})";
+            }
+        }
 
         var management = _controller.BuildPlayerManagementDigest();
 

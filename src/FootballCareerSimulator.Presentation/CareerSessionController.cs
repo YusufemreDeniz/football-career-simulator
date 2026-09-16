@@ -658,6 +658,25 @@ public sealed partial class CareerSessionController
         return SellManagedClubPlayer(candidateId.Value);
     }
 
+    public UiActionResult UpgradeFacilities()
+    {
+        try
+        {
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer bir kulüpte çalışmıyor.");
+            var id = new Domain.Shared.ClubId(clubId);
+            var currentClub = Host.ClubModule.Store.Registry.GetClubOrThrow(id);
+            var upgradedClub = currentClub.UpgradeFacilities();
+            Host.ClubModule.Store.Replace(Host.ClubModule.Store.Registry.WithClub(upgradedClub));
+            return UiActionResult.Ok(
+                $"Tesisler Yükseltildi!\n{upgradedClub.DisplayName} tesisleri Seviye {upgradedClub.FacilityLevel}'e ulaştı.\nAntrenman çarpanı: %{(int)(upgradedClub.FacilityTrainingMultiplier * 100)}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Tesis Geliştirme Başarısız\n{ex.Message}");
+        }
+    }
+
     public UiActionResult SellManagedClubPlayer(long playerId)
     {
         try

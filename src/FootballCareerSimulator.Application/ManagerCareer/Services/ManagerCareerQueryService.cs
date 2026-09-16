@@ -37,6 +37,13 @@ public sealed class ManagerCareerQueryService
             offer?.Status.ToString(),
             career.Reputation.Value,
             career.LastReputationReasonCode,
-            career.StartingBackground?.ToString());
+            career.StartingBackground?.ToString(),
+            career.Progression.Level,
+            career.Progression.ExperiencePoints,
+            career.Progression.XpToNextLevel,
+            career.Progression.Skills.TacticalAcumen,
+            career.Progression.Skills.YouthDevelopment,
+            career.Progression.Skills.ManManagement,
+            career.Progression.Skills.NegotiationSkill);
     }
 }

@@ -35,6 +35,7 @@ public sealed class ClubQueryService
 
     private static ClubReadModel ToReadModel(Club club)
     {
+        var nextCost = club.FacilityLevel < Club.MaxFacilityLevel ? Club.FacilityUpgradeCost(club.FacilityLevel) : 0;
         if (TurkeySuperLig202627DataPack.TryGetClub(club.Id, out var data)
             && string.Equals(data.OfficialName, club.DisplayName, StringComparison.Ordinal))
         {
@@ -53,7 +54,10 @@ public sealed class ClubQueryService
                 data.HomeKitResourcePath,
                 data.AwayKitResourcePath,
                 data.ThirdKitResourcePath,
-                TurkeySuperLig202627DataPack.SnapshotDate);
+                TurkeySuperLig202627DataPack.SnapshotDate,
+                club.FacilityLevel,
+                club.FacilityTrainingMultiplier,
+                nextCost);
         }
 
         return new(
@@ -71,7 +75,10 @@ public sealed class ClubQueryService
             HomeKitResourcePath: string.Empty,
             AwayKitResourcePath: string.Empty,
             ThirdKitResourcePath: string.Empty,
-            DataSnapshotDate: string.Empty);
+            DataSnapshotDate: string.Empty,
+            club.FacilityLevel,
+            club.FacilityTrainingMultiplier,
+            nextCost);
     }
 }
 

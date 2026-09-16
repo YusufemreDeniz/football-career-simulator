@@ -15,4 +15,7 @@ public sealed record ClubReadModel(
     string HomeKitResourcePath,
     string AwayKitResourcePath,
     string ThirdKitResourcePath,
-    string DataSnapshotDate);
+    string DataSnapshotDate,
+    int FacilityLevel = 1,
+    double FacilityTrainingMultiplier = 1.0,
+    int NextFacilityUpgradeCost = 0);
