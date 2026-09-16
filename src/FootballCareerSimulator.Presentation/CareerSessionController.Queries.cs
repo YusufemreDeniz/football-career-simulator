@@ -299,4 +299,29 @@ public sealed partial class CareerSessionController
             Host.CompetitionModule.Queries.GetStandings(season.SeasonId),
             Host.CompetitionModule.Queries.GetSeasonFixtures(season.SeasonId));
     }
+
+    public TeamChemistryProfile GetTeamChemistry()
+    {
+        var clubId = GetEmployedClubId();
+        if (!clubId.HasValue)
+        {
+            return new TeamChemistryProfile(50, "Kulüp Yok", 1.0, "Bir kulüpte görev almadığınız için takım kimyası hesaplanamaz.");
+        }
+
+        var club = Host.ClubModule.Store.Registry.GetClubOrThrow(new Domain.Shared.ClubId(clubId.Value));
+        var board = BuildSquadSelectionBoard();
+        var starters = board.StartingXi;
+        var starterCount = starters.Count;
+        var naturalCount = starters.Count(p => p.IsAvailable);
+
+        var management = BuildPlayerManagementDigest();
+        var avgAge = management.Players.Count > 0 ? (int)Math.Round(management.Players.Average(p => p.Age)) : 25;
+
+        var form = BuildDressingRoomEcho();
+        var winStreak = form is not null && string.Equals(form.MomentumCode, "WIN_STREAK", StringComparison.OrdinalIgnoreCase)
+            ? form.MomentumLength
+            : 0;
+
+        return TeamChemistryCalculator.Evaluate(starterCount, naturalCount, avgAge, winStreak, club.FacilityLevel);
+    }
 }

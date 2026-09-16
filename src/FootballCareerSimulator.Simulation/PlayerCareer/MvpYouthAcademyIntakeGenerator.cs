@@ -54,12 +54,14 @@ public static class MvpYouthAcademyIntakeGenerator
         SeasonId seasonId,
         int rootSeed,
         int sportiveStrength,
-        string rngVersion)
+        string rngVersion,
+        int facilityLevel = 1,
+        int youthDevelopmentSkill = 50)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rngVersion);
         return rngVersion switch
         {
-            GeneratorVersion1 => GenerateVersion1(clubId, seasonId, rootSeed, sportiveStrength),
+            GeneratorVersion1 => GenerateVersion1(clubId, seasonId, rootSeed, sportiveStrength, facilityLevel, youthDevelopmentSkill),
             _ => throw new NotSupportedException(
                 $"Youth academy generator does not support RNG version '{rngVersion}'."),
         };
@@ -71,7 +73,9 @@ public static class MvpYouthAcademyIntakeGenerator
         ClubId clubId,
         SeasonId seasonId,
         int rootSeed,
-        int sportiveStrength)
+        int sportiveStrength,
+        int facilityLevel = 1,
+        int youthDevelopmentSkill = 50)
     {
         if (sportiveStrength is < Club.MinSportiveStrength or > Club.MaxSportiveStrength)
         {
@@ -94,18 +98,23 @@ public static class MvpYouthAcademyIntakeGenerator
         var usedNames = new HashSet<string>(StringComparer.Ordinal);
         var candidates = new List<MvpYouthAcademyCandidate>(count);
 
+        var facilityBonus = Math.Max(0, facilityLevel - 1) * 2;
+        var youthSkillBonus = Math.Max(0, youthDevelopmentSkill - 50) / 10;
+        var totalYouthBonus = facilityBonus + youthSkillBonus;
+
         for (var index = 0; index < count; index++)
         {
             var displayName = DrawUniqueName(random, usedNames);
             var age = random.NextInt(MinCandidateAge, MaxCandidateAge + 1);
             var currentFloor = Domain.PlayerCareer.PlayerCareer.MinAbility
-                + Math.Max(0, sportiveStrength - 40) / 20;
-            var currentCeiling = Math.Min(62, 50 + (sportiveStrength / 12));
+                + Math.Max(0, sportiveStrength - 40) / 20
+                + (facilityLevel > 2 ? 1 : 0);
+            var currentCeiling = Math.Min(65, 50 + (sportiveStrength / 12) + (facilityLevel > 3 ? 2 : 0));
             var currentAbility = random.NextInt(currentFloor, currentCeiling + 1);
-            var potentialFloor = Math.Max(currentAbility + 8, 62 + (sportiveStrength / 9));
+            var potentialFloor = Math.Max(currentAbility + 8, 62 + (sportiveStrength / 9) + (totalYouthBonus / 2));
             var potentialCeiling = Math.Min(
                 Domain.PlayerCareer.PlayerCareer.MaxAbility,
-                Math.Max(potentialFloor, 78 + (sportiveStrength / 6)));
+                Math.Max(potentialFloor, 78 + (sportiveStrength / 6) + totalYouthBonus));
             var potentialAbility = random.NextInt(potentialFloor, potentialCeiling + 1);
             var position = PositionRoles[random.NextInt(0, PositionRoles.Length)];
 
@@ -155,12 +164,17 @@ public static class MvpYouthAcademyIntakeGenerator
     }
 
     private static string DevelopmentProfile(int currentAbility, int potentialAbility) =>
-        (potentialAbility - currentAbility) switch
+        potentialAbility switch
         {
-            >= 35 => "Yüksek tavanlı ham yetenek",
-            >= 27 => "Uzun vadeli gelişim projesi",
-            >= 20 => "Dengeli akademi adayı",
-            _ => "A takıma yakın profil",
+            >= 88 => "🌟 Dünya Çapında Altyapı Cevheri (Wonderkid)",
+            >= 82 => "⭐ Yüksek Potansiyelli Akademi Yıldızı",
+            _ => (potentialAbility - currentAbility) switch
+            {
+                >= 35 => "Yüksek tavanlı ham yetenek",
+                >= 27 => "Uzun vadeli gelişim projesi",
+                >= 20 => "Dengeli akademi adayı",
+                _ => "A takıma yakın profil",
+            }
         };
 }
 

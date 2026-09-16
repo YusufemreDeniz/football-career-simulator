@@ -3986,6 +3986,25 @@ public sealed partial class CareerSessionController
                 managedMargin = heroManagedIsHome
                     ? heroHomeGoals - heroAwayGoals
                     : heroAwayGoals - heroHomeGoals;
+
+                // 🎖️ Menajer XP ve Seviye İlerlemesi
+                var managerCareer = Host.ManagerModule.Store.Career;
+                var xpEarned = managedMargin.Value > 0
+                    ? ManagerProgression.WinXp
+                    : (managedMargin.Value == 0 ? ManagerProgression.DrawXp : ManagerProgression.LossXp);
+
+                var oldLevel = managerCareer.Progression.Level;
+                var updatedManager = managerCareer.AddExperience(xpEarned);
+                Host.ManagerModule.Store.Replace(updatedManager);
+
+                if (updatedManager.Progression.Level > oldLevel)
+                {
+                    afterWhistle.Add($"🎖️ TEBRİKLER! Menajer Seviye {updatedManager.Progression.Level}'e yükseldi! (+{xpEarned} XP · Becerileriniz gelişti)");
+                }
+                else
+                {
+                    afterWhistle.Add($"🎖️ Menajer Deneyimi: +{xpEarned} XP (Seviye {updatedManager.Progression.Level} · Toplam {updatedManager.Progression.ExperiencePoints} XP)");
+                }
             }
 
             var stadium = hasManaged

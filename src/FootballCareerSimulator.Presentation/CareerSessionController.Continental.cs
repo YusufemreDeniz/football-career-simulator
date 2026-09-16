@@ -8,6 +8,7 @@ using FootballCareerSimulator.Simulation.Continental;
 using FootballCareerSimulator.Simulation.DataPacks;
 using FootballCareerSimulator.Simulation.Match;
 using FootballCareerSimulator.Simulation.TeamPreparation;
+using FootballCareerSimulator.Domain.ManagerCareer;
 
 namespace FootballCareerSimulator.Presentation;
 
@@ -172,9 +173,21 @@ public sealed partial class CareerSessionController
                 ? $"\n⭐ Avrupa Beraberliği Primi: +{ContinentalTournamentEngine.DrawPrizeMoney:N0} TRY transfer bütçesine eklendi!"
                 : string.Empty;
 
+        // 🎖️ Avrupa Maçı Menajer XP İlerlemesi
+        var managerCareer = Host.ManagerModule.Store.Career;
+        var xpEarned = managedGoals > opponentGoals
+            ? (int)(ManagerProgression.WinXp * 1.5)
+            : (managedGoals == opponentGoals ? (int)(ManagerProgression.DrawXp * 1.5) : ManagerProgression.LossXp);
+        var oldLevel = managerCareer.Progression.Level;
+        var updatedManager = managerCareer.AddExperience(xpEarned);
+        Host.ManagerModule.Store.Replace(updatedManager);
+
         var matchLines = new List<string>
         {
-            $"⭐ {fixture.StageName}: {scoreLine}{prizeLine}"
+            $"⭐ {fixture.StageName}: {scoreLine}{prizeLine}",
+            updatedManager.Progression.Level > oldLevel
+                ? $"🎖️ TEBRİKLER! Menajer Seviye {updatedManager.Progression.Level}'e yükseldi! (+{xpEarned} XP · Becerileriniz gelişti)"
+                : $"🎖️ Menajer Deneyimi: +{xpEarned} XP (Seviye {updatedManager.Progression.Level} · Toplam {updatedManager.Progression.ExperiencePoints} XP)"
         };
 
         var beats = new List<string>

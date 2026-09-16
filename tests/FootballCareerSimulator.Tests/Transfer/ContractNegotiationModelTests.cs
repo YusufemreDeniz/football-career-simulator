@@ -435,4 +435,29 @@ public sealed class ContractNegotiationModelTests
         DesiredContractYears: 3,
         MinimumContractYears: 1,
         DesiredSquadStatus: ContractSquadStatus.Rotation);
+
+    [Fact]
+    public void ManagerNegotiationSkill_DiscountsDemandedWage()
+    {
+        var inputWithoutSkill = new PlayerContractDemandInput(
+            PlayerId: 101,
+            GameSeed: 42,
+            BaseAcceptableWeeklyWage: 20_000,
+            PlayerValue: 1_000_000,
+            Age: 25,
+            PlayerRating: 75,
+            TargetClubAverageRating: 75,
+            DesiredContractYears: 3,
+            MinimumContractYears: 1,
+            DesiredSquadStatus: ContractSquadStatus.FirstTeam,
+            ManagerWageTraitPercentage: 0.0);
+
+        var inputWithSkill = inputWithoutSkill with { ManagerWageTraitPercentage = 0.15 };
+
+        var demandStandard = PlayerContractDemandModel.Generate(inputWithoutSkill);
+        var demandDiscounted = PlayerContractDemandModel.Generate(inputWithSkill);
+
+        Assert.True(demandDiscounted.WeeklyWage < demandStandard.WeeklyWage,
+            $"Expected discounted wage ({demandDiscounted.WeeklyWage}) < standard ({demandStandard.WeeklyWage})");
+    }
 }

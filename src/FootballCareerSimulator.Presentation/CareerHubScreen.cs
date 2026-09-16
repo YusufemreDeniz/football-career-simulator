@@ -171,6 +171,8 @@ public partial class CareerHubScreen : Control
     private Label _squadWageBillBadgeLabel = null!;
     private PanelContainer _squadFacilityBadgePanel = null!;
     private Label _squadFacilityBadgeLabel = null!;
+    private PanelContainer _squadChemistryBadgePanel = null!;
+    private Label _squadChemistryBadgeLabel = null!;
     private Label _clubFacilityLevelLabel = null!;
     private Label _clubFacilityMultiplierLabel = null!;
     private Label _clubFacilityCostLabel = null!;
@@ -1184,6 +1186,10 @@ public partial class CareerHubScreen : Control
         if (_squadFacilityBadgePanel is not null)
         {
             _squadFacilityBadgePanel.Visible = !profile.IsCompact;
+        }
+        if (_squadChemistryBadgePanel is not null)
+        {
+            _squadChemistryBadgePanel.Visible = !profile.IsCompact;
         }
         _standingsTable.Visible = !profile.IsCompact;
         _compactStandingsList.Visible = profile.IsCompact;
@@ -4621,6 +4627,13 @@ public partial class CareerHubScreen : Control
                     ? $"🏗️ Seviye {club.FacilityLevel + 1}'e Yükselt (₺{club.NextFacilityUpgradeCost:N0})"
                     : $"⚠️ Yetersiz Bütçe (₺{club.NextFacilityUpgradeCost:N0})";
             }
+        }
+
+        if (_squadChemistryBadgeLabel is not null)
+        {
+            var chemistry = _controller.GetTeamChemistry();
+            _squadChemistryBadgeLabel.Text = $"👥 Kimya: %{chemistry.ChemistryScore} ({chemistry.ChemistryBand})";
+            _squadChemistryBadgePanel.TooltipText = $"Takım Kimyası: %{chemistry.ChemistryScore}\n{chemistry.NarrativeSummary}\nMaç Performans Çarpanı: x{chemistry.PerformanceMultiplier:0.00}";
         }
 
         var management = _controller.BuildPlayerManagementDigest();

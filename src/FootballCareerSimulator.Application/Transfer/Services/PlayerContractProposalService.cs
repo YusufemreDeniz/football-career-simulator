@@ -216,6 +216,10 @@ public sealed class PlayerContractProposalService
                 ? PlayerWageBalanceProfile.Default.FreeAgentMarketStatusFactor
                 : 1.0));
 
+        var managerCareer = _managerCareerStore.Career;
+        var negotiationSkill = managerCareer.Progression.Skills.NegotiationSkill;
+        var managerWageTraitPercentage = Math.Clamp((negotiationSkill - 50) * 0.003, 0.0, 0.15);
+
         return PlayerContractDemandModel.Generate(new PlayerContractDemandInput(
             PlayerId: unchecked((int)process.PlayerId.Value),
             GameSeed: _gameSeed,
@@ -228,7 +232,8 @@ public sealed class PlayerContractProposalService
             MinimumContractYears: 1,
             DesiredSquadStatus: ContractSquadStatus.FirstTeam,
             IsFreeAgent: process.IsFreeAgent,
-            IsTargetUserClub: true));
+            IsTargetUserClub: true,
+            ManagerWageTraitPercentage: managerWageTraitPercentage));
     }
 
     private static string DescribeRejection(ContractNegotiationRejectionReason reason) =>

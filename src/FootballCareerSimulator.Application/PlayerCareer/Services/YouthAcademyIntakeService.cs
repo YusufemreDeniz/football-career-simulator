@@ -65,12 +65,17 @@ public sealed class YouthAcademyIntakeService
                 Array.Empty<YouthAcademyCandidateReadModel>());
         }
 
+        var managerCareer = _managerCareer.Career;
+        var youthSkill = managerCareer.Progression.Skills.YouthDevelopment;
+
         var generated = MvpYouthAcademyIntakeGenerator.Generate(
             clubId,
             seasonId,
             _timeline.Timeline.RootSeed,
             club.SportiveStrength,
-            _timeline.Timeline.RngVersion);
+            _timeline.Timeline.RngVersion,
+            facilityLevel: club.FacilityLevel,
+            youthDevelopmentSkill: youthSkill);
 
         return new YouthAcademyIntakeReadModel(
             clubId.Value,

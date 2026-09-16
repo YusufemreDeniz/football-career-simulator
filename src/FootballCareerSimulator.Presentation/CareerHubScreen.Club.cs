@@ -89,6 +89,14 @@ public partial class CareerHubScreen
         _squadFacilityBadgePanel.AddChild(_squadFacilityBadgeLabel);
         _squadTelemetryRow.AddChild(_squadFacilityBadgePanel);
 
+        _squadChemistryBadgePanel = new PanelContainer();
+        _squadChemistryBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
+        _squadChemistryBadgeLabel = new Label { Text = "👥 Kimya: —" };
+        CareerUiTheme.StyleTableText(_squadChemistryBadgeLabel);
+        _squadChemistryBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        _squadChemistryBadgePanel.AddChild(_squadChemistryBadgeLabel);
+        _squadTelemetryRow.AddChild(_squadChemistryBadgePanel);
+
         _clubOverviewPanel = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,

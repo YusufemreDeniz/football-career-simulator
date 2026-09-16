@@ -263,6 +263,14 @@ public static class PlayerContractDemandModel
             unchecked(seed ^ (int)0x9E3779B9u),
             profile.DisplayedWageMinimumMultiplier,
             profile.DisplayedWageMaximumMultiplier);
+
+        if (input.ManagerWageTraitPercentage > 0.0)
+        {
+            var discountFactor = Math.Clamp(1.0 - input.ManagerWageTraitPercentage, 0.70, 1.0);
+            requestedMultiplier *= discountFactor;
+            displayedMultiplier *= discountFactor;
+        }
+
         var signingFee = CalculateSigningFee(input);
 
         return new PlayerContractDemand(
