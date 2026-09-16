@@ -46,7 +46,8 @@ public static class MvpPlayerDevelopmentApplier
         Domain.PlayerCareer.PlayerCareer career,
         WeeklyTrainingPlan plan,
         PlayerPhysicalState? physical,
-        GameDate day)
+        GameDate day,
+        double facilityMultiplier = 1.0)
     {
         ArgumentNullException.ThrowIfNull(career);
         ArgumentNullException.ThrowIfNull(plan);
@@ -75,6 +76,11 @@ public static class MvpPlayerDevelopmentApplier
         else if (plan.Focus == TrainingFocus.Recovery)
         {
             points = Math.Max(1, points - 2);
+        }
+
+        if (facilityMultiplier > 1.0)
+        {
+            points = (int)Math.Round(points * facilityMultiplier);
         }
 
         return career.ApplyDevelopmentGain(points, day);

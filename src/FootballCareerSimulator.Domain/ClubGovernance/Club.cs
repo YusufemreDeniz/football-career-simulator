@@ -13,6 +13,8 @@ public sealed class Club
     public const int BaseTransferBudget = 5_000_000;
     public const int TransferBudgetGrowthFactor = 50_000;
     public const int WageBudgetPerStrengthPoint = 5_000;
+    public const int MinFacilityLevel = 1;
+    public const int MaxFacilityLevel = 5;
 
     private Club(
         ClubId id,
@@ -23,7 +25,8 @@ public sealed class Club
         int reservedTransferFunds,
         int spentTransferFunds,
         int wageBudgetLimit,
-        int reservedWeeklyWage)
+        int reservedWeeklyWage,
+        int facilityLevel = 1)
     {
         Id = id;
         DisplayName = displayName;
@@ -34,6 +37,7 @@ public sealed class Club
         SpentTransferFunds = spentTransferFunds;
         WageBudgetLimit = wageBudgetLimit;
         ReservedWeeklyWage = reservedWeeklyWage;
+        FacilityLevel = facilityLevel;
     }
 
     public ClubId Id { get; }
@@ -57,6 +61,37 @@ public sealed class Club
 
     public int ReservedWeeklyWage { get; }
 
+    public int FacilityLevel { get; }
+
+    /// <summary>
+    /// Tesis seviyesine göre antrenman verim çarpanı (1.0x - 1.4x).
+    /// </summary>
+    public double FacilityTrainingMultiplier => 1.0 + (FacilityLevel - 1) * 0.1;
+
+    /// <summary>
+    /// Altyapı tesis seviyesine göre genç oyuncu yetenek tavanı/gelişim bonusu.
+    /// </summary>
+    public int FacilityYouthBonus => (FacilityLevel - 1) * 2;
+
+    public static int DefaultFacilityLevel(int sportiveStrength) =>
+        sportiveStrength switch
+        {
+            >= 80 => 4,
+            >= 70 => 3,
+            >= 50 => 2,
+            _ => 1,
+        };
+
+    public static int FacilityUpgradeCost(int currentLevel) =>
+        currentLevel switch
+        {
+            1 => 2_500_000,
+            2 => 5_000_000,
+            3 => 10_000_000,
+            4 => 20_000_000,
+            _ => 0,
+        };
+
     public static int DefaultTransferBudgetLimit(int sportiveStrength)
     {
         var competitiveStrength = Math.Max(0, sportiveStrength - 50);
@@ -78,9 +113,45 @@ public sealed class Club
         return WageBudgetLimit - committedWeeklyWage - ReservedWeeklyWage;
     }
 
-    public static Club Create(ClubId id, string displayName, ClubCode code, int sportiveStrength)
+    public Club UpgradeFacilities()
+    {
+        if (FacilityLevel >= MaxFacilityLevel)
+        {
+            throw new ClubGovernanceInvariantViolationException(
+                $"Facilities are already at maximum level ({MaxFacilityLevel}).");
+        }
+
+        var cost = FacilityUpgradeCost(FacilityLevel);
+        if (AvailableTransferFunds < cost)
+        {
+            throw new ClubGovernanceInvariantViolationException(
+                $"Insufficient transfer budget for facility upgrade: need {cost}, available {AvailableTransferFunds}.");
+        }
+
+        ValidateTransferFunds(TransferBudgetLimit, ReservedTransferFunds, SpentTransferFunds + cost);
+        return new Club(
+            Id,
+            DisplayName,
+            Code,
+            SportiveStrength,
+            TransferBudgetLimit,
+            ReservedTransferFunds,
+            SpentTransferFunds + cost,
+            WageBudgetLimit,
+            ReservedWeeklyWage,
+            FacilityLevel + 1);
+    }
+
+    public static Club Create(
+        ClubId id,
+        string displayName,
+        ClubCode code,
+        int sportiveStrength,
+        int? initialFacilityLevel = null)
     {
         ValidateIdentity(displayName, sportiveStrength);
+        var facility = initialFacilityLevel ?? DefaultFacilityLevel(sportiveStrength);
+        ValidateFacilityLevel(facility);
         return new Club(
             id,
             displayName.Trim(),
@@ -90,7 +161,8 @@ public sealed class Club
             reservedTransferFunds: 0,
             spentTransferFunds: 0,
             DefaultWageBudgetLimit(sportiveStrength),
-            reservedWeeklyWage: 0);
+            reservedWeeklyWage: 0,
+            facility);
     }
 
     public static Club Rehydrate(
@@ -102,11 +174,13 @@ public sealed class Club
         int reservedTransferFunds,
         int spentTransferFunds,
         int wageBudgetLimit,
-        int reservedWeeklyWage)
+        int reservedWeeklyWage,
+        int facilityLevel = 1)
     {
         ValidateIdentity(displayName, sportiveStrength);
         ValidateTransferFunds(transferBudgetLimit, reservedTransferFunds, spentTransferFunds);
         ValidateWageFunds(wageBudgetLimit, reservedWeeklyWage);
+        ValidateFacilityLevel(facilityLevel);
         return new Club(
             id,
             displayName.Trim(),
@@ -116,7 +190,8 @@ public sealed class Club
             reservedTransferFunds,
             spentTransferFunds,
             wageBudgetLimit,
-            reservedWeeklyWage);
+            reservedWeeklyWage,
+            facilityLevel);
     }
 
     public Club ReserveTransferFunds(int amount)
@@ -241,7 +316,8 @@ public sealed class Club
             ReservedTransferFunds,
             SpentTransferFunds,
             WageBudgetLimit,
-            ReservedWeeklyWage);
+            ReservedWeeklyWage,
+            FacilityLevel);
     }
 
     private Club WithTransferFunds(int reserved, int spent)
@@ -256,7 +332,8 @@ public sealed class Club
             reserved,
             spent,
             WageBudgetLimit,
-            ReservedWeeklyWage);
+            ReservedWeeklyWage,
+            FacilityLevel);
     }
 
     private Club WithWageReservation(int reservedWage)
@@ -271,7 +348,17 @@ public sealed class Club
             ReservedTransferFunds,
             SpentTransferFunds,
             WageBudgetLimit,
-            reservedWage);
+            reservedWage,
+            FacilityLevel);
+    }
+
+    private static void ValidateFacilityLevel(int level)
+    {
+        if (level is < MinFacilityLevel or > MaxFacilityLevel)
+        {
+            throw new ClubGovernanceInvariantViolationException(
+                $"Facility level must be between {MinFacilityLevel} and {MaxFacilityLevel}.");
+        }
     }
 
     private static void ValidateIdentity(string displayName, int sportiveStrength)
