@@ -19,7 +19,8 @@ public sealed class ManagerCareer
         ManagerReputation reputation,
         string? lastReputationReasonCode,
         IReadOnlyList<EmploymentHistoryEntry> employmentHistory,
-        StartingBackground? startingBackground)
+        StartingBackground? startingBackground,
+        ManagerProgression? progression = null)
     {
         ManagerId = managerId;
         DisplayName = displayName;
@@ -34,6 +35,7 @@ public sealed class ManagerCareer
         LastReputationReasonCode = lastReputationReasonCode;
         EmploymentHistory = employmentHistory;
         StartingBackground = startingBackground;
+        Progression = progression ?? ManagerProgression.CreateInitial(startingBackground);
     }
 
     public ManagerId ManagerId { get; }
@@ -61,6 +63,8 @@ public sealed class ManagerCareer
     public IReadOnlyList<EmploymentHistoryEntry> EmploymentHistory { get; }
 
     public StartingBackground? StartingBackground { get; }
+
+    public ManagerProgression Progression { get; }
 
     public bool IsEmployed =>
         EmploymentStatus == ManagerEmploymentStatus.Employed && ActiveEmployment is not null;
@@ -157,7 +161,8 @@ public sealed class ManagerCareer
         ManagerReputation? reputation = null,
         string? lastReputationReasonCode = null,
         IReadOnlyList<EmploymentHistoryEntry>? employmentHistory = null,
-        StartingBackground? startingBackground = null)
+        StartingBackground? startingBackground = null,
+        ManagerProgression? progression = null)
     {
         if (employmentStatus == ManagerEmploymentStatus.Employed && activeEmployment is null)
         {
@@ -200,7 +205,8 @@ public sealed class ManagerCareer
             reputation ?? new ManagerReputation(ManagerReputation.DefaultInitialValue),
             lastReputationReasonCode,
             history,
-            ResolveStartingBackground(startingBackground, lastReputationReasonCode));
+            ResolveStartingBackground(startingBackground, lastReputationReasonCode),
+            progression);
     }
 
     public static ManagerCareer Rehydrate(
@@ -231,7 +237,8 @@ public sealed class ManagerCareer
         FixtureId fixtureId,
         MatchOutcomeForManagedClub matchOutcome,
         int leaguePosition,
-        int leagueSize)
+        int leagueSize,
+        ClubGovernance.ClubDnaProfile? clubDna = null)
     {
         if (ActiveEmployment is null)
         {
@@ -249,9 +256,19 @@ public sealed class ManagerCareer
             leaguePosition,
             leagueSize);
 
-        var (delta, reasonCode) = ComputeDelta(matchOutcome, meetsExpectation);
+        var (delta, reasonCode) = ComputeDelta(matchOutcome, meetsExpectation, clubDna);
         var newConfidence = ActiveEmployment.BoardConfidence.Adjust(delta);
         var updatedEmployment = ActiveEmployment.WithBoardAssessment(fixtureId, newConfidence, reasonCode);
+
+        var xp = matchOutcome switch
+        {
+            MatchOutcomeForManagedClub.Win => ManagerProgression.WinXp,
+            MatchOutcomeForManagedClub.Draw => ManagerProgression.DrawXp,
+            MatchOutcomeForManagedClub.Loss => ManagerProgression.LossXp,
+            _ => 0,
+        };
+        var nextProgression = Progression.AddExperience(xp);
+
         var updatedCareer = new ManagerCareer(
             ManagerId,
             DisplayName,
@@ -265,7 +282,8 @@ public sealed class ManagerCareer
             Reputation,
             LastReputationReasonCode,
             EmploymentHistory,
-            StartingBackground);
+            StartingBackground,
+            nextProgression);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
     }
@@ -311,7 +329,8 @@ public sealed class ManagerCareer
             Reputation,
             LastReputationReasonCode,
             EmploymentHistory,
-            StartingBackground);
+            StartingBackground,
+            Progression);
 
         return BoardAssessmentResult.Applied(updatedCareer, updatedEmployment, delta, reasonCode);
     }
@@ -349,7 +368,8 @@ public sealed class ManagerCareer
             nextReputation,
             reasonCode,
             EmploymentHistory,
-            StartingBackground);
+            StartingBackground,
+            Progression);
 
         return ManagerReputationChangeResult.Applied(updatedCareer, delta, reasonCode);
     }
@@ -393,7 +413,8 @@ public sealed class ManagerCareer
             Reputation,
             LastReputationReasonCode,
             history,
-            StartingBackground);
+            StartingBackground,
+            Progression);
 
         return DismissalResult.Applied(unemployed, ActiveEmployment.ClubId, causationFixtureId);
     }
@@ -438,7 +459,8 @@ public sealed class ManagerCareer
             Reputation,
             LastReputationReasonCode,
             EmploymentHistory,
-            StartingBackground);
+            StartingBackground,
+            Progression);
 
         return JobOfferReceiveResult.Received(updated, offer);
     }
@@ -479,10 +501,45 @@ public sealed class ManagerCareer
             Reputation,
             LastReputationReasonCode,
             EmploymentHistory,
-            StartingBackground);
+            StartingBackground,
+            Progression);
 
         return JobOfferAcceptResult.Accepted(employed, offer.Id, employment.ClubId);
     }
+
+    public ManagerCareer AddExperience(int xp) =>
+        new(
+            ManagerId,
+            DisplayName,
+            ActiveEmployment,
+            EmploymentStatus,
+            TerminationReason,
+            LastClubId,
+            DismissedDueToFixtureId,
+            DismissedAt,
+            PendingJobOffer,
+            Reputation,
+            LastReputationReasonCode,
+            EmploymentHistory,
+            StartingBackground,
+            Progression.AddExperience(xp));
+
+    public ManagerCareer WithProgression(ManagerProgression progression) =>
+        new(
+            ManagerId,
+            DisplayName,
+            ActiveEmployment,
+            EmploymentStatus,
+            TerminationReason,
+            LastClubId,
+            DismissedDueToFixtureId,
+            DismissedAt,
+            PendingJobOffer,
+            Reputation,
+            LastReputationReasonCode,
+            EmploymentHistory,
+            StartingBackground,
+            progression);
 
     private static StartingBackground? ResolveStartingBackground(
         StartingBackground? startingBackground,
@@ -500,8 +557,10 @@ public sealed class ManagerCareer
 
     private static (int Delta, string ReasonCode) ComputeDelta(
         MatchOutcomeForManagedClub outcome,
-        bool meetsExpectation) =>
-        (outcome, meetsExpectation) switch
+        bool meetsExpectation,
+        ClubGovernance.ClubDnaProfile? clubDna = null)
+    {
+        var (delta, reasonCode) = (outcome, meetsExpectation) switch
         {
             (MatchOutcomeForManagedClub.Win, true) => (5, "WinOnTrack"),
             (MatchOutcomeForManagedClub.Win, false) => (3, "WinBehindExpectation"),
@@ -511,6 +570,24 @@ public sealed class ManagerCareer
             (MatchOutcomeForManagedClub.Loss, false) => (-6, "LossBehindExpectation"),
             _ => (0, "Neutral"),
         };
+
+        if (clubDna is null)
+        {
+            return (delta, reasonCode);
+        }
+
+        if (outcome == MatchOutcomeForManagedClub.Loss && clubDna.ManagerialPatience < 35)
+        {
+            return (delta - 2, reasonCode + "ImpatientBoard");
+        }
+
+        if (outcome == MatchOutcomeForManagedClub.Loss && clubDna.ManagerialPatience > 70)
+        {
+            return (delta + 2, reasonCode + "PatientBoard");
+        }
+
+        return (delta, reasonCode);
+    }
 }
 
 public enum MatchOutcomeForManagedClub
