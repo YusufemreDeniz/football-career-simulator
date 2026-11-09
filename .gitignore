@@ -28,3 +28,6 @@ builds/
 
 # Üçüncü taraf mağaza/ödeme akışı analizi oyunla ilgili değildir ve depoya alınmaz.
 research/SM25/iap_native/
+
+# Üçüncü taraf oyun ekran görüntüleri yalnız yerel referanstır; public depoya alınmaz.
+ornek_oyun/
