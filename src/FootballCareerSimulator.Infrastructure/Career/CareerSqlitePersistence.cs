@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.Continental;
 using FootballCareerSimulator.Application.Career.Ports;
 using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.Competition.Queries;
@@ -57,7 +58,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         HubNarrativeUiState? hubNarrativeUiState = null,
         IReadOnlyList<ClubFinanceLedger>? clubFinanceLedgers = null,
         IReadOnlyList<DualPhaseTacticPlan>? dualPhaseTacticPlans = null,
-        IReadOnlyList<ClubLineupTemplate>? lineupTemplates = null)
+        IReadOnlyList<ClubLineupTemplate>? lineupTemplates = null,
+        ContinentalTournamentRecord? continentalTournament = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
         ArgumentNullException.ThrowIfNull(timeline);
@@ -94,7 +96,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             hubNarrativeUiState,
             clubFinanceLedgers,
             dualPhaseTacticPlans,
-            lineupTemplates);
+            lineupTemplates,
+            continentalTournament);
 
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
@@ -145,6 +148,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             InsertManagerEmploymentHistory(connection, transaction, managerCareer.EmploymentHistory);
             InsertMatchSelections(connection, transaction, matchSelections);
             InsertLineupTemplates(connection, transaction, lineupTemplates);
+            InsertContinentalTournament(connection, transaction, continentalTournament);
             InsertTrainingPlans(connection, transaction, trainingPlans);
             InsertPhysicalStates(connection, transaction, physicalStates);
             InsertPlayerCareers(connection, transaction, playerCareers);
@@ -539,6 +543,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 49;
         }
 
+        if (version == 49 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 50)
+        {
+            WorldCalendarSqliteMigrator.MigrateV49ToV50InPlace(filePath);
+            wasMigrated = true;
+            version = 50;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -640,7 +651,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 ReservedTransferFunds INTEGER NOT NULL,
                 SpentTransferFunds INTEGER NOT NULL,
                 WageBudgetLimit INTEGER NOT NULL,
-                ReservedWeeklyWage INTEGER NOT NULL
+                ReservedWeeklyWage INTEGER NOT NULL,
+                FacilityLevel INTEGER NOT NULL DEFAULT 1
             );
             """);
 
@@ -667,7 +679,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 PendingOfferCreatedDayNumber INTEGER NULL,
                 ManagerReputation INTEGER NOT NULL DEFAULT 50,
                 LastReputationReasonCode TEXT NULL,
-                StartingBackground INTEGER NULL
+                StartingBackground INTEGER NULL,
+                ManagerLevel INTEGER NOT NULL DEFAULT 1,
+                ManagerExperiencePoints INTEGER NOT NULL DEFAULT 0,
+                SkillTacticalAcumen INTEGER NULL,
+                SkillYouthDevelopment INTEGER NULL,
+                SkillManManagement INTEGER NULL,
+                SkillNegotiation INTEGER NULL
             );
             """);
 
@@ -686,6 +704,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 BenchSlotsCsv TEXT NOT NULL
             );
             """);
+
+        ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, ContinentalTablesSql);
 
         ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
             CREATE TABLE ManagerEmploymentHistoryState (
@@ -1186,12 +1206,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 INSERT INTO ClubState (
                     ClubId, DisplayName, ClubCode, SportiveStrength,
                     TransferBudgetLimit, ReservedTransferFunds, SpentTransferFunds,
-                    WageBudgetLimit, ReservedWeeklyWage)
+                    WageBudgetLimit, ReservedWeeklyWage, FacilityLevel)
                 VALUES (
                     $clubId, $displayName, $clubCode, $sportiveStrength,
                     $transferBudgetLimit, $reservedTransferFunds, $spentTransferFunds,
-                    $wageBudgetLimit, $reservedWeeklyWage);
+                    $wageBudgetLimit, $reservedWeeklyWage, $facilityLevel);
                 """;
+            command.Parameters.AddWithValue("$facilityLevel", club.FacilityLevel);
             command.Parameters.AddWithValue("$clubId", club.Id.Value);
             command.Parameters.AddWithValue("$displayName", club.DisplayName);
             command.Parameters.AddWithValue("$clubCode", club.Code.Value);
@@ -1222,7 +1243,9 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 EmploymentStatus, EmploymentEndReason, LastClubId,
                 DismissedDueToFixtureId, DismissedAtDayNumber,
                 PendingOfferId, PendingOfferClubId, PendingOfferStatus, PendingOfferCreatedDayNumber,
-                ManagerReputation, LastReputationReasonCode, StartingBackground)
+                ManagerReputation, LastReputationReasonCode, StartingBackground,
+                ManagerLevel, ManagerExperiencePoints,
+                SkillTacticalAcumen, SkillYouthDevelopment, SkillManManagement, SkillNegotiation)
             VALUES (
                 1, $managerId, $displayName, $employedClubId, $employmentStartedDayNumber,
                 $seasonExpectation, $boardConfidence, $riskBand,
@@ -1230,8 +1253,17 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 $employmentStatus, $employmentEndReason, $lastClubId,
                 $dismissedDueToFixtureId, $dismissedAtDayNumber,
                 $pendingOfferId, $pendingOfferClubId, $pendingOfferStatus, $pendingOfferCreatedDayNumber,
-                $managerReputation, $lastReputationReasonCode, $startingBackground);
+                $managerReputation, $lastReputationReasonCode, $startingBackground,
+                $managerLevel, $managerExperiencePoints,
+                $skillTactical, $skillYouth, $skillManManagement, $skillNegotiation);
             """;
+        var progression = managerCareer.Progression;
+        command.Parameters.AddWithValue("$managerLevel", progression.Level);
+        command.Parameters.AddWithValue("$managerExperiencePoints", progression.ExperiencePoints);
+        command.Parameters.AddWithValue("$skillTactical", progression.Skills.TacticalAcumen);
+        command.Parameters.AddWithValue("$skillYouth", progression.Skills.YouthDevelopment);
+        command.Parameters.AddWithValue("$skillManManagement", progression.Skills.ManManagement);
+        command.Parameters.AddWithValue("$skillNegotiation", progression.Skills.NegotiationSkill);
         command.Parameters.AddWithValue("$managerId", managerCareer.ManagerId.Value);
         command.Parameters.AddWithValue("$displayName", managerCareer.DisplayName);
         command.Parameters.AddWithValue(
@@ -2288,6 +2320,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         var clubFinanceLedgers = ReadClubFinanceLedgers(connection);
         var dualPhaseTacticPlans = ReadDualPhaseTacticPlans(connection);
         var lineupTemplates = ReadLineupTemplates(connection);
+        var continentalTournament = ReadContinentalTournament(connection);
         var canonicalHash = CareerCanonicalStateHasher.ComputeHash(
             timeline,
             league,
@@ -2319,7 +2352,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 hubNarrativeUiState,
                 clubFinanceLedgers,
                 dualPhaseTacticPlans,
-                lineupTemplates));
+                lineupTemplates,
+                continentalTournament));
 
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
@@ -2372,6 +2406,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             IReadOnlyList<ClubFinanceLedger> clubFinanceLedgers;
             IReadOnlyList<DualPhaseTacticPlan> dualPhaseTacticPlans;
             IReadOnlyList<ClubLineupTemplate> lineupTemplates;
+            ContinentalTournamentRecord? continentalTournament;
 
             using (var connection = new SqliteConnection($"Data Source={filePath};Mode=ReadOnly"))
             {
@@ -2413,6 +2448,7 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 clubFinanceLedgers = ReadClubFinanceLedgers(connection);
                 dualPhaseTacticPlans = ReadDualPhaseTacticPlans(connection);
                 lineupTemplates = ReadLineupTemplates(connection);
+                continentalTournament = ReadContinentalTournament(connection);
             }
 
             SqliteConnection.ClearAllPools();
@@ -2448,7 +2484,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                     hubNarrativeUiState,
                     clubFinanceLedgers,
                     dualPhaseTacticPlans,
-                    lineupTemplates));
+                    lineupTemplates,
+                    continentalTournament));
             if (!string.Equals(recomputedHash, canonicalHash, StringComparison.Ordinal))
             {
                 throw new SaveCorruptionException(
@@ -2487,7 +2524,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 hubNarrativeUiState,
                 clubFinanceLedgers,
                 dualPhaseTacticPlans,
-                lineupTemplates);
+                lineupTemplates,
+                continentalTournament);
         }
         catch (SaveIntegrityException)
         {
@@ -2678,11 +2716,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         var rows = new List<ClubSnapshotMapper.ClubSnapshotRow>();
+        var hasFacilityLevel = ColumnExists(connection, "ClubState", "FacilityLevel");
         using var command = connection.CreateCommand();
-        command.CommandText = """
+        command.CommandText = $"""
             SELECT ClubId, DisplayName, ClubCode, SportiveStrength,
                    TransferBudgetLimit, ReservedTransferFunds, SpentTransferFunds,
-                   WageBudgetLimit, ReservedWeeklyWage
+                   WageBudgetLimit, ReservedWeeklyWage,
+                   {(hasFacilityLevel ? "FacilityLevel" : "NULL")}
             FROM ClubState
             ORDER BY ClubId;
             """;
@@ -2698,7 +2738,8 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 reader.GetInt32(5),
                 reader.GetInt32(6),
                 reader.GetInt32(7),
-                reader.GetInt32(8)));
+                reader.GetInt32(8),
+                reader.IsDBNull(9) ? null : reader.GetInt32(9)));
         }
 
         return ClubSnapshotMapper.ToRegistry(rows);
@@ -2717,15 +2758,19 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         var employmentHistory = ReadManagerEmploymentHistory(connection);
+        var progressionColumns = ColumnExists(connection, "ManagerCareerState", "ManagerLevel")
+            ? "ManagerLevel, ManagerExperiencePoints, SkillTacticalAcumen, SkillYouthDevelopment, SkillManManagement, SkillNegotiation"
+            : "NULL, NULL, NULL, NULL, NULL, NULL";
         using var command = connection.CreateCommand();
-        command.CommandText = """
+        command.CommandText = $"""
             SELECT ManagerId, DisplayName, EmployedClubId, EmploymentStartedDayNumber,
                    SeasonExpectation, BoardConfidence, EmploymentRiskBand,
                    LastAssessedFixtureId, LastAssessmentReasonCode,
                    EmploymentStatus, EmploymentEndReason, LastClubId,
                    DismissedDueToFixtureId, DismissedAtDayNumber,
                    PendingOfferId, PendingOfferClubId, PendingOfferStatus, PendingOfferCreatedDayNumber,
-                   ManagerReputation, LastReputationReasonCode, StartingBackground
+                   ManagerReputation, LastReputationReasonCode, StartingBackground,
+                   {progressionColumns}
             FROM ManagerCareerState
             WHERE SingletonId = 1;
             """;
@@ -2763,8 +2808,17 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             managerReputation: reader.FieldCount > 18 && !reader.IsDBNull(18) ? reader.GetInt32(18) : null,
             lastReputationReasonCode: reader.FieldCount > 19 && !reader.IsDBNull(19) ? reader.GetString(19) : null,
             employmentHistory: employmentHistory,
-            startingBackground: reader.FieldCount > 20 && !reader.IsDBNull(20) ? reader.GetInt32(20) : null);
+            startingBackground: reader.FieldCount > 20 && !reader.IsDBNull(20) ? reader.GetInt32(20) : null,
+            managerLevel: ReadNullableInt(reader, 21),
+            managerExperiencePoints: ReadNullableInt(reader, 22),
+            skillTacticalAcumen: ReadNullableInt(reader, 23),
+            skillYouthDevelopment: ReadNullableInt(reader, 24),
+            skillManManagement: ReadNullableInt(reader, 25),
+            skillNegotiation: ReadNullableInt(reader, 26));
     }
+
+    private static int? ReadNullableInt(SqliteDataReader reader, int ordinal) =>
+        reader.FieldCount > ordinal && !reader.IsDBNull(ordinal) ? reader.GetInt32(ordinal) : null;
 
     private static IReadOnlyList<EmploymentHistoryEntry> ReadManagerEmploymentHistory(
         SqliteConnection connection)
@@ -3689,11 +3743,27 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         return $"{baseText}|notebook|{notebook}";
     }
 
+    internal const string ContinentalTablesSql = """
+        CREATE TABLE IF NOT EXISTS ContinentalTournamentState (
+            SingletonId INTEGER PRIMARY KEY CHECK (SingletonId = 1),
+            SeasonStartYear INTEGER NOT NULL,
+            ManagedClubId INTEGER NOT NULL,
+            ManagedClubStrength INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS ContinentalManagedResultState (
+            Ordinal INTEGER PRIMARY KEY,
+            FixtureId INTEGER NOT NULL,
+            HomeGoals INTEGER NOT NULL,
+            AwayGoals INTEGER NOT NULL
+        );
+        """;
+
     private static string BuildSupplementalCanonicalText(
         HubNarrativeUiState hubState,
         IReadOnlyList<ClubFinanceLedger> ledgers,
         IReadOnlyList<DualPhaseTacticPlan> phasePlans,
-        IReadOnlyList<ClubLineupTemplate> lineupTemplates)
+        IReadOnlyList<ClubLineupTemplate> lineupTemplates,
+        ContinentalTournamentRecord? continentalTournament = null)
     {
         var ledgerText = string.Join(
             "||",
@@ -3711,7 +3781,110 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             "||",
             lineupTemplates.OrderBy(template => template.ClubId.Value).Select(template =>
                 $"{template.ClubId.Value}:{string.Join(',', template.StartingSlotIndices)}:{string.Join(',', template.BenchSlotIndices)}"));
-        return $"{BuildHubNarrativeCanonicalText(hubState)}|finance|{ledgerText}|dualphase|{tacticText}|lineup|{lineupText}";
+        var baseText = $"{BuildHubNarrativeCanonicalText(hubState)}|finance|{ledgerText}|dualphase|{tacticText}|lineup|{lineupText}";
+        if (continentalTournament is null)
+        {
+            // V50 öncesi kayıtların hash'i değişmesin diye kıtasal bölüm yalnız kayıt varsa eklenir.
+            return baseText;
+        }
+
+        var resultsText = string.Join(
+            ',',
+            continentalTournament.ManagedResults.Select(result =>
+                $"{result.FixtureId}:{result.HomeGoals}-{result.AwayGoals}"));
+        return baseText
+            + $"|continental|{continentalTournament.SeasonStartYear}:{continentalTournament.ManagedClubId}:"
+            + $"{continentalTournament.ManagedClubStrength}:{resultsText}";
+    }
+
+    private static void InsertContinentalTournament(
+        SqliteConnection connection,
+        SqliteTransaction transaction,
+        ContinentalTournamentRecord? record)
+    {
+        if (record is null)
+        {
+            return;
+        }
+
+        using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO ContinentalTournamentState (SingletonId, SeasonStartYear, ManagedClubId, ManagedClubStrength)
+                VALUES (1, $seasonStartYear, $managedClubId, $managedClubStrength);
+                """;
+            command.Parameters.AddWithValue("$seasonStartYear", record.SeasonStartYear);
+            command.Parameters.AddWithValue("$managedClubId", record.ManagedClubId);
+            command.Parameters.AddWithValue("$managedClubStrength", record.ManagedClubStrength);
+            command.ExecuteNonQuery();
+        }
+
+        for (var ordinal = 0; ordinal < record.ManagedResults.Count; ordinal++)
+        {
+            var result = record.ManagedResults[ordinal];
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT INTO ContinentalManagedResultState (Ordinal, FixtureId, HomeGoals, AwayGoals)
+                VALUES ($ordinal, $fixtureId, $homeGoals, $awayGoals);
+                """;
+            command.Parameters.AddWithValue("$ordinal", ordinal);
+            command.Parameters.AddWithValue("$fixtureId", result.FixtureId);
+            command.Parameters.AddWithValue("$homeGoals", result.HomeGoals);
+            command.Parameters.AddWithValue("$awayGoals", result.AwayGoals);
+            command.ExecuteNonQuery();
+        }
+    }
+
+    private static ContinentalTournamentRecord? ReadContinentalTournament(SqliteConnection connection)
+    {
+        if (!TableExists(connection, "ContinentalTournamentState"))
+        {
+            return null;
+        }
+
+        int seasonStartYear;
+        long managedClubId;
+        int managedClubStrength;
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT SeasonStartYear, ManagedClubId, ManagedClubStrength
+                FROM ContinentalTournamentState
+                WHERE SingletonId = 1;
+                """;
+            using var reader = command.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            seasonStartYear = reader.GetInt32(0);
+            managedClubId = reader.GetInt64(1);
+            managedClubStrength = reader.GetInt32(2);
+        }
+
+        var results = new List<ContinentalManagedResult>();
+        if (TableExists(connection, "ContinentalManagedResultState"))
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT FixtureId, HomeGoals, AwayGoals
+                FROM ContinentalManagedResultState
+                ORDER BY Ordinal;
+                """;
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                results.Add(new ContinentalManagedResult(
+                    reader.GetInt64(0),
+                    reader.GetInt32(1),
+                    reader.GetInt32(2)));
+            }
+        }
+
+        return new ContinentalTournamentRecord(seasonStartYear, managedClubId, managedClubStrength, results);
     }
 
     private static IReadOnlyList<ClubLineupTemplate> ReadLineupTemplates(SqliteConnection connection)

@@ -665,9 +665,7 @@ public sealed partial class CareerSessionController
             var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
                 ?? throw new InvalidOperationException("Menajer bir kulüpte çalışmıyor.");
             var id = new Domain.Shared.ClubId(clubId);
-            var currentClub = Host.ClubModule.Store.Registry.GetClubOrThrow(id);
-            var upgradedClub = currentClub.UpgradeFacilities();
-            Host.ClubModule.Store.Replace(Host.ClubModule.Store.Registry.WithClub(upgradedClub));
+            var upgradedClub = Host.ClubModule.TransferBudget.UpgradeFacilities(id);
             return UiActionResult.Ok(
                 $"Tesisler Yükseltildi!\n{upgradedClub.DisplayName} tesisleri Seviye {upgradedClub.FacilityLevel}'e ulaştı.\nAntrenman çarpanı: %{(int)(upgradedClub.FacilityTrainingMultiplier * 100)}");
         }
@@ -2138,7 +2136,8 @@ public sealed partial class CareerSessionController
                     shortlist.GetValueOrDefault(playerId.Value),
                     listedIds.Contains(playerId.Value),
                     OriginLeague: "Trendyol Süper Lig",
-                    IsInternational: false));
+                    IsInternational: false,
+                    ContractYearsRemaining: ResolveContractYearsRemaining(playerId.Value)));
             }
         }
 
@@ -2288,12 +2287,25 @@ public sealed partial class CareerSessionController
                         shortlist.GetValueOrDefault(playerId),
                         listedIds.Contains(playerId),
                         OriginLeague: "Trendyol Süper Lig",
-                        IsInternational: false);
+                        IsInternational: false,
+                        ContractYearsRemaining: ResolveContractYearsRemaining(playerId));
                 }
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Aktif sözleşmeden kalan yıl (piyasa değerinin sözleşme eğrisi için); sözleşme yoksa null.
+    /// </summary>
+    private double? ResolveContractYearsRemaining(long playerId)
+    {
+        var today = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+        var contract = Host.ContractModule.Store.GetActiveForPlayer(new PlayerId(playerId), today);
+        return contract is null
+            ? null
+            : Math.Max(0.0, (contract.EndDate.DayNumber - today.DayNumber) / 365.0);
     }
 
     public ClubTrainingSummaryReadModel GetTrainingSummary() =>
@@ -3476,14 +3488,25 @@ public sealed partial class CareerSessionController
             return result;
         }
 
-        var fatigueRelief = rest == RestApproach.Heavy ? 10 : 6;
-        var fitnessBump = rest == RestApproach.Heavy ? 1 : 0;
-        var projectedFitness = Math.Clamp(beforeFitness + fitnessBump, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel);
-        var projectedFatigue = Math.Clamp(beforeFatigue - fatigueRelief, PlayerPhysicalState.MinLevel, PlayerPhysicalState.MaxLevel);
+        // Uydurma projeksiyon yerine store'daki gerçek değerler gösterilir; dinlenme etkisi gün ilerledikçe işlenir.
+        var afterStates = clubId is long afterClubId
+            ? Host.TrainingModule.Store.PhysicalStates
+                .Where(state => state.ClubId?.Value == afterClubId)
+                .ToArray()
+            : Array.Empty<PlayerPhysicalState>();
+        var afterFitness = afterStates.Length == 0
+            ? beforeFitness
+            : (int)Math.Round(afterStates.Average(state => state.Fitness), MidpointRounding.AwayFromZero);
+        var afterFatigue = afterStates.Length == 0
+            ? beforeFatigue
+            : (int)Math.Round(afterStates.Average(state => state.Fatigue), MidpointRounding.AwayFromZero);
+        var changed = afterFitness != beforeFitness || afterFatigue != beforeFatigue;
         return result with
         {
-            Message = $"{actionLabel}. Kondisyon telemetrisi (sonraki maçsız gün): "
-                + $"fitness %{beforeFitness} → %{projectedFitness}, yorgunluk %{beforeFatigue} → %{projectedFatigue}.\n"
+            Message = $"{actionLabel}. Kondisyon: fitness %{beforeFitness} → %{afterFitness}, "
+                + $"yorgunluk %{beforeFatigue} → %{afterFatigue}"
+                + (changed ? "." : " (dinlenme etkisi sonraki maçsız günlerde işlenir).")
+                + "\n"
                 + result.Message,
         };
     }
@@ -3987,24 +4010,10 @@ public sealed partial class CareerSessionController
                     ? heroHomeGoals - heroAwayGoals
                     : heroAwayGoals - heroHomeGoals;
 
-                // 🎖️ Menajer XP ve Seviye İlerlemesi
-                var managerCareer = Host.ManagerModule.Store.Career;
-                var xpEarned = managedMargin.Value > 0
-                    ? ManagerProgression.WinXp
-                    : (managedMargin.Value == 0 ? ManagerProgression.DrawXp : ManagerProgression.LossXp);
-
-                var oldLevel = managerCareer.Progression.Level;
-                var updatedManager = managerCareer.AddExperience(xpEarned);
-                Host.ManagerModule.Store.Replace(updatedManager);
-
-                if (updatedManager.Progression.Level > oldLevel)
-                {
-                    afterWhistle.Add($"🎖️ TEBRİKLER! Menajer Seviye {updatedManager.Progression.Level}'e yükseldi! (+{xpEarned} XP · Becerileriniz gelişti)");
-                }
-                else
-                {
-                    afterWhistle.Add($"🎖️ Menajer Deneyimi: +{xpEarned} XP (Seviye {updatedManager.Progression.Level} · Toplam {updatedManager.Progression.ExperiencePoints} XP)");
-                }
+                // 🎖️ Menajer XP'si yönetim değerlendirmesinde (PlayFixtureMatchHandler) tek kez verilir;
+                // burada yalnız sonuç okunur.
+                var progression = Host.ManagerModule.Queries.GetCareer();
+                afterWhistle.Add($"🎖️ Menajer Deneyimi: Seviye {progression.ManagerLevel} · Toplam {progression.ExperiencePoints} XP");
             }
 
             var stadium = hasManaged
@@ -5136,6 +5145,8 @@ public sealed partial class CareerSessionController
             }
 
             var result = Host.GameSession.Load(Host.DefaultSavePath);
+            // Kıtasal motor yüklenen kayıttaki sonuçlardan yeniden kurulur; eski oturumun motoru taşınmaz.
+            _continentalTournament = null;
             ApplyHubNarrativeUiState(result.HubNarrativeUiState);
             LastCareerResume = BuildCareerResumeDigest(result.WasMigrated);
             return UiActionResult.Ok(LastCareerResume.ToStatusMessage());

@@ -22,16 +22,17 @@ public sealed record PositionDeclineProfile(
     int DeclineStartAge,
     int RetirementEligibleAge = 35)
 {
+    // DESIGN_TRANSLATION §1–2: kalecide zirve 30–34, gerileme 35'te başlar; stoper orta sahaya göre +1 yıl.
     public static readonly PositionDeclineProfile Goalkeeper = new(
         PositionCategory.Goalkeeper,
-        PeakStartAge: 27,
-        DeclineStartAge: 34,
+        PeakStartAge: 30,
+        DeclineStartAge: 35,
         RetirementEligibleAge: 38);
 
     public static readonly PositionDeclineProfile CentralDefender = new(
         PositionCategory.CentralDefender,
         PeakStartAge: 24,
-        DeclineStartAge: 30,
+        DeclineStartAge: 31,
         RetirementEligibleAge: 35);
 
     public static readonly PositionDeclineProfile FullbackOrWinger = new(
@@ -98,7 +99,7 @@ public sealed record PositionDeclineProfile(
         return Category switch
         {
             PositionCategory.Goalkeeper =>
-                // Kaleciler 34'ten sonra yılda 1 puan kaybeder, 37'den sonra 2 puan
+                // Kaleciler 35'ten sonra yılda 1 puan kaybeder, 37'den sonra 2 puan
                 (age >= 37 ? 2 : 1, age >= 38 ? 1 : 0),
 
             PositionCategory.FullbackOrWinger =>

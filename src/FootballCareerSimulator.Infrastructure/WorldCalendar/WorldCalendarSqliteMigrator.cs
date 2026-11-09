@@ -3067,6 +3067,85 @@ internal static class WorldCalendarSqliteMigrator
         transaction.Commit();
     }
 
+    public static void MigrateV49ToV50InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+        try
+        {
+            MigrateV49ToV50(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V49 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    /// <summary>
+    /// V50: kulüp tesis seviyesi ve menajer ilerlemesi (seviye, XP, beceriler) save sözleşmesine alınır.
+    /// Eski kayıtlarda tesis seviyesi kulüp gücünden türetilen varsayılan seviyeye, menajer ilerlemesi
+    /// başlangıç değerlerine (seviye 1, 0 XP, geçmişe göre beceri profili) taşınır.
+    /// </summary>
+    private static void MigrateV49ToV50(string workingCopyPath)
+    {
+        using var connection = OpenMigrationConnection(workingCopyPath);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        if (TableExists(connection, "ClubState")
+            && !ColumnExists(connection, "ClubState", "FacilityLevel"))
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+                ALTER TABLE ClubState ADD COLUMN FacilityLevel INTEGER NOT NULL DEFAULT 1;
+                UPDATE ClubState SET FacilityLevel = CASE
+                    WHEN SportiveStrength >= 80 THEN 4
+                    WHEN SportiveStrength >= 70 THEN 3
+                    WHEN SportiveStrength >= 50 THEN 2
+                    ELSE 1
+                END;
+                """);
+        }
+
+        if (TableExists(connection, "ManagerCareerState")
+            && !ColumnExists(connection, "ManagerCareerState", "ManagerLevel"))
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+                ALTER TABLE ManagerCareerState ADD COLUMN ManagerLevel INTEGER NOT NULL DEFAULT 1;
+                ALTER TABLE ManagerCareerState ADD COLUMN ManagerExperiencePoints INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE ManagerCareerState ADD COLUMN SkillTacticalAcumen INTEGER NULL;
+                ALTER TABLE ManagerCareerState ADD COLUMN SkillYouthDevelopment INTEGER NULL;
+                ALTER TABLE ManagerCareerState ADD COLUMN SkillManManagement INTEGER NULL;
+                ALTER TABLE ManagerCareerState ADD COLUMN SkillNegotiation INTEGER NULL;
+                """);
+        }
+
+        // V50: kıtasal turnuva özeti (yönetilen kulüp sonuçları) kayda girer.
+        ProductionSqliteCommands.ExecuteNonQuery(
+            connection,
+            transaction,
+            FootballCareerSimulator.Infrastructure.Career.CareerSqlitePersistence.ContinentalTablesSql);
+
+        ProductionSqliteCommands.ExecuteNonQuery(
+            connection,
+            transaction,
+            "UPDATE ProductionSaveManifest SET SchemaVersion = 50;");
+        transaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

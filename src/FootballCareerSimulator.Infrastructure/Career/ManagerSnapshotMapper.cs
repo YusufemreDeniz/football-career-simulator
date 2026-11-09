@@ -30,7 +30,13 @@ internal static class ManagerSnapshotMapper
         int? managerReputation = null,
         string? lastReputationReasonCode = null,
         IReadOnlyList<EmploymentHistoryEntry>? employmentHistory = null,
-        int? startingBackground = null)
+        int? startingBackground = null,
+        int? managerLevel = null,
+        int? managerExperiencePoints = null,
+        int? skillTacticalAcumen = null,
+        int? skillYouthDevelopment = null,
+        int? skillManManagement = null,
+        int? skillNegotiation = null)
     {
         JobOffer? pendingOffer = null;
         if (pendingOfferId is long offerId
@@ -51,6 +57,15 @@ internal static class ManagerSnapshotMapper
             && Enum.IsDefined((StartingBackground)backgroundValue)
             ? (StartingBackground)backgroundValue
             : null;
+
+        var progression = BuildProgression(
+            background,
+            managerLevel,
+            managerExperiencePoints,
+            skillTacticalAcumen,
+            skillYouthDevelopment,
+            skillManManagement,
+            skillNegotiation);
 
         var status = employmentStatus is int statusValue
             ? (ManagerEmploymentStatus)statusValue
@@ -79,7 +94,8 @@ internal static class ManagerSnapshotMapper
                 reputation: reputation,
                 lastReputationReasonCode: lastReputationReasonCode,
                 employmentHistory: employmentHistory,
-                startingBackground: background);
+                startingBackground: background,
+                progression: progression);
         }
 
         if (employmentStartedDayNumber is null)
@@ -125,6 +141,36 @@ internal static class ManagerSnapshotMapper
             reputation: reputation,
             lastReputationReasonCode: lastReputationReasonCode,
             employmentHistory: employmentHistory,
-            startingBackground: background);
+            startingBackground: background,
+            progression: progression);
+    }
+
+    /// <summary>
+    /// V50 öncesi kayıtlarda ilerleme kolonları yoktur; bu durumda geçmişe göre başlangıç profili kullanılır.
+    /// </summary>
+    private static ManagerProgression? BuildProgression(
+        StartingBackground? background,
+        int? level,
+        int? experiencePoints,
+        int? tactical,
+        int? youth,
+        int? manManagement,
+        int? negotiation)
+    {
+        if (level is null && experiencePoints is null)
+        {
+            return null;
+        }
+
+        var defaults = background is { } value
+            ? ManagerSkillProfile.ForBackground(value)
+            : ManagerSkillProfile.CreateDefault();
+        var skills = new ManagerSkillProfile(
+            tactical ?? defaults.TacticalAcumen,
+            youth ?? defaults.YouthDevelopment,
+            manManagement ?? defaults.ManManagement,
+            negotiation ?? defaults.NegotiationSkill);
+
+        return new ManagerProgression(level ?? ManagerProgression.MinLevel, experiencePoints ?? 0, skills);
     }
 }

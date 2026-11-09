@@ -231,6 +231,23 @@ public sealed class TransferProcessService
         return updated;
     }
 
+    /// <summary>
+    /// Otomatik (AI) akış yarıda kaldığında süreci kapatır ve rezerve edilmiş bonservis/ücret bütçesini serbest bırakır.
+    /// Süreç zaten kapanmışsa dokunmaz.
+    /// </summary>
+    public void FailAndReleaseIfActive(TransferProcessId processId, string reasonCode, GameDate day)
+    {
+        var process = _processStore.Get(processId);
+        if (process is null || !process.IsActive)
+        {
+            return;
+        }
+
+        ReleaseReservedFee(process);
+        ReleaseReservedWage(process);
+        _processStore.Upsert(process.Fail(reasonCode, day));
+    }
+
     public TransferProcess Fail(TransferProcessId processId, string reasonCode, GameDate day)
     {
         var process = Require(processId);

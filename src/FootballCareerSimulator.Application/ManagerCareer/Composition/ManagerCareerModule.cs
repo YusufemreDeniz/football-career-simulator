@@ -20,6 +20,7 @@ public sealed class ManagerCareerModule
     {
         Store = store;
         Queries = queries;
+        Experience = new ManagerExperienceService(store);
         GenerateJobOffer = generateJobOffer;
         AcceptJobOffer = acceptJobOffer;
     }
@@ -27,6 +28,8 @@ public sealed class ManagerCareerModule
     public IManagerCareerStore Store { get; }
 
     public ManagerCareerQueryService Queries { get; }
+
+    public ManagerExperienceService Experience { get; }
 
     public GenerateUnemployedJobOfferHandler? GenerateJobOffer { get; }
 

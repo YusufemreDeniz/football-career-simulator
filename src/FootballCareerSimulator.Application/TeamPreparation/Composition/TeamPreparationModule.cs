@@ -113,7 +113,8 @@ public sealed class TeamPreparationModule
                 clubSquadStore,
                 contractStore,
                 playerCareerStore,
-                trainingStore);
+                trainingStore,
+                timelineStore is null ? null : () => timelineStore.Timeline.RootSeed);
         }
 
         var selectionQueries = new MatchSelectionQueryService(store, competitionStore, managerCareerStore);

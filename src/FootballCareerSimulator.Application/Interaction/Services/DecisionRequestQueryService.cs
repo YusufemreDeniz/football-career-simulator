@@ -67,6 +67,18 @@ public sealed class DecisionRequestQueryService
         return BuildCausality(request);
     }
 
+    /// <summary>
+    /// Karar talebinin nedensellik kaydı için deterministik kimlik (Guid.NewGuid yerine; kayıt/yeniden oynatma güvenli).
+    /// </summary>
+    public static Guid CausalityEventIdFor(DecisionRequestId decisionRequestId)
+    {
+        Span<byte> bytes = stackalloc byte[16];
+        BitConverter.TryWriteBytes(bytes[..8], decisionRequestId.Value);
+        // Sabit ad alanı imzası: "DRQ-CAUS" (Decision Request Causality).
+        "DRQ-CAUS"u8.CopyTo(bytes[8..]);
+        return new Guid(bytes);
+    }
+
     public CausalityExplanation? ExplainStructuredCausality(DecisionRequestId decisionRequestId)
     {
         var request = _store.Get(decisionRequestId);
@@ -157,7 +169,14 @@ public sealed class DecisionRequestQueryService
             _ => CausalityDimension.RelationshipDelta,
         };
 
-        var targetEventId = Guid.NewGuid();
+        // Kimlik karar talebinden deterministik türetilir; aynı talep için tekrar sorgu yeni kayıt üretmez.
+        var targetEventId = CausalityEventIdFor(request.DecisionRequestId);
+        var existing = _causalityJournal?.ExplainForPlayer(targetEventId);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
         var record = new CausalityRecord(
             targetEventId,
             dimension,

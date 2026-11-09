@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.ContractRegistration.Services;
 using FootballCareerSimulator.Application.PlayerCareer.Ports;
 using FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
@@ -16,15 +17,33 @@ public sealed class PlayerCareerDevelopmentService
     private readonly IPlayerCareerStore _store;
     private readonly ITrainingPhysicalStateStore? _trainingStore;
     private readonly ContractRegistrationService? _contracts;
+    private readonly IClubRegistryStore? _clubRegistry;
 
     public PlayerCareerDevelopmentService(
         IPlayerCareerStore store,
         ITrainingPhysicalStateStore? trainingStore = null,
-        ContractRegistrationService? contracts = null)
+        ContractRegistrationService? contracts = null,
+        IClubRegistryStore? clubRegistry = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _trainingStore = trainingStore;
         _contracts = contracts;
+        _clubRegistry = clubRegistry;
+    }
+
+    /// <summary>
+    /// Kulübün tesis seviyesine bağlı antrenman gelişim çarpanı (seviye 1 → 1,0x … seviye 5 → 1,4x).
+    /// Kulüp kaydı bağlı değilse veya kulüp bulunamazsa nötr 1,0 döner.
+    /// </summary>
+    private double FacilityMultiplier(ClubId clubId)
+    {
+        if (_clubRegistry is null)
+        {
+            return 1.0;
+        }
+
+        var club = _clubRegistry.Registry.Clubs.FirstOrDefault(candidate => candidate.Id == clubId);
+        return club?.FacilityTrainingMultiplier ?? 1.0;
     }
 
     public void EnsureClub(ClubId clubId, int rootSeed, GameDate day)
@@ -65,6 +84,7 @@ public sealed class PlayerCareerDevelopmentService
             rootSeed,
             day,
             _store.ByClubSlot);
+        var facilityMultiplier = FacilityMultiplier(clubId);
         var updated = new List<Domain.PlayerCareer.PlayerCareer>(squad.Count);
         foreach (var career in squad)
         {
@@ -75,7 +95,7 @@ public sealed class PlayerCareerDevelopmentService
             }
 
             var physical = _trainingStore?.GetPhysical(clubId, career.SlotIndex);
-            updated.Add(MvpPlayerDevelopmentApplier.ApplyWeeklyTraining(career, plan, physical, day));
+            updated.Add(MvpPlayerDevelopmentApplier.ApplyWeeklyTraining(career, plan, physical, day, facilityMultiplier));
         }
 
         _store.ReplaceClub(clubId, updated);

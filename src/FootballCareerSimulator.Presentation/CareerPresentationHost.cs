@@ -88,6 +88,10 @@ public sealed class CareerPresentationHost
     public YouthAcademyLifecycleService YouthAcademyLifecycle { get; }
     public ClubFinanceLedgerService ClubFinanceLedger { get; }
     public CareerGameSessionService GameSession { get; }
+
+    /// <summary>Kıtasal turnuvanın kayda yazılan özü (yönetilen kulüp sonuçları).</summary>
+    public FootballCareerSimulator.Application.Continental.IContinentalTournamentStore ContinentalStore { get; init; } =
+        new FootballCareerSimulator.Application.Continental.InMemoryContinentalTournamentStore();
     public string DefaultSavePath { get; }
 
     public static IReadOnlyList<Application.ClubGovernance.Queries.ClubReadModel> GetNewCareerClubs(int rootSeed) =>
@@ -171,7 +175,8 @@ public sealed class CareerPresentationHost
             worldModule.TimelineStore,
             trainingStore,
             playerStore,
-            contractModule.Registration);
+            contractModule.Registration,
+            clubModule.Store);
         var teamPreparation = TeamPreparationModule.Create(
             competitionStore,
             managerModule.Store,
@@ -229,7 +234,8 @@ public sealed class CareerPresentationHost
             relationships: socialContinuity.RelationshipEvaluation,
             trainingStore: training.Store,
             playerCareerStore: playerCareer.Store,
-            gameSeed: worldModule.TimelineStore.Timeline.RootSeed);
+            gameSeed: worldModule.TimelineStore.Timeline.RootSeed,
+            gameSeedProvider: () => worldModule.TimelineStore.Timeline.RootSeed);
         var eventRuleForBind = worldModule.EventRuleEvaluation
             ?? throw new InvalidOperationException("Event & Rule Evaluation iskeleti bağlı değil.");
         worldModule.CloseTransferWindow.BindWindowClosedConsequences(
@@ -326,6 +332,7 @@ public sealed class CareerPresentationHost
             .. managerModule.IdempotencyResets,
         ];
 
+        var continentalStore = new FootballCareerSimulator.Application.Continental.InMemoryContinentalTournamentStore();
         var gameSession = new CareerGameSessionService(
             worldModule.TimelineStore,
             competitionModule.Store,
@@ -355,7 +362,8 @@ public sealed class CareerPresentationHost
             eventRule.Registry,
             eventRule.ScheduledEvaluationStore,
             clubFinanceLedgerStore,
-            teamPreparation.DualPhaseTacticPlanStore);
+            teamPreparation.DualPhaseTacticPlanStore,
+            continentalStore);
 
         var savePath = defaultSavePath ?? Path.Combine(OS.GetUserDataDir(), "career_save.db");
         return new CareerPresentationHost(
@@ -373,6 +381,9 @@ public sealed class CareerPresentationHost
             youthAcademyLifecycle,
             clubFinanceLedger,
             gameSession,
-            savePath);
+            savePath)
+        {
+            ContinentalStore = continentalStore,
+        };
     }
 }

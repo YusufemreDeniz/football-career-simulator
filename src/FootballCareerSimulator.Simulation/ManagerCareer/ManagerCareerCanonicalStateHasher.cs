@@ -88,6 +88,14 @@ public static class ManagerCareerCanonicalStateHasher
                 .Append(';');
         }
 
+        var progression = career.Progression;
+        builder.Append("ManagerLevel=").Append(progression.Level).Append(';');
+        builder.Append("ManagerXp=").Append(progression.ExperiencePoints).Append(';');
+        builder.Append("SkillTactical=").Append(progression.Skills.TacticalAcumen).Append(';');
+        builder.Append("SkillYouth=").Append(progression.Skills.YouthDevelopment).Append(';');
+        builder.Append("SkillManManagement=").Append(progression.Skills.ManManagement).Append(';');
+        builder.Append("SkillNegotiation=").Append(progression.Skills.NegotiationSkill).Append(';');
+
         return builder.ToString();
     }
 }

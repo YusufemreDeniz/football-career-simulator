@@ -23,6 +23,7 @@ public static class ClubRegistryCanonicalStateHasher
             builder.Append("SpentTransferFunds=").Append(club.SpentTransferFunds).Append(';');
             builder.Append("WageBudgetLimit=").Append(club.WageBudgetLimit).Append(';');
             builder.Append("ReservedWeeklyWage=").Append(club.ReservedWeeklyWage).Append(';');
+            builder.Append("FacilityLevel=").Append(club.FacilityLevel).Append(';');
         }
 
         return builder.ToString();

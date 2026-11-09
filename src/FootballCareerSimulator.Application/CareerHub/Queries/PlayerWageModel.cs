@@ -78,6 +78,35 @@ public sealed record PlayerWageBreakdown(
 
 public static class PlayerWageModel
 {
+    /// <summary>
+    /// Sözleşme kabul eşiğinin ve scout ekranındaki önerinin ortak tabanı: kadro rolü nötr (rotasyon),
+    /// kulüp ve lig gücü olarak alıcı kulübün sportif gücü kullanılır. Böylece arayüzün önerdiği ücret
+    /// hiçbir zaman oyuncunun kabul eşiğinin altında kalmaz.
+    /// </summary>
+    public static PlayerWageBreakdown EvaluateContractBasis(
+        int currentAbility,
+        int potentialAbility,
+        int age,
+        int buyingClubStrength,
+        int contractYears,
+        bool isFreeAgent,
+        PlayerWageBalanceProfile? profile = null)
+    {
+        profile ??= PlayerWageBalanceProfile.Default;
+        return Evaluate(
+            new PlayerWageCalculationInput(
+                currentAbility,
+                potentialAbility,
+                age,
+                buyingClubStrength,
+                buyingClubStrength,
+                ContractLengthYears: contractYears,
+                IsPeaked: age >= profile.SuggestedPeakedAge || potentialAbility <= currentAbility,
+                SquadRoleFactor: profile.RotationRoleFactor,
+                MarketStatusFactor: isFreeAgent ? profile.FreeAgentMarketStatusFactor : 1.0),
+            profile);
+    }
+
     public static PlayerWageBreakdown Evaluate(
         PlayerWageCalculationInput input,
         PlayerWageBalanceProfile? profile = null)

@@ -25,7 +25,9 @@ public sealed record ScoutCandidateSource(
     int? ShortlistedOnDayNumber,
     bool IsListedTarget,
     string OriginLeague = "Trendyol Süper Lig",
-    bool IsInternational = false);
+    bool IsInternational = false,
+    // Gerçek sözleşmeden kalan yıl; bilinmiyorsa değerleme modeli 2 yıl varsayar.
+    double? ContractYearsRemaining = null);
 
 public sealed record ScoutCandidateLine(
     long PlayerId,
@@ -194,7 +196,8 @@ public sealed record ScoutTransferDigest(
             candidate.SourceClubStrength,
             positionalAverage,
             transferBudgetAvailable,
-            isFreeAgent);
+            isFreeAgent,
+            contractYearsRemaining: candidate.ContractYearsRemaining ?? ScoutTransferValuationModel.DefaultContractYearsRemaining);
         var uncertaintyPercent = Math.Max(5, (110 - knowledge) / 2);
         var feeSpread = isFreeAgent ? 0 : Math.Max(100_000, valuation.MarketValue * uncertaintyPercent / 100);
 
@@ -251,6 +254,9 @@ public sealed record ScoutTransferValuation(
 
 public static class ScoutTransferValuationModel
 {
+    /// <summary>Sözleşme bilgisi olmayan adaylar için varsayılan kalan süre.</summary>
+    public const double DefaultContractYearsRemaining = 2.0;
+
     public static ScoutTransferValuation Evaluate(
         int currentAbility,
         int potentialAbility,
@@ -262,7 +268,8 @@ public static class ScoutTransferValuationModel
         bool isFreeAgent = false,
         PlayerValuationBalanceProfile? balanceProfile = null,
         int? managedLeagueStrength = null,
-        PlayerWageBalanceProfile? wageBalanceProfile = null)
+        PlayerWageBalanceProfile? wageBalanceProfile = null,
+        double contractYearsRemaining = DefaultContractYearsRemaining)
     {
         var ability = Math.Clamp(currentAbility, 40, 99);
         var potential = Math.Clamp(potentialAbility, ability, 99);
@@ -272,7 +279,7 @@ public static class ScoutTransferValuationModel
                 ability,
                 potential,
                 age,
-                ContractYearsRemaining: 2.0,
+                ContractYearsRemaining: Math.Max(0.0, contractYearsRemaining),
                 SourceClubStrength: sourceClubStrength,
                 IsFreeAgent: isFreeAgent),
             balanceProfile);
@@ -308,7 +315,16 @@ public static class ScoutTransferValuationModel
                 SquadRoleFactor: roleWageMultiplier,
                 MarketStatusFactor: isFreeAgent ? wageBalanceProfile.FreeAgentMarketStatusFactor : 1.0),
             wageBalanceProfile);
-        var suggestedWage = wage.WeeklyWage;
+        // Öneri, sözleşme kabul eşiğinin ortak tabanının altına inmez (aksi halde önerilen ücret reddedilirdi).
+        var acceptanceBasis = PlayerWageModel.EvaluateContractBasis(
+            ability,
+            potential,
+            age,
+            managedClubStrength,
+            wageBalanceProfile.SuggestedContractYears,
+            isFreeAgent,
+            wageBalanceProfile);
+        var suggestedWage = Math.Max(wage.WeeklyWage, acceptanceBasis.WeeklyWage);
 
         var interest = isFreeAgent
             ? Math.Clamp(70 + (role is "Kilit oyuncu" or "İlk 11" ? 15 : 5) - Math.Max(0, ability - managedClubStrength), 30, 95)

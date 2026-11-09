@@ -39,6 +39,15 @@ public sealed class ClubTransferBudgetService
     public void CreditPrize(ClubId clubId, int amount) =>
         Replace(clubId, club => club.CreditTransferPrize(amount));
 
+    /// <summary>
+    /// Tesis yükseltmesi transfer bütçesinden ödenir; seviye ve harcama aynı registry güncellemesinde yazılır.
+    /// </summary>
+    public Club UpgradeFacilities(ClubId clubId)
+    {
+        Replace(clubId, club => club.UpgradeFacilities());
+        return _store.Registry.GetClubOrThrow(clubId);
+    }
+
     private void Replace(ClubId clubId, Func<Club, Club> mutate)
     {
         var current = _store.Registry.GetClubOrThrow(clubId);

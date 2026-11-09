@@ -190,7 +190,7 @@ public sealed record PlayerManagementDigest(
 
                 var band = PlayerPhysicalState.FatigueBandLabel(physical.Fatigue);
                 var promiseLabel = PromiseLabel(activePromises);
-                var hasPromiseRisk = HasPromiseRiskFromState(relationship, activePromises, playerPromises);
+                var hasPromiseRisk = HasPromiseRiskFromState(relationship, activePromises, playerPromises, day);
                 var workloadHint = BuildWorkloadHint(physical, day);
                 var minutes7 = physical.EffectiveMatchMinutesLast7Days(day);
 
@@ -290,22 +290,46 @@ public sealed record PlayerManagementDigest(
         return parts.Count == 0 ? null : string.Join(" · ", parts);
     }
 
+    /// <summary>Kırılmış bir sözün riski bu kadar gün boyunca taşınır.</summary>
+    public const int BrokenPromiseRiskWindowDays = 90;
+
+    /// <summary>Kalan sürede ortalama haftada bir maç varsayımı.</summary>
+    private const int DaysPerExpectedMatch = 7;
+
     private static bool HasPromiseRiskFromState(
         RelationshipRecord? relationship,
         IReadOnlyList<Promise> activePromises,
-        IReadOnlyList<Promise> playerPromises)
+        IReadOnlyList<Promise> playerPromises,
+        GameDate day)
     {
         if (IsFragileRelationship(relationship))
         {
             return true;
         }
 
-        if (playerPromises.Any(promise => promise.Status == PromiseStatus.Broken))
+        // Yalnız yakın zamanda kırılmış söz risktir; eski bir kırılma oyuncuyu sonsuza dek işaretlemez.
+        if (playerPromises.Any(promise =>
+                promise.Status == PromiseStatus.Broken
+                && promise.TerminalOn is GameDate brokenOn
+                && day.DayNumber - brokenOn.DayNumber <= BrokenPromiseRiskWindowDays))
         {
             return true;
         }
 
-        return activePromises.Any(promise => promise.StartsGiven < promise.TargetStarts);
+        // Aktif söz yalnız takvim gerisindeyse risklidir: kalan ilk 11 sayısı, son tarihe kadarki
+        // beklenen maç sayısını aşıyorsa (veya son tarih geldiyse) söz tutulamayabilir.
+        return activePromises.Any(promise =>
+        {
+            var startsNeeded = promise.TargetStarts - promise.StartsGiven;
+            if (startsNeeded <= 0)
+            {
+                return false;
+            }
+
+            var daysLeft = promise.DeadlineOn.DayNumber - day.DayNumber;
+            var expectedMatchesLeft = Math.Max(0, daysLeft) / DaysPerExpectedMatch;
+            return daysLeft <= 0 || startsNeeded > expectedMatchesLeft;
+        });
     }
 
     private static bool IsFragileRelationship(RelationshipRecord? relationship)

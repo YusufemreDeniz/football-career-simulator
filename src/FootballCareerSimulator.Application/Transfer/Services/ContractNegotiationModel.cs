@@ -42,7 +42,8 @@ public sealed record PlayerContractDemand(
     int DesiredContractYears,
     int MinimumContractYears,
     int MaximumContractYears,
-    ContractSquadStatus DesiredSquadStatus);
+    ContractSquadStatus DesiredSquadStatus,
+    int RequestedWeeklyWage = 0);
 
 public sealed record PlayerContractDemandInput(
     int PlayerId,
@@ -63,6 +64,7 @@ public sealed record PlayerContractDemandInput(
     int SimulatorBonusDemand = 0,
     int ClubId = 0,
     bool UnwillingToRenew = false,
+    // Yüzde birimi; negatif değer indirimdir (native TraitId 36/38 = -5). Yalnız hedef kullanıcı kulübüyse uygulanır.
     double ManagerWageTraitPercentage = 0.0);
 
 public sealed record SigningFeeBreakdown(
@@ -164,14 +166,24 @@ public static class PlayerContractDemandModel
         var lengthWage = (int)(baseWageForClub * lengthMult);
 
         // Native: Trait 38 (HardBargain) for transfer (VA: 0x02FBFDF8), Trait 36 (ToughNegotiator) for renewal (VA: 0x02FBFEC4)
-        if (isTargetUserClub && Math.Abs(managerWageTraitPercentage) > 1e-6)
-        {
-            var modifier = 1.0 + (managerWageTraitPercentage / 100.0);
-            lengthWage = (int)Math.Max(0, Math.Round(lengthWage * modifier));
-        }
+        lengthWage = ApplyManagerWageTrait(lengthWage, isTargetUserClub, managerWageTraitPercentage);
 
         // Native £50 kesin minimum floor (VA: 0x02FBFF48: mov w1, #0x32; bl Math.Max)
         return Math.Max(50, lengthWage);
+    }
+
+    /// <summary>
+    /// Native: <c>max(Trunc(wage × (1 + yüzde/100)), 0)</c>; yalnız hedef kullanıcı kulübüyse uygulanır.
+    /// </summary>
+    private static int ApplyManagerWageTrait(int wage, bool isTargetUserClub, double percentage)
+    {
+        if (!isTargetUserClub || Math.Abs(percentage) <= 1e-6)
+        {
+            return wage;
+        }
+
+        var modifier = 1.0 + (Math.Clamp(percentage, -100.0, 100.0) / 100.0);
+        return (int)Math.Max(0.0, Math.Truncate(wage * modifier));
     }
 
     /// <summary>
@@ -254,34 +266,36 @@ public static class PlayerContractDemandModel
         profile ??= ContractNegotiationProfile.Sm25NativeParity;
         Validate(input, profile);
 
-        var seed = unchecked(input.PlayerId + input.GameSeed);
-        var requestedMultiplier = NextDouble(
-            seed,
-            profile.RequestedWageMinimumMultiplier,
-            profile.RequestedWageMaximumMultiplier);
-        var displayedMultiplier = NextDouble(
-            unchecked(seed ^ (int)0x9E3779B9u),
-            profile.DisplayedWageMinimumMultiplier,
-            profile.DisplayedWageMaximumMultiplier);
-
-        if (input.ManagerWageTraitPercentage > 0.0)
+        // CONTRACT_NEGOTIATION §4: kabul eşiği (DemandedWages) = GetAcceptableNewContractWage; rastgele çarpan içermez.
+        // Taban ücret, süre çarpanını zaten içeren kulüp-bağlamlı ücrettir; burada yalnız menajer özelliği,
+        // isteksiz yenileme cezası (+%50) ve £50 tabanı uygulanır.
+        var acceptable = ApplyManagerWageTrait(
+            input.BaseAcceptableWeeklyWage,
+            input.IsTargetUserClub,
+            input.ManagerWageTraitPercentage);
+        if (input.IsRenewal && input.UnwillingToRenew)
         {
-            var discountFactor = Math.Clamp(1.0 - input.ManagerWageTraitPercentage, 0.70, 1.0);
-            requestedMultiplier *= discountFactor;
-            displayedMultiplier *= discountFactor;
+            acceptable += acceptable / 2;
         }
 
+        acceptable = Math.Max(50, acceptable);
+
+        // Görüşme ekranı beklentisi: seed PlayerId + Game.Seed, [1,10–1,25], 100'e yuvarlama.
+        var displayed = CalculateDisplayedWage(acceptable, input.PlayerId, input.GameSeed, profile);
+        // Ret sonrası talep: seed PlayerId + ClubId, [1,00–1,10], parasal yuvarlama.
+        var requested = CalculateRequestedWageAfterRejection(acceptable, input.PlayerId, input.ClubId, profile);
         var signingFee = CalculateSigningFee(input);
 
         return new PlayerContractDemand(
-            RoundMonetaryValue(input.BaseAcceptableWeeklyWage * requestedMultiplier),
-            RoundToStep(input.BaseAcceptableWeeklyWage * displayedMultiplier, 100),
+            acceptable,
+            displayed,
             signingFee.SigningFee,
             input.SimulatorBonusDemand,
             input.DesiredContractYears,
             input.MinimumContractYears,
             input.Age < 32 ? 5 : 3,
-            input.DesiredSquadStatus);
+            input.DesiredSquadStatus,
+            requested);
     }
 
     public static SigningFeeBreakdown CalculateSigningFee(PlayerContractDemandInput input)

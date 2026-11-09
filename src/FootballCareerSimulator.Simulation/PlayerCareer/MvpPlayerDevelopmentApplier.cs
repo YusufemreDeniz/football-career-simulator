@@ -83,11 +83,13 @@ public static class MvpPlayerDevelopmentApplier
             points = (int)Math.Round(points * facilityMultiplier);
         }
 
-        return career.ApplyDevelopmentGain(points, day);
+        // Üretim gelişim yolu SinWave eğrisidir (DESIGN_TRANSLATION §2): kalan potansiyel arttıkça kazanç yüksek,
+        // tavana yaklaştıkça yataylaşır; yaş çarpanı mevki profilinin zirve yaşına göre uygulanır.
+        return career.ApplySinWaveDevelopmentGain(points, day);
     }
 
     public static Domain.PlayerCareer.PlayerCareer ApplyMatchAppearance(
         Domain.PlayerCareer.PlayerCareer career,
         GameDate day) =>
-        career.ApplyDevelopmentGain(5, day);
+        career.ApplySinWaveDevelopmentGain(5, day);
 }

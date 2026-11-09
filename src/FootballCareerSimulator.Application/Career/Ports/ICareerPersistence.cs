@@ -49,7 +49,8 @@ public interface ICareerPersistence
         HubNarrativeUiState? hubNarrativeUiState = null,
         IReadOnlyList<ClubFinanceLedger>? clubFinanceLedgers = null,
         IReadOnlyList<DualPhaseTacticPlan>? dualPhaseTacticPlans = null,
-        IReadOnlyList<ClubLineupTemplate>? lineupTemplates = null);
+        IReadOnlyList<ClubLineupTemplate>? lineupTemplates = null,
+        FootballCareerSimulator.Application.Continental.ContinentalTournamentRecord? continentalTournament = null);
 
     CareerLoadResult Load(string filePath);
 }
@@ -86,4 +87,5 @@ public sealed record CareerLoadResult(
     HubNarrativeUiState? HubNarrativeUiState = null,
     IReadOnlyList<ClubFinanceLedger>? ClubFinanceLedgers = null,
     IReadOnlyList<DualPhaseTacticPlan>? DualPhaseTacticPlans = null,
-    IReadOnlyList<ClubLineupTemplate>? LineupTemplates = null);
+    IReadOnlyList<ClubLineupTemplate>? LineupTemplates = null,
+    FootballCareerSimulator.Application.Continental.ContinentalTournamentRecord? ContinentalTournament = null);

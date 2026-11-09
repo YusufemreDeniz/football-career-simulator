@@ -9,6 +9,7 @@ using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using FootballCareerSimulator.Domain.WorldCalendar;
 using FootballCareerSimulator.Simulation.DataPacks;
+using FootballCareerSimulator.Simulation.PlayerCareer;
 using FootballCareerSimulator.Simulation.TeamPreparation;
 
 namespace FootballCareerSimulator.Application.TeamPreparation.Services;
@@ -22,13 +23,16 @@ public sealed class ClubSquadService
     private readonly IContractStore _contractStore;
     private readonly IPlayerCareerStore _playerCareerStore;
     private readonly ITrainingPhysicalStateStore? _trainingStore;
+    private readonly Func<int> _rootSeed;
 
     public ClubSquadService(
         IClubSquadStore squadStore,
         IContractStore contractStore,
         IPlayerCareerStore playerCareerStore,
-        ITrainingPhysicalStateStore? trainingStore = null)
+        ITrainingPhysicalStateStore? trainingStore = null,
+        Func<int>? rootSeedProvider = null)
     {
+        _rootSeed = rootSeedProvider ?? (() => 0);
         _squadStore = squadStore ?? throw new ArgumentNullException(nameof(squadStore));
         _contractStore = contractStore ?? throw new ArgumentNullException(nameof(contractStore));
         _playerCareerStore = playerCareerStore
@@ -119,11 +123,14 @@ public sealed class ClubSquadService
         }
         else if (playerId.Value >= 1001 && playerId.Value <= 99999)
         {
+            // Scout ekranında gösterilen oyuncuyla aynı kimlik: dünya tohumu, kaynak slotun potansiyel kuralı
+            // ve slot bazlı doğum yılı (MvpPlayerDevelopmentApplier.EnsureClubSquad ile aynı üretici).
             var srcClub = (playerId.Value - 1) / 1000L;
             var srcSlot = (int)((playerId.Value - 1) % 1000L);
-            ca = MvpSquadStrengthCalculator.GetPlayerRating(new ClubId(srcClub), 0, srcSlot);
-            pa = Math.Min(99, ca + 5);
-            birthYear = day.Year - 24;
+            var rootSeed = _rootSeed();
+            ca = MvpSquadStrengthCalculator.GetPlayerRating(new ClubId(srcClub), rootSeed, srcSlot);
+            pa = Math.Min(Domain.PlayerCareer.PlayerCareer.MaxAbility, ca + 5 + (srcSlot % 10));
+            birthYear = MvpAgingApplier.ResolveBirthYear(day.Year, srcSlot, rootSeed);
         }
 
         var career = Domain.PlayerCareer.PlayerCareer.Rehydrate(

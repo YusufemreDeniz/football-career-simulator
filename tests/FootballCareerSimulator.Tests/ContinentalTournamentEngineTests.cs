@@ -175,6 +175,101 @@ public sealed class ContinentalTournamentEngineTests
         Assert.True(nextManaged.ScheduledDayNumber > julyFirst);
     }
 
+    [Fact]
+    public void RecordManagedMatchResult_ReturnsPrizeDelta_IncludingKnockoutAdvancement()
+    {
+        var engine = CreateTestEngine();
+        var total = PlayManagedGroupStage(engine, managedWins: true);
+        Assert.Equal(6 * ContinentalTournamentEngine.WinPrizeMoney, total);
+        Assert.Equal(ContinentalTournamentStage.QuarterFinals, engine.CurrentStage);
+
+        var quarterFinal = engine.GetNextManagedFixture(int.MaxValue);
+        Assert.NotNull(quarterFinal);
+        Assert.Equal(ContinentalTournamentStage.QuarterFinals, quarterFinal.Stage);
+
+        var delta = RecordManagedWin(engine, quarterFinal);
+        Assert.Equal(ContinentalTournamentEngine.KnockoutAdvancementPrize, delta);
+    }
+
+    [Fact]
+    public void ManagedKnockoutDraw_IsDecidedOnPenalties_AndPaysNoDrawPrize()
+    {
+        var engine = CreateTestEngine();
+        PlayManagedGroupStage(engine, managedWins: true);
+        var quarterFinal = engine.GetNextManagedFixture(int.MaxValue)!;
+
+        var before = engine.TotalPrizeMoneyWonByManagedClub;
+        var delta = engine.RecordManagedMatchResult(quarterFinal.FixtureId, 1, 1);
+
+        Assert.NotEqual(quarterFinal.HomeScore, quarterFinal.AwayScore);
+        Assert.Equal(engine.TotalPrizeMoneyWonByManagedClub - before, delta);
+        Assert.True(delta is 0 or ContinentalTournamentEngine.KnockoutAdvancementPrize);
+    }
+
+    [Fact]
+    public void Replay_FromSavedManagedResults_RebuildsIdenticalTournament()
+    {
+        var original = CreateTestEngine();
+        var results = new List<(long FixtureId, int Home, int Away)>();
+        for (var i = 0; i < 4; i++)
+        {
+            var fixture = original.GetNextManagedFixture(int.MaxValue)!;
+            var managedIsHome = fixture.HomeClubId == original.ManagedClubId;
+            var home = managedIsHome ? 2 : i % 2;
+            var away = managedIsHome ? i % 2 : 2;
+            original.RecordManagedMatchResult(fixture.FixtureId, home, away);
+            results.Add((fixture.FixtureId, home, away));
+        }
+
+        var rebuilt = CreateTestEngine();
+        foreach (var (fixtureId, home, away) in results)
+        {
+            rebuilt.RecordManagedMatchResult(fixtureId, home, away);
+        }
+
+        Assert.Equal(original.TotalPrizeMoneyWonByManagedClub, rebuilt.TotalPrizeMoneyWonByManagedClub);
+        Assert.Equal(
+            original.AllFixtures.Select(f => (f.FixtureId, f.HomeScore, f.AwayScore)),
+            rebuilt.AllFixtures.Select(f => (f.FixtureId, f.HomeScore, f.AwayScore)));
+        // Kayıttan kurulan motorda oynanmış maç yeniden oynanamaz ve prim ödenmez.
+        Assert.Equal(0, rebuilt.RecordManagedMatchResult(results[0].FixtureId, 5, 0));
+    }
+
+    [Fact]
+    public void AdvanceTo_CompletesTournament_AfterManagedClubIsEliminated()
+    {
+        var engine = CreateTestEngine();
+        PlayManagedGroupStage(engine, managedWins: false);
+
+        engine.AdvanceTo(int.MaxValue / 2);
+
+        Assert.Equal(ContinentalTournamentStage.Completed, engine.CurrentStage);
+        Assert.NotNull(engine.ChampionClubId);
+        Assert.NotEqual(engine.ManagedClubId, engine.ChampionClubId);
+        Assert.All(engine.AllFixtures, fixture => Assert.True(fixture.IsPlayed));
+    }
+
+    private static int PlayManagedGroupStage(ContinentalTournamentEngine engine, bool managedWins)
+    {
+        var total = 0;
+        while (engine.GetNextManagedFixture(int.MaxValue) is { Stage: ContinentalTournamentStage.GroupStage } fixture)
+        {
+            var managedIsHome = fixture.HomeClubId == engine.ManagedClubId;
+            var (home, away) = managedWins == managedIsHome ? (3, 0) : (0, 3);
+            total += engine.RecordManagedMatchResult(fixture.FixtureId, home, away);
+        }
+
+        return total;
+    }
+
+    private static int RecordManagedWin(ContinentalTournamentEngine engine, ContinentalFixture fixture)
+    {
+        var managedIsHome = fixture.HomeClubId == engine.ManagedClubId;
+        return managedIsHome
+            ? engine.RecordManagedMatchResult(fixture.FixtureId, 2, 0)
+            : engine.RecordManagedMatchResult(fixture.FixtureId, 0, 2);
+    }
+
     private static ContinentalTournamentEngine CreateTestEngine()
     {
         var otherClubs = new List<(long ClubId, string Name, int Strength)>

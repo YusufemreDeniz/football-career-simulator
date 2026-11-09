@@ -49,6 +49,7 @@ public sealed class CareerGameSessionService
     private readonly IScheduledEvaluationStore? _scheduledEvaluationStore;
     private readonly IClubFinanceLedgerStore? _clubFinanceLedgerStore;
     private readonly IDualPhaseTacticPlanStore? _dualPhaseTacticPlanStore;
+    private readonly FootballCareerSimulator.Application.Continental.IContinentalTournamentStore? _continentalStore;
 
     public CareerGameSessionService(
         IWorldTimelineStore timelineStore,
@@ -79,7 +80,8 @@ public sealed class CareerGameSessionService
         IEventEffectIdempotencyRegistry? eventEffectRegistry = null,
         IScheduledEvaluationStore? scheduledEvaluationStore = null,
         IClubFinanceLedgerStore? clubFinanceLedgerStore = null,
-        IDualPhaseTacticPlanStore? dualPhaseTacticPlanStore = null)
+        IDualPhaseTacticPlanStore? dualPhaseTacticPlanStore = null,
+        FootballCareerSimulator.Application.Continental.IContinentalTournamentStore? continentalStore = null)
     {
         _timelineStore = timelineStore ?? throw new ArgumentNullException(nameof(timelineStore));
         _competitionStore = competitionStore ?? throw new ArgumentNullException(nameof(competitionStore));
@@ -115,6 +117,7 @@ public sealed class CareerGameSessionService
         _scheduledEvaluationStore = scheduledEvaluationStore;
         _clubFinanceLedgerStore = clubFinanceLedgerStore;
         _dualPhaseTacticPlanStore = dualPhaseTacticPlanStore;
+        _continentalStore = continentalStore;
     }
 
     public SaveCareerGameResult Save(
@@ -159,7 +162,8 @@ public sealed class CareerGameSessionService
             hubNarrativeUiState,
             _clubFinanceLedgerStore?.Ledgers,
             _dualPhaseTacticPlanStore?.Plans,
-            _matchSelectionStore.LineupTemplates);
+            _matchSelectionStore.LineupTemplates,
+            _continentalStore?.Record);
 
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
@@ -214,6 +218,7 @@ public sealed class CareerGameSessionService
 
         _eventEffectRegistry?.ReplaceAll(loaded.EventEffectProcessingKeys ?? Array.Empty<string>());
         _scheduledEvaluationStore?.ReplaceAll(loaded.ScheduledEvaluations ?? Array.Empty<ScheduledEvaluation>());
+        _continentalStore?.Replace(loaded.ContinentalTournament);
 
         var fixtureCount = loaded.League.Seasons.Sum(season => season.Fixtures.Count);
 

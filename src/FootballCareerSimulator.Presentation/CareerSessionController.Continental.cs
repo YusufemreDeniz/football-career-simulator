@@ -41,7 +41,18 @@ public sealed partial class CareerSessionController
         var seasonStartYear = currentDate.Month >= 7 ? currentDate.Year : currentDate.Year - 1;
         var startDay = GameDate.FromCalendarDate(seasonStartYear, 9, 15).DayNumber;
 
-        _continentalTournament = new ContinentalTournamentEngine(
+        // Kayıtlı turnuva aynı sezon ve kulübe aitse, motor aynı tohum ve güçle kurulur ve
+        // yönetilen kulübün sonuçları sırayla yeniden uygulanır (primler zaten bütçeye yazıldığı için tekrar ödenmez).
+        var record = Host.ContinentalStore.Record;
+        var resumesRecord = record is not null
+            && record.SeasonStartYear == seasonStartYear
+            && record.ManagedClubId == clubId;
+        if (resumesRecord)
+        {
+            managedStrength = record!.ManagedClubStrength;
+        }
+
+        var engine = new ContinentalTournamentEngine(
             timeline.RootSeed,
             clubId,
             managedName,
@@ -49,12 +60,39 @@ public sealed partial class CareerSessionController
             otherClubs,
             startDayNumber: startDay);
 
-        return _continentalTournament;
+        if (resumesRecord)
+        {
+            foreach (var result in record!.ManagedResults)
+            {
+                engine.RecordManagedMatchResult(result.FixtureId, result.HomeGoals, result.AwayGoals);
+            }
+        }
+        else
+        {
+            Host.ContinentalStore.Replace(new FootballCareerSimulator.Application.Continental.ContinentalTournamentRecord(
+                seasonStartYear,
+                clubId,
+                managedStrength,
+                Array.Empty<FootballCareerSimulator.Application.Continental.ContinentalManagedResult>()));
+        }
+
+        _continentalTournament = engine;
+        return engine;
+    }
+
+    /// <summary>
+    /// Yönetilen kulüp elense bile kalan yapay zeka turları güncel güne kadar oynanır.
+    /// </summary>
+    private ContinentalTournamentEngine GetContinentalTournamentAdvancedToToday()
+    {
+        var engine = GetOrInitContinentalTournament();
+        engine.AdvanceTo(Host.WorldModule.Queries.GetCurrentGameDate().DayNumber);
+        return engine;
     }
 
     public ContinentalTournamentDigest BuildContinentalTournamentDigest()
     {
-        var engine = GetOrInitContinentalTournament();
+        var engine = GetContinentalTournamentAdvancedToToday();
         var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
         return ContinentalTournamentDigest.Compose(engine, currentDay);
     }
@@ -106,9 +144,7 @@ public sealed partial class CareerSessionController
 
         var managedClub = Host.ClubModule.Queries.GetClub(engine.ManagedClubId);
         var managedStrength = managedClub?.SportiveStrength ?? 78;
-        var opponentStrength = EuropeanElite202627DataPack.TryGetClub(opponentId, out var elite)
-            ? elite.SportiveStrength
-            : 80;
+        var opponentStrength = engine.GetClubStrength(opponentId);
 
         var homeStrength = isHome ? managedStrength : opponentStrength;
         var awayStrength = isHome ? opponentStrength : managedStrength;
@@ -120,8 +156,11 @@ public sealed partial class CareerSessionController
             homeStrength,
             awayStrength);
 
-        var homeGoals = outcome.Score.HomeGoals;
-        var awayGoals = outcome.Score.AwayGoals;
+        // Eleme maçında beraberlik penaltılarla çözülür; kayıt ve ekran aynı skoru kullanır.
+        var (homeGoals, awayGoals, decidedOnPenalties) = engine.ApplyKnockoutTieBreak(
+            fixture,
+            outcome.Score.HomeGoals,
+            outcome.Score.AwayGoals);
         var managedGoals = isHome ? homeGoals : awayGoals;
         var opponentGoals = isHome ? awayGoals : homeGoals;
 
@@ -149,45 +188,39 @@ public sealed partial class CareerSessionController
                 aName);
         }).ToList();
 
-        // Sonucu kıtasal motora kaydet
-        engine.RecordManagedMatchResult(fixture.FixtureId, homeGoals, awayGoals, outcome.KeyMoments);
-
-        // UEFA Primini Transfer Bütçesine Ekle
-        if (managedGoals > opponentGoals)
+        // Sonucu kıtasal motora ve kayda yazılacak özete kaydet; motorun döndürdüğü prim tam olarak bütçeye yazılır
+        // (grup galibiyeti/beraberliği, tur atlama ve kupa primi dahil).
+        var prizeDelta = engine.RecordManagedMatchResult(fixture.FixtureId, homeGoals, awayGoals, outcome.KeyMoments);
+        var record = Host.ContinentalStore.Record;
+        if (record is not null)
         {
-            Host.ClubModule.TransferBudget.CreditPrize(
-                new ClubId(engine.ManagedClubId),
-                ContinentalTournamentEngine.WinPrizeMoney);
-        }
-        else if (managedGoals == opponentGoals)
-        {
-            Host.ClubModule.TransferBudget.CreditPrize(
-                new ClubId(engine.ManagedClubId),
-                ContinentalTournamentEngine.DrawPrizeMoney);
+            Host.ContinentalStore.Replace(record.WithResult(
+                new FootballCareerSimulator.Application.Continental.ContinentalManagedResult(
+                    fixture.FixtureId,
+                    homeGoals,
+                    awayGoals)));
         }
 
-        var scoreLine = $"{fixture.HomeClubName} {homeGoals} - {awayGoals} {fixture.AwayClubName}";
-        var prizeLine = managedGoals > opponentGoals
-            ? $"\n⭐ Avrupa Galibiyeti Primi: +{ContinentalTournamentEngine.WinPrizeMoney:N0} TRY transfer bütçesine eklendi!"
-            : managedGoals == opponentGoals
-                ? $"\n⭐ Avrupa Beraberliği Primi: +{ContinentalTournamentEngine.DrawPrizeMoney:N0} TRY transfer bütçesine eklendi!"
-                : string.Empty;
+        if (prizeDelta > 0)
+        {
+            Host.ClubModule.TransferBudget.CreditPrize(new ClubId(engine.ManagedClubId), prizeDelta);
+        }
 
-        // 🎖️ Avrupa Maçı Menajer XP İlerlemesi
-        var managerCareer = Host.ManagerModule.Store.Career;
-        var xpEarned = managedGoals > opponentGoals
-            ? (int)(ManagerProgression.WinXp * 1.5)
-            : (managedGoals == opponentGoals ? (int)(ManagerProgression.DrawXp * 1.5) : ManagerProgression.LossXp);
-        var oldLevel = managerCareer.Progression.Level;
-        var updatedManager = managerCareer.AddExperience(xpEarned);
-        Host.ManagerModule.Store.Replace(updatedManager);
+        var scoreLine = $"{fixture.HomeClubName} {homeGoals} - {awayGoals} {fixture.AwayClubName}"
+            + (decidedOnPenalties ? " (pen.)" : string.Empty);
+        var prizeLine = prizeDelta > 0
+            ? $"\n⭐ Avrupa Primi: +{prizeDelta:N0} TRY transfer bütçesine eklendi!"
+            : string.Empty;
+
+        // 🎖️ Avrupa maçı menajer XP'si Application servisi üzerinden verilir (lig maçlarında yönetim değerlendirmesi verir).
+        var award = Host.ManagerModule.Experience.AwardContinentalMatch(managedGoals, opponentGoals);
 
         var matchLines = new List<string>
         {
             $"⭐ {fixture.StageName}: {scoreLine}{prizeLine}",
-            updatedManager.Progression.Level > oldLevel
-                ? $"🎖️ TEBRİKLER! Menajer Seviye {updatedManager.Progression.Level}'e yükseldi! (+{xpEarned} XP · Becerileriniz gelişti)"
-                : $"🎖️ Menajer Deneyimi: +{xpEarned} XP (Seviye {updatedManager.Progression.Level} · Toplam {updatedManager.Progression.ExperiencePoints} XP)"
+            award.LeveledUp
+                ? $"🎖️ TEBRİKLER! Menajer Seviye {award.Level}'e yükseldi! (+{award.ExperienceEarned} XP · Becerileriniz gelişti)"
+                : $"🎖️ Menajer Deneyimi: +{award.ExperienceEarned} XP (Seviye {award.Level} · Toplam {award.TotalExperiencePoints} XP)"
         };
 
         var beats = new List<string>

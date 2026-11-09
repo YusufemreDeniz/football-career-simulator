@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Application.ClubGovernance.Ports;
 using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Application.ClubGovernance.Services;
 using FootballCareerSimulator.Application.ManagerCareer.Ports;
@@ -22,7 +23,15 @@ public sealed class PlayerContractProposalService
     private readonly ITransferWindowQuery _transferWindow;
     private readonly ClubWageBudgetService? _wageBudget;
     private readonly IPlayerCareerStore? _playerCareers;
-    private readonly int _gameSeed;
+    private readonly Func<int> _gameSeed;
+    private readonly IClubRegistryStore? _clubRegistry;
+
+    /// <summary>
+    /// Menajer pazarlık becerisinin ücret talebine etkisi (simülatör denge kuralı, native değildir):
+    /// beceri 50'nin üstündeki her puan için %0,3 indirim, en çok %15. Yüzde birimiyle, negatif değer indirimdir.
+    /// </summary>
+    public static double ManagerNegotiationWagePercentage(int negotiationSkill) =>
+        -Math.Clamp((negotiationSkill - 50) * 0.3, 0.0, 15.0);
 
     public PlayerContractProposalService(
         IPlayerContractProposalStore proposalStore,
@@ -31,7 +40,9 @@ public sealed class PlayerContractProposalService
         ITransferWindowQuery? transferWindow = null,
         ClubWageBudgetService? wageBudget = null,
         IPlayerCareerStore? playerCareers = null,
-        int gameSeed = 0)
+        int gameSeed = 0,
+        IClubRegistryStore? clubRegistry = null,
+        Func<int>? gameSeedProvider = null)
     {
         _proposalStore = proposalStore ?? throw new ArgumentNullException(nameof(proposalStore));
         _processStore = processStore ?? throw new ArgumentNullException(nameof(processStore));
@@ -40,7 +51,9 @@ public sealed class PlayerContractProposalService
         _transferWindow = transferWindow ?? AlwaysOpenTransferWindowQuery.Instance;
         _wageBudget = wageBudget;
         _playerCareers = playerCareers;
-        _gameSeed = gameSeed;
+        // Kayıt yüklendiğinde değişen oyun tohumu her talep hesabında güncel okunur.
+        _gameSeed = gameSeedProvider ?? (() => gameSeed);
+        _clubRegistry = clubRegistry;
     }
 
     public PlayerContractProposal SubmitContractProposal(
@@ -157,27 +170,52 @@ public sealed class PlayerContractProposalService
     public int ResolveAcceptableWeeklyWage(TransferProcessId processId, GameDate day)
     {
         var process = RequireProcess(processId);
-        var demand = TryBuildDemand(process, day);
+        var demand = TryBuildDemand(process, day, PlayerWageBalanceProfile.Default.SuggestedContractYears);
         return demand?.WeeklyWage ?? AiClubTransferSimulationService.DefaultWeeklyWage;
     }
 
     private void EnsurePlayerWouldAccept(TransferProcess process, PlayerContractProposal pending)
     {
-        var demand = TryBuildDemand(process, pending.SubmittedOn);
+        // Sabır, aynı süreçteki önceki reddedilmiş teklifler sırayla yeniden değerlendirilerek kurulur;
+        // böylece sabır/hakaret durumu kayıtlı teklif geçmişinden deterministik olarak türetilir.
+        var state = ContractNegotiationState.Start(isTransferWanted: false, hasActiveConcerns: false);
+        var previous = _proposalStore.GetForProcess(process.ProcessId)
+            .Where(proposal => proposal.Status == PlayerContractProposalStatus.Rejected
+                               && proposal.Round < pending.Round)
+            .OrderBy(proposal => proposal.Round)
+            .ToArray();
+        foreach (var rejected in previous)
+        {
+            var priorDemand = TryBuildDemand(process, rejected.SubmittedOn, rejected.ContractYears);
+            if (priorDemand is null || state.IsTerminated)
+            {
+                break;
+            }
+
+            state = ContractOfferEvaluator.Evaluate(
+                priorDemand,
+                ToOffer(rejected),
+                state,
+                profile: ContractNegotiationProfile.Sm25NativeParity).State;
+        }
+
+        if (state.IsTerminated)
+        {
+            _proposalStore.Upsert(pending.Reject());
+            throw new TransferInvariantViolationException(
+                "Oyuncunun sabrı tükendi; bu sözleşme görüşmesi kapandı.");
+        }
+
+        var demand = TryBuildDemand(process, pending.SubmittedOn, pending.ContractYears);
         if (demand is null)
         {
             return;
         }
 
-        var offer = new ContractOffer(
-            pending.WeeklyWage,
-            SigningFee: 0,
-            pending.ContractYears,
-            ContractSquadStatus.FirstTeam);
         var evaluation = ContractOfferEvaluator.Evaluate(
             demand,
-            offer,
-            ContractNegotiationState.Start(isTransferWanted: false, hasActiveConcerns: false),
+            ToOffer(pending),
+            state,
             profile: ContractNegotiationProfile.Sm25NativeParity);
         if (evaluation.Accepted)
         {
@@ -185,10 +223,27 @@ public sealed class PlayerContractProposalService
         }
 
         _proposalStore.Upsert(pending.Reject());
-        throw new TransferInvariantViolationException(DescribeRejection(evaluation.Reason));
+        var message = DescribeRejection(evaluation.Reason);
+        if (evaluation.State.IsTerminated && evaluation.Reason != ContractNegotiationRejectionReason.Insulted)
+        {
+            message += " Oyuncunun sabrı tükendi; görüşme kapandı.";
+        }
+        else if (evaluation.Reason == ContractNegotiationRejectionReason.Wages && demand.RequestedWeeklyWage > 0)
+        {
+            message += $" Yeni talep: haftalık {demand.RequestedWeeklyWage:N0}.";
+        }
+
+        throw new TransferInvariantViolationException(message);
     }
 
-    private PlayerContractDemand? TryBuildDemand(TransferProcess process, GameDate day)
+    private static ContractOffer ToOffer(PlayerContractProposal proposal) =>
+        new(
+            proposal.WeeklyWage,
+            SigningFee: 0,
+            proposal.ContractYears,
+            ContractSquadStatus.FirstTeam);
+
+    private PlayerContractDemand? TryBuildDemand(TransferProcess process, GameDate day, int contractYears)
     {
         var career = _playerCareers?.Careers.FirstOrDefault(candidate => candidate.Id == process.PlayerId);
         if (career is null)
@@ -197,43 +252,43 @@ public sealed class PlayerContractProposalService
         }
 
         var age = career.AgeYears(day);
-        var clubRatings = _playerCareers!.Careers
-            .Where(candidate => candidate.OriginClubId == process.BuyingClubId)
-            .Select(candidate => candidate.CurrentAbility)
-            .ToArray();
-        var clubAverage = clubRatings.Length == 0
-            ? career.CurrentAbility
-            : (int)Math.Round(clubRatings.Average());
-        var wage = PlayerWageModel.Evaluate(new PlayerWageCalculationInput(
+        var buyingClubStrength = ResolveBuyingClubStrength(process, career.CurrentAbility);
+        var wage = PlayerWageModel.EvaluateContractBasis(
             career.CurrentAbility,
             career.PotentialAbility,
             age,
-            clubAverage,
-            clubAverage,
-            ContractLengthYears: 3,
-            IsPeaked: age >= PlayerWageBalanceProfile.Default.SuggestedPeakedAge,
-            MarketStatusFactor: process.IsFreeAgent
-                ? PlayerWageBalanceProfile.Default.FreeAgentMarketStatusFactor
-                : 1.0));
+            buyingClubStrength,
+            Math.Clamp(contractYears, 1, 5),
+            process.IsFreeAgent);
 
+        // Menajer pazarlık becerisi yalnız kullanıcının kulübü için uygulanır; AI kulüpleri nötr talep görür.
         var managerCareer = _managerCareerStore.Career;
-        var negotiationSkill = managerCareer.Progression.Skills.NegotiationSkill;
-        var managerWageTraitPercentage = Math.Clamp((negotiationSkill - 50) * 0.003, 0.0, 0.15);
+        var isTargetUserClub = managerCareer.ActiveEmployment?.ClubId == process.BuyingClubId;
+        var managerWagePercentage = isTargetUserClub
+            ? ManagerNegotiationWagePercentage(managerCareer.Progression.Skills.NegotiationSkill)
+            : 0.0;
 
         return PlayerContractDemandModel.Generate(new PlayerContractDemandInput(
             PlayerId: unchecked((int)process.PlayerId.Value),
-            GameSeed: _gameSeed,
+            GameSeed: _gameSeed(),
             BaseAcceptableWeeklyWage: Math.Max(1, wage.WeeklyWage),
             PlayerValue: 0,
             Age: age,
             PlayerRating: career.CurrentAbility,
-            TargetClubAverageRating: clubAverage,
+            TargetClubAverageRating: buyingClubStrength,
             DesiredContractYears: 3,
             MinimumContractYears: 1,
             DesiredSquadStatus: ContractSquadStatus.FirstTeam,
             IsFreeAgent: process.IsFreeAgent,
-            IsTargetUserClub: true,
-            ManagerWageTraitPercentage: managerWageTraitPercentage));
+            IsTargetUserClub: isTargetUserClub,
+            ClubId: unchecked((int)process.BuyingClubId.Value),
+            ManagerWageTraitPercentage: managerWagePercentage));
+    }
+
+    private int ResolveBuyingClubStrength(TransferProcess process, int fallback)
+    {
+        var club = _clubRegistry?.Registry.Clubs.FirstOrDefault(candidate => candidate.Id == process.BuyingClubId);
+        return club?.SportiveStrength ?? fallback;
     }
 
     private static string DescribeRejection(ContractNegotiationRejectionReason reason) =>

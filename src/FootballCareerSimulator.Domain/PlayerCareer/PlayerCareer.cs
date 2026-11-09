@@ -225,6 +225,14 @@ public sealed class PlayerCareer
             _ => points,
         };
 
+        return ApplyEffectivePoints(effective, day);
+    }
+
+    /// <summary>
+    /// Yaş/evre ayarı yapılmış net gelişim puanını uygular; 10 puan bir yetenek puanına dönüşür.
+    /// </summary>
+    private PlayerCareer ApplyEffectivePoints(int effective, GameDate day)
+    {
         var total = DevelopmentPoints + effective;
         var ability = CurrentAbility;
         while (total >= 10 && ability < PotentialAbility)
@@ -272,7 +280,8 @@ public sealed class PlayerCareer
             age,
             DeclineProfile.PeakStartAge);
 
-        return ApplyDevelopmentGain(effectivePoints, day);
+        // SinWave yaş çarpanını kendisi uyguladığı için evre bonusu ikinci kez eklenmez.
+        return ApplyEffectivePoints(effectivePoints, day);
     }
 
     public PlayerCareer ApplyAnnualAging(GameDate day)

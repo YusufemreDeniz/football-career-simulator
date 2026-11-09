@@ -290,7 +290,7 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
         _output.WriteLine("Progress telemetry: {0}", _progress.Path);
 
         Assert.True(saved.Succeeded);
-        Assert.Equal(49, final.SchemaVersion);
+        Assert.Equal(50, final.SchemaVersion);
         Assert.Equal(10, final.League.Seasons.Count);
         Assert.All(final.League.Seasons, season => Assert.Equal(SeasonStatus.Archived, season.Status));
         Assert.Equal(

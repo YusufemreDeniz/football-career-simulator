@@ -23,7 +23,8 @@ internal static class ClubSnapshotMapper
                 row.ReservedTransferFunds,
                 row.SpentTransferFunds,
                 row.WageBudgetLimit,
-                row.ReservedWeeklyWage))
+                row.ReservedWeeklyWage,
+                row.FacilityLevel ?? Club.DefaultFacilityLevel(row.SportiveStrength)))
             .ToArray();
 
         return LeagueClubRegistry.Rehydrate(clubs);
@@ -38,5 +39,6 @@ internal static class ClubSnapshotMapper
         int ReservedTransferFunds,
         int SpentTransferFunds,
         int WageBudgetLimit,
-        int ReservedWeeklyWage);
+        int ReservedWeeklyWage,
+        int? FacilityLevel = null);
 }

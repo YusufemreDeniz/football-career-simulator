@@ -174,6 +174,7 @@ public sealed class AiClubTransferSimulationService
         }
 
         var buyer = buyers[Math.Abs(worldSeed + (int)playerId.Value) % buyers.Length];
+        TransferProcessId? openedProcessId = null;
         try
         {
             const TransferActingParty buyerActor = TransferActingParty.SimulatedClub;
@@ -199,6 +200,7 @@ public sealed class AiClubTransferSimulationService
             _shortlistTargets.AddTransferTarget(needId, playerId, entry.EntryId, day);
 
             var process = _processes.OpenOldestListedTargetForClub(buyer.Id, day);
+            openedProcessId = process.ProcessId;
             if (process.IsFreeAgent || process.SellingClubId != sellingClubId)
             {
                 return ManagedClubExitSaleResult.Failed(
@@ -238,6 +240,7 @@ public sealed class AiClubTransferSimulationService
             or InvalidOperationException
             or ArgumentException)
         {
+            AbandonHalfFinishedProcess(openedProcessId, day);
             return ManagedClubExitSaleResult.Failed(
                 $"Alıcı süreci tamamlayamadı: {ex.Message}");
         }
@@ -326,6 +329,7 @@ public sealed class AiClubTransferSimulationService
         int? clubTransferFee,
         string reasonCode)
     {
+        TransferProcessId? openedProcessId = null;
         try
         {
             const TransferActingParty actor = TransferActingParty.SimulatedClub;
@@ -351,6 +355,7 @@ public sealed class AiClubTransferSimulationService
             _shortlistTargets.AddTransferTarget(needId, playerId, entry.EntryId, day);
 
             var process = _processes.OpenOldestListedTargetForClub(buyingClubId, day);
+            openedProcessId = process.ProcessId;
             var expectsFreeAgent = clubTransferFee is null;
             if (process.IsFreeAgent != expectsFreeAgent)
             {
@@ -383,7 +388,28 @@ public sealed class AiClubTransferSimulationService
             or InvalidOperationException
             or ArgumentException)
         {
+            AbandonHalfFinishedProcess(openedProcessId, day);
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Kulüp teklifi kabul edildikten sonra ücret/onay adımı başarısız olursa süreç açık ve bütçe rezerve kalmasın.
+    /// </summary>
+    private void AbandonHalfFinishedProcess(TransferProcessId? processId, GameDate day)
+    {
+        if (processId is not { } id)
+        {
+            return;
+        }
+
+        try
+        {
+            _processes.FailAndReleaseIfActive(id, "AiAutomationIncomplete", day);
+        }
+        catch (Exception ex) when (ex is TransferInvariantViolationException or InvalidOperationException)
+        {
+            // Kapatma da başarısızsa süreç pencere kapanışında olağan yoldan sona erer.
         }
     }
 

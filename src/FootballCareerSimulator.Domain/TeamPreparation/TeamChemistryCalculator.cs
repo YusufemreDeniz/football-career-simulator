@@ -1,7 +1,9 @@
 namespace FootballCareerSimulator.Domain.TeamPreparation;
 
 /// <summary>
-/// Takımın soyunma odası uyumunu, saha içi kimyasını ve maç motoru performans çarpanını temsil eder.
+/// Takımın soyunma odası uyumunu ve saha içi kimyasını temsil eder.
+/// <see cref="PerformanceMultiplier"/> yalnız bilgilendirme amaçlı gösterilir; maç motoru kimyayı değil,
+/// aynı doğal mevki verisinden türeyen rol uyumu katsayısını (MvpLineupRoleFitCalculator, -4..+2) kullanır.
 /// </summary>
 public sealed record TeamChemistryProfile(
     int ChemistryScore,

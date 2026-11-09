@@ -41,13 +41,14 @@ public static class SinWaveGrowthCalculator
         // SinWave formülü: sin(headroomRatio * π / 2)
         var sinFactor = Math.Sin(headroomRatio * (Math.PI / 2.0));
 
-        // 2. Yaş faktörü: Genç yaşta (16-21) öğrenme ve adaptasyon patlaması; yaş ilerledikçe azalma
-        var ageMultiplier = age switch
+        // 2. Yaş faktörü mevki profilinin zirve yaşına göredir (varsayılan zirve 24 → 17/21/24/28 eşikleri).
+        var yearsToPeak = peakAge - age;
+        var ageMultiplier = yearsToPeak switch
         {
-            <= 17 => 1.15,
-            <= 21 => 1.25, // Altın gelişim çağı
-            <= 24 => 1.00, // Zirveye yaklaşma
-            <= 28 => 0.80, // Olgunluk
+            >= 7 => 1.15,  // Çok genç: öğrenme hızlı ama fiziksel olgunluk eksik
+            >= 3 => 1.25,  // Altın gelişim çağı
+            >= 0 => 1.00,  // Zirveye yaklaşma
+            >= -4 => 0.80, // Olgunluk
             _ => 0.50,     // Düşüş dönemi
         };
 

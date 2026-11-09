@@ -450,14 +450,54 @@ public sealed class ContractNegotiationModelTests
             DesiredContractYears: 3,
             MinimumContractYears: 1,
             DesiredSquadStatus: ContractSquadStatus.FirstTeam,
+            IsTargetUserClub: true,
             ManagerWageTraitPercentage: 0.0);
 
-        var inputWithSkill = inputWithoutSkill with { ManagerWageTraitPercentage = 0.15 };
+        // Yüzde birimi, negatif = indirim (native TraitId 36/38 ile aynı sözleşme).
+        var inputWithSkill = inputWithoutSkill with { ManagerWageTraitPercentage = -15.0 };
 
         var demandStandard = PlayerContractDemandModel.Generate(inputWithoutSkill);
         var demandDiscounted = PlayerContractDemandModel.Generate(inputWithSkill);
 
-        Assert.True(demandDiscounted.WeeklyWage < demandStandard.WeeklyWage,
-            $"Expected discounted wage ({demandDiscounted.WeeklyWage}) < standard ({demandStandard.WeeklyWage})");
+        Assert.Equal(20_000, demandStandard.WeeklyWage);
+        Assert.Equal(17_000, demandDiscounted.WeeklyWage);
+    }
+
+    [Fact]
+    public void ManagerWageTrait_IsIgnored_WhenTargetIsNotUserClub()
+    {
+        var input = DemandInput(42, 700) with { IsTargetUserClub = false, ManagerWageTraitPercentage = -15.0 };
+
+        var demand = PlayerContractDemandModel.Generate(input);
+
+        Assert.Equal(input.BaseAcceptableWeeklyWage, demand.WeeklyWage);
+    }
+
+    [Fact]
+    public void Generate_UsesAcceptableWageAsThreshold_AndNativeSeedsForDisplayAndRequest()
+    {
+        var input = DemandInput(42, 700) with { ClubId = 9 };
+
+        var demand = PlayerContractDemandModel.Generate(input);
+
+        // Kabul eşiği rastgele çarpan içermez (GetAcceptableNewContractWage).
+        Assert.Equal(input.BaseAcceptableWeeklyWage, demand.WeeklyWage);
+        // Ekran beklentisi PlayerId + Game.Seed, ret sonrası talep PlayerId + ClubId tohumuyla üretilir.
+        Assert.Equal(
+            PlayerContractDemandModel.CalculateDisplayedWage(demand.WeeklyWage, input.PlayerId, input.GameSeed),
+            demand.DisplayedWeeklyWage);
+        Assert.Equal(
+            PlayerContractDemandModel.CalculateRequestedWageAfterRejection(demand.WeeklyWage, input.PlayerId, input.ClubId),
+            demand.RequestedWeeklyWage);
+    }
+
+    [Fact]
+    public void Generate_AppliesUnwillingRenewalPenalty()
+    {
+        var input = DemandInput(42, 700) with { IsRenewal = true, UnwillingToRenew = true };
+
+        var demand = PlayerContractDemandModel.Generate(input);
+
+        Assert.Equal(input.BaseAcceptableWeeklyWage + (input.BaseAcceptableWeeklyWage / 2), demand.WeeklyWage);
     }
 }

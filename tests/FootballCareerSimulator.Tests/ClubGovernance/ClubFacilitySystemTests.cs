@@ -89,15 +89,59 @@ public sealed class ClubFacilitySystemTests
         var playerWithEliteFacility = Domain.PlayerCareer.PlayerCareer.CreateForSlot(
             new ClubId(1), 5, currentAbility: 60, potentialAbility: 80, birthYear: 2005);
 
+        // Seviye 5 tesis çarpanı 1,4x'tir (1,0 + 4 × 0,1).
+        const double levelFiveMultiplier = 1.4;
         var trainedStandard = MvpPlayerDevelopmentApplier.ApplyWeeklyTraining(
             playerBase, plan, null, day, facilityMultiplier: 1.0);
         var trainedElite = MvpPlayerDevelopmentApplier.ApplyWeeklyTraining(
-            playerWithEliteFacility, plan, null, day, facilityMultiplier: 1.5);
-        // Seviye 5 tesis (%50 çarpan) ile oyuncu 10 gelişim puanına ulaşıp CurrentAbility artırmalı (60 -> 61)
-        Assert.True(
-            trainedElite.CurrentAbility > trainedStandard.CurrentAbility
-            || (trainedElite.CurrentAbility == trainedStandard.CurrentAbility && trainedElite.DevelopmentPoints > trainedStandard.DevelopmentPoints));
-        Assert.Equal(61, trainedElite.CurrentAbility);
-        Assert.Equal(60, trainedStandard.CurrentAbility);
+            playerWithEliteFacility, plan, null, day, facilityMultiplier: levelFiveMultiplier);
+
+        // SinWave eğrisi altında aynı oyuncu, daha iyi tesiste kesin olarak daha fazla gelişim puanı toplar.
+        var standardProgress = (trainedStandard.CurrentAbility * 10) + trainedStandard.DevelopmentPoints;
+        var eliteProgress = (trainedElite.CurrentAbility * 10) + trainedElite.DevelopmentPoints;
+        Assert.True(eliteProgress > standardProgress, $"elite={eliteProgress} standard={standardProgress}");
+    }
+
+    [Fact]
+    public void DevelopmentService_UsesClubFacilityLevel_ForWeeklyTraining()
+    {
+        // Üretim yolu: tesis seviyesi kulüp kaydından okunur ve haftalık antrenmana uygulanır.
+        var day = GameDate.FromCalendarDate(2026, 7, 5);
+        var plan = WeeklyTrainingPlan.Set(
+            new ClubId(1), TrainingFocus.General, TrainingIntensity.High, RestApproach.Normal, day);
+
+        var standard = RunWeeklyTraining(facilityLevel: 1, plan, day);
+        var elite = RunWeeklyTraining(facilityLevel: 5, plan, day);
+
+        Assert.True(elite > standard, $"elite={elite} standard={standard}");
+    }
+
+    private static int RunWeeklyTraining(int facilityLevel, WeeklyTrainingPlan plan, GameDate day)
+    {
+        var registry = LeagueClubRegistry.CreateMvpLeague();
+        var club = registry.GetClubOrThrow(new ClubId(1));
+        var rehydrated = Club.Rehydrate(
+            club.Id,
+            club.DisplayName,
+            club.Code,
+            club.SportiveStrength,
+            club.TransferBudgetLimit,
+            club.ReservedTransferFunds,
+            club.SpentTransferFunds,
+            club.WageBudgetLimit,
+            club.ReservedWeeklyWage,
+            facilityLevel);
+        var clubStore = new FootballCareerSimulator.Application.ClubGovernance.Infrastructure.InMemoryClubRegistryStore(
+            registry.WithClub(rehydrated));
+        var playerStore = new FootballCareerSimulator.Application.PlayerCareer.Infrastructure.InMemoryPlayerCareerStore();
+        var service = new FootballCareerSimulator.Application.PlayerCareer.Services.PlayerCareerDevelopmentService(
+            playerStore,
+            clubRegistry: clubStore);
+
+        service.EnsureClub(new ClubId(1), rootSeed: 42, day);
+        service.EnsureAndApplyWeeklyTraining(new ClubId(1), plan, rootSeed: 42, day);
+        return playerStore.Careers
+            .Where(career => career.OriginClubId == new ClubId(1))
+            .Sum(career => (career.CurrentAbility * 10) + career.DevelopmentPoints);
     }
 }

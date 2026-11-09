@@ -308,20 +308,40 @@ public sealed partial class CareerSessionController
             return new TeamChemistryProfile(50, "Kulüp Yok", 1.0, "Bir kulüpte görev almadığınız için takım kimyası hesaplanamaz.");
         }
 
-        var club = Host.ClubModule.Store.Registry.GetClubOrThrow(new Domain.Shared.ClubId(clubId.Value));
+        var cid = new Domain.Shared.ClubId(clubId.Value);
+        var club = Host.ClubModule.Queries.GetClub(clubId.Value);
+        var facilityLevel = club?.FacilityLevel ?? 1;
         var board = BuildSquadSelectionBoard();
         var starters = board.StartingXi;
         var starterCount = starters.Count;
-        var naturalCount = starters.Count(p => p.IsAvailable);
 
+        // Doğal mevki uyumu: maç motorunun kullandığı rol uyumu hesabıyla aynı (formasyon rollerine doğal oturan oyuncu sayısı).
+        var formation = Host.TeamPreparationModule.TacticPlanStore.Get(cid)?.Formation ?? Formation.F442;
+        var profiles = GetSquadProfiles(cid);
+        var starterProfiles = starters
+            .Where(player => player.SlotIndex >= 0 && player.SlotIndex < profiles.Count)
+            .Select(player => profiles[player.SlotIndex])
+            .ToList();
+        var naturalCount = starterProfiles.Count == 0
+            ? 0
+            : Simulation.TeamPreparation.MvpLineupRoleFitCalculator.Evaluate(formation, starterProfiles).NaturalFitCount;
+
+        // Yaş dengesi sahadaki ilk 11 üzerinden ölçülür; ilk 11 yoksa tüm kadro kullanılır.
         var management = BuildPlayerManagementDigest();
-        var avgAge = management.Players.Count > 0 ? (int)Math.Round(management.Players.Average(p => p.Age)) : 25;
+        var starterSlots = starters.Select(player => player.SlotIndex).ToHashSet();
+        var ageSource = management.Players.Where(player => starterSlots.Contains(player.SlotIndex)).ToList();
+        if (ageSource.Count == 0)
+        {
+            ageSource = management.Players.ToList();
+        }
+
+        var avgAge = ageSource.Count > 0 ? (int)Math.Round(ageSource.Average(p => p.Age)) : 25;
 
         var form = BuildDressingRoomEcho();
         var winStreak = form is not null && string.Equals(form.MomentumCode, "WIN_STREAK", StringComparison.OrdinalIgnoreCase)
             ? form.MomentumLength
             : 0;
 
-        return TeamChemistryCalculator.Evaluate(starterCount, naturalCount, avgAge, winStreak, club.FacilityLevel);
+        return TeamChemistryCalculator.Evaluate(starterCount, naturalCount, avgAge, winStreak, facilityLevel);
     }
 }

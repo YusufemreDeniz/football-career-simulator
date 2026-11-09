@@ -326,17 +326,42 @@ public sealed class ContinentalTournamentEngine
         _participants.FirstOrDefault(p => p.ClubId == ManagedClubId)?.GroupCode;
 
     /// <summary>
-    /// Menajerin kulübünün bir Avrupa maçı sonucunu kaydeder ve puan durumunu/primini günceller.
+    /// Eleme maçında beraberlik olamaz: güçlü taraf (eşitlikte ev sahibi) penaltılarla tek gol farkla tur atlar.
+    /// Hem yapay zeka hem yönetilen kulüp maçlarında aynı kural uygulanır.
     /// </summary>
-    public void RecordManagedMatchResult(long fixtureId, int homeScore, int awayScore, IReadOnlyList<MatchKeyMoment>? moments = null)
+    public (int HomeGoals, int AwayGoals, bool DecidedOnPenalties) ApplyKnockoutTieBreak(
+        ContinentalFixture fixture,
+        int homeGoals,
+        int awayGoals)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+        if (!fixture.IsKnockout || homeGoals != awayGoals)
+        {
+            return (homeGoals, awayGoals, false);
+        }
+
+        return GetClubStrength(fixture.HomeClubId) >= GetClubStrength(fixture.AwayClubId)
+            ? (homeGoals + 1, awayGoals, true)
+            : (homeGoals, awayGoals + 1, true);
+    }
+
+    /// <summary>
+    /// Menajerin kulübünün bir Avrupa maçı sonucunu kaydeder ve puan durumunu/primini günceller.
+    /// Eleme maçındaki beraberlik <see cref="ApplyKnockoutTieBreak"/> ile çözülür.
+    /// </summary>
+    /// <returns>Bu sonuçla yönetilen kulübe kazandırılan prim (transfer bütçesine yazılacak tutar).</returns>
+    public int RecordManagedMatchResult(long fixtureId, int homeScore, int awayScore, IReadOnlyList<MatchKeyMoment>? moments = null)
     {
         var fixture = _fixtures.FirstOrDefault(f => f.FixtureId == fixtureId)
             ?? throw new InvalidOperationException($"Avrupa fikstürü bulunamadı: {fixtureId}");
 
         if (fixture.IsPlayed)
         {
-            return;
+            return 0;
         }
+
+        (homeScore, awayScore, _) = ApplyKnockoutTieBreak(fixture, homeScore, awayScore);
+        var prizeBefore = TotalPrizeMoneyWonByManagedClub;
 
         fixture.ApplyResult(homeScore, awayScore, moments ?? Array.Empty<MatchKeyMoment>());
 
@@ -388,11 +413,27 @@ public sealed class ContinentalTournamentEngine
             }
         }
 
-        // Aynı gündeki diğer yapay zeka maçlarını da simüle et
-        SimulatePendingAiMatches(fixture.ScheduledDayNumber);
+        // Aynı gündeki diğer yapay zeka maçlarını simüle et ve biten aşamanın ardından turu ilerlet
+        AdvanceTo(fixture.ScheduledDayNumber);
 
-        // Grup aşaması bittiyse elemeleri planla
-        CheckAndAdvanceTournamentStage(fixture.ScheduledDayNumber);
+        return TotalPrizeMoneyWonByManagedClub - prizeBefore;
+    }
+
+    /// <summary>
+    /// Verilen güne kadar yapay zeka maçlarını oynatır ve tamamlanan aşamaların sonraki turunu planlar.
+    /// Yönetilen kulüp elendikten sonra da turnuvanın kalan turları bu çağrıyla ilerler.
+    /// Sonuçlar dünya tohumu ve fikstür kimliğinden türetildiği için çağrı zamanından bağımsız ve deterministiktir.
+    /// </summary>
+    public void AdvanceTo(int dayNumber)
+    {
+        while (true)
+        {
+            SimulatePendingAiMatches(dayNumber);
+            if (!CheckAndAdvanceTournamentStage())
+            {
+                return;
+            }
+        }
     }
 
     /// <summary>
@@ -428,21 +469,10 @@ public sealed class ContinentalTournamentEngine
             homeStrength,
             awayStrength);
 
-        var homeGoals = outcome.Score.HomeGoals;
-        var awayGoals = outcome.Score.AwayGoals;
-
-        // Eleme maçında beraberlik olamaz — penaltı simülasyonu
-        if (fixture.IsKnockout && homeGoals == awayGoals)
-        {
-            if (homeStrength >= awayStrength)
-            {
-                homeGoals += 1;
-            }
-            else
-            {
-                awayGoals += 1;
-            }
-        }
+        var (homeGoals, awayGoals, _) = ApplyKnockoutTieBreak(
+            fixture,
+            outcome.Score.HomeGoals,
+            outcome.Score.AwayGoals);
 
         fixture.ApplyResult(homeGoals, awayGoals, outcome.KeyMoments);
 
@@ -463,7 +493,7 @@ public sealed class ContinentalTournamentEngine
         }
     }
 
-    private int GetClubStrength(long clubId)
+    public int GetClubStrength(long clubId)
     {
         var participant = _participants.FirstOrDefault(p => p.ClubId == clubId);
         if (participant is not null)
@@ -479,32 +509,39 @@ public sealed class ContinentalTournamentEngine
         return 75;
     }
 
-    private void CheckAndAdvanceTournamentStage(int currentDayNumber)
+    /// <summary>
+    /// Mevcut aşamanın tüm maçları oynandıysa sonraki turu, aşamanın son maç gününden 14 gün sonraya planlar.
+    /// Planlama günü çağrı zamanına değil fikstür takvimine bağlıdır; böylece kayıttan yeniden kurulum aynı sonucu verir.
+    /// </summary>
+    private bool CheckAndAdvanceTournamentStage()
     {
-        if (CurrentStage == ContinentalTournamentStage.GroupStage)
+        if (CurrentStage is ContinentalTournamentStage.Final or ContinentalTournamentStage.Completed)
         {
-            var groupFixtures = _fixtures.Where(f => f.Stage == ContinentalTournamentStage.GroupStage).ToList();
-            if (groupFixtures.All(f => f.IsPlayed))
-            {
-                ScheduleQuarterFinals(currentDayNumber + 14);
-            }
+            return false;
         }
-        else if (CurrentStage == ContinentalTournamentStage.QuarterFinals)
+
+        var stageFixtures = _fixtures.Where(f => f.Stage == CurrentStage).ToList();
+        if (stageFixtures.Count == 0 || !stageFixtures.All(f => f.IsPlayed))
         {
-            var qfFixtures = _fixtures.Where(f => f.Stage == ContinentalTournamentStage.QuarterFinals).ToList();
-            if (qfFixtures.All(f => f.IsPlayed))
-            {
-                ScheduleSemiFinals(currentDayNumber + 14);
-            }
+            return false;
         }
-        else if (CurrentStage == ContinentalTournamentStage.SemiFinals)
+
+        var nextDay = stageFixtures.Max(f => f.ScheduledDayNumber) + 14;
+        var stageBefore = CurrentStage;
+        switch (CurrentStage)
         {
-            var sfFixtures = _fixtures.Where(f => f.Stage == ContinentalTournamentStage.SemiFinals).ToList();
-            if (sfFixtures.All(f => f.IsPlayed))
-            {
-                ScheduleFinal(currentDayNumber + 14);
-            }
+            case ContinentalTournamentStage.GroupStage:
+                ScheduleQuarterFinals(nextDay);
+                break;
+            case ContinentalTournamentStage.QuarterFinals:
+                ScheduleSemiFinals(nextDay);
+                break;
+            case ContinentalTournamentStage.SemiFinals:
+                ScheduleFinal(nextDay);
+                break;
         }
+
+        return CurrentStage != stageBefore;
     }
 
     private void ScheduleQuarterFinals(int matchDayNumber)
@@ -594,7 +631,8 @@ public sealed class ContinentalTournamentEngine
 
     private static (long ClubId, string Name) GetWinner(ContinentalFixture fixture)
     {
-        var homeWon = (fixture.HomeScore ?? 0) >= (fixture.AwayScore ?? 0);
+        // Eleme sonuçları ApplyKnockoutTieBreak sonrası kaydedildiği için beraberlik kalmaz.
+        var homeWon = (fixture.HomeScore ?? 0) > (fixture.AwayScore ?? 0);
         return homeWon
             ? (fixture.HomeClubId, fixture.HomeClubName)
             : (fixture.AwayClubId, fixture.AwayClubName);

@@ -106,7 +106,8 @@ public sealed class TransferModule
         RelationshipEvaluationService? relationships = null,
         ITrainingPhysicalStateStore? trainingStore = null,
         IPlayerCareerStore? playerCareerStore = null,
-        int gameSeed = 0)
+        int gameSeed = 0,
+        Func<int>? gameSeedProvider = null)
     {
         ArgumentNullException.ThrowIfNull(registration);
         ArgumentNullException.ThrowIfNull(clubSquad);
@@ -137,7 +138,9 @@ public sealed class TransferModule
             window,
             wageBudget,
             playerCareerStore,
-            gameSeed);
+            gameSeed,
+            clubRegistry,
+            gameSeedProvider);
         var completionService = new TransferCompletionService(
             processes,
             proposals,
