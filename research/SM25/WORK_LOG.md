@@ -59,3 +59,14 @@
 - Son doğrulamada native verifier geçti; 29/29 odaklı test, 1.171/1.171 seri hızlı test ve 1/1 seri 10 sezon kabul testi başarılı oldu.
 - Production Presentation build 0 hata/0 uyarıyla, Godot career smoke `PASS` sonucu ile tamamlandı.
 - Commit, push veya branch değişikliği yapılmadı.
+
+---
+
+## Oturum 5: Kod–Rapor Uygunluk Denetimi ve Düzeltmeler (2026-11-09)
+
+- Raporlar (REPORT, DESIGN_TRANSLATION, CONTRACT_NEGOTIATION, DEMANDED_WAGES) üretim koduyla satır satır karşılaştırıldı; sapmalar REPORT.md sonundaki tabloda listelendi.
+- Sözleşme talebi native kabul eşiğiyle hizalandı; menajer özelliği birim çelişkisi giderildi; sabır kayıtlı teklif geçmişinden kuruluyor.
+- SinWave büyüme üretim yoluna bağlandı (evre bonusu çift sayılmıyor); mevki gerileme profili DESIGN_TRANSLATION ile hizalandı.
+- Tesis seviyesi, menajer ilerlemesi ve kıtasal turnuva V50 save'e alındı; çift XP giderildi.
+- Doğrulama: 1247/1247 hızlı test, 10 sezon soak 1/1, çözüm derlemesi 0 hata/0 uyarı.
+- `iap_native/` klasörü oyunla ilgisiz üçüncü taraf ödeme akışı analizi olduğu için depoya alınmadı (`.gitignore`).

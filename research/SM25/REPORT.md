@@ -1,6 +1,6 @@
 # SM25 Temiz Oda Sistem Araştırma Raporu
 
-**Güncelleme tarihi**: 2026-09-15
+**Güncelleme tarihi**: 2026-11-09 (kod–rapor uygunluk denetimi; ayrıntı en altta)
 
 **Milestone**: Oyuncu Sözleşmesi Görüşme Sistemi
 **İlke**: Tescilli kod kopyalanmadı; salt okunur yerel ARM64 incelemesinden davranış öğrenilip bağımsız ve yapılandırılabilir bir model tasarlandı.
@@ -140,7 +140,7 @@ Overload'lar birbirlerini çağırmaz.
 ## Doğrulama Durumu
 
 - Native doğrulayıcılar: `VERIFY_DEMANDED_WAGES=PASS`, `VERIFY_CONTRACT_NEGOTIATION=PASS`, `VERIFY_WAGE_CHAIN=PASS`, `VERIFY_GET_PLAYER_BASIC_VALUE=PASS`.
-- Odaklı görüşme ve demanded wage testleri: 38/38; toplam unit testler: 1217/1217 başarılı.
+- Odaklı görüşme ve demanded wage testleri: 38/38; toplam unit testler: 1217/1217 başarılı (2026-09-15). 2026-11-09 denetim sonrası: 1247/1247 hızlı test + 10 sezon soak 1/1.
 - Simülasyonlar: `demanded_wage_matrix.csv` (108 senaryo), 15.576 valuation, 2.340 wage ve 288 contract negotiation satırı üretildi.
 - Production Presentation build: 0 hata, 0 uyarı.
 - Godot console career smoke: `CAREER_UI_SMOKE_TEST_RESULT=PASS`.
@@ -162,3 +162,17 @@ Overload'lar birbirlerini çağırmaz.
 - SM25 `RNG.GetRand` algoritmasının bit düzeyinde clean-room PRNG parity'si çıkarılmadı (davranışsal parity sağlandı).
 - `OtherOffer(8)` rakip teklif seçiminin tüm alt öncelikleri ve `TookTooLong(9)` takvim/saat sınırı tam ayrıştırılmadı (kapsam dışı).
 - Ayrı `CalculateAgentFee()` formülü acceptance state machine'in parçası olmadığı için transfer ekonomisi çalışmasına bırakıldı (kapsam dışı).
+
+## 2026-11-09 Kod–Rapor Uygunluk Denetimi
+
+Bu raporun ve `DESIGN_TRANSLATION.md` / `CONTRACT_NEGOTIATION.md` belgelerinin üretim koduna yansıması denetlendi. Bulunan sapmalar düzeltildi (karar kayıtları D-416–D-421):
+
+| Konu | Denetimde bulunan | Düzeltme |
+|---|---|---|
+| Kabul eşiği (`DemandedWages`) | `Generate()` eşiği `[1,00–1,10]` rastgele çarpanla şişiriyordu | Eşik artık rastgele çarpansız kabul edilebilir ücret; isteksiz yenileme +%50 ve £50 taban uygulanıyor |
+| Tohumlar | Ekran beklentisi `seed ^ 0x9E3779B9`, ret sonrası talep `PlayerId+Game.Seed` ile üretiliyordu | Ekran `PlayerId+Game.Seed`, ret sonrası `PlayerId+ClubId` (`RequestedWeeklyWage`) |
+| Menajer özelliği | Aynı alan bir yerde yüzde (negatif=indirim), bir yerde oran (pozitif=indirim) olarak okunuyordu; indirim native profilde de uygulanıyordu | Tek birim: yüzde, negatif = indirim, yalnız kullanıcı kulübü; `Trunc` yuvarlaması. Beceri→indirim eşlemesi (`%0,3/puan`, en çok %15) simülatör kuralı olarak `PlayerContractProposalService` içinde |
+| Üretim adaptörü | Yalnız evaluator bağlıydı; scout önerisi ile kabul eşiği farklı kulüp gücü/rol/zirve girdileri kullanıyordu | Ortak `PlayerWageModel.EvaluateContractBasis`; scout önerisi bu tabanın altına inmez; teklif süresi talebe yansır |
+| Sabır | Her teklif yeni sabırla değerlendiriliyordu | Sabır kayıtlı reddedilmiş tekliflerden yeniden kurulur; tükenince görüşme kapanır |
+
+`ContractInfo` alan haritası, sabır matrisleri, imza parası ve yuvarlama tablosu kodla birebir uyumlu bulundu.

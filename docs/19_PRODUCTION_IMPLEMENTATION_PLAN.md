@@ -19,7 +19,16 @@
 
 ---
 
-## Güncel Uygulama Kontrol Noktası — 2026-08-21
+## Güncel Uygulama Kontrol Noktası — 2026-11-09 (denetim ve düzeltme)
+
+Bu kontrol noktası 2026-08-21 kontrol noktasının üstündeki güncel durumdur; çelişen yerlerde bu bölüm geçerlidir.
+
+* Kalite kapısı: **1247/1247** hızlı saf .NET test (`Category!=LongRunning`), `LongRunning` 10 sezon kabulü **1/1**, çözüm derlemesi 0 hata/0 uyarı.
+* Save: **V50** (D-416). Tesis seviyesi, menajer seviye/XP/becerileri ve kıtasal turnuva özeti kalıcıdır; V49 kayıtlar otomatik taşınır.
+* Denetimde düzeltilenler: tesis/ilerleme kaydının kaybolması, lig maçında çift XP (D-417), tesis çarpanının gelişime bağlı olmaması ve SinWave'in kullanılmaması (D-418), sözleşme talebinin native eşikten sapması ve indirim birimi çelişkisi (D-419), kıtasal turnuvada yeniden yüklemeyle prim tekrar kazanma, eleme beraberliği, prim tutarsızlığı ve elemeden sonra turnuvanın durması (D-420), transfer edilen oyuncunun tohum 0 ile yeniden üretilmesi ve sabit doğum yılı, takım kimyasında doğal mevki yerine uygunluk sayılması, nedensellik kaydında `Guid.NewGuid`, söz riskinin her aktif sözü işaretlemesi, sahte kondisyon önizlemesi, AI transferinde yarım kalan süreç/bütçe rezervasyonu ve scout değerlemesinde sabit 2 yıllık sözleşme varsayımı.
+* Açık kalanlar: Post-MVP Faz 2–10 servisleri üretime ve save şemasına bağlı değildir (D-421); Presentation'daki üç kadro değişim eylemi seçim store'una doğrudan yazar (docs/17 §335 mimari borcu); dönüş-sakatlık riski yalnız fitness eşiğine bağlıdır.
+
+## Önceki Uygulama Kontrol Noktası — 2026-08-21
 
 Bu bölüm güncel repo durumunun authoritative özetidir. Bölüm 2 ve Bölüm 7'deki ayrıntılı spike/Production Kart anlatıları tarihsel planlama kaydı olarak korunur; “henüz başlamadı”, “36 test” ve “Kart 0 bloke” ifadeleri yalnız o tarihteki durumu anlatır ve bu kontrol noktasıyla geçersiz kılınmıştır.
 

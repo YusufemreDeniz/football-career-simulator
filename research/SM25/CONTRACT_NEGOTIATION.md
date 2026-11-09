@@ -304,7 +304,8 @@ Asset kaynakları ve SHA-256 kilitleri `verify_contract_negotiation.py` içinde 
 
 - `SimulatorBalance` profili imza parası ve açıkça `SimulatorBonus` adı verilen opsiyonel bonus eşiğini etkinleştirir.
 - Bu iki sonuç `SigningFee(5)` ve `Bonuses(3)` enum değerlerini kullanır; native parity iddiası taşımaz.
-- Mevcut `PlayerContractProposalService` persistence/UI akışı değiştirilmedi. Yeni evaluator bağımsız application modeli olarak eklendi; ileride adaptörle bu servise bağlanabilir.
+- `PlayerContractProposalService`, evaluator'ı `Sm25NativeParity` profiliyle üretim kabul kapısı olarak kullanır (2026-09-16'dan beri). 2026-11-09 denetimiyle talep üretimi native eşikle hizalandı: kabul eşiği rastgele çarpansız kabul edilebilir ücrettir; ekran beklentisi `PlayerId+Game.Seed`, ret sonrası talep `PlayerId+ClubId` tohumunu kullanır; sabır kayıtlı teklif geçmişinden yeniden kurulur (D-419).
+- Menajer pazarlık becerisinin talep indirimi (`%0,3/puan`, en çok %15) native değildir; native `TraitId 36/38` ile aynı birimde (yüzde, negatif = indirim) ve yalnız kullanıcı kulübüne uygulanan simülatör denge kuralıdır.
 - `PlayerWageBalanceProfile` içindeki haftalık `100` alt tabanı ve `1.000.000` üst tavan simülatör denge kuralıdır. Native minimum `50`, native global maksimum ise yoktur.
 
 ## 12. Doğrulama Varlıkları
