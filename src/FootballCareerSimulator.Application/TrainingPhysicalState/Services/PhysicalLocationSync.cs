@@ -21,7 +21,7 @@ public static class PhysicalLocationSync
 
         var memberIds = members.Select(m => m.PlayerId.Value).ToHashSet();
 
-        foreach (var state in store.PhysicalStates.Where(s => s.ClubId == clubId).ToArray())
+        foreach (var state in store.GetPhysicalStatesForClub(clubId))
         {
             if (!memberIds.Contains(state.PlayerId.Value))
             {

@@ -671,7 +671,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
     private int ResolvePhysicalModifier(FixtureId fixtureId, ClubId clubId, GameDate day)
     {
         if (_trainingStore is null
-            || !_trainingStore.PhysicalStates.Any(state => state.ClubId == clubId))
+            || _trainingStore.GetPhysicalStatesForClub(clubId).Count == 0)
         {
             return 0;
         }
@@ -711,21 +711,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         return MvpLineupRoleFitCalculator.Evaluate(formation, selected).MatchStrengthModifier;
     }
 
-    private void RecoverInjuriesToDate(GameDate day)
-    {
-        if (_trainingStore is null)
-        {
-            return;
-        }
-
-        foreach (var group in _trainingStore.PhysicalStates
-                     .Where(state => state.ClubId is not null)
-                     .GroupBy(state => state.ClubId!.Value))
-        {
-            var recovered = group.Select(state => state.RecoverIfDue(day)).ToArray();
-            _trainingStore.ReplacePhysicalStatesForClub(group.Key, recovered);
-        }
-    }
+    private void RecoverInjuriesToDate(GameDate day) =>
+        _trainingStore?.RecoverDueInjuries(day);
 
     private void ApplyMatchPhysicalConsequences(
         Fixture fixture,
@@ -760,8 +747,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         int rootSeed,
         int riskBonusPercent)
     {
-        var existing = _trainingStore!.PhysicalStates
-            .Where(state => state.ClubId == clubId && state.SlotIndex is int)
+        var existing = _trainingStore!.GetPhysicalStatesForClub(clubId)
+            .Where(state => state.SlotIndex is int)
             .Select(state => state.RecoverIfDue(day))
             .GroupBy(state => state.SlotIndex!.Value)
             .ToDictionary(
@@ -1103,8 +1090,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             return [];
         }
 
-        return _trainingStore.PhysicalStates
-            .Where(state => state.ClubId == clubId && state.IsInjured && state.SlotIndex is int)
+        return _trainingStore.GetPhysicalStatesForClub(clubId)
+            .Where(state => state.IsInjured && state.SlotIndex is int)
             .Select(state => state.SlotIndex!.Value)
             .OrderBy(slot => slot)
             .ToArray();
@@ -1222,8 +1209,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             : day.DayNumber - previous.ScheduledDate.DayNumber;
         var rosterSlots = _clubSquadStore?.Get(clubId)?.Members.Select(member => member.SlotIndex)
             ?? Enumerable.Range(0, 25);
-        var physicalBySlot = _trainingStore?.PhysicalStates
-            .Where(state => state.ClubId == clubId && state.SlotIndex is int)
+        var physicalBySlot = _trainingStore?.GetPhysicalStatesForClub(clubId)
+            .Where(state => state.SlotIndex is int)
             .GroupBy(state => state.SlotIndex!.Value)
             .ToDictionary(
                 group => group.Key,

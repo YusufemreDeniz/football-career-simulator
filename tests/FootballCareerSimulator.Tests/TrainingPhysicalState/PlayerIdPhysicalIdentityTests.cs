@@ -235,4 +235,31 @@ public sealed class PlayerIdPhysicalIdentityTests
         var returnBonusWhenFit = MvpInjuryRiskEvaluator.ComputeMatchRiskPercent(fullyFit, 90, day.AddDays(3));
         Assert.True(returnBonusWhileElevated > returnBonusWhenFit);
     }
+
+    [Fact]
+    public void RecoverDueInjuries_OnlyTouchesExpiredInjuriesAndKeepsClubSlotIndexes()
+    {
+        var store = new InMemoryTrainingPhysicalStateStore();
+        var club1 = new ClubId(1);
+        var club2 = new ClubId(2);
+        store.UpsertPhysical(
+            PlayerPhysicalState.CreateRested(new PlayerId(101), club1, 0)
+                .WithInjury(InjurySeverity.Minor, Day.AddDays(2)));
+        store.UpsertPhysical(
+            PlayerPhysicalState.CreateRested(new PlayerId(102), club1, 1)
+                .WithInjury(InjurySeverity.Serious, Day.AddDays(10)));
+        store.UpsertPhysical(
+            PlayerPhysicalState.CreateRested(new PlayerId(201), club2, 0));
+
+        Assert.Equal(2, store.GetPhysicalStatesForClub(club1).Count);
+        Assert.Single(store.GetPhysicalStatesForClub(club2));
+
+        var recoveredCount = store.RecoverDueInjuries(Day.AddDays(3));
+
+        Assert.Equal(1, recoveredCount);
+        Assert.False(store.GetPhysical(new PlayerId(101))!.IsInjured);
+        Assert.True(store.GetPhysical(new PlayerId(102))!.IsInjured);
+        Assert.Equal(101, store.GetPhysical(club1, 0)!.PlayerId.Value);
+        Assert.Equal(0, store.RecoverDueInjuries(Day.AddDays(3)));
+    }
 }

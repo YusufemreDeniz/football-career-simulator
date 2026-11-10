@@ -1,6 +1,7 @@
 using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.WorldCalendar;
 
 namespace FootballCareerSimulator.Application.TrainingPhysicalState.Ports;
 
@@ -16,6 +17,28 @@ public interface ITrainingPhysicalStateStore
 
     /// <summary>Denormalize konum üzerinden lookup (squad slot köprüsü).</summary>
     PlayerPhysicalState? GetPhysical(ClubId clubId, int slotIndex);
+
+    IReadOnlyList<PlayerPhysicalState> GetPhysicalStatesForClub(ClubId clubId) =>
+        PhysicalStates
+            .Where(state => state.ClubId == clubId)
+            .OrderBy(state => state.PlayerId.Value)
+            .ToArray();
+
+    int RecoverDueInjuries(GameDate day)
+    {
+        var recoveredCount = 0;
+        foreach (var state in PhysicalStates.Where(s => s.IsInjured).ToArray())
+        {
+            var recovered = state.RecoverIfDue(day);
+            if (!ReferenceEquals(recovered, state))
+            {
+                UpsertPhysical(recovered);
+                recoveredCount++;
+            }
+        }
+
+        return recoveredCount;
+    }
 
     IReadOnlyDictionary<long, PlayerPhysicalState> PhysicalByPlayerId { get; }
 
