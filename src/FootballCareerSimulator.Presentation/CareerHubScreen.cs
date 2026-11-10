@@ -3304,9 +3304,13 @@ public partial class CareerHubScreen : Control
         var injuryText = training.InjuredSlotCount > 0
             ? $" · sakat {training.InjuredSlotCount} (uygun değil {training.UnavailableSlotCount})"
             : string.Empty;
+        var congestion = _controller.BuildFixtureCongestionForecast();
+        var congestionLine = congestion.IsAvailable
+            ? $"\n{congestion.RiskBadgeText} · {congestion.SummaryLine}\nÖneri: {congestion.RecommendationLine}"
+            : string.Empty;
         _trainingLabel.Text =
             $"{FormatStoredIntensity(training.Intensity)} · {FormatStoredFocus(training.Focus)} · {FormatStoredRest(training.RestApproach)}"
-            + $" · Fit %{training.AverageFitness}{injuryText}";
+            + $" · Fit %{training.AverageFitness}{injuryText}{congestionLine}";
         RefreshPreparationBriefing();
     }
 
@@ -4443,14 +4447,18 @@ public partial class CareerHubScreen : Control
         }
 
         var training = _controller.GetTrainingSummary();
+        var congestion = _controller.BuildFixtureCongestionForecast();
+        var congestionNote = congestion.IsAvailable
+            ? $" · {congestion.RiskBadgeText} (7G:{congestion.MatchesNext7Days} / 14G:{congestion.MatchesNext14Days})"
+            : string.Empty;
         if (training.ClubId is null || !training.HasPlan)
         {
-            _todayFitnessSummaryLabel.Text = "⚡ Kondisyon: Plan yok · Varsayılan değerler";
+            _todayFitnessSummaryLabel.Text = $"⚡ Kondisyon: Plan yok{congestionNote}";
         }
         else
         {
             var injuryText = training.InjuredSlotCount > 0 ? $" · Sakat: {training.InjuredSlotCount}" : " · Sakat Yok";
-            _todayFitnessSummaryLabel.Text = $"⚡ XI Kondisyon: %{training.AverageFitness} · Yorgunluk: %{training.AverageFatigue}{injuryText}";
+            _todayFitnessSummaryLabel.Text = $"⚡ XI Kondisyon: %{training.AverageFitness} · Yorgunluk: %{training.AverageFatigue}{injuryText}{congestionNote}";
         }
     }
 

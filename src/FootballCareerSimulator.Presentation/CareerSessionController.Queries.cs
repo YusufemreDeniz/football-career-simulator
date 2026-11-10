@@ -428,4 +428,28 @@ public sealed partial class CareerSessionController
 
         return TeamChemistryCalculator.Evaluate(starterCount, naturalCount, avgAge, winStreak, facilityLevel);
     }
+
+    public Application.TrainingPhysicalState.Queries.FixtureCongestionForecastDigest BuildFixtureCongestionForecast()
+    {
+        var clubId = GetEmployedClubId();
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        if (!clubId.HasValue || season is null)
+        {
+            return Application.TrainingPhysicalState.Queries.FixtureCongestionForecastDigest.Unavailable();
+        }
+
+        var currentDay = GetCurrentGameDate().DayNumber;
+        var scheduledDays = Host.CompetitionModule.Queries
+            .GetSeasonFixtures(season.SeasonId)
+            .Where(f => string.Equals(f.Status, "Planned", StringComparison.Ordinal)
+                        && (f.HomeClubId == clubId.Value || f.AwayClubId == clubId.Value))
+            .Select(f => f.ScheduledDayNumber)
+            .ToArray();
+
+        var states = Host.TrainingModule.Store.GetPhysicalStatesForClub(new ClubId(clubId.Value));
+        return Application.TrainingPhysicalState.Queries.FixtureCongestionForecastDigest.Compose(
+            currentDay,
+            scheduledDays,
+            states);
+    }
 }
