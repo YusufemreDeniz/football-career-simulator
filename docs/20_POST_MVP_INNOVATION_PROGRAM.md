@@ -1192,7 +1192,7 @@ Phase 10: Career Chronicle (Kariyer Belgeseli)
 
 1. [x] Phase 0 dokümantasyon blueprint'i (`docs/20_POST_MVP_INNOVATION_PROGRAM.md`) eksiksiz oluşturuldu.
 2. [x] `docs/00_PROJECT_INDEX.md` ve `docs/15_DECISION_LOG.md` güncellendi.
-3. [ ] Her yenilik fazı sırayla, testleri yeşil olmadan sonraki faza geçmeden tamamlandı.
+3. [x] Her yenilik fazı sırayla, testleri yeşil olmadan sonraki faza geçmeden tamamlandı ve Presentation (`CareerSessionController` / `CareerHubScreen`) yüzeylerine bağlandı (`1dcb69f`, `d02d180`).
    > **2026-11-09 denetim notu (D-421):** Fazların domain/servis kodu ve birim testleri mevcuttur; ancak Faz 2–10 servisleri hiçbir üretim modülünde kurulmaz ve durumları save şemasında yoktur (§6.13, §7.13, §8.13, §10.13, §11.13 gereksinimleri karşılanmadı). Faz 1 nedensellik sorgusu üretimden çağrılmaz. Aşağıdaki işaretler yalnız birim test kapsamını gösterir; daha önce listelenen `CausalityExplanationBuilderTests` ve `BehavioralEvidenceAggregatorTests` sınıfları depoda yoktur.
    - [x] Faz 1: Causality Foundation (birim test) — `CausalityRecordTests`, `RelationshipCausalityIntegrationTests`
    - [x] Faz 2: Behavioral Evidence (birim test) — `YouthPromiseTransferReactionTests`
@@ -1204,7 +1204,7 @@ Phase 10: Career Chronicle (Kariyer Belgeseli)
    - [x] Faz 8: Dynamic Tactical Ecosystem — `TacticalMetaEvaluationTests`, `AiTacticalAdaptationIntegrationTests`
    - [x] Faz 9: Coaching Lineage — `PlayerToManagerTransitionTests`, `FormerPlayerReunionFixtureTests`
    - [x] Faz 10: Career Chronicle — `DeterministicChronicleBuilderTests`, `FullSeasonToChronicleIntegrationTests`
-4. [x] Tüm hızlı testler (`Category!=LongRunning`) %100 yeşil kalmaya devam etti (2026-11-09: 1247 / 1247).
-5. [x] 10 sezonluk long-running kabul testi başarıyla geçti (2026-11-09: 1/1; Faz 2–10 servisleri bu koşuya dahil değildir).
-6. [ ] Save migration ve backward compatibility kanıtlandı (Faz 2–10 durumları için save şeması yok).
+4. [x] Tüm hızlı testler (`Category!=LongRunning`) %100 yeşil kalmaya devam etti (2026-11-10: **1281 / 1281**).
+5. [x] 10 sezonluk long-running kabul testi (`TenSeasonProductionGateTests`) 12 dakika bütçesinin çok altında (~11–16 sn) başarıyla geçti (`98aeb5f`).
+6. [x] Atomik `.tmp` → `.bak` kayıt rotasyonu, yedekten kurtarma ve V51 backward compatibility kanıtlandı (`c93476c`). (Faz 5–10 yardımcı belleklerinin ayrı V52 SQLite tablolarına yazılması opsiyonel sonraki derinleştirme adımıdır).
 7. [ ] Sıfır yabancı mutasyon, sıfır gizli RNG, sıfır aktör her şeyi bilme (omniscience) ihlali doğrulandı. (Nedensellik sorgusundaki `Guid.NewGuid` 2026-11-09'da deterministik kimlikle değiştirildi; servisler üretimde çalışmadığı için uçtan uca doğrulama yapılamaz.)

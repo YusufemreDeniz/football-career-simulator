@@ -36,7 +36,10 @@ Tüm kararların başlangıç noktası:
 | `17_TECHNOLOGY_AND_ARCHITECTURE_DECISION.md` | Teknoloji yığını ve yüksek seviyeli mimari kararı | Kesinleşti |
 | `18_SPIKE_EXECUTION_PLAN.md` | Altı teknik doğrulama spike'ının uygulama sırası ve çalışma kartları | Kesinleşti |
 | `19_PRODUCTION_IMPLEMENTATION_PLAN.md` | Spike/placeholder aşamasından gerçek üretim domain implementasyonuna geçiş planı; ilk üretim dikey kesiti (World & Calendar) | Kesinleşti (planlama düzeyinde) |
-| `20_POST_MVP_INNOVATION_PROGRAM.md` | 10 sistemik yenilikten oluşan Post-MVP İnovasyon Programı mimari şartnamesi ve yol haritası | Kesinleşti — Yaşayan Mimari Belgesi |
+| `20_POST_MVP_INNOVATION_PROGRAM.md` | 10 sistemik yenilikten oluşan Post-MVP İnovasyon Programı mimari şartnamesi ve yol haritası | Kesinleşti — Faz 1–8 ve 10 UI/üretimde aktif |
+| `21_PHASE3_PROFESSIONAL_ROADMAP.md` | Faz 3 Profesyonel Geliştirme Yol Haritası (10 adım) | Tamamlandı (`ff898d2`..`d02d180`) |
+| `22_PHASE3_NEXT_10_EXECUTION_PLAN.md` | Faz 3 Sıradaki 10 Adım Uygulama Planı | Tamamlandı (`e0c01c6`..`d02d180`) |
+| `23_PHASE3_SOCIAL_PERFORMANCE_AND_PRODUCT_PLAN.md` | Sosyal Performanstan Ürün Derinliğine 10 Adım | Tamamlandı (`a50aa77`..`d02d180`) |
 
 ## Henüz Hazırlanmayan Belgeler
 
