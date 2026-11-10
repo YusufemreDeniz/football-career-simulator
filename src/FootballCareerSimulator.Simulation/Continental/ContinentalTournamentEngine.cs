@@ -210,7 +210,11 @@ public sealed class ContinentalTournamentEngine
         }
 
         // 2. 12 Elit Avrupa Devi (Torbalardan dengeli seçim)
-        var eliteClubs = EuropeanElite202627DataPack.AllClubs.Take(12).ToList();
+        var eliteClubs = EuropeanElite202627DataPack.AllClubs
+            .OrderByDescending(c => c.SportiveStrength)
+            .ThenBy(c => c.ClubId)
+            .Take(12)
+            .ToList();
 
         // 3. Grupların Oluşturulması (A, B, C, D)
         var groups = new[] { ContinentalGroupCode.A, ContinentalGroupCode.B, ContinentalGroupCode.C, ContinentalGroupCode.D };

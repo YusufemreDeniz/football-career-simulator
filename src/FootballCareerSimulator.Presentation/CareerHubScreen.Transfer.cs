@@ -12,6 +12,9 @@ public partial class CareerHubScreen
     private Control _transferNeedsHost = null!;
     private PanelContainer _scoutComparisonPanel = null!;
     private Label _scoutComparisonLabel = null!;
+    private Button? _scopePremierLeagueButton;
+    private Button? _scopeLaLigaButton;
+    private Button? _scopeBundesligaButton;
 
     private Control BuildTransferPage()
     {
@@ -151,6 +154,18 @@ public partial class CareerHubScreen
         _scopeEuroButton = SecondaryButton("Avrupa Eliti");
         _scopeEuroButton.Pressed += () => SetScoutScope(TransferMarketScope.EuropeanElite);
         scopeRow.AddChild(_scopeEuroButton);
+
+        _scopePremierLeagueButton = SecondaryButton("Premier League");
+        _scopePremierLeagueButton.Pressed += () => SetScoutScope(TransferMarketScope.PremierLeague);
+        scopeRow.AddChild(_scopePremierLeagueButton);
+
+        _scopeLaLigaButton = SecondaryButton("La Liga");
+        _scopeLaLigaButton.Pressed += () => SetScoutScope(TransferMarketScope.LaLiga);
+        scopeRow.AddChild(_scopeLaLigaButton);
+
+        _scopeBundesligaButton = SecondaryButton("Bundesliga");
+        _scopeBundesligaButton.Pressed += () => SetScoutScope(TransferMarketScope.Bundesliga);
+        scopeRow.AddChild(_scopeBundesligaButton);
 
         _scopeFreeButton = SecondaryButton("Serbestler");
         _scopeFreeButton.Pressed += () => SetScoutScope(TransferMarketScope.FreeAgents);

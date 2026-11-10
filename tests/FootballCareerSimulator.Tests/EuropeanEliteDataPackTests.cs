@@ -11,7 +11,10 @@ public sealed class EuropeanEliteDataPackTests
     public void DataPack_Contains18EliteClubs_WithRealisticStarsAndWonderkids()
     {
         var clubs = EuropeanElite202627DataPack.AllClubs;
-        Assert.Equal(18, clubs.Count);
+        Assert.Equal(65, clubs.Count);
+        Assert.Equal(20, EuropeanElite202627DataPack.GetClubsByLeague("Premier League").Count);
+        Assert.Equal(20, EuropeanElite202627DataPack.GetClubsByLeague("La Liga").Count);
+        Assert.Equal(18, EuropeanElite202627DataPack.GetClubsByLeague("Bundesliga").Count);
 
         Assert.True(EuropeanElite202627DataPack.TryGetClub(101, out var realMadrid));
         Assert.Equal("REAL MADRID CF", realMadrid.OfficialName);

@@ -8,6 +8,9 @@ public enum TransferMarketScope
     Domestic = 1,
     EuropeanElite = 2,
     FreeAgents = 3,
+    PremierLeague = 4,
+    LaLiga = 5,
+    Bundesliga = 6,
 }
 
 public sealed record ScoutCandidateSource(
@@ -164,8 +167,8 @@ public sealed record ScoutCandidateLine(
     public string ToListLabel() =>
         $"[{PositionCode,-3}] {DisplayName} · GÜÇ {EstimatedAbilityLow}-{EstimatedAbilityHigh} · {Age} yaş\n"
         + $"       {ClubName} {(IsInternational ? $"[{OriginLeague}] " : string.Empty)}· İlgi {InterestLabel} · Değer {(MarketValue == 0 ? "SERBEST" : $"{MarketValue:N0} TRY")}"
-        + (IsAffordable ? " · ✓ Bütçe İçi" : " · ⚠️ BÜTÇE ÜSTÜ")
-        + (IsListedTarget ? " · ⭐ HEDEF" : IsShortlisted ? " · 📋 KISA LİSTE" : string.Empty);
+        + (IsAffordable ? " · [BÜTÇE İÇİ]" : " · [BÜTÇE ÜSTÜ]")
+        + (IsListedTarget ? " · [HEDEF]" : IsShortlisted ? " · [KISA LİSTE]" : string.Empty);
 
     public string ToDetailText() =>
         $"{DisplayName} · {PositionCode} · {ClubName}" + (IsInternational ? $" ({OriginLeague})" : string.Empty) + "\n"
@@ -244,6 +247,9 @@ public sealed record ScoutTransferDigest(
         {
             TransferMarketScope.Domestic => candidates.Where(c => !c.IsInternational && c.ClubId > 0),
             TransferMarketScope.EuropeanElite => candidates.Where(c => c.IsInternational && c.ClubId >= 100),
+            TransferMarketScope.PremierLeague => candidates.Where(c => string.Equals(c.OriginLeague, "Premier League", StringComparison.OrdinalIgnoreCase)),
+            TransferMarketScope.LaLiga => candidates.Where(c => string.Equals(c.OriginLeague, "La Liga", StringComparison.OrdinalIgnoreCase)),
+            TransferMarketScope.Bundesliga => candidates.Where(c => string.Equals(c.OriginLeague, "Bundesliga", StringComparison.OrdinalIgnoreCase)),
             TransferMarketScope.FreeAgents => candidates.Where(c => c.ClubId == 0 || c.OriginLeague.Contains("Serbest")),
             _ => candidates,
         }).ToList();
@@ -273,6 +279,9 @@ public sealed record ScoutTransferDigest(
         {
             TransferMarketScope.Domestic => "Süper Lig",
             TransferMarketScope.EuropeanElite => "Avrupa Eliti",
+            TransferMarketScope.PremierLeague => "Premier League",
+            TransferMarketScope.LaLiga => "La Liga",
+            TransferMarketScope.Bundesliga => "Bundesliga",
             TransferMarketScope.FreeAgents => "Serbest Oyuncular",
             _ => "Tüm Dünya",
         };

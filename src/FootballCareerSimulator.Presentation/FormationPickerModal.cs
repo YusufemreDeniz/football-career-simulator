@@ -260,7 +260,7 @@ internal sealed partial class FormationPickerModal : PanelContainer
         header.AddChild(closeButton);
 
         // 2. Formasyonlar Izgarası
-        var scroll = new ScrollContainer
+        var scroll = new MobileScrollContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,

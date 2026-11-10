@@ -110,6 +110,13 @@ public sealed partial class LiveMatchTimelineScreen : Control
         // Right Column: Live Match Desk & Telemetry
         arenaBody.AddChild(BuildTelemetryDesk());
 
+        var homeIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _homeClubName);
+        var awayIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _awayClubName);
+        _pitch.HomeTeamColor = homeIdentity.PrimaryColor;
+        _pitch.AwayTeamColor = awayIdentity.PrimaryColor.IsEqualApprox(homeIdentity.PrimaryColor)
+            ? awayIdentity.SecondaryColor
+            : awayIdentity.PrimaryColor;
+
         _pitch.SetMoments(_results.KeyMoments, _results.MatchSequenceSeed, autoplay: true);
         PopulateTelemetryStats();
         RefreshControls();
@@ -130,6 +137,9 @@ public sealed partial class LiveMatchTimelineScreen : Control
         stack.AddChild(row);
 
         // Home Team Section (Right-aligned)
+        var homeIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _homeClubName);
+        var awayIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _awayClubName);
+
         var homeBox = new HBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -147,6 +157,9 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _homeClubLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(15));
         _homeClubLabel.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
         homeBox.AddChild(_homeClubLabel);
+
+        homeBox.AddChild(new ClubCrestControl(homeIdentity, new Vector2(30, 30)));
+        homeBox.AddChild(new ClubKitControl(homeIdentity, KitVariantType.Home, new Vector2(24, 28)));
 
         var homeBadge = new PanelContainer();
         homeBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
@@ -225,6 +238,9 @@ public sealed partial class LiveMatchTimelineScreen : Control
         awayBadgeText.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
         awayBadge.AddChild(awayBadgeText);
         awayBox.AddChild(awayBadge);
+
+        awayBox.AddChild(new ClubKitControl(awayIdentity, KitVariantType.Away, new Vector2(24, 28)));
+        awayBox.AddChild(new ClubCrestControl(awayIdentity, new Vector2(30, 30)));
 
         _awayClubLabel = new Label
         {
@@ -626,7 +642,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
             nextFrame,
             ResolveKeyMomentDecision,
             $"{nextFrame.Minute}' KRİTİK POZİSYON — SAHA ÜSTÜ HEDEF SEÇ");
-        _audio?.TryPlayCue(MatchAudioCue.Whistle);
+        _audio?.TryPlayCue(MatchAudioCue.KeyMomentFreeze);
 
         var haptics = GameExperienceSettingsStore.Current.EffectiveHapticsStrengthPercent;
         if (OS.HasFeature("mobile") && haptics > 0)
@@ -774,6 +790,12 @@ public sealed partial class LiveMatchTimelineScreen : Control
 
         RecalculateLiveScore(index);
         AddEventChip(frame);
+
+        if (string.Equals(frame.Kind, "Goal", StringComparison.OrdinalIgnoreCase))
+        {
+            CareerUiTheme.ShakeControl(_pitch, intensity: 7f, duration: 0.28f);
+            CareerUiTheme.PulseScale(_scoreboardPill, peakScale: 1.12f, duration: 0.24f);
+        }
 
         _audio?.TryPlayMoment(frame.Kind, frame.Minute, frame.PrimarySlotIndex);
         RefreshControls();

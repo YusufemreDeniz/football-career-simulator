@@ -39,13 +39,19 @@ public static partial class ClubCampusVisualUi
         Action onUpgradePressed,
         Action onRenameStadiumPressed,
         bool canUpgrade,
-        string upgradeButtonText)
+        string upgradeButtonText,
+        long? clubId = null)
     {
         var root = new VBoxContainer
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         root.AddThemeConstantOverride("separation", 6);
+
+        root.AddChild(ClubBrandingVisuals.BuildClubKitShowcaseStrip(
+            clubId,
+            clubName,
+            $"{_customStadiumTitle} · {_customNorthStandName}"));
 
         var buildingsGrid = new GridContainer
         {
@@ -222,16 +228,25 @@ public static partial class ClubCampusVisualUi
         bool isNewSigning,
         Action<long> onSelectCard,
         Action<long> onOpenProfile,
-        Action<long> onQuickPromise)
+        Action<long> onQuickPromise,
+        long? clubId = null,
+        string? clubName = null)
     {
+        var clubIdentity = ClubBrandingVisuals.ResolveClubIdentity(clubId, clubName);
         var cardButton = new CollectibleFutCardButton(
             player,
             estimatedMarketValue,
             isSelected,
-            isNewSigning);
+            isNewSigning,
+            clubIdentity);
 
+        cardButton.MouseFilter = Control.MouseFilterEnum.Pass;
         cardButton.Pressed += () =>
         {
+            if (MobileScrollContainer.WasRecentDragScroll())
+            {
+                return;
+            }
             var tween = cardButton.CreateTween();
             tween.TweenProperty(cardButton, "scale", new Vector2(0.95f, 0.95f), 0.05d);
             tween.TweenProperty(cardButton, "scale", Vector2.One, 0.10d);
@@ -299,6 +314,24 @@ public static partial class ClubCampusVisualUi
             ShadowOffset = new Vector2(0, -4),
         });
         alignBox.AddChild(sheet);
+
+        backdrop.Ready += () =>
+        {
+            if (CareerUiTheme.CurrentPreferences.ReducedMotion)
+            {
+                return;
+            }
+
+            backdrop.Modulate = new Color(1f, 1f, 1f, 0f);
+            sheet.Position = new Vector2(sheet.Position.X, sheet.Position.Y + 60f);
+            var tween = backdrop.CreateTween().SetParallel(true);
+            tween.TweenProperty(backdrop, "modulate:a", 1f, 0.16d)
+                .SetTrans(Tween.TransitionType.Cubic)
+                .SetEase(Tween.EaseType.Out);
+            tween.TweenProperty(sheet, "position:y", 0f, 0.22d)
+                .SetTrans(Tween.TransitionType.Back)
+                .SetEase(Tween.EaseType.Out);
+        };
 
         var root = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         root.AddThemeConstantOverride("separation", 10);
@@ -530,17 +563,24 @@ public static partial class ClubCampusVisualUi
         private readonly int _marketValue;
         private readonly bool _isSelected;
         private readonly bool _isNewSigning;
+        private readonly ClubVisualIdentity _clubIdentity;
+        private readonly Texture2D? _crestTexture;
+        private float _shimmerPhase;
 
         public CollectibleFutCardButton(
             PlayerManagementLine player,
             int marketValue,
             bool isSelected,
-            bool isNewSigning)
+            bool isNewSigning,
+            ClubVisualIdentity clubIdentity)
         {
             _player = player;
             _marketValue = marketValue;
             _isSelected = isSelected;
             _isNewSigning = isNewSigning;
+            _clubIdentity = clubIdentity;
+            _crestTexture = ClubBrandingVisuals.TryLoadTexture(clubIdentity.CrestResourcePath);
+            _shimmerPhase = (player.PlayerId % 13) * 0.23f;
 
             CustomMinimumSize = new Vector2(140, 200);
             SizeFlagsVertical = SizeFlags.ShrinkCenter;
@@ -548,6 +588,18 @@ public static partial class ClubCampusVisualUi
             Text = string.Empty;
             PivotOffset = new Vector2(70, 100);
             TooltipText = $"{player.DisplayName} ({player.PositionCode}) — Detay çekmecesini açmak için dokun";
+        }
+
+        public override void _Process(double delta)
+        {
+            if (_player.Rating >= 78 && !CareerUiTheme.CurrentPreferences.ReducedMotion)
+            {
+                _shimmerPhase = (_shimmerPhase + (float)delta * 0.55f) % 2.4f;
+                if (_shimmerPhase <= 1.15f)
+                {
+                    QueueRedraw();
+                }
+            }
         }
 
         public override void _Draw()
@@ -604,10 +656,25 @@ public static partial class ClubCampusVisualUi
 
             // 3. Merkezde Forma / Oyuncu Silüeti (_Draw)
             var posColor = CareerUiTheme.PositionGroupColor(_player.PositionCode);
+            var isGoalkeeper = _player.PositionCode is "KL" or "GK";
+            var kitPrimary = isGoalkeeper ? new Color(0.95f, 0.72f, 0.12f, 0.92f) : _clubIdentity.PrimaryColor;
+            var kitSecondary = isGoalkeeper ? new Color(0.10f, 0.14f, 0.22f, 0.92f) : _clubIdentity.SecondaryColor;
             var center = new Vector2(rect.Size.X * 0.56f, rect.Size.Y * 0.46f);
 
+            // Sağ üstte mini kulüp arması
+            if (_crestTexture is not null)
+            {
+                DrawTextureRect(_crestTexture, new Rect2(rect.Size.X - 34f, 10f, 24f, 24f), false);
+            }
+            else
+            {
+                var miniCenter = new Vector2(rect.Size.X - 22f, 22f);
+                DrawCircle(miniCenter, 11f, kitPrimary);
+                DrawArc(miniCenter, 11f, 0f, Mathf.Tau, 18, frameTop, 1.4f, true);
+            }
+
             // Arka plan hale
-            DrawCircle(center, 34f, new Color(posColor.R, posColor.G, posColor.B, 0.12f));
+            DrawCircle(center, 34f, new Color(kitPrimary.R, kitPrimary.G, kitPrimary.B, 0.16f));
             DrawArc(center, 34f, 0f, Mathf.Tau, 28, new Color(frameTop.R, frameTop.G, frameTop.B, 0.28f), 1.4f, true);
 
             // Oyuncu baş silüeti
@@ -627,7 +694,19 @@ public static partial class ClubCampusVisualUi
                 center + new Vector2(26f, -2f),
                 center + new Vector2(12f, -10f),
             };
-            DrawColoredPolygon(jerseyPoly, new Color(posColor.R, posColor.G, posColor.B, 0.85f));
+            DrawColoredPolygon(jerseyPoly, new Color(kitPrimary.R, kitPrimary.G, kitPrimary.B, 0.92f));
+
+            // Kulüp forma deseni (Çubuklu / Parçalı)
+            if (!isGoalkeeper && string.Equals(_clubIdentity.KitPattern, "Stripes", StringComparison.OrdinalIgnoreCase))
+            {
+                DrawRect(new Rect2(center.X - 8f, center.Y - 8f, 4.2f, 33f), kitSecondary, true);
+                DrawRect(new Rect2(center.X + 3.8f, center.Y - 8f, 4.2f, 33f), kitSecondary, true);
+            }
+            else if (!isGoalkeeper && string.Equals(_clubIdentity.KitPattern, "Halves", StringComparison.OrdinalIgnoreCase))
+            {
+                DrawRect(new Rect2(center.X, center.Y - 9f, 12.5f, 34f), kitSecondary, true);
+            }
+
             DrawPolyline(
                 new Vector2[]
                 {
@@ -727,6 +806,18 @@ public static partial class ClubCampusVisualUi
             DrawLine(new Vector2(bgRect.Position.X, bgRect.Position.Y), new Vector2(bgRect.Position.X, bgRect.End.Y), activeFrameTop, borderWidth);
             DrawLine(new Vector2(bgRect.End.X, bgRect.Position.Y), new Vector2(bgRect.End.X, bgRect.End.Y), frameBottom, borderWidth);
             DrawLine(new Vector2(bgRect.Position.X, bgRect.End.Y), new Vector2(bgRect.End.X, bgRect.End.Y), frameBottom, borderWidth);
+
+            // 8. Altın Kartlarda (OVR >= 78) Metalik Parlama Çizgisi (Shimmer Sweep)
+            if (_player.Rating >= 78 && _shimmerPhase <= 1.0f && !CareerUiTheme.CurrentPreferences.ReducedMotion)
+            {
+                var sweepX = Mathf.Lerp(-30f, rect.Size.X + 30f, _shimmerPhase);
+                DrawLine(
+                    new Vector2(Mathf.Clamp(sweepX, 4f, rect.Size.X - 4f), 6f),
+                    new Vector2(Mathf.Clamp(sweepX - 28f, 4f, rect.Size.X - 4f), rect.Size.Y - 6f),
+                    new Color(1f, 0.94f, 0.68f, 0.22f),
+                    8f,
+                    true);
+            }
         }
 
         private static string FormatShortCardName(string fullName)

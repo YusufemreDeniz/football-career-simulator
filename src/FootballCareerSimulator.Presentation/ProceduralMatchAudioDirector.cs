@@ -24,6 +24,10 @@ public enum MatchAudioCue
     ResultWin = 6,
     ResultDraw = 7,
     ResultLoss = 8,
+    CardFlip = 9,
+    TacticTick = 10,
+    KeyMomentFreeze = 11,
+    CashRegister = 12,
 }
 
 /// <summary>
@@ -354,6 +358,10 @@ internal static class ProceduralMatchAudioSynthesis
             MatchAudioCue.YellowCard => 0.28,
             MatchAudioCue.RedCard => 0.48,
             MatchAudioCue.Injury => 0.72,
+            MatchAudioCue.CardFlip => 0.12,
+            MatchAudioCue.TacticTick => 0.065,
+            MatchAudioCue.KeyMomentFreeze => 0.54,
+            MatchAudioCue.CashRegister => 0.42,
             _ => 1.12,
         };
 
@@ -404,8 +412,45 @@ internal static class ProceduralMatchAudioSynthesis
             MatchAudioCue.Injury => Injury(time),
             MatchAudioCue.ResultWin => Result(time, result: 1),
             MatchAudioCue.ResultLoss => Result(time, result: -1),
+            MatchAudioCue.CardFlip => CardFlip(time, sample),
+            MatchAudioCue.TacticTick => TacticTick(time),
+            MatchAudioCue.KeyMomentFreeze => KeyMomentFreeze(time, sample),
+            MatchAudioCue.CashRegister => CashRegister(time),
             _ => Result(time, result: 0),
         };
+    }
+
+    private static float CardFlip(double time, int sample)
+    {
+        var snap = GaussianPulse(time, 0.018, 0.009);
+        var whoosh = SmoothNoise(sample, 883) * AttackRelease(time, 0.12, 0.005, 0.075) * 0.44;
+        var body = Math.Sin(Math.Tau * (440 + (time * 1800)) * time) * snap * 0.36;
+        return (float)(whoosh + body);
+    }
+
+    private static float TacticTick(double time)
+    {
+        var env = AttackRelease(time, 0.065, 0.002, 0.048);
+        var click = Math.Sin(Math.Tau * 1040 * time) + (0.48 * Math.Sin(Math.Tau * 2080 * time));
+        return (float)(click * env * 0.40);
+    }
+
+    private static float KeyMomentFreeze(double time, int sample)
+    {
+        var thump1 = GaussianPulse(time, 0.05, 0.032);
+        var thump2 = GaussianPulse(time, 0.24, 0.042);
+        var subBass = Math.Sin(Math.Tau * (96 - (time * 38)) * time) * ((thump1 * 0.75) + (thump2 * 0.92));
+        var shimmer = Math.Sin(Math.Tau * 660 * time) * AttackRelease(time, 0.54, 0.02, 0.36) * 0.16;
+        var air = SmoothNoise(sample, 541) * AttackRelease(time, 0.54, 0.01, 0.40) * 0.12;
+        return (float)((subBass * 0.58) + shimmer + air);
+    }
+
+    private static float CashRegister(double time)
+    {
+        var note = time < 0.14 ? 880d : 1318.5d;
+        var env = AttackRelease(time, 0.42, 0.004, 0.28);
+        var bell = Math.Sin(Math.Tau * note * time) + (0.35 * Math.Sin(Math.Tau * note * 2 * time));
+        return (float)(bell * env * 0.38);
     }
 
     private static float Button(double time)

@@ -299,7 +299,7 @@ public partial class CareerHubScreen
                     : tier >= 4
                         ? TacticalApproach.Attacking
                         : TacticalApproach.Balanced;
-                PlayInterfaceFeedback(MatchAudioCue.Button, 14);
+                PlayInterfaceFeedback(MatchAudioCue.TacticTick, 14);
                 Apply(_controller.SetTacticApproach(approach));
                 StyleFiveTierPills(_approachPillButtons, tier, CareerUiTheme.Accent);
             }));
@@ -326,7 +326,7 @@ public partial class CareerHubScreen
                     : tier >= 4
                         ? PressingIntensity.HighPress
                         : PressingIntensity.Balanced;
-                PlayInterfaceFeedback(MatchAudioCue.Button, 14);
+                PlayInterfaceFeedback(MatchAudioCue.TacticTick, 14);
                 Apply(_controller.SetTacticPressing(pressing));
                 StyleFiveTierPills(_pressingPillButtons, tier, CareerUiTheme.ActionBright);
             }));
@@ -353,7 +353,7 @@ public partial class CareerHubScreen
                     : tier >= 4
                         ? DefensiveLine.High
                         : DefensiveLine.Standard;
-                PlayInterfaceFeedback(MatchAudioCue.Button, 14);
+                PlayInterfaceFeedback(MatchAudioCue.TacticTick, 14);
                 Apply(_controller.SetTacticDefensiveLine(defLine));
                 StyleFiveTierPills(_linePillButtons, tier, CareerUiTheme.Data);
             }));

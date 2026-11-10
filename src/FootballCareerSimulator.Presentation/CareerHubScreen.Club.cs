@@ -448,7 +448,7 @@ public partial class CareerHubScreen
         filterHeaderRow.AddChild(_playerManagementHeadlineLabel);
 
         // Kural 3: 140x200px dikey Top Drives / FUT Koleksiyon Oyuncu Kartları Vitrini
-        var deckScroll = new ScrollContainer
+        var deckScroll = new MobileScrollContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 212),

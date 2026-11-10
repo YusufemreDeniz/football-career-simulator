@@ -20,6 +20,7 @@ internal static class CareerUiTheme
 
     // Existing callers treat Ink as foreground, Accent as prestige and Action as primary CTA.
     private static GameExperiencePreferences _preferences = GameExperiencePreferences.Default;
+    public static GameExperiencePreferences CurrentPreferences => _preferences;
 
     public static Color Ink => _preferences.HighContrast
         ? Colors.White
@@ -113,6 +114,9 @@ internal static class CareerUiTheme
 
     private static FontFile? _display;
     private static FontFile? _body;
+    private static FontVariation? _displayBold;
+    private static FontVariation? _eyebrowFont;
+    private static FontVariation? _tabularFont;
     private static bool _loaded;
 
     public static bool ReducedMotion => _preferences.ReducedMotion;
@@ -137,6 +141,28 @@ internal static class CareerUiTheme
 
         _display = TryLoadFont("res://fonts/Syne-Variable.ttf");
         _body = TryLoadFont("res://fonts/Outfit-Variable.ttf");
+
+        if (_display is not null)
+        {
+            var variation = new FontVariation { BaseFont = _display };
+            variation.VariationEmbolden = 0.22f;
+            variation.SpacingGlyph = 0;
+            _displayBold = variation;
+        }
+
+        if (_body is not null)
+        {
+            var eyebrowVar = new FontVariation { BaseFont = _body };
+            eyebrowVar.VariationEmbolden = 0.18f;
+            eyebrowVar.SpacingGlyph = 1;
+            _eyebrowFont = eyebrowVar;
+
+            var tabularVar = new FontVariation { BaseFont = _body };
+            tabularVar.VariationEmbolden = 0.10f;
+            tabularVar.SpacingGlyph = 0;
+            _tabularFont = tabularVar;
+        }
+
         _loaded = true;
     }
 
@@ -179,6 +205,8 @@ internal static class CareerUiTheme
         ApplyDisplayFont(label);
         label.AddThemeFontSizeOverride("font_size", FontSize(22));
         label.AddThemeColorOverride("font_color", Ink);
+        label.AddThemeColorOverride("font_outline_color", new Color(0.02f, 0.03f, 0.06f, 0.72f));
+        label.AddThemeConstantOverride("outline_size", 1);
     }
 
     public static void StyleSection(Label label)
@@ -190,7 +218,7 @@ internal static class CareerUiTheme
 
     public static void StyleEyebrow(Label label, Color? color = null)
     {
-        ApplyBodyFont(label);
+        ApplyEyebrowFont(label);
         label.AddThemeFontSizeOverride("font_size", FontSize(12));
         label.AddThemeColorOverride("font_color", color ?? Accent);
     }
@@ -217,6 +245,7 @@ internal static class CareerUiTheme
         button.AddThemeStyleboxOverride("focus", FocusRing(Action));
         button.AddThemeStyleboxOverride("disabled", SolidButton(new Color(0.08f, 0.14f, 0.22f, 0.92f)));
         button.CustomMinimumSize = new Vector2(0, 32);
+        AttachSpringPressJuice(button);
     }
 
     public static void StyleSecondaryButton(Button button)
@@ -234,6 +263,7 @@ internal static class CareerUiTheme
         button.AddThemeStyleboxOverride("focus", FocusRing(Data));
         button.AddThemeStyleboxOverride("disabled", OutlineButton(new Color(Stroke.R, Stroke.G, Stroke.B, 0.34f)));
         button.CustomMinimumSize = new Vector2(0, 30);
+        AttachSpringPressJuice(button);
     }
 
     public static void StyleTextInput(LineEdit input)
@@ -298,6 +328,9 @@ internal static class CareerUiTheme
         list.AddThemeStyleboxOverride("focus", FocusRing(Data));
         list.AddThemeStyleboxOverride("selected", SolidButton(Action));
         list.AddThemeStyleboxOverride("selected_focus", SolidButton(ActionHover));
+        list.TextOverrunBehavior = TextServer.OverrunBehavior.NoTrimming;
+        list.SameColumnWidth = false;
+        TouchScrollRepeater.Attach(list);
     }
 
     public static void StylePitchChip(Button button, bool selected)
@@ -581,6 +614,9 @@ internal static class CareerUiTheme
         table.AddThemeStyleboxOverride("focus", FocusRing(Data));
         table.AddThemeStyleboxOverride("selected", SolidButton(Action));
         table.AddThemeStyleboxOverride("selected_focus", SolidButton(ActionHover));
+        table.ScrollHorizontalEnabled = true;
+        table.ScrollVerticalEnabled = true;
+        TouchScrollRepeater.Attach(table);
     }
 
     public static StyleBoxFlat SoftPanel() =>
@@ -719,18 +755,20 @@ internal static class CareerUiTheme
         label.AddThemeColorOverride("font_color", new Color(Accent.R, Accent.G, Accent.B, 0.92f));
     }
 
-    /// <summary>Tablo metni — 13px Outfit.</summary>
+    /// <summary>Tablo metni — 13px Outfit Tabular.</summary>
     public static void StyleTableText(Label label, bool muted = false)
     {
-        ApplyBodyFont(label);
+        ApplyTabularFont(label);
         label.AddThemeFontSizeOverride("font_size", FontSize(13));
         label.AddThemeColorOverride("font_color", muted ? InkMuted : Ink);
+        label.AddThemeColorOverride("font_outline_color", new Color(0.02f, 0.03f, 0.06f, 0.65f));
+        label.AddThemeConstantOverride("outline_size", 1);
     }
 
     /// <summary>Tablo kolon başlığı — 11px muted.</summary>
     public static void StyleTableHeader(Label label)
     {
-        ApplyBodyFont(label);
+        ApplyEyebrowFont(label);
         label.AddThemeFontSizeOverride("font_size", FontSize(11));
         label.AddThemeColorOverride("font_color", InkMuted);
     }
@@ -788,6 +826,7 @@ internal static class CareerUiTheme
         button.AddThemeStyleboxOverride("focus", FocusRing(Accent));
         button.AddThemeStyleboxOverride("disabled", SolidButton(new Color(0.20f, 0.18f, 0.10f, 0.82f)));
         button.CustomMinimumSize = new Vector2(0, 34);
+        AttachSpringPressJuice(button, downScale: 0.93f, upBounce: 1.045f);
     }
 
     /// <summary>
@@ -1517,9 +1556,39 @@ internal static class CareerUiTheme
     internal static void ApplyDisplayFont(Control control)
     {
         EnsureLoaded();
-        if (_display is not null)
+        if (_displayBold is not null)
+        {
+            control.AddThemeFontOverride("font", _displayBold);
+        }
+        else if (_display is not null)
         {
             control.AddThemeFontOverride("font", _display);
+        }
+    }
+
+    internal static void ApplyEyebrowFont(Control control)
+    {
+        EnsureLoaded();
+        if (_eyebrowFont is not null)
+        {
+            control.AddThemeFontOverride("font", _eyebrowFont);
+        }
+        else if (_body is not null)
+        {
+            control.AddThemeFontOverride("font", _body);
+        }
+    }
+
+    internal static void ApplyTabularFont(Control control)
+    {
+        EnsureLoaded();
+        if (_tabularFont is not null)
+        {
+            control.AddThemeFontOverride("font", _tabularFont);
+        }
+        else if (_body is not null)
+        {
+            control.AddThemeFontOverride("font", _body);
         }
     }
 
@@ -1530,6 +1599,89 @@ internal static class CareerUiTheme
         {
             control.AddThemeFontOverride("font", _body);
         }
+    }
+
+    /// <summary>
+    /// Yaylı basma hissi (Spring Press Juice): Butona basıldığında 0.94x ölçeğe iner,
+    /// bırakıldığında Back/Out eğrisiyle 1.035x -> 1.0x yaylanarak oturur.
+    /// </summary>
+    public static void AttachSpringPressJuice(BaseButton button, float downScale = 0.94f, float upBounce = 1.035f)
+    {
+        if (button.HasMeta("spring_juice_attached"))
+        {
+            return;
+        }
+        button.SetMeta("spring_juice_attached", true);
+
+        button.Resized += () => button.PivotOffset = button.Size * 0.5f;
+
+        button.ButtonDown += () =>
+        {
+            if (ReducedMotion || button.Disabled || !button.IsInsideTree())
+            {
+                return;
+            }
+            button.PivotOffset = button.Size * 0.5f;
+            var t = button.CreateTween();
+            t.TweenProperty(button, "scale", new Vector2(downScale, downScale), 0.065f)
+                .SetTrans(Tween.TransitionType.Quad)
+                .SetEase(Tween.EaseType.Out);
+        };
+
+        button.ButtonUp += () =>
+        {
+            if (ReducedMotion || !button.IsInsideTree())
+            {
+                button.Scale = Vector2.One;
+                return;
+            }
+            button.PivotOffset = button.Size * 0.5f;
+            var t = button.CreateTween();
+            t.TweenProperty(button, "scale", new Vector2(upBounce, upBounce), 0.085f)
+                .SetTrans(Tween.TransitionType.Back)
+                .SetEase(Tween.EaseType.Out);
+            t.TweenProperty(button, "scale", Vector2.One, 0.11f)
+                .SetTrans(Tween.TransitionType.Sine)
+                .SetEase(Tween.EaseType.Out);
+        };
+    }
+
+    /// <summary>
+    /// Skor artışı veya kritik olay anında kontrolü büyütüp eski haline getiren "Scale Punch" efekti.
+    /// </summary>
+    public static void PulseScale(Control control, float peakScale = 1.18f, float duration = 0.24f)
+    {
+        if (ReducedMotion || !control.IsInsideTree())
+        {
+            return;
+        }
+        control.PivotOffset = control.Size * 0.5f;
+        var t = control.CreateTween();
+        t.TweenProperty(control, "scale", new Vector2(peakScale, peakScale), duration * 0.42f)
+            .SetTrans(Tween.TransitionType.Back)
+            .SetEase(Tween.EaseType.Out);
+        t.TweenProperty(control, "scale", Vector2.One, duration * 0.58f)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.InOut);
+    }
+
+    /// <summary>
+    /// Gol veya kırmızı kart gibi anlarda saha veya skorbordu hafifçe sarsan "Camera Shake" efekti.
+    /// </summary>
+    public static void ShakeControl(Control control, float intensity = 6f, float duration = 0.28f)
+    {
+        if (ReducedMotion || !control.IsInsideTree())
+        {
+            return;
+        }
+        var origin = control.Position;
+        var t = control.CreateTween();
+        var step = duration / 5f;
+        t.TweenProperty(control, "position", origin + new Vector2(-intensity, intensity * 0.4f), step);
+        t.TweenProperty(control, "position", origin + new Vector2(intensity * 0.85f, -intensity * 0.35f), step);
+        t.TweenProperty(control, "position", origin + new Vector2(-intensity * 0.55f, -intensity * 0.25f), step);
+        t.TweenProperty(control, "position", origin + new Vector2(intensity * 0.3f, intensity * 0.2f), step);
+        t.TweenProperty(control, "position", origin, step);
     }
 
     private static StyleBoxFlat SolidButton(Color color) =>

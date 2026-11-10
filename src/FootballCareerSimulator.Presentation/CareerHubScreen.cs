@@ -1693,7 +1693,7 @@ public partial class CareerHubScreen : Control
         }
 
         _newTransferPlayerId = signed.PlayerId;
-        _audioDirector?.TryPlayCue(MatchAudioCue.ResultWin, signed.SquadNumber);
+        _audioDirector?.TryPlayCue(MatchAudioCue.CashRegister, signed.SquadNumber);
         _transferWelcomeHeadlineLabel.Text = $"HOŞ GELDİN, {signed.DisplayName.ToUpperInvariant()}!";
         _transferWelcomeMetaLabel.Text =
             $"#{signed.SquadNumber} · {signed.PositionName} ({signed.PositionCode}) · {signed.Rating} GÜÇ\n"
@@ -3206,6 +3206,18 @@ public partial class CareerHubScreen : Control
         _scopeAllButton.Text = _scoutMarketScope == TransferMarketScope.All ? "[TÜM DÜNYA]" : "Tüm Dünya";
         _scopeDomesticButton.Text = _scoutMarketScope == TransferMarketScope.Domestic ? "[SÜPER LİG]" : "Süper Lig";
         _scopeEuroButton.Text = _scoutMarketScope == TransferMarketScope.EuropeanElite ? "[AVRUPA ELİTİ]" : "Avrupa Eliti";
+        if (_scopePremierLeagueButton is not null)
+        {
+            _scopePremierLeagueButton.Text = _scoutMarketScope == TransferMarketScope.PremierLeague ? "[PREMIER LEAGUE]" : "Premier League";
+        }
+        if (_scopeLaLigaButton is not null)
+        {
+            _scopeLaLigaButton.Text = _scoutMarketScope == TransferMarketScope.LaLiga ? "[LA LIGA]" : "La Liga";
+        }
+        if (_scopeBundesligaButton is not null)
+        {
+            _scopeBundesligaButton.Text = _scoutMarketScope == TransferMarketScope.Bundesliga ? "[BUNDESLIGA]" : "Bundesliga";
+        }
         _scopeFreeButton.Text = _scoutMarketScope == TransferMarketScope.FreeAgents ? "[SERBESTLER]" : "Serbestler";
     }
 
@@ -4941,13 +4953,18 @@ public partial class CareerHubScreen : Control
                     onUpgradePressed: () =>
                     {
                         var res = _controller.UpgradeFacilities();
+                        if (res.Succeeded)
+                        {
+                            PlayInterfaceFeedback(MatchAudioCue.CashRegister, 28);
+                        }
                         Apply(res);
                         RefreshUi();
                         RefreshSquadList();
                     },
                     onRenameStadiumPressed: () => OpenStadiumNamingModal(club.DisplayName),
                     canUpgrade: canUpgradeFacility,
-                    upgradeButtonText: upgradeBtnText));
+                    upgradeButtonText: upgradeBtnText,
+                    clubId: clubId));
             }
         }
 
@@ -5063,8 +5080,10 @@ public partial class CareerHubScreen : Control
 
         if (_collectiblePlayerDeckRow is not null)
         {
+            var deckScrollParent = _collectiblePlayerDeckRow.GetParent() as ScrollContainer;
+            var savedHScroll = deckScrollParent?.ScrollHorizontal ?? 0;
             MatchScreenUi.ClearChildren(_collectiblePlayerDeckRow);
-            foreach (var player in visiblePlayers.Take(16))
+            foreach (var player in visiblePlayers)
             {
                 var estVal = EstimateSquadPlayerMarketValue(player, avgRating);
                 var isSelected = _selectedPlayerId == player.PlayerId;
@@ -5076,7 +5095,7 @@ public partial class CareerHubScreen : Control
                     isNew,
                     onSelectCard: pid =>
                     {
-                        PlayInterfaceFeedback(MatchAudioCue.Button, 12);
+                        PlayInterfaceFeedback(MatchAudioCue.CardFlip, 14);
                         _selectedPlayerId = pid;
                         RefreshSquadList();
                         OpenPlayerCardBottomSheet(pid);
@@ -5090,8 +5109,21 @@ public partial class CareerHubScreen : Control
                     {
                         PlayInterfaceFeedback(MatchAudioCue.Button, 24);
                         Apply(_controller.PromisePlayingTimeToPlayer(pid));
-                    });
+                    },
+                    clubId: clubId,
+                    clubName: clubName);
                 _collectiblePlayerDeckRow.AddChild(card);
+            }
+
+            if (deckScrollParent is not null && savedHScroll > 0)
+            {
+                Callable.From(() =>
+                {
+                    if (IsInstanceValid(deckScrollParent))
+                    {
+                        deckScrollParent.ScrollHorizontal = savedHScroll;
+                    }
+                }).CallDeferred();
             }
         }
 
@@ -5442,6 +5474,30 @@ public partial class CareerHubScreen : Control
             return;
         }
 
+        if (!string.IsNullOrWhiteSpace(_selectedEuropeanLeagueName))
+        {
+            var euroClubs = EuropeanElite202627DataPack.GetClubsByLeague(_selectedEuropeanLeagueName);
+            _currentRoundFixtures = [];
+            _worldFixtureDetailCard.Visible = false;
+            var maxRound = Math.Max(1, (euroClubs.Count - 1) * 2);
+            if ((int)_roundSelector.MaxValue != maxRound)
+            {
+                _roundSelector.MaxValue = maxRound;
+            }
+            var round = Math.Clamp((int)_roundSelector.Value, 1, maxRound);
+            var pairCount = euroClubs.Count / 2;
+            for (var p = 0; p < pairCount; p++)
+            {
+                var homeIdx = (p + round - 1) % euroClubs.Count;
+                var awayIdx = (euroClubs.Count - 1 - p + round - 1) % euroClubs.Count;
+                if (homeIdx == awayIdx) awayIdx = (awayIdx + 1) % euroClubs.Count;
+                var hClub = euroClubs[homeIdx];
+                var aClub = euroClubs[awayIdx];
+                _fixtureList.AddItem($"   [E] {hClub.OfficialName,-22}   vs   {aClub.OfficialName,22} [D] · {_selectedEuropeanLeagueName} · Hafta {round}");
+            }
+            return;
+        }
+
         if (_roundSelector.MaxValue != CompetitionMvpConstraints.MaxLeagueFixtureRound)
         {
             _roundSelector.MaxValue = CompetitionMvpConstraints.MaxLeagueFixtureRound;
@@ -5667,6 +5723,18 @@ public partial class CareerHubScreen : Control
     {
         _selectedWorldClubId = clubId;
 
+        if (_worldClubBrandStripHost is not null)
+        {
+            MatchScreenUi.ClearChildren(_worldClubBrandStripHost);
+            var resolvedName = EuropeanElite202627DataPack.TryGetClub(clubId, out var ec)
+                ? ec.OfficialName
+                : _controller.GetClubDisplayName(clubId);
+            _worldClubBrandStripHost.AddChild(ClubBrandingVisuals.BuildClubKitShowcaseStrip(
+                clubId,
+                resolvedName,
+                "Lisanslı Kulüp Arması & İç Saha / Deplasman / Alternatif Forma Seti"));
+        }
+
         if (EuropeanElite202627DataPack.TryGetClub(clubId, out var euroElite))
         {
             var stars = string.Join(", ", euroElite.Players.OrderByDescending(p => p.CurrentAbility ?? 75).Take(4).Select(p => $"{p.DisplayName} ({p.CurrentAbility ?? 75})"));
@@ -5842,16 +5910,149 @@ public partial class CareerHubScreen : Control
             return;
         }
 
-        if (_showingContinentalLeague)
+        var isSuperLig = !_showingContinentalLeague && string.IsNullOrWhiteSpace(_selectedEuropeanLeagueName);
+        CareerUiTheme.StyleTabButton(_leagueCompButton, isSuperLig);
+        if (_eplCompButton is not null)
         {
-            CareerUiTheme.StyleSecondaryButton(_leagueCompButton);
-            CareerUiTheme.StyleAccentButton(_euroCompButton);
+            CareerUiTheme.StyleTabButton(_eplCompButton, !_showingContinentalLeague && _selectedEuropeanLeagueName == "Premier League");
         }
-        else
+        if (_laLigaCompButton is not null)
         {
-            CareerUiTheme.StyleAccentButton(_leagueCompButton);
-            CareerUiTheme.StyleSecondaryButton(_euroCompButton);
+            CareerUiTheme.StyleTabButton(_laLigaCompButton, !_showingContinentalLeague && _selectedEuropeanLeagueName == "La Liga");
         }
+        if (_bundesligaCompButton is not null)
+        {
+            CareerUiTheme.StyleTabButton(_bundesligaCompButton, !_showingContinentalLeague && _selectedEuropeanLeagueName == "Bundesliga");
+        }
+        CareerUiTheme.StyleTabButton(_euroCompButton, _showingContinentalLeague);
+    }
+
+    private void RefreshEuropeanLeagueStandings(string leagueName)
+    {
+        var clubs = EuropeanElite202627DataPack.GetClubsByLeague(leagueName)
+            .OrderByDescending(c => c.SportiveStrength)
+            .ThenBy(c => c.OfficialName)
+            .ToList();
+
+        var season = _controller.GetCurrentSeason();
+        var currentDay = _controller.GetCurrentGameDate().DayNumber;
+        var playedRounds = Math.Clamp((currentDay - 30) / 7, 0, Math.Max(1, (clubs.Count - 1) * 2));
+
+        _leagueBriefingLabel.Text = $"{leagueName} · 1. Lig Resmi Takım & Kadro Veritabanı ({clubs.Count} Kulüp)\nTakım satırına dokunarak kulüp armasını, iç/dış saha formalarını ve güncel kadro yıldızlarını inceleyebilirsiniz.";
+        _leagueRoundBadgeLabel.Text = $"{leagueName} · {clubs.Count} Takım";
+        _leagueMatchesBadgeLabel.Text = $"Hafta {Math.Max(1, playedRounds)} Görünümü";
+
+        if (clubs.Count > 0)
+        {
+            _attackLeaderClubLabel.Text = clubs[0].OfficialName;
+            _attackLeaderStatLabel.Text = $"Güç {clubs[0].SportiveStrength} · Lider Adayı";
+        }
+        if (clubs.Count > 1)
+        {
+            _defenseLeaderClubLabel.Text = clubs[1].OfficialName;
+            _defenseLeaderStatLabel.Text = $"Güç {clubs[1].SportiveStrength} · Zirve Takipçisi";
+        }
+        if (clubs.Count > 2)
+        {
+            _formLeaderClubLabel.Text = clubs[2].OfficialName;
+            _formLeaderStatLabel.Text = $"Güç {clubs[2].SportiveStrength} · Şampiyonlar Ligi Hattı";
+        }
+
+        _managedLeagueStatisticsLabel.Text = $"{leagueName} bünyesindeki tüm oyuncular Gözlemci & Transfer ekranından filtrelenip transfer edilebilir.";
+
+        _standingsTable.Clear();
+        _compactStandingsList.Clear();
+        _compactStandingsClubIds.Clear();
+
+        var root = _standingsTable.CreateItem();
+        TreeItem? rowToSelect = null;
+        var compactRowToSelect = -1;
+        var preferredClubId = _selectedWorldClubId.HasValue && clubs.Any(c => c.ClubId == _selectedWorldClubId.Value)
+            ? _selectedWorldClubId.Value
+            : clubs.FirstOrDefault()?.ClubId ?? 101;
+
+        for (var index = 0; index < clubs.Count; index++)
+        {
+            var club = clubs[index];
+            var row = _standingsTable.CreateItem(root);
+            row.SetMetadata(0, club.ClubId);
+            if (club.ClubId == preferredClubId)
+            {
+                rowToSelect = row;
+            }
+
+            // Deterministik sezon simülasyon tablosu
+            var played = Math.Max(1, playedRounds);
+            var strengthFactor = Math.Clamp((club.SportiveStrength - 68) / 22.0, 0.12, 0.85);
+            var won = Math.Clamp((int)Math.Round(played * strengthFactor), 0, played);
+            var drawn = Math.Clamp((played - won) / 3, 0, played - won);
+            var lost = Math.Max(0, played - won - drawn);
+            var gf = (won * 2) + drawn + Math.Max(1, (club.SportiveStrength - 70) / 3);
+            var ga = (lost * 2) + drawn + Math.Max(1, (88 - club.SportiveStrength) / 4);
+            var gd = gf - ga;
+            var pts = (won * 3) + drawn;
+
+            var zoneColor = StandingsZoneColor(index, clubs.Count);
+            var rankDisplay = index switch
+            {
+                0 => "▌1",
+                <= 3 => $"▌{index + 1}",
+                _ when index >= clubs.Count - 3 => $"▌{index + 1}",
+                _ => (index + 1).ToString(),
+            };
+
+            var compactIndex = AddCompactStanding(
+                club.ClubId,
+                $"{index + 1}. {club.OfficialName}   {played}M · {gd:+0;-#;0} · {pts}P",
+                zoneColor ?? CareerUiTheme.Ink);
+            if (club.ClubId == preferredClubId)
+            {
+                compactRowToSelect = compactIndex;
+            }
+
+            var values = new[]
+            {
+                rankDisplay,
+                $"{club.OfficialName} ({club.ShortCode})",
+                played.ToString(),
+                won.ToString(),
+                drawn.ToString(),
+                lost.ToString(),
+                gf.ToString(),
+                ga.ToString(),
+                gd > 0 ? $"+{gd}" : gd.ToString(),
+                $"GÜÇ {club.SportiveStrength}",
+                pts.ToString(),
+            };
+
+            for (var column = 0; column < values.Length; column++)
+            {
+                row.SetText(column, values[column]);
+                if (column != 1)
+                {
+                    row.SetTextAlignment(column, HorizontalAlignment.Center);
+                }
+            }
+
+            var rankColor = index switch
+            {
+                0 => CareerUiTheme.Accent,
+                <= 3 => CareerUiTheme.Data,
+                _ when index >= clubs.Count - 3 => CareerUiTheme.DangerSoft,
+                _ => CareerUiTheme.InkMuted,
+            };
+            row.SetCustomColor(0, rankColor);
+            row.SetCustomColor(1, CareerUiTheme.Ink);
+            row.SetCustomColor(9, CareerUiTheme.ActionBright);
+            row.SetCustomColor(10, CareerUiTheme.Accent);
+        }
+
+        rowToSelect?.Select(0);
+        if (compactRowToSelect >= 0)
+        {
+            _compactStandingsList.Select(compactRowToSelect);
+        }
+        InspectClub(preferredClubId);
     }
 
     private void RefreshContinentalStandings()
@@ -5990,6 +6191,12 @@ public partial class CareerHubScreen : Control
         if (_showingContinentalLeague)
         {
             RefreshContinentalStandings();
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_selectedEuropeanLeagueName))
+        {
+            RefreshEuropeanLeagueStandings(_selectedEuropeanLeagueName);
             return;
         }
 

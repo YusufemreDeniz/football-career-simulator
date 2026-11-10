@@ -766,12 +766,29 @@ public partial class CareerHubScreen
             var cardPanel = new PanelContainer
             {
                 CustomMinimumSize = new Vector2(210, 138),
-                Position = new Vector2(0, offsetY),
+                Position = CareerUiTheme.ReducedMotion ? new Vector2(0, offsetY) : new Vector2(0, offsetY + 18f),
                 PivotOffset = new Vector2(105, 70),
-                RotationDegrees = CareerUiTheme.ReducedMotion ? 0f : angle,
+                RotationDegrees = 0f,
+                Modulate = CareerUiTheme.ReducedMotion ? Colors.White : new Color(1f, 1f, 1f, 0.25f),
             };
             cardPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(cardColor, 0.22f));
             handSlot.AddChild(cardPanel);
+
+            if (!CareerUiTheme.ReducedMotion)
+            {
+                var introTween = CreateTween().SetParallel(true);
+                var delay = i * 0.055d;
+                introTween.TweenProperty(cardPanel, "position:y", offsetY, 0.24d)
+                    .SetDelay(delay)
+                    .SetTrans(Tween.TransitionType.Back)
+                    .SetEase(Tween.EaseType.Out);
+                introTween.TweenProperty(cardPanel, "rotation_degrees", angle, 0.24d)
+                    .SetDelay(delay)
+                    .SetTrans(Tween.TransitionType.Back)
+                    .SetEase(Tween.EaseType.Out);
+                introTween.TweenProperty(cardPanel, "modulate:a", 1f, 0.18d)
+                    .SetDelay(delay);
+            }
 
             var cardBox = new VBoxContainer
             {
@@ -840,7 +857,7 @@ public partial class CareerHubScreen
 
             playCardBtn.Pressed += () =>
             {
-                PlayInterfaceFeedback(MatchAudioCue.Whistle, vibrationDurationMs: 22);
+                PlayInterfaceFeedback(MatchAudioCue.CardFlip, vibrationDurationMs: 24);
                 if (!CareerUiTheme.ReducedMotion)
                 {
                     targetPanel.Scale = new Vector2(1.06f, 1.06f);
@@ -864,7 +881,8 @@ public partial class CareerHubScreen
         }
 
         var manager = _controller.GetManagerCareer();
-        var clubName = manager.EmployedClubId is long cid
+        var managedClubId = manager.EmployedClubId;
+        var clubName = managedClubId is long cid
             ? _controller.GetClubDisplayName(cid)
             : "KULÜBÜMÜZ";
 
@@ -876,13 +894,15 @@ public partial class CareerHubScreen
         {
             var isHome = nextFixture.IsHome;
             var oppName = _controller.GetClubDisplayName(nextFixture.OpponentClubId);
+            var homeId = isHome ? managedClubId : nextFixture.OpponentClubId;
+            var awayId = isHome ? nextFixture.OpponentClubId : managedClubId;
             var homeName = isHome ? clubName : oppName;
             var awayName = isHome ? oppName : clubName;
 
             _matchHeroHomeNameLabel.Text = homeName.ToUpperInvariant();
             _matchHeroAwayNameLabel.Text = awayName.ToUpperInvariant();
-            _matchHeroHomeCrest.SetBadgeText(ExtractInitials(homeName));
-            _matchHeroAwayCrest.SetBadgeText(ExtractInitials(awayName));
+            _matchHeroHomeCrest.SetClub(homeId, homeName, KitVariantType.Home);
+            _matchHeroAwayCrest.SetClub(awayId, awayName, KitVariantType.Away);
             _matchHeroCountdownLabel.Text = "BUGÜN MAÇ GÜNÜ  ·  CANLI YAYIN HAZIR";
         }
         else if (matchTile is not null)
@@ -890,8 +910,8 @@ public partial class CareerHubScreen
             var oppRaw = matchTile.Title.Replace("MAÇ:", "", StringComparison.OrdinalIgnoreCase).Trim();
             _matchHeroHomeNameLabel.Text = clubName.ToUpperInvariant();
             _matchHeroAwayNameLabel.Text = oppRaw.ToUpperInvariant();
-            _matchHeroHomeCrest.SetBadgeText(ExtractInitials(clubName));
-            _matchHeroAwayCrest.SetBadgeText(ExtractInitials(oppRaw));
+            _matchHeroHomeCrest.SetClub(managedClubId, clubName, KitVariantType.Home);
+            _matchHeroAwayCrest.SetClub(null, oppRaw, KitVariantType.Away);
             _matchHeroCountdownLabel.Text = matchTile.DayOffset == 0
                 ? "BUGÜN MAÇ GÜNÜ"
                 : $"GERİ SAYIM: MAÇA {matchTile.DayOffset} GÜN";
@@ -900,7 +920,7 @@ public partial class CareerHubScreen
         {
             _matchHeroHomeNameLabel.Text = clubName.ToUpperInvariant();
             _matchHeroAwayNameLabel.Text = "SIRADAKİ RAKİP";
-            _matchHeroHomeCrest.SetBadgeText(ExtractInitials(clubName));
+            _matchHeroHomeCrest.SetClub(managedClubId, clubName, KitVariantType.Home);
             _matchHeroAwayCrest.SetBadgeText("SL");
             _matchHeroCountdownLabel.Text = "FİKSTÜR TAKİBİ";
         }
@@ -967,71 +987,137 @@ public partial class CareerHubScreen
     }
 
     /// <summary>
-    /// Maç Günü Hero Kartı için özel _Draw() ile çizilen vektörel kulüp arması (Rule 1 & Rule 6).
+    /// Maç Günü Hero Kartı için kulüp armasını (Crest) ve yanında mini maç formasını (Kit) gösteren Broadcast rozet kontrolü.
     /// </summary>
     private sealed partial class BroadcastCrestBadge : Control
     {
         private string _initials;
-        private readonly Color _primary;
-        private readonly Color _secondary;
+        private Color _primary;
+        private Color _secondary;
+        private string _pattern = "Stripes";
+        private Texture2D? _crestTexture;
+        private Texture2D? _kitTexture;
 
         public BroadcastCrestBadge(string initials, Color primary, Color secondary)
         {
             _initials = initials;
             _primary = primary;
             _secondary = secondary;
-            CustomMinimumSize = new Vector2(56, 62);
+            CustomMinimumSize = new Vector2(86, 64);
             MouseFilter = MouseFilterEnum.Ignore;
+        }
+
+        public void SetClub(long? clubId, string? clubName, KitVariantType kitVariant = KitVariantType.Home)
+        {
+            var id = ClubBrandingVisuals.ResolveClubIdentity(clubId, clubName);
+            _initials = id.ShortCode;
+            _primary = kitVariant == KitVariantType.Away ? id.SecondaryColor : id.PrimaryColor;
+            _secondary = kitVariant == KitVariantType.Away ? id.PrimaryColor : id.SecondaryColor;
+            _pattern = id.KitPattern;
+            _crestTexture = ClubBrandingVisuals.TryLoadTexture(id.CrestResourcePath);
+            var kitPath = kitVariant == KitVariantType.Away ? id.AwayKitResourcePath : id.HomeKitResourcePath;
+            _kitTexture = ClubBrandingVisuals.TryLoadTexture(kitPath);
+            QueueRedraw();
         }
 
         public void SetBadgeText(string initials)
         {
             _initials = initials;
+            _crestTexture = null;
+            _kitTexture = null;
             QueueRedraw();
         }
 
         public override void _Draw()
         {
-            var w = Size.X;
             var h = Size.Y;
-            Vector2[] outerShield =
-            [
-                new Vector2(w * 0.50f, 3f),
-                new Vector2(w - 4f, h * 0.20f),
-                new Vector2(w - 7f, h * 0.66f),
-                new Vector2(w * 0.50f, h - 3f),
-                new Vector2(7f, h * 0.66f),
-                new Vector2(4f, h * 0.20f),
-            ];
-            DrawColoredPolygon(outerShield, new Color(0.05f, 0.09f, 0.16f, 0.95f));
+            var crestW = 54f;
 
-            Vector2[] leftHalf =
-            [
-                new Vector2(w * 0.50f, 6f),
-                new Vector2(w * 0.50f, h - 6f),
-                new Vector2(9f, h * 0.64f),
-                new Vector2(6f, h * 0.22f),
-            ];
-            DrawColoredPolygon(leftHalf, new Color(_primary.R, _primary.G, _primary.B, 0.28f));
+            if (_crestTexture is not null)
+            {
+                DrawCircle(new Vector2(crestW * 0.5f, h * 0.5f), 26f, new Color(_primary.R, _primary.G, _primary.B, 0.22f));
+                DrawTextureRect(_crestTexture, new Rect2(4f, (h - 46f) * 0.5f, 46f, 46f), false);
+            }
+            else
+            {
+                Vector2[] outerShield =
+                [
+                    new Vector2(crestW * 0.50f, 3f),
+                    new Vector2(crestW - 4f, h * 0.20f),
+                    new Vector2(crestW - 7f, h * 0.66f),
+                    new Vector2(crestW * 0.50f, h - 3f),
+                    new Vector2(7f, h * 0.66f),
+                    new Vector2(4f, h * 0.20f),
+                ];
+                DrawColoredPolygon(outerShield, _primary.Darkened(0.15f));
 
-            Vector2[] outline =
-            [
-                outerShield[0], outerShield[1], outerShield[2],
-                outerShield[3], outerShield[4], outerShield[5], outerShield[0],
-            ];
-            DrawPolyline(outline, _primary, 2.2f);
-            DrawCircle(new Vector2(w * 0.50f, 12f), 3f, _secondary);
+                Vector2[] leftHalf =
+                [
+                    new Vector2(crestW * 0.50f, 6f),
+                    new Vector2(crestW * 0.50f, h - 6f),
+                    new Vector2(9f, h * 0.64f),
+                    new Vector2(6f, h * 0.22f),
+                ];
+                DrawColoredPolygon(leftHalf, new Color(_secondary.R, _secondary.G, _secondary.B, 0.65f));
 
-            var font = ThemeDB.FallbackFont;
-            var textSize = font.GetStringSize(_initials, HorizontalAlignment.Center, -1, 14);
-            DrawString(
-                font,
-                new Vector2((w - textSize.X) * 0.5f, (h * 0.58f) + (textSize.Y * 0.25f)),
-                _initials,
-                HorizontalAlignment.Center,
-                -1,
-                14,
-                Colors.White);
+                DrawRect(new Rect2(8f, h * 0.38f, crestW - 16f, 16f), new Color(0.04f, 0.07f, 0.12f, 0.85f), true);
+
+                Vector2[] outline =
+                [
+                    outerShield[0], outerShield[1], outerShield[2],
+                    outerShield[3], outerShield[4], outerShield[5], outerShield[0],
+                ];
+                DrawPolyline(outline, CareerUiTheme.Accent, 2.0f);
+
+                var font = ThemeDB.FallbackFont;
+                var textSize = font.GetStringSize(_initials, HorizontalAlignment.Center, -1, 13);
+                DrawString(
+                    font,
+                    new Vector2((crestW - textSize.X) * 0.5f, (h * 0.50f) + (textSize.Y * 0.26f)),
+                    _initials,
+                    HorizontalAlignment.Center,
+                    -1,
+                    13,
+                    Colors.White);
+            }
+
+            // Yanında Mini Maç Forması (Kit Preview)
+            var kitCenter = new Vector2(69f, h * 0.54f);
+            if (_kitTexture is not null)
+            {
+                DrawTextureRect(_kitTexture, new Rect2(54f, (h - 32f) * 0.5f, 30f, 32f), false);
+            }
+            else
+            {
+                var s = 0.68f;
+                var torso = new Vector2[]
+                {
+                    kitCenter + new Vector2(-8f * s, -15f * s),
+                    kitCenter + new Vector2(8f * s, -15f * s),
+                    kitCenter + new Vector2(18f * s, -7f * s),
+                    kitCenter + new Vector2(14f * s, 0f),
+                    kitCenter + new Vector2(10f * s, -3f * s),
+                    kitCenter + new Vector2(10f * s, 16f * s),
+                    kitCenter + new Vector2(-10f * s, 16f * s),
+                    kitCenter + new Vector2(-10f * s, -3f * s),
+                    kitCenter + new Vector2(-14f * s, 0f),
+                    kitCenter + new Vector2(-18f * s, -7f * s),
+                };
+                DrawColoredPolygon(torso, _primary);
+                if (string.Equals(_pattern, "Stripes", StringComparison.OrdinalIgnoreCase))
+                {
+                    DrawRect(new Rect2(kitCenter.X - 6f * s, kitCenter.Y - 13f * s, 3.2f * s, 28f * s), _secondary, true);
+                    DrawRect(new Rect2(kitCenter.X + 2.8f * s, kitCenter.Y - 13f * s, 3.2f * s, 28f * s), _secondary, true);
+                }
+                else if (string.Equals(_pattern, "Halves", StringComparison.OrdinalIgnoreCase))
+                {
+                    DrawRect(new Rect2(kitCenter.X, kitCenter.Y - 14f * s, 10f * s, 29f * s), _secondary, true);
+                }
+                for (var i = 0; i < torso.Length; i++)
+                {
+                    DrawLine(torso[i], torso[(i + 1) % torso.Length], new Color(1f, 1f, 1f, 0.45f), 1.1f, true);
+                }
+            }
         }
     }
 }

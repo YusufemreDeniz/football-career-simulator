@@ -11,6 +11,11 @@ public partial class CareerHubScreen
     private Button _worldTabDossierBtn = null!;
     private Control _worldFixturesHost = null!;
     private Control _worldDossierHost = null!;
+    private Button? _eplCompButton;
+    private Button? _laLigaCompButton;
+    private Button? _bundesligaCompButton;
+    private string? _selectedEuropeanLeagueName;
+    private HBoxContainer? _worldClubBrandStripHost;
 
     private Control BuildWorldPage()
     {
@@ -24,14 +29,25 @@ public partial class CareerHubScreen
         topControlRow.AddThemeConstantOverride("separation", 6);
         page.AddChild(topControlRow);
 
+        var compScroll = new MobileScrollContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            CustomMinimumSize = new Vector2(0, 38),
+        };
+        topControlRow.AddChild(compScroll);
+
         var compSwitchRow = new HBoxContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
         compSwitchRow.AddThemeConstantOverride("separation", 4);
-        topControlRow.AddChild(compSwitchRow);
+        compScroll.AddChild(compSwitchRow);
 
         _leagueCompButton = new Button { Text = "Süper Lig" };
         _leagueCompButton.Pressed += () =>
         {
             _showingContinentalLeague = false;
+            _selectedEuropeanLeagueName = null;
             UpdateCompetitionTabButtons();
             RefreshStandings();
             RefreshFixtureList();
@@ -39,10 +55,47 @@ public partial class CareerHubScreen
         CareerUiTheme.StyleTabButton(_leagueCompButton, selected: true);
         compSwitchRow.AddChild(_leagueCompButton);
 
+        _eplCompButton = new Button { Text = "Premier League" };
+        _eplCompButton.Pressed += () =>
+        {
+            _showingContinentalLeague = false;
+            _selectedEuropeanLeagueName = "Premier League";
+            UpdateCompetitionTabButtons();
+            RefreshStandings();
+            RefreshFixtureList();
+        };
+        CareerUiTheme.StyleTabButton(_eplCompButton, selected: false);
+        compSwitchRow.AddChild(_eplCompButton);
+
+        _laLigaCompButton = new Button { Text = "La Liga" };
+        _laLigaCompButton.Pressed += () =>
+        {
+            _showingContinentalLeague = false;
+            _selectedEuropeanLeagueName = "La Liga";
+            UpdateCompetitionTabButtons();
+            RefreshStandings();
+            RefreshFixtureList();
+        };
+        CareerUiTheme.StyleTabButton(_laLigaCompButton, selected: false);
+        compSwitchRow.AddChild(_laLigaCompButton);
+
+        _bundesligaCompButton = new Button { Text = "Bundesliga" };
+        _bundesligaCompButton.Pressed += () =>
+        {
+            _showingContinentalLeague = false;
+            _selectedEuropeanLeagueName = "Bundesliga";
+            UpdateCompetitionTabButtons();
+            RefreshStandings();
+            RefreshFixtureList();
+        };
+        CareerUiTheme.StyleTabButton(_bundesligaCompButton, selected: false);
+        compSwitchRow.AddChild(_bundesligaCompButton);
+
         _euroCompButton = new Button { Text = "Şampiyonlar Kupası" };
         _euroCompButton.Pressed += () =>
         {
             _showingContinentalLeague = true;
+            _selectedEuropeanLeagueName = null;
             UpdateCompetitionTabButtons();
             RefreshStandings();
             RefreshFixtureList();
@@ -353,6 +406,9 @@ public partial class CareerHubScreen
         statisticsCard.AddChild(_managedLeagueStatisticsLabel);
 
         _worldClubDossierCard = AddCard(dossierHost, "SEÇİLİ KULÜP İSTİHBARAT RAPORU", emphasized: true, expandVertical: true);
+
+        _worldClubBrandStripHost = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _worldClubDossierCard.AddChild(_worldClubBrandStripHost);
 
         var dossierHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         dossierHeaderRow.AddThemeConstantOverride("separation", 8);

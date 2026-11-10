@@ -206,7 +206,15 @@ internal static class TacticalPitchBoardUi
                 selectedSlotIndex == player.SlotIndex,
                 interactionEnabled,
                 playerButtonMinimumSize);
-            button.Pressed += () => selectPlayer(player);
+            button.MouseFilter = Control.MouseFilterEnum.Pass;
+            button.Pressed += () =>
+            {
+                if (MobileScrollContainer.WasRecentDragScroll())
+                {
+                    return;
+                }
+                selectPlayer(player);
+            };
             bench.AddChild(button);
         }
 

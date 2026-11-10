@@ -26,6 +26,7 @@ public sealed partial class MatchMomentPitchView : Control
     private Color _activeShoutColor = new(1f, 0.78f, 0.18f);
     private float _shoutFlashProgress;
     private bool _keyDecisionFreezeActive;
+    private float _decisionIntroProgress = 1f;
     private Action<string>? _onPitchDecisionSelected;
     private readonly List<OnPitchTargetDecisionButton> _decisionTargetButtons = [];
 
@@ -186,15 +187,17 @@ public sealed partial class MatchMomentPitchView : Control
 
         if (_keyDecisionFreezeActive && CurrentFrame is { } freezeFrame)
         {
+            var intro = Mathf.Clamp(_decisionIntroProgress, 0.05f, 1f);
+
             // %60 karartılmış vignette overlay (Broadcast Stadium Noir)
-            DrawRect(new Rect2(Vector2.Zero, Size), new Color(0.02f, 0.04f, 0.08f, 0.60f), filled: true);
-            DrawRect(new Rect2(Vector2.Zero, Size), new Color(0.01f, 0.02f, 0.05f, 0.78f), filled: false, width: 16f);
+            DrawRect(new Rect2(Vector2.Zero, Size), new Color(0.02f, 0.04f, 0.08f, 0.60f * intro), filled: true);
+            DrawRect(new Rect2(Vector2.Zero, Size), new Color(0.01f, 0.02f, 0.05f, 0.78f * intro), filled: false, width: 16f);
 
             var (carrier, topCorner, backPost, dribbleSpot) = ResolveDecisionTargetPoints(freezeFrame, field);
 
             // Topa sahip oyuncunun etrafında parlayan yayın halkası
-            DrawCircle(carrier, 24f, new Color(1f, 0.72f, 0f, 0.24f));
-            DrawArc(carrier, 20f, 0f, Mathf.Tau, 36, CareerUiTheme.Accent, 2.8f);
+            DrawCircle(carrier, 24f * intro, new Color(1f, 0.72f, 0f, 0.24f * intro));
+            DrawArc(carrier, 20f * intro, 0f, Mathf.Tau, 36, CareerUiTheme.Accent, 2.8f);
             DrawCircle(carrier, 9f, CareerUiTheme.ActionBright);
 
             // Topa sahip oyuncudan çıkan 3 adet parlayan kavisli ok (Bezier curve)
@@ -202,9 +205,9 @@ public sealed partial class MatchMomentPitchView : Control
             var controlBack = ((carrier + backPost) * 0.5f) + new Vector2(0f, field.Size.Y * 0.18f);
             var controlDribble = ((carrier + dribbleSpot) * 0.5f) + new Vector2(0f, -field.Size.Y * 0.08f);
 
-            DrawBezierCurveArrow(carrier, controlTop, topCorner, CareerUiTheme.Accent);
-            DrawBezierCurveArrow(carrier, controlBack, backPost, CareerUiTheme.ActionBright);
-            DrawBezierCurveArrow(carrier, controlDribble, dribbleSpot, CareerUiTheme.Data);
+            DrawBezierCurveArrow(carrier, controlTop, topCorner, CareerUiTheme.Accent, intro);
+            DrawBezierCurveArrow(carrier, controlBack, backPost, CareerUiTheme.ActionBright, intro);
+            DrawBezierCurveArrow(carrier, controlDribble, dribbleSpot, CareerUiTheme.Data, intro);
 
             LayoutOnPitchDecisionTargets(topCorner, backPost, dribbleSpot);
         }
@@ -228,32 +231,37 @@ public sealed partial class MatchMomentPitchView : Control
         return (carrier, topCorner, backPost, dribbleSpot);
     }
 
-    private void DrawBezierCurveArrow(Vector2 p0, Vector2 p1, Vector2 p2, Color color)
+    private void DrawBezierCurveArrow(Vector2 p0, Vector2 p1, Vector2 p2, Color color, float progress = 1f)
     {
         const int segments = 24;
+        var activeSegments = Math.Max(2, Mathf.RoundToInt(segments * Mathf.Clamp(progress, 0.08f, 1f)));
         var prev = p0;
-        var glowColor = new Color(color.R, color.G, color.B, 0.28f);
-        var coreColor = new Color(color.R, color.G, color.B, 0.95f);
+        var glowColor = new Color(color.R, color.G, color.B, 0.28f * progress);
+        var coreColor = new Color(color.R, color.G, color.B, 0.95f * progress);
 
-        for (var i = 1; i <= segments; i++)
+        Vector2 tip = p0;
+        Vector2 prevBeforeTip = p0;
+        for (var i = 1; i <= activeSegments; i++)
         {
             var t = i / (float)segments;
             var u = 1f - t;
             var pt = (u * u * p0) + (2f * u * t * p1) + (t * t * p2);
             DrawLine(prev, pt, glowColor, 7.0f);
             DrawLine(prev, pt, coreColor, 2.6f);
+            prevBeforeTip = prev;
             prev = pt;
+            tip = pt;
         }
 
-        var tangent = (p2 - p1).Normalized();
+        var tangent = (tip - prevBeforeTip).Normalized();
         if (tangent.LengthSquared() < 0.01f)
         {
             tangent = (p2 - p0).Normalized();
         }
         var perp = new Vector2(-tangent.Y, tangent.X);
-        var headBase = p2 - (tangent * 12f);
+        var headBase = tip - (tangent * 12f);
         DrawColoredPolygon(
-            [p2, headBase + (perp * 6f), headBase - (perp * 6f)],
+            [tip, headBase + (perp * 6f), headBase - (perp * 6f)],
             coreColor);
     }
 
@@ -263,11 +271,37 @@ public sealed partial class MatchMomentPitchView : Control
         string? promptText = null)
     {
         _onPitchDecisionSelected = onDecisionSelected;
+        _decisionIntroProgress = ReducedMotion ? 1f : 0f;
         SetKeyDecisionHighlight(
             true,
             promptText ?? $"{frame.Minute}' KRİTİK POZİSYON — SAHA ÜSTÜNDE HEDEF SEÇ");
         UpdateOnPitchDecisionTargetsVisibility(true);
-        QueueRedraw();
+
+        if (!ReducedMotion && IsInsideTree())
+        {
+            var tween = CreateTween();
+            tween.SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out);
+            tween.TweenMethod(Callable.From<float>(v =>
+            {
+                _decisionIntroProgress = v;
+                QueueRedraw();
+            }), 0f, 1f, 0.32d);
+
+            for (var i = 0; i < _decisionTargetButtons.Count; i++)
+            {
+                var btn = _decisionTargetButtons[i];
+                btn.PivotOffset = btn.CustomMinimumSize * 0.5f;
+                btn.Scale = new Vector2(0.75f, 0.75f);
+                var btnTween = btn.CreateTween();
+                btnTween.SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+                btnTween.TweenInterval(0.06d * i);
+                btnTween.TweenProperty(btn, "scale", Vector2.One, 0.24d);
+            }
+        }
+        else
+        {
+            QueueRedraw();
+        }
     }
 
     public void TriggerTouchlineShoutEffect(string shoutTitle, Color auraColor)
