@@ -14,6 +14,19 @@ public partial class CareerHubScreen
     private Control _prepOpponentPanelHost = null!;
     private Control _prepTrainingPanelHost = null!;
 
+    private HSlider? _tacticApproachSlider;
+    private Label? _tacticApproachSliderValLabel;
+    private HSlider? _tacticPressingSlider;
+    private Label? _tacticPressingSliderValLabel;
+    private HSlider? _tacticLineSlider;
+    private Label? _tacticLineSliderValLabel;
+    private bool _suppressTacticSliderCallback;
+
+    private ProgressBar? _trainingReadinessBonusBar;
+    private Label? _trainingReadinessBonusLabel;
+    private ProgressBar? _trainingSquadConditionBar;
+    private Label? _trainingSquadConditionLabel;
+
     private Control BuildPrepPage()
     {
         var page = PageRoot();
@@ -240,11 +253,159 @@ public partial class CareerHubScreen
         _scenarioPatientControlBtn.Pressed += () => ApplyScenarioGamePlan("PATIENT_CONTROL");
         scenarioRow.AddChild(_scenarioPatientControlBtn);
 
-        var styleTitle = new Label { Text = "ANLAYIŞ · PRES ŞİDDETİ · SAVUNMA HATTI" };
+        var styleTitle = new Label { Text = "🎚️ TAKTİKSEL ODAK KAYDIRICILARI (OSM / FM26 FOCUS SLIDERS)" };
         CareerUiTheme.StyleHeadline(styleTitle);
         styleTitle.AddThemeColorOverride("font_color", CareerUiTheme.Data);
         styleTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         tacticsCard.AddChild(styleTitle);
+
+        var slidersBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        slidersBox.AddThemeConstantOverride("separation", 5);
+        tacticsCard.AddChild(slidersBox);
+
+        // 1. Hücum & Tempo Odağı Kaydırıcısı (1: Defansif, 2: Dengeli, 3: Hücum)
+        var appSliderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        appSliderRow.AddThemeConstantOverride("separation", 8);
+        slidersBox.AddChild(appSliderRow);
+        var appSliderTitle = new Label
+        {
+            Text = "🔥 Hücum Odağı:",
+            CustomMinimumSize = new Vector2(118, 0),
+        };
+        CareerUiTheme.StyleBody(appSliderTitle);
+        appSliderTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        appSliderRow.AddChild(appSliderTitle);
+
+        _tacticApproachSlider = new HSlider
+        {
+            MinValue = 1,
+            MaxValue = 3,
+            Step = 1,
+            Value = 2,
+            TickCount = 3,
+            TicksOnBorders = true,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        };
+        _tacticApproachSlider.ValueChanged += val =>
+        {
+            if (_suppressTacticSliderCallback) return;
+            var approach = (int)Math.Round(val) switch
+            {
+                1 => TacticalApproach.Defensive,
+                3 => TacticalApproach.Attacking,
+                _ => TacticalApproach.Balanced,
+            };
+            PlayInterfaceFeedback(MatchAudioCue.Button, 14);
+            Apply(_controller.SetTacticApproach(approach));
+        };
+        appSliderRow.AddChild(_tacticApproachSlider);
+
+        _tacticApproachSliderValLabel = new Label
+        {
+            Text = "⚖️ Dengeli",
+            CustomMinimumSize = new Vector2(105, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        CareerUiTheme.StyleTableText(_tacticApproachSliderValLabel);
+        _tacticApproachSliderValLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        appSliderRow.AddChild(_tacticApproachSliderValLabel);
+
+        // 2. Pres & Baskı Şiddeti Kaydırıcısı (1: Geri Blok, 2: Dengeli, 3: Önde Baskı)
+        var pressSliderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        pressSliderRow.AddThemeConstantOverride("separation", 8);
+        slidersBox.AddChild(pressSliderRow);
+        var pressSliderTitle = new Label
+        {
+            Text = "⚡ Pres Şiddeti:",
+            CustomMinimumSize = new Vector2(118, 0),
+        };
+        CareerUiTheme.StyleBody(pressSliderTitle);
+        pressSliderTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        pressSliderRow.AddChild(pressSliderTitle);
+
+        _tacticPressingSlider = new HSlider
+        {
+            MinValue = 1,
+            MaxValue = 3,
+            Step = 1,
+            Value = 2,
+            TickCount = 3,
+            TicksOnBorders = true,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        };
+        _tacticPressingSlider.ValueChanged += val =>
+        {
+            if (_suppressTacticSliderCallback) return;
+            var pressing = (int)Math.Round(val) switch
+            {
+                1 => PressingIntensity.LowBlock,
+                3 => PressingIntensity.HighPress,
+                _ => PressingIntensity.Balanced,
+            };
+            PlayInterfaceFeedback(MatchAudioCue.Button, 14);
+            Apply(_controller.SetTacticPressing(pressing));
+        };
+        pressSliderRow.AddChild(_tacticPressingSlider);
+
+        _tacticPressingSliderValLabel = new Label
+        {
+            Text = "⚡ Orta Pres",
+            CustomMinimumSize = new Vector2(105, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        CareerUiTheme.StyleTableText(_tacticPressingSliderValLabel);
+        _tacticPressingSliderValLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        pressSliderRow.AddChild(_tacticPressingSliderValLabel);
+
+        // 3. Savunma Hattı Yüksekliği Kaydırıcısı (1: Derin, 2: Standart, 3: Yüksek)
+        var lineSliderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        lineSliderRow.AddThemeConstantOverride("separation", 8);
+        slidersBox.AddChild(lineSliderRow);
+        var lineSliderTitle = new Label
+        {
+            Text = "🛡️ Savunma Hattı:",
+            CustomMinimumSize = new Vector2(118, 0),
+        };
+        CareerUiTheme.StyleBody(lineSliderTitle);
+        lineSliderTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        lineSliderRow.AddChild(lineSliderTitle);
+
+        _tacticLineSlider = new HSlider
+        {
+            MinValue = 1,
+            MaxValue = 3,
+            Step = 1,
+            Value = 2,
+            TickCount = 3,
+            TicksOnBorders = true,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        };
+        _tacticLineSlider.ValueChanged += val =>
+        {
+            if (_suppressTacticSliderCallback) return;
+            var defLine = (int)Math.Round(val) switch
+            {
+                1 => DefensiveLine.Deep,
+                3 => DefensiveLine.High,
+                _ => DefensiveLine.Standard,
+            };
+            PlayInterfaceFeedback(MatchAudioCue.Button, 14);
+            Apply(_controller.SetTacticDefensiveLine(defLine));
+        };
+        lineSliderRow.AddChild(_tacticLineSlider);
+
+        _tacticLineSliderValLabel = new Label
+        {
+            Text = "🛡️ Standart Hat",
+            CustomMinimumSize = new Vector2(105, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        CareerUiTheme.StyleTableText(_tacticLineSliderValLabel);
+        _tacticLineSliderValLabel.AddThemeColorOverride("font_color", CareerUiTheme.Data);
+        lineSliderRow.AddChild(_tacticLineSliderValLabel);
 
         var approachRow = ActionFlow();
         tacticsCard.AddChild(approachRow);
@@ -420,7 +581,70 @@ public partial class CareerHubScreen
         var trainingCard = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         trainingCard.AddThemeConstantOverride("separation", 5);
         trainingNeonPanel.AddChild(trainingCard);
-        trainingCard.AddChild(UiComponents.PageHeader("⚡", "HAFTALIK ANTRENMAN PROGRAMI"));
+        trainingCard.AddChild(UiComponents.PageHeader("⚡", "HAFTALIK ANTRENMAN & HAZIRLIK BONUSU (TOP ELEVEN LOOP)"));
+
+        // Top Eleven tarzı Görsel Antrenman Hazırlık Bonusu (%0-%40) & Kondisyon Barı (%0-%100)
+        var metersRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        metersRow.AddThemeConstantOverride("separation", 8);
+        trainingCard.AddChild(metersRow);
+
+        var bonusMeterPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        bonusMeterPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.18f));
+        metersRow.AddChild(bonusMeterPanel);
+        var bonusMeterVBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        bonusMeterVBox.AddThemeConstantOverride("separation", 3);
+        bonusMeterPanel.AddChild(bonusMeterVBox);
+
+        _trainingReadinessBonusLabel = new Label { Text = "🎯 Maç Hazırlık Bonusu: +%24 / %40" };
+        CareerUiTheme.StyleTableText(_trainingReadinessBonusLabel);
+        _trainingReadinessBonusLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        bonusMeterVBox.AddChild(_trainingReadinessBonusLabel);
+
+        _trainingReadinessBonusBar = new ProgressBar
+        {
+            MinValue = 0,
+            MaxValue = 40,
+            Value = 24,
+            ShowPercentage = false,
+            CustomMinimumSize = new Vector2(0, 8),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _trainingReadinessBonusBar.AddThemeStyleboxOverride("background", CareerUiTheme.ProgressBarBackground());
+        _trainingReadinessBonusBar.AddThemeStyleboxOverride("fill", CareerUiTheme.ProgressBarFill(CareerUiTheme.Accent));
+        bonusMeterVBox.AddChild(_trainingReadinessBonusBar);
+
+        var condMeterPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        condMeterPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.18f));
+        metersRow.AddChild(condMeterPanel);
+        var condMeterVBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        condMeterVBox.AddThemeConstantOverride("separation", 3);
+        condMeterPanel.AddChild(condMeterVBox);
+
+        _trainingSquadConditionLabel = new Label { Text = "⚡ Kadro Kondisyonu: %84" };
+        CareerUiTheme.StyleTableText(_trainingSquadConditionLabel);
+        _trainingSquadConditionLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        condMeterVBox.AddChild(_trainingSquadConditionLabel);
+
+        _trainingSquadConditionBar = new ProgressBar
+        {
+            MinValue = 0,
+            MaxValue = 100,
+            Value = 84,
+            ShowPercentage = false,
+            CustomMinimumSize = new Vector2(0, 8),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _trainingSquadConditionBar.AddThemeStyleboxOverride("background", CareerUiTheme.ProgressBarBackground());
+        _trainingSquadConditionBar.AddThemeStyleboxOverride("fill", CareerUiTheme.ProgressBarFill(CareerUiTheme.ActionBright));
+        condMeterVBox.AddChild(_trainingSquadConditionBar);
+
+        var quickDrillBtn = PrimaryButton("🏋️ Ekstra Taktik & Kondisyon Drili Uygula (+Hazırlık & Enerji)");
+        quickDrillBtn.Pressed += () =>
+        {
+            PlayInterfaceFeedback(MatchAudioCue.Button, 24);
+            Apply(_controller.PlayTactileManagerCard("CARD_ENERGY_PACK"));
+        };
+        trainingCard.AddChild(quickDrillBtn);
 
         _trainingLabel = BodyLabel("TrainingLabel", autowrap: true);
         trainingCard.AddChild(_trainingLabel);

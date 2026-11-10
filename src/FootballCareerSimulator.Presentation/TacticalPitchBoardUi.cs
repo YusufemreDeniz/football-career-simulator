@@ -53,16 +53,78 @@ internal static class TacticalPitchBoardUi
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
-        root.AddThemeConstantOverride("separation", 6);
+        root.AddThemeConstantOverride("separation", 5);
 
-        root.AddChild(BuildPitch(
-            board,
+        var pitchBoard = new TacticalPitchBoard(
+            board.StartingXi,
             selectedSlotIndex,
             selectPlayer,
             interactionEnabled,
-            new Vector2(360, 240),
             new Vector2(72, 46),
-            formation));
+            formation)
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(360, 226),
+        };
+
+        // FM26 / SM27 tarzı Canlı Faz Görselleştirme Anahtarı (Topla Hücum Fazı ↔ Standart ↔ Topsuz Savunma Blok)
+        var phaseToggleBar = new HBoxContainer
+        {
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        phaseToggleBar.AddThemeConstantOverride("separation", 4);
+        root.AddChild(phaseToggleBar);
+
+        var phaseStandardBtn = new Button
+        {
+            Text = "⚖️ Standart Diziliş",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 26),
+        };
+        var phaseInPossessionBtn = new Button
+        {
+            Text = "⚽ Topla (Hücum Fazı)",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 26),
+        };
+        var phaseOutPossessionBtn = new Button
+        {
+            Text = "🛡️ Topsuz (Kilit Blok)",
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 26),
+        };
+
+        void UpdatePhaseButtonStyles(int mode)
+        {
+            CareerUiTheme.StyleTabButton(phaseStandardBtn, mode == 0);
+            CareerUiTheme.StyleTabButton(phaseInPossessionBtn, mode == 1);
+            CareerUiTheme.StyleTabButton(phaseOutPossessionBtn, mode == 2);
+        }
+
+        UpdatePhaseButtonStyles(0);
+
+        phaseStandardBtn.Pressed += () =>
+        {
+            UpdatePhaseButtonStyles(0);
+            pitchBoard.AnimateToPhaseMode(0);
+        };
+        phaseInPossessionBtn.Pressed += () =>
+        {
+            UpdatePhaseButtonStyles(1);
+            pitchBoard.AnimateToPhaseMode(1);
+        };
+        phaseOutPossessionBtn.Pressed += () =>
+        {
+            UpdatePhaseButtonStyles(2);
+            pitchBoard.AnimateToPhaseMode(2);
+        };
+
+        phaseToggleBar.AddChild(phaseStandardBtn);
+        phaseToggleBar.AddChild(phaseInPossessionBtn);
+        phaseToggleBar.AddChild(phaseOutPossessionBtn);
+
+        root.AddChild(pitchBoard);
 
         root.AddChild(BuildBench(
             board,
@@ -475,7 +537,8 @@ internal sealed partial class TacticalPitchBoard : Control
     private readonly bool _interactionEnabled;
     private readonly Vector2 _playerButtonMinimumSize;
     private readonly Formation _formation;
-    private readonly List<(Button Button, Vector2 Position)> _buttons = [];
+    private readonly List<(Button Button, Vector2 BasePosition)> _buttons = [];
+    private int _phaseMode; // 0: Standard, 1: In-Possession (Attacking), 2: Out-of-Possession (Compact Block)
 
     public TacticalPitchBoard(
         IReadOnlyList<SquadSelectionPlayerDigest> players,
@@ -492,6 +555,48 @@ internal sealed partial class TacticalPitchBoard : Control
         _playerButtonMinimumSize = playerButtonMinimumSize ?? new Vector2(88, 56);
         _formation = formation;
         ClipContents = true;
+    }
+
+    public void AnimateToPhaseMode(int mode)
+    {
+        _phaseMode = Math.Clamp(mode, 0, 2);
+        var tween = CreateTween();
+        tween.SetParallel(true);
+        tween.SetTrans(Tween.TransitionType.Cubic);
+        tween.SetEase(Tween.EaseType.Out);
+
+        for (var i = 0; i < _buttons.Count; i++)
+        {
+            var (button, basePos) = _buttons[i];
+            var shifted = ComputePhasePosition(basePos, i, _phaseMode);
+            var target = new Vector2(shifted.X * Size.X, shifted.Y * Size.Y) - (button.Size * 0.5f);
+            tween.TweenProperty(button, "position", target, 0.28d);
+        }
+
+        QueueRedraw();
+    }
+
+    private static Vector2 ComputePhasePosition(Vector2 basePos, int index, int phaseMode)
+    {
+        if (index == 0 || phaseMode == 0)
+        {
+            return basePos;
+        }
+
+        if (phaseMode == 1)
+        {
+            // Topla Hücum Fazı (IP): Takım boyu öne çıkar, bekler ve kanatlar çizgiye/ileriye bindirir
+            var yShift = basePos.Y > 0.65f ? -0.11f : (basePos.Y > 0.40f ? -0.13f : -0.06f);
+            var xSpread = basePos.X < 0.30f ? -0.04f : (basePos.X > 0.70f ? 0.04f : 0f);
+            return new Vector2(
+                Mathf.Clamp(basePos.X + xSpread, 0.10f, 0.90f),
+                Mathf.Clamp(basePos.Y + yShift, 0.14f, 0.86f));
+        }
+
+        // Topsuz Kilit Blok (OOP): Takım kendi yarı sahasında kompaktlaşır, hatlar birbirine yaklaşır
+        var compactX = Mathf.Lerp(basePos.X, 0.50f, 0.22f);
+        var compactY = Mathf.Clamp(basePos.Y + 0.12f, 0.32f, 0.84f);
+        return new Vector2(compactX, compactY);
     }
 
     public override void _Ready()
@@ -526,6 +631,44 @@ internal sealed partial class TacticalPitchBoard : Control
         for (var stripe = 0; stripe < stripeCount; stripe += 2)
         {
             DrawRect(new Rect2(0, stripe * stripeHeight, Size.X, stripeHeight), new Color(0.06f, 0.20f, 0.12f));
+        }
+
+        // Faz Odak Bölgesi Görselleştirmesi (SM27 / FM26 Taktiksel Isı Bölgeleri)
+        if (_phaseMode == 1)
+        {
+            // Hücum 3. Bölge & Kanat Koridorları Isı Alanı
+            DrawRect(new Rect2(0, 0, Size.X, Size.Y * 0.42f), new Color(0.98f, 0.68f, 0.16f, 0.13f), filled: true);
+            DrawLine(new Vector2(0, Size.Y * 0.42f), new Vector2(Size.X, Size.Y * 0.42f), new Color(0.98f, 0.75f, 0.22f, 0.72f), 2f);
+        }
+        else if (_phaseMode == 2)
+        {
+            // Kompakt Savunma Bloğu Kalkan Alanı
+            DrawRect(new Rect2(Size.X * 0.12f, Size.Y * 0.46f, Size.X * 0.76f, Size.Y * 0.40f), new Color(0.22f, 0.68f, 0.98f, 0.15f), filled: true);
+            DrawRect(new Rect2(Size.X * 0.12f, Size.Y * 0.46f, Size.X * 0.76f, Size.Y * 0.40f), new Color(0.22f, 0.75f, 0.98f, 0.65f), filled: false, width: 2f);
+        }
+
+        // Taktiksel Pas & Uyum Bağlantı Çizgileri
+        var linkColor = _phaseMode == 1
+            ? new Color(0.98f, 0.78f, 0.24f, 0.32f)
+            : _phaseMode == 2
+                ? new Color(0.28f, 0.78f, 0.98f, 0.32f)
+                : new Color(0.18f, 0.90f, 0.58f, 0.24f);
+
+        for (var i = 1; i < _buttons.Count; i++)
+        {
+            var p1 = ComputePhasePosition(_buttons[i].BasePosition, i, _phaseMode);
+            for (var j = i + 1; j < _buttons.Count; j++)
+            {
+                var p2 = ComputePhasePosition(_buttons[j].BasePosition, j, _phaseMode);
+                if (p1.DistanceTo(p2) <= 0.34f)
+                {
+                    DrawLine(
+                        new Vector2(p1.X * Size.X, p1.Y * Size.Y),
+                        new Vector2(p2.X * Size.X, p2.Y * Size.Y),
+                        linkColor,
+                        1.8f);
+                }
+            }
         }
 
         // Net, taktiksel beyaz-nane saha çizgileri
@@ -578,10 +721,12 @@ internal sealed partial class TacticalPitchBoard : Control
 
     private void LayoutPlayers()
     {
-        foreach (var (button, position) in _buttons)
+        for (var i = 0; i < _buttons.Count; i++)
         {
+            var (button, basePos) = _buttons[i];
+            var shifted = ComputePhasePosition(basePos, i, _phaseMode);
             button.Size = _playerButtonMinimumSize;
-            var target = new Vector2(position.X * Size.X, position.Y * Size.Y);
+            var target = new Vector2(shifted.X * Size.X, shifted.Y * Size.Y);
             button.Position = target - (button.Size * 0.5f);
         }
     }

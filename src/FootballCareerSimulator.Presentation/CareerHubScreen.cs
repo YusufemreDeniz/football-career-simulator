@@ -3988,6 +3988,83 @@ public partial class CareerHubScreen : Control
             if (isPatientControl) CareerUiTheme.StylePrimaryButton(_scenarioPatientControlBtn);
             else CareerUiTheme.StyleSecondaryButton(_scenarioPatientControlBtn);
         }
+
+        // OSM / FM26 Taktiksel Odak Kaydırıcılarını senkronize et
+        _suppressTacticSliderCallback = true;
+        if (_tacticApproachSlider is not null && _tacticApproachSliderValLabel is not null)
+        {
+            _tacticApproachSlider.Editable = employed;
+            var appVal = tactic?.Approach switch
+            {
+                TacticalApproach.Defensive => 1,
+                TacticalApproach.Attacking => 3,
+                _ => 2,
+            };
+            _tacticApproachSlider.Value = appVal;
+            _tacticApproachSliderValLabel.Text = appVal switch
+            {
+                1 => "🛡️ Defansif",
+                3 => "🔥 Tam Hücum",
+                _ => "⚖️ Dengeli",
+            };
+        }
+        if (_tacticPressingSlider is not null && _tacticPressingSliderValLabel is not null)
+        {
+            _tacticPressingSlider.Editable = employed;
+            var pressVal = tactic?.Pressing switch
+            {
+                PressingIntensity.LowBlock => 1,
+                PressingIntensity.HighPress => 3,
+                _ => 2,
+            };
+            _tacticPressingSlider.Value = pressVal;
+            _tacticPressingSliderValLabel.Text = pressVal switch
+            {
+                1 => "🧱 Geri Blok",
+                3 => "⚡ Önde Pres",
+                _ => "⚖️ Orta Pres",
+            };
+        }
+        if (_tacticLineSlider is not null && _tacticLineSliderValLabel is not null)
+        {
+            _tacticLineSlider.Editable = employed;
+            var lineVal = tactic?.DefensiveLine switch
+            {
+                DefensiveLine.Deep => 1,
+                DefensiveLine.High => 3,
+                _ => 2,
+            };
+            _tacticLineSlider.Value = lineVal;
+            _tacticLineSliderValLabel.Text = lineVal switch
+            {
+                1 => "🛡️ Derin Hat",
+                3 => "🚀 Yüksek Hat",
+                _ => "⚖️ Standart Hat",
+            };
+        }
+        _suppressTacticSliderCallback = false;
+
+        // Top Eleven Antrenman Hazırlık Bonusu (%0-%40) & Kondisyon Barını güncelle
+        var trainingSummary = _controller.GetTrainingSummary();
+        if (_trainingReadinessBonusBar is not null && _trainingReadinessBonusLabel is not null)
+        {
+            var bonusPct = !trainingSummary.HasPlan
+                ? 10
+                : trainingSummary.Intensity switch
+                {
+                    (int)TrainingIntensity.High => 38,
+                    (int)TrainingIntensity.Medium => 28,
+                    _ => 18,
+                };
+            _trainingReadinessBonusBar.Value = bonusPct;
+            _trainingReadinessBonusLabel.Text = $"🎯 Maç Hazırlık Bonusu: +%{bonusPct} / %40";
+        }
+        if (_trainingSquadConditionBar is not null && _trainingSquadConditionLabel is not null)
+        {
+            var avgFit = trainingSummary.HasPlan ? Math.Clamp(trainingSummary.AverageFitness ?? 82, 0, 100) : 82;
+            _trainingSquadConditionBar.Value = avgFit;
+            _trainingSquadConditionLabel.Text = $"⚡ Kadro Kondisyonu: %{avgFit}";
+        }
     }
 
     private void RefreshDevelopmentStatus()
