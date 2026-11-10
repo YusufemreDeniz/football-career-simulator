@@ -22,6 +22,10 @@ public sealed partial class MatchMomentPitchView : Control
     private bool _reducedMotion;
     private Color _homeTeamColor = new(0.24f, 0.78f, 0.48f);
     private Color _awayTeamColor = new(0.32f, 0.68f, 0.94f);
+    private string? _activeShoutText;
+    private Color _activeShoutColor = new(1f, 0.78f, 0.18f);
+    private float _shoutFlashProgress;
+    private bool _keyDecisionFreezeActive;
 
     public MatchMomentPitchView()
     {
@@ -166,6 +170,70 @@ public sealed partial class MatchMomentPitchView : Control
         {
             DrawMoment(field, frame, FrameProgress);
         }
+
+        if (_shoutFlashProgress > 0.01f)
+        {
+            var center = field.GetCenter();
+            var maxR = Mathf.Min(field.Size.X, field.Size.Y) * 0.45f;
+            var curR = Mathf.Lerp(16f, maxR, 1f - _shoutFlashProgress);
+            var ringColor = new Color(_activeShoutColor.R, _activeShoutColor.G, _activeShoutColor.B, _shoutFlashProgress * 0.78f);
+            DrawArc(center, curR, 0f, Mathf.Tau, 48, ringColor, 3.5f);
+            DrawRect(field, new Color(_activeShoutColor.R, _activeShoutColor.G, _activeShoutColor.B, _shoutFlashProgress * 0.14f), filled: true);
+        }
+
+        if (_keyDecisionFreezeActive && CurrentFrame is { } freezeFrame)
+        {
+            var carrier = ToPixel(freezeFrame.ActorPosition, field);
+            var targetGoal = freezeFrame.IsHomeSide
+                ? new Vector2(field.End.X - 10f, field.GetCenter().Y)
+                : new Vector2(field.Position.X + 10f, field.GetCenter().Y);
+
+            // New Star Manager tarzı altın karar halkası ve 3 alternatif vektör çizgisi
+            DrawCircle(carrier, 22f, new Color(1f, 0.82f, 0.18f, 0.22f));
+            DrawArc(carrier, 19f, 0f, Mathf.Tau, 32, new Color(1f, 0.85f, 0.22f, 0.95f), 2.8f);
+
+            var topCorner = targetGoal + new Vector2(0f, -field.Size.Y * 0.16f);
+            var backPost = targetGoal + new Vector2(freezeFrame.IsHomeSide ? -28f : 28f, field.Size.Y * 0.18f);
+            var dribbleSpot = carrier.Lerp(targetGoal, 0.55f);
+
+            DrawLine(carrier, topCorner, new Color(1f, 0.85f, 0.22f, 0.85f), 2.2f);
+            DrawLine(carrier, backPost, new Color(0.25f, 0.92f, 0.62f, 0.85f), 2.2f);
+            DrawLine(carrier, dribbleSpot, new Color(0.28f, 0.78f, 1f, 0.85f), 2.2f);
+            DrawCircle(topCorner, 4.5f, new Color(1f, 0.85f, 0.22f, 0.95f));
+            DrawCircle(backPost, 4.5f, new Color(0.25f, 0.92f, 0.62f, 0.95f));
+            DrawCircle(dribbleSpot, 4.5f, new Color(0.28f, 0.78f, 1f, 0.95f));
+        }
+    }
+
+    public void TriggerTouchlineShoutEffect(string shoutTitle, Color auraColor)
+    {
+        _activeShoutText = shoutTitle;
+        _activeShoutColor = auraColor;
+        _shoutFlashProgress = 1f;
+        if (_headlineLabel is not null)
+        {
+            _headlineLabel.Text = $"🗣️ KENAR TALİMATI: {shoutTitle.ToUpperInvariant()}";
+        }
+        var tween = CreateTween();
+        tween.TweenMethod(Callable.From<float>(v =>
+        {
+            _shoutFlashProgress = v;
+            QueueRedraw();
+        }), 1f, 0f, 0.75d);
+    }
+
+    public void SetKeyDecisionHighlight(bool active, string? promptText = null)
+    {
+        _keyDecisionFreezeActive = active;
+        if (active && _headlineLabel is not null && !string.IsNullOrWhiteSpace(promptText))
+        {
+            _headlineLabel.Text = promptText;
+        }
+        else if (!active)
+        {
+            RefreshTextOverlay();
+        }
+        QueueRedraw();
     }
 
     public void SetMoments(
