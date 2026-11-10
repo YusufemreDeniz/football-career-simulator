@@ -9,30 +9,30 @@ namespace FootballCareerSimulator.Presentation;
 /// </summary>
 internal static class CareerUiTheme
 {
-    public static readonly Color BackgroundDeep = new(0.008f, 0.027f, 0.047f, 1f);
-    public static readonly Color Background = new(0.024f, 0.075f, 0.106f, 1f);
-    public static readonly Color BackgroundNavy = new(0.031f, 0.082f, 0.141f, 1f);
-    public static readonly Color Surface = new(0.028f, 0.094f, 0.125f, 0.96f);
-    public static readonly Color SurfaceRaised = new(0.039f, 0.141f, 0.184f, 0.98f);
-    public static readonly Color SurfaceSoft = new(0.043f, 0.122f, 0.157f, 0.86f);
-    public static readonly Color Stroke = new(0.094f, 0.337f, 0.392f, 0.72f);
+    public static readonly Color BackgroundDeep = new(0.031f, 0.055f, 0.102f, 1f);
+    public static readonly Color Background = new(0.051f, 0.086f, 0.153f, 1f);
+    public static readonly Color BackgroundNavy = new(0.067f, 0.114f, 0.200f, 1f);
+    public static readonly Color Surface = new(0.075f, 0.125f, 0.212f, 0.97f);
+    public static readonly Color SurfaceRaised = new(0.098f, 0.161f, 0.267f, 0.98f);
+    public static readonly Color SurfaceSoft = new(0.086f, 0.141f, 0.235f, 0.92f);
+    public static readonly Color Stroke = new(0.165f, 0.275f, 0.435f, 0.78f);
 
     // Existing callers treat Ink as foreground, Accent as prestige and Action as primary CTA.
     private static GameExperiencePreferences _preferences = GameExperiencePreferences.Default;
 
     public static Color Ink => _preferences.HighContrast
         ? Colors.White
-        : new Color(0.937f, 0.984f, 0.969f, 1f);
+        : new Color(0.953f, 0.973f, 0.996f, 1f);
 
     public static Color InkMuted => _preferences.HighContrast
-        ? new Color(0.79f, 0.88f, 0.90f, 1f)
-        : new Color(0.56f, 0.68f, 0.72f, 1f);
-    public static readonly Color Accent = new(0.953f, 0.745f, 0.243f, 1f);
-    public static readonly Color Action = new(0.145f, 0.91f, 0.518f, 1f);
-    public static readonly Color ActionBright = new(0.36f, 1f, 0.694f, 1f);
+        ? new Color(0.79f, 0.86f, 0.94f, 1f)
+        : new Color(0.588f, 0.682f, 0.808f, 1f);
+    public static readonly Color Accent = new(0.961f, 0.722f, 0.180f, 1f);
+    public static readonly Color Action = new(0.133f, 0.855f, 0.510f, 1f);
+    public static readonly Color ActionBright = new(0.243f, 0.937f, 0.608f, 1f);
     public static readonly Color ActionHover = ActionBright;
-    public static readonly Color DangerSoft = new(1f, 0.365f, 0.408f, 1f);
-    public static readonly Color Data = new(0.212f, 0.788f, 1f, 1f);
+    public static readonly Color DangerSoft = new(0.973f, 0.357f, 0.400f, 1f);
+    public static readonly Color Data = new(0.220f, 0.741f, 0.973f, 1f);
 
     // ── Semantic Color Tokens ─────────────────────────────────────────────────
     // Backward-compatible alias layer. Original names remain unchanged.
@@ -97,11 +97,11 @@ internal static class CareerUiTheme
     // ── Corner Radius ────────────────────────────────────────────────────────
 
     public const int RadiusSmall = 6;
-    public const int RadiusMedium = 10;
-    public const int RadiusLarge = 14;
-    public const int RadiusXl = 18;
+    public const int RadiusMedium = 8;
+    public const int RadiusLarge = 10;
+    public const int RadiusXl = 12;
     public const int RadiusPill = 999;
-    public const int TouchTargetMin = 48;
+    public const int TouchTargetMin = 32;
 
     // Legacy spacing aliases (kept for any existing code)
     public const int SpacingXs = SpaceXs;
@@ -119,7 +119,13 @@ internal static class CareerUiTheme
     public static void Configure(GameExperiencePreferences preferences) =>
         _preferences = (preferences ?? GameExperiencePreferences.Default).Normalize();
 
-    public static int FontSize(int baseSize) => _preferences.ScaleFont(baseSize);
+    /// <summary>
+    /// Okunabilirlik tabanı: rozetler ve tablo başlıkları için 11px taban korunur.
+    /// </summary>
+    public const int MinimumReadableFontSize = 11;
+
+    public static int FontSize(int baseSize) =>
+        _preferences.ScaleFont(Math.Max(baseSize, MinimumReadableFontSize));
 
     public static void EnsureLoaded()
     {
@@ -191,14 +197,14 @@ internal static class CareerUiTheme
     public static void StyleBody(Label label, bool muted = false)
     {
         ApplyBodyFont(label);
-        label.AddThemeFontSizeOverride("font_size", FontSize(15));
+        label.AddThemeFontSizeOverride("font_size", FontSize(13));
         label.AddThemeColorOverride("font_color", muted ? InkMuted : Ink);
     }
 
     public static void StylePrimaryButton(Button button)
     {
         ApplyBodyFont(button);
-        button.AddThemeFontSizeOverride("font_size", FontSize(15));
+        button.AddThemeFontSizeOverride("font_size", FontSize(13));
         button.AddThemeColorOverride("font_color", BackgroundDeep);
         button.AddThemeColorOverride("font_hover_color", BackgroundDeep);
         button.AddThemeColorOverride("font_pressed_color", BackgroundDeep);
@@ -208,31 +214,31 @@ internal static class CareerUiTheme
         button.AddThemeStyleboxOverride("hover", SolidButton(ActionHover));
         button.AddThemeStyleboxOverride("pressed", SolidButton(new Color(0.08f, 0.72f, 0.38f, 1f)));
         button.AddThemeStyleboxOverride("focus", FocusRing(Action));
-        button.AddThemeStyleboxOverride("disabled", SolidButton(new Color(0.08f, 0.16f, 0.18f, 0.92f)));
-        button.CustomMinimumSize = new Vector2(0, 50);
+        button.AddThemeStyleboxOverride("disabled", SolidButton(new Color(0.08f, 0.14f, 0.22f, 0.92f)));
+        button.CustomMinimumSize = new Vector2(0, 32);
     }
 
     public static void StyleSecondaryButton(Button button)
     {
         ApplyBodyFont(button);
-        button.AddThemeFontSizeOverride("font_size", FontSize(14));
+        button.AddThemeFontSizeOverride("font_size", FontSize(13));
         button.AddThemeColorOverride("font_color", Ink);
         button.AddThemeColorOverride("font_hover_color", Ink);
         button.AddThemeColorOverride("font_pressed_color", Ink);
         button.AddThemeColorOverride("font_focus_color", Ink);
         button.AddThemeColorOverride("font_disabled_color", new Color(InkMuted.R, InkMuted.G, InkMuted.B, 0.46f));
         button.AddThemeStyleboxOverride("normal", OutlineButton(Stroke));
-        button.AddThemeStyleboxOverride("hover", OutlineButton(new Color(Action.R, Action.G, Action.B, 0.82f)));
-        button.AddThemeStyleboxOverride("pressed", SolidButton(new Color(Action.R, Action.G, Action.B, 0.18f)));
+        button.AddThemeStyleboxOverride("hover", OutlineButton(new Color(Data.R, Data.G, Data.B, 0.85f)));
+        button.AddThemeStyleboxOverride("pressed", SolidButton(new Color(Data.R, Data.G, Data.B, 0.20f)));
         button.AddThemeStyleboxOverride("focus", FocusRing(Data));
         button.AddThemeStyleboxOverride("disabled", OutlineButton(new Color(Stroke.R, Stroke.G, Stroke.B, 0.34f)));
-        button.CustomMinimumSize = new Vector2(0, 48);
+        button.CustomMinimumSize = new Vector2(0, 30);
     }
 
     public static void StyleTextInput(LineEdit input)
     {
         ApplyBodyFont(input);
-        input.AddThemeFontSizeOverride("font_size", FontSize(16));
+        input.AddThemeFontSizeOverride("font_size", FontSize(13));
         input.AddThemeColorOverride("font_color", Ink);
         input.AddThemeColorOverride("font_placeholder_color", InkMuted);
         input.AddThemeStyleboxOverride("normal", InputField(Stroke));
@@ -243,21 +249,21 @@ internal static class CareerUiTheme
     public static void StyleOptionSelector(OptionButton selector)
     {
         ApplyBodyFont(selector);
-        selector.AddThemeFontSizeOverride("font_size", FontSize(15));
+        selector.AddThemeFontSizeOverride("font_size", FontSize(13));
         selector.AddThemeColorOverride("font_color", Ink);
         selector.AddThemeColorOverride("font_hover_color", Ink);
         selector.AddThemeColorOverride("font_pressed_color", Ink);
         selector.AddThemeStyleboxOverride("normal", InputField(Stroke));
-        selector.AddThemeStyleboxOverride("hover", InputField(Action));
-        selector.AddThemeStyleboxOverride("pressed", InputField(Data));
+        selector.AddThemeStyleboxOverride("hover", InputField(Data));
+        selector.AddThemeStyleboxOverride("pressed", InputField(Action));
         selector.AddThemeStyleboxOverride("focus", FocusRing(Data));
     }
 
     public static void StyleNavButton(Button button, bool selected)
     {
-        ApplyBodyFont(button);
-        button.AddThemeFontSizeOverride("font_size", FontSize(13));
-        button.AddThemeColorOverride("font_color", selected ? BackgroundDeep : InkMuted);
+        ApplyDisplayFont(button);
+        button.AddThemeFontSizeOverride("font_size", FontSize(14));
+        button.AddThemeColorOverride("font_color", selected ? BackgroundDeep : Ink);
         button.AddThemeColorOverride("font_hover_color", selected ? BackgroundDeep : Ink);
         button.AddThemeColorOverride("font_pressed_color", selected ? BackgroundDeep : Ink);
         if (selected)
@@ -269,24 +275,24 @@ internal static class CareerUiTheme
         else
         {
             button.AddThemeStyleboxOverride("normal", NavButtonSurface());
-            button.AddThemeStyleboxOverride("hover", OutlineButton(new Color(Action.R, Action.G, Action.B, 0.6f)));
-            button.AddThemeStyleboxOverride("pressed", SolidButton(new Color(Action.R, Action.G, Action.B, 0.14f)));
+            button.AddThemeStyleboxOverride("hover", OutlineButton(new Color(Data.R, Data.G, Data.B, 0.6f)));
+            button.AddThemeStyleboxOverride("pressed", SolidButton(new Color(Data.R, Data.G, Data.B, 0.14f)));
         }
 
         button.AddThemeStyleboxOverride("focus", FocusRing(Data));
-        button.CustomMinimumSize = new Vector2(0, 48);
+        button.CustomMinimumSize = new Vector2(0, 34);
     }
 
     public static void StyleList(ItemList list)
     {
         ApplyBodyFont(list);
-        list.AddThemeFontSizeOverride("font_size", FontSize(16));
+        list.AddThemeFontSizeOverride("font_size", FontSize(13));
         list.AddThemeColorOverride("font_color", Ink);
         list.AddThemeColorOverride("font_hovered_color", ActionHover);
         list.AddThemeColorOverride("font_selected_color", BackgroundDeep);
         list.AddThemeColorOverride("font_outline_color", new Color(0f, 0f, 0f, 0.72f));
-        list.AddThemeConstantOverride("outline_size", 2);
-        list.AddThemeConstantOverride("v_separation", 10);
+        list.AddThemeConstantOverride("outline_size", 1);
+        list.AddThemeConstantOverride("v_separation", 5);
         list.AddThemeStyleboxOverride("panel", SoftPanel());
         list.AddThemeStyleboxOverride("focus", FocusRing(Data));
         list.AddThemeStyleboxOverride("selected", SolidButton(Action));
@@ -380,40 +386,19 @@ internal static class CareerUiTheme
     }
 
     /// <summary>
-    /// Neon glow çerçeveli kart paneli — referans tasarımın imzası.
-    /// Yeşil parlayan kenarlık + koyu teal arka plan.
+    /// Yayın stüdyosu ve modern futbol menajerliği (FM27 / SM27) tarzı koyu lacivert/slate kart paneli.
+    /// Vurgulu kartlarda sol/üst kenarda ince altın-zümrüt aksan bulunur.
     /// </summary>
     public static StyleBoxFlat NeonGlowPanel(bool strongGlow = false) =>
         new()
         {
-            BgColor = new Color(0.012f, 0.055f, 0.059f, 0.97f),
-            BorderColor = new Color(0.149f, 0.898f, 0.588f, strongGlow ? 1.0f : 0.82f),
+            BgColor = strongGlow
+                ? new Color(0.082f, 0.137f, 0.231f, 0.98f)
+                : new Color(0.067f, 0.114f, 0.196f, 0.96f),
+            BorderColor = strongGlow
+                ? new Color(Accent.R, Accent.G, Accent.B, 0.65f)
+                : new Color(0.180f, 0.302f, 0.478f, 0.72f),
             BorderWidthLeft = strongGlow ? 2 : 1,
-            BorderWidthTop = strongGlow ? 2 : 1,
-            BorderWidthRight = strongGlow ? 2 : 1,
-            BorderWidthBottom = strongGlow ? 2 : 1,
-            CornerRadiusTopLeft = 18,
-            CornerRadiusTopRight = 18,
-            CornerRadiusBottomRight = 18,
-            CornerRadiusBottomLeft = 18,
-            ContentMarginLeft = 14,
-            ContentMarginRight = 14,
-            ContentMarginTop = 12,
-            ContentMarginBottom = 12,
-            ShadowColor = new Color(0.149f, 0.898f, 0.588f, strongGlow ? 0.55f : 0.35f),
-            ShadowSize = strongGlow ? 14 : 8,
-            ShadowOffset = new Vector2(0, 0),
-        };
-
-    /// <summary>
-    /// Sayfa başlık ikon kutusu — referans tasarımdaki parlak yeşil arka planlı ikon alanı.
-    /// </summary>
-    public static StyleBoxFlat PageIconBoxPanel() =>
-        new()
-        {
-            BgColor = new Color(0.149f, 0.898f, 0.588f, 0.95f),
-            BorderColor = new Color(0.36f, 1f, 0.72f, 0.60f),
-            BorderWidthLeft = 1,
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
@@ -425,70 +410,93 @@ internal static class CareerUiTheme
             ContentMarginRight = 10,
             ContentMarginTop = 8,
             ContentMarginBottom = 8,
-            ShadowColor = new Color(0.149f, 0.898f, 0.588f, 0.45f),
-            ShadowSize = 8,
+            ShadowColor = new Color(0f, 0f, 0f, strongGlow ? 0.50f : 0.38f),
+            ShadowSize = strongGlow ? 8 : 5,
+            ShadowOffset = new Vector2(0, 2),
         };
 
     /// <summary>
-    /// Mini stat kart (ana sayfadaki 6 küçük stat kutusu) — koyu, kompakt.
+    /// Sayfa başlık ikon kutusu — kompakt spor yayını rozeti.
     /// </summary>
-    public static StyleBoxFlat MiniStatCardPanel() =>
+    public static StyleBoxFlat PageIconBoxPanel() =>
         new()
         {
-            BgColor = new Color(0.018f, 0.078f, 0.082f, 0.90f),
-            BorderColor = new Color(0.149f, 0.898f, 0.588f, 0.30f),
+            BgColor = new Color(Action.R, Action.G, Action.B, 0.18f),
+            BorderColor = new Color(ActionBright.R, ActionBright.G, ActionBright.B, 0.55f),
             BorderWidthLeft = 1,
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 12,
-            CornerRadiusTopRight = 12,
-            CornerRadiusBottomRight = 12,
-            CornerRadiusBottomLeft = 12,
-            ContentMarginLeft = 10,
-            ContentMarginRight = 10,
-            ContentMarginTop = 10,
-            ContentMarginBottom = 10,
+            CornerRadiusTopLeft = 7,
+            CornerRadiusTopRight = 7,
+            CornerRadiusBottomRight = 7,
+            CornerRadiusBottomLeft = 7,
+            ContentMarginLeft = 6,
+            ContentMarginRight = 6,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 4,
         };
 
     /// <summary>
-    /// Liste satırı — seçili olan yeşil sol kenarlık, diğerleri koyu transparan.
+    /// Mini stat kart — koyu lacivert bento kutusu, kompakt.
+    /// </summary>
+    public static StyleBoxFlat MiniStatCardPanel() =>
+        new()
+        {
+            BgColor = new Color(0.055f, 0.094f, 0.169f, 0.94f),
+            BorderColor = new Color(0.176f, 0.294f, 0.467f, 0.58f),
+            BorderWidthLeft = 2,
+            BorderWidthTop = 1,
+            BorderWidthRight = 1,
+            BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 8,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomRight = 8,
+            CornerRadiusBottomLeft = 8,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 6,
+            ContentMarginBottom = 6,
+        };
+
+    /// <summary>
+    /// Liste satırı — seçili olan zümrüt sol kenarlık, diğerleri koyu slate.
     /// </summary>
     public static StyleBoxFlat ListRowPanel(bool isNext = false) =>
         isNext
             ? new StyleBoxFlat
             {
-                BgColor = new Color(0.149f, 0.898f, 0.588f, 0.10f),
-                BorderColor = new Color(0.149f, 0.898f, 0.588f, 0.70f),
-                BorderWidthLeft = 2,
+                BgColor = new Color(Action.R, Action.G, Action.B, 0.12f),
+                BorderColor = new Color(Action.R, Action.G, Action.B, 0.65f),
+                BorderWidthLeft = 3,
                 BorderWidthTop = 1,
                 BorderWidthRight = 1,
                 BorderWidthBottom = 1,
-                CornerRadiusTopLeft = 8,
-                CornerRadiusTopRight = 8,
-                CornerRadiusBottomRight = 8,
-                CornerRadiusBottomLeft = 8,
-                ContentMarginLeft = 14,
-                ContentMarginRight = 14,
-                ContentMarginTop = 12,
-                ContentMarginBottom = 12,
+                CornerRadiusTopLeft = 6,
+                CornerRadiusTopRight = 6,
+                CornerRadiusBottomRight = 6,
+                CornerRadiusBottomLeft = 6,
+                ContentMarginLeft = 10,
+                ContentMarginRight = 10,
+                ContentMarginTop = 6,
+                ContentMarginBottom = 6,
             }
             : new StyleBoxFlat
             {
-                BgColor = new Color(0.012f, 0.047f, 0.055f, 0.70f),
-                BorderColor = new Color(0.149f, 0.898f, 0.588f, 0.10f),
+                BgColor = new Color(0.047f, 0.082f, 0.149f, 0.78f),
+                BorderColor = new Color(0.165f, 0.275f, 0.435f, 0.28f),
                 BorderWidthLeft = 0,
                 BorderWidthTop = 0,
                 BorderWidthRight = 0,
                 BorderWidthBottom = 1,
-                CornerRadiusTopLeft = 0,
-                CornerRadiusTopRight = 0,
-                CornerRadiusBottomRight = 0,
-                CornerRadiusBottomLeft = 0,
-                ContentMarginLeft = 14,
-                ContentMarginRight = 14,
-                ContentMarginTop = 12,
-                ContentMarginBottom = 12,
+                CornerRadiusTopLeft = 4,
+                CornerRadiusTopRight = 4,
+                CornerRadiusBottomRight = 4,
+                CornerRadiusBottomLeft = 4,
+                ContentMarginLeft = 10,
+                ContentMarginRight = 10,
+                ContentMarginTop = 6,
+                ContentMarginBottom = 6,
             };
 
     /// <summary>Rating rozeti — referans tasarıma uygun tam dolgu.</summary>
@@ -575,15 +583,15 @@ internal static class CareerUiTheme
     }
 
     public static StyleBoxFlat SoftPanel() =>
-        PanelStyle(SurfaceSoft, new Color(Stroke.R, Stroke.G, Stroke.B, 0.54f), radius: 12, contentMargin: 12, shadowSize: 5);
+        PanelStyle(SurfaceSoft, new Color(Stroke.R, Stroke.G, Stroke.B, 0.54f), radius: 8, contentMargin: 8, shadowSize: 3);
 
     public static StyleBoxFlat HeroPanel() =>
         PanelStyle(
             SurfaceRaised,
-            new Color(Action.R, Action.G, Action.B, 0.54f),
-            radius: 16,
-            contentMargin: 16,
-            shadowSize: 10);
+            new Color(Accent.R, Accent.G, Accent.B, 0.58f),
+            radius: 10,
+            contentMargin: 10,
+            shadowSize: 6);
 
     public static StyleBoxFlat CardPanel(bool emphasized = false) =>
         NeonGlowPanel(strongGlow: emphasized);
@@ -592,9 +600,9 @@ internal static class CareerUiTheme
         PanelStyle(
             new Color(BackgroundDeep.R, BackgroundDeep.G, BackgroundDeep.B, 0.96f),
             Stroke,
-            radius: 16,
-            contentMargin: 6,
-            shadowSize: 10);
+            radius: 10,
+            contentMargin: 4,
+            shadowSize: 6);
 
     /// <summary>
     /// Yatay kariyer navigasyonu: yayın grafiği gibi ince, her ekranda sabit bir şerit.
@@ -602,23 +610,23 @@ internal static class CareerUiTheme
     public static StyleBoxFlat TopNavigationPanel() =>
         new()
         {
-            BgColor = new Color(0.018f, 0.055f, 0.086f, 0.98f),
-            BorderColor = new Color(Data.R, Data.G, Data.B, 0.34f),
+            BgColor = new Color(0.043f, 0.075f, 0.137f, 0.98f),
+            BorderColor = new Color(Stroke.R, Stroke.G, Stroke.B, 0.65f),
             BorderWidthLeft = 1,
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
-            CornerRadiusTopLeft = RadiusLarge,
-            CornerRadiusTopRight = RadiusLarge,
-            CornerRadiusBottomRight = RadiusLarge,
-            CornerRadiusBottomLeft = RadiusLarge,
-            ContentMarginLeft = SpaceXs,
-            ContentMarginRight = SpaceXs,
-            ContentMarginTop = SpaceXs,
-            ContentMarginBottom = SpaceXs,
-            ShadowColor = new Color(0f, 0f, 0f, 0.52f),
-            ShadowSize = 10,
-            ShadowOffset = new Vector2(0, 3),
+            CornerRadiusTopLeft = 8,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomRight = 8,
+            CornerRadiusBottomLeft = 8,
+            ContentMarginLeft = 3,
+            ContentMarginRight = 3,
+            ContentMarginTop = 2,
+            ContentMarginBottom = 2,
+            ShadowColor = new Color(0f, 0f, 0f, 0.42f),
+            ShadowSize = 6,
+            ShadowOffset = new Vector2(0, 2),
         };
 
     public static StyleBoxFlat PillPanel() =>
@@ -767,7 +775,7 @@ internal static class CareerUiTheme
     public static void StyleAccentButton(Button button)
     {
         ApplyDisplayFont(button);
-        button.AddThemeFontSizeOverride("font_size", FontSize(16));
+        button.AddThemeFontSizeOverride("font_size", FontSize(14));
         button.AddThemeColorOverride("font_color", BackgroundDeep);
         button.AddThemeColorOverride("font_hover_color", BackgroundDeep);
         button.AddThemeColorOverride("font_pressed_color", BackgroundDeep);
@@ -778,7 +786,7 @@ internal static class CareerUiTheme
         button.AddThemeStyleboxOverride("pressed", SolidButton(new Color(Mathf.Max(Accent.R - 0.06f, 0f), Mathf.Max(Accent.G - 0.05f, 0f), Accent.B, 1f)));
         button.AddThemeStyleboxOverride("focus", FocusRing(Accent));
         button.AddThemeStyleboxOverride("disabled", SolidButton(new Color(0.20f, 0.18f, 0.10f, 0.82f)));
-        button.CustomMinimumSize = new Vector2(0, 52);
+        button.CustomMinimumSize = new Vector2(0, 34);
     }
 
     /// <summary>
@@ -918,54 +926,53 @@ internal static class CareerUiTheme
     /// </summary>
     public static void StyleHubNavButton(Button button, bool selected)
     {
-        ApplyBodyFont(button);
+        ApplyDisplayFont(button);
         button.AddThemeFontSizeOverride("font_size", FontSize(12));
-        button.AddThemeColorOverride("font_color", selected ? new Color(0.02f, 0.06f, 0.04f, 1f) : InkMuted);
-        button.AddThemeColorOverride("font_hover_color", selected ? new Color(0.02f, 0.06f, 0.04f, 1f) : Ink);
-        button.AddThemeColorOverride("font_pressed_color", new Color(0.02f, 0.06f, 0.04f, 1f));
-        button.AddThemeColorOverride("font_focus_color", selected ? new Color(0.02f, 0.06f, 0.04f, 1f) : Ink);
+        button.AddThemeColorOverride("font_color", selected ? BackgroundDeep : InkMuted);
+        button.AddThemeColorOverride("font_hover_color", selected ? BackgroundDeep : Ink);
+        button.AddThemeColorOverride("font_pressed_color", BackgroundDeep);
+        button.AddThemeColorOverride("font_focus_color", selected ? BackgroundDeep : Ink);
         button.AddThemeColorOverride("font_disabled_color", ColorDisabled);
 
-        // Seçili: yeşil dolgu pill (referanstaki gibi)
         var normal = new StyleBoxFlat
         {
             BgColor = selected
-                ? new Color(0.149f, 0.898f, 0.588f, 0.95f)
+                ? Action
                 : Colors.Transparent,
             BorderColor = selected
-                ? new Color(0.36f, 1f, 0.72f, 0.45f)
+                ? ActionBright
                 : Colors.Transparent,
             BorderWidthLeft = 0,
             BorderWidthTop = 0,
             BorderWidthRight = 0,
             BorderWidthBottom = 0,
-            CornerRadiusTopLeft = RadiusMedium,
-            CornerRadiusTopRight = RadiusMedium,
-            CornerRadiusBottomRight = RadiusMedium,
-            CornerRadiusBottomLeft = RadiusMedium,
-            ContentMarginLeft = SpaceS + 2,
-            ContentMarginRight = SpaceS + 2,
-            ContentMarginTop = SpaceXs + 2,
-            ContentMarginBottom = SpaceXs + 2,
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomRight = 6,
+            CornerRadiusBottomLeft = 6,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 3,
+            ContentMarginBottom = 3,
         };
         var hover = new StyleBoxFlat
         {
             BgColor = selected
-                ? new Color(0.36f, 1f, 0.72f, 0.95f)
-                : new Color(0.149f, 0.898f, 0.588f, 0.14f),
-            BorderColor = new Color(0.149f, 0.898f, 0.588f, 0.42f),
+                ? ActionBright
+                : new Color(Data.R, Data.G, Data.B, 0.14f),
+            BorderColor = new Color(Data.R, Data.G, Data.B, 0.42f),
             BorderWidthLeft = 0,
             BorderWidthTop = 0,
             BorderWidthRight = 0,
             BorderWidthBottom = 0,
-            CornerRadiusTopLeft = RadiusMedium,
-            CornerRadiusTopRight = RadiusMedium,
-            CornerRadiusBottomRight = RadiusMedium,
-            CornerRadiusBottomLeft = RadiusMedium,
-            ContentMarginLeft = SpaceS + 2,
-            ContentMarginRight = SpaceS + 2,
-            ContentMarginTop = SpaceXs + 2,
-            ContentMarginBottom = SpaceXs + 2,
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomRight = 6,
+            CornerRadiusBottomLeft = 6,
+            ContentMarginLeft = 8,
+            ContentMarginRight = 8,
+            ContentMarginTop = 3,
+            ContentMarginBottom = 3,
         };
 
         button.AddThemeStyleboxOverride("normal", normal);
@@ -973,69 +980,71 @@ internal static class CareerUiTheme
         button.AddThemeStyleboxOverride("pressed", hover);
         button.AddThemeStyleboxOverride("focus", FocusRing(Action));
         button.AddThemeStyleboxOverride("disabled", normal);
-        button.CustomMinimumSize = new Vector2(0, 38);
+        button.CustomMinimumSize = new Vector2(0, 30);
     }
 
     /// <summary>
-    /// Sayfa başlığı metin stili — büyük beyaz kalın.
+    /// Sayfa başlığı metin stili — kompakt yayın başlığı.
     /// </summary>
     public static void StylePageTitle(Label label)
     {
         ApplyDisplayFont(label);
-        label.AddThemeFontSizeOverride("font_size", FontSize(20));
+        label.AddThemeFontSizeOverride("font_size", FontSize(14));
         label.AddThemeColorOverride("font_color", Ink);
     }
 
     /// <summary>
-    /// Tab bar butonu — seçili: yeşil dolgu; seçisiz: koyu yüzey.
+    /// Tab bar butonu — seçili: zümrüt/altın dolgu; seçisiz: koyu lacivert yüzey.
     /// </summary>
     public static void StyleTabButton(Button button, bool selected)
     {
-        ApplyBodyFont(button);
-        button.AddThemeFontSizeOverride("font_size", FontSize(13));
-        button.AddThemeColorOverride("font_color", selected ? new Color(0.02f, 0.06f, 0.04f, 1f) : InkMuted);
-        button.AddThemeColorOverride("font_hover_color", Ink);
-        button.AddThemeColorOverride("font_pressed_color", new Color(0.02f, 0.06f, 0.04f, 1f));
-        button.AddThemeColorOverride("font_focus_color", Ink);
+        ApplyDisplayFont(button);
+        button.AddThemeFontSizeOverride("font_size", FontSize(12));
+        button.AddThemeColorOverride("font_color", selected ? BackgroundDeep : InkMuted);
+        button.AddThemeColorOverride("font_hover_color", selected ? BackgroundDeep : Ink);
+        button.AddThemeColorOverride("font_pressed_color", BackgroundDeep);
+        button.AddThemeColorOverride("font_focus_color", selected ? BackgroundDeep : Ink);
         button.AddThemeColorOverride("font_disabled_color", ColorDisabled);
 
         var normal = new StyleBoxFlat
         {
             BgColor = selected
-                ? new Color(0.149f, 0.898f, 0.588f, 0.95f)
-                : new Color(0.012f, 0.047f, 0.055f, 0.90f),
+                ? Action
+                : new Color(0.055f, 0.094f, 0.165f, 0.92f),
             BorderColor = selected
-                ? new Color(0.36f, 1f, 0.72f, 0.40f)
-                : new Color(0.149f, 0.898f, 0.588f, 0.15f),
+                ? ActionBright
+                : new Color(Stroke.R, Stroke.G, Stroke.B, 0.45f),
             BorderWidthLeft = 1,
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
-            CornerRadiusTopLeft = RadiusMedium,
-            CornerRadiusTopRight = RadiusMedium,
-            CornerRadiusBottomRight = RadiusMedium,
-            CornerRadiusBottomLeft = RadiusMedium,
-            ContentMarginLeft = SpaceL,
-            ContentMarginRight = SpaceL,
-            ContentMarginTop = SpaceS,
-            ContentMarginBottom = SpaceS,
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomRight = 6,
+            CornerRadiusBottomLeft = 6,
+            ContentMarginLeft = 10,
+            ContentMarginRight = 10,
+            ContentMarginTop = 3,
+            ContentMarginBottom = 3,
         };
         var hover = new StyleBoxFlat
         {
-            BgColor = new Color(0.149f, 0.898f, 0.588f, 0.18f),
-            BorderColor = new Color(0.149f, 0.898f, 0.588f, 0.40f),
+            BgColor = selected
+                ? ActionBright
+                : new Color(Data.R, Data.G, Data.B, 0.18f),
+            BorderColor = new Color(Data.R, Data.G, Data.B, 0.55f),
             BorderWidthLeft = 1,
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
-            CornerRadiusTopLeft = RadiusMedium,
-            CornerRadiusTopRight = RadiusMedium,
-            CornerRadiusBottomRight = RadiusMedium,
-            CornerRadiusBottomLeft = RadiusMedium,
-            ContentMarginLeft = SpaceL,
-            ContentMarginRight = SpaceL,
-            ContentMarginTop = SpaceS,
-            ContentMarginBottom = SpaceS,
+            CornerRadiusTopLeft = 6,
+            CornerRadiusTopRight = 6,
+            CornerRadiusBottomRight = 6,
+            CornerRadiusBottomLeft = 6,
+            ContentMarginLeft = 10,
+            ContentMarginRight = 10,
+            ContentMarginTop = 3,
+            ContentMarginBottom = 3,
         };
 
         button.AddThemeStyleboxOverride("normal", normal);
@@ -1043,7 +1052,7 @@ internal static class CareerUiTheme
         button.AddThemeStyleboxOverride("pressed", hover);
         button.AddThemeStyleboxOverride("focus", FocusRing(Action));
         button.AddThemeStyleboxOverride("disabled", normal);
-        button.CustomMinimumSize = new Vector2(80, 36);
+        button.CustomMinimumSize = new Vector2(64, 26);
     }
 
     // ── NEW: StyleBox Factories ───────────────────────────────────────────────
@@ -1149,23 +1158,23 @@ internal static class CareerUiTheme
             new Color(signalColor.R, signalColor.G, signalColor.B, 0.55f),
             radius: RadiusMedium, contentMargin: SpaceM, shadowSize: 0);
 
-    /// <summary>Top context bar panel — referans tasarıma uygun koyu teal.</summary>
+    /// <summary>Top context bar panel — koyu lacivert spor yayını üst barı.</summary>
     public static StyleBoxFlat TopBarPanel() =>
         new()
         {
-            BgColor = new Color(0.008f, 0.035f, 0.039f, 0.98f),
-            BorderColor = new Color(0.149f, 0.898f, 0.588f, 0.22f),
+            BgColor = new Color(0.035f, 0.063f, 0.118f, 0.99f),
+            BorderColor = new Color(Stroke.R, Stroke.G, Stroke.B, 0.65f),
             BorderWidthLeft = 0,
             BorderWidthTop = 0,
             BorderWidthRight = 0,
             BorderWidthBottom = 1,
-            ContentMarginLeft = SpaceM,
-            ContentMarginRight = SpaceM,
-            ContentMarginTop = SpaceS,
-            ContentMarginBottom = SpaceS,
-            ShadowColor = new Color(0f, 0f, 0f, 0.55f),
-            ShadowSize = 8,
-            ShadowOffset = new Vector2(0, 3),
+            ContentMarginLeft = 10,
+            ContentMarginRight = 10,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 4,
+            ShadowColor = new Color(0f, 0f, 0f, 0.50f),
+            ShadowSize = 6,
+            ShadowOffset = new Vector2(0, 2),
         };
 
     /// <summary>Yayıncı kuruluşu tarzı canlı maç üst skorbord paneli.</summary>
@@ -1525,19 +1534,19 @@ internal static class CareerUiTheme
         new()
         {
             BgColor = color,
-            BorderColor = new Color(1f, 1f, 1f, 0.16f),
+            BorderColor = new Color(1f, 1f, 1f, 0.18f),
             BorderWidthTop = 1,
-            CornerRadiusTopLeft = 10,
-            CornerRadiusTopRight = 10,
-            CornerRadiusBottomRight = 10,
-            CornerRadiusBottomLeft = 10,
-            ContentMarginLeft = 16,
-            ContentMarginRight = 16,
-            ContentMarginTop = 12,
-            ContentMarginBottom = 12,
-            ShadowColor = new Color(0f, 0f, 0f, 0.34f),
-            ShadowSize = 5,
-            ShadowOffset = new Vector2(0, 3),
+            CornerRadiusTopLeft = 7,
+            CornerRadiusTopRight = 7,
+            CornerRadiusBottomRight = 7,
+            CornerRadiusBottomLeft = 7,
+            ContentMarginLeft = 10,
+            ContentMarginRight = 10,
+            ContentMarginTop = 5,
+            ContentMarginBottom = 5,
+            ShadowColor = new Color(0f, 0f, 0f, 0.30f),
+            ShadowSize = 3,
+            ShadowOffset = new Vector2(0, 2),
         };
 
     private static StyleBoxFlat MainMenuRailSurface(Color rail, Color background, bool glow = false) =>
@@ -1567,39 +1576,39 @@ internal static class CareerUiTheme
     private static StyleBoxFlat OutlineButton(Color border) =>
         new()
         {
-            BgColor = new Color(Surface.R, Surface.G, Surface.B, 0.76f),
+            BgColor = new Color(Surface.R, Surface.G, Surface.B, 0.85f),
             BorderColor = border,
             BorderWidthLeft = 1,
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 10,
-            CornerRadiusTopRight = 10,
-            CornerRadiusBottomRight = 10,
-            CornerRadiusBottomLeft = 10,
-            ContentMarginLeft = 15,
-            ContentMarginRight = 15,
-            ContentMarginTop = 11,
-            ContentMarginBottom = 11,
+            CornerRadiusTopLeft = 7,
+            CornerRadiusTopRight = 7,
+            CornerRadiusBottomRight = 7,
+            CornerRadiusBottomLeft = 7,
+            ContentMarginLeft = 10,
+            ContentMarginRight = 10,
+            ContentMarginTop = 5,
+            ContentMarginBottom = 5,
         };
 
     private static StyleBoxFlat InputField(Color border) =>
         new()
         {
-            BgColor = new Color(BackgroundDeep.R, BackgroundDeep.G, BackgroundDeep.B, 0.84f),
+            BgColor = new Color(BackgroundDeep.R, BackgroundDeep.G, BackgroundDeep.B, 0.88f),
             BorderColor = border,
             BorderWidthLeft = 1,
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 9,
-            CornerRadiusTopRight = 9,
-            CornerRadiusBottomRight = 9,
-            CornerRadiusBottomLeft = 9,
-            ContentMarginLeft = 14,
-            ContentMarginTop = 8,
-            ContentMarginRight = 14,
-            ContentMarginBottom = 8,
+            CornerRadiusTopLeft = 7,
+            CornerRadiusTopRight = 7,
+            CornerRadiusBottomRight = 7,
+            CornerRadiusBottomLeft = 7,
+            ContentMarginLeft = 10,
+            ContentMarginTop = 4,
+            ContentMarginRight = 10,
+            ContentMarginBottom = 4,
         };
 
     public static StyleBoxFlat PitchCardSurface(bool selected = false, Color? border = null)

@@ -205,9 +205,44 @@ public sealed partial class CareerSessionController
                 fixture.ScheduledDayNumber <= dayNumber
                 && string.Equals(fixture.Status, nameof(FixtureStatus.Planned), StringComparison.Ordinal));
 
-    /// <summary>Güncel puan durumunu döner.</summary>
-    public IReadOnlyList<StandingEntryReadModel> GetStandings(long seasonId) =>
-        Host.CompetitionModule.Queries.GetStandings(seasonId) ?? Array.Empty<StandingEntryReadModel>();
+    /// <summary>Güncel puan durumunu döner. Sezon başında henüz maç oynanmamışsa katılımcı kulüplerden 0 puanlı tablo üretir.</summary>
+    public IReadOnlyList<StandingEntryReadModel> GetStandings(long seasonId)
+    {
+        var entries = Host.CompetitionModule.Queries.GetStandings(seasonId);
+        if (entries is { Count: > 0 })
+        {
+            return entries;
+        }
+
+        var participants = Host.CompetitionModule.Queries.GetSeasonParticipants(seasonId);
+        if (participants is null || participants.Count == 0)
+        {
+            return Array.Empty<StandingEntryReadModel>();
+        }
+
+        return participants
+            .Select(p =>
+            {
+                var club = Host.ClubModule.Queries.GetClub(p.ClubId);
+                return (
+                    p.ClubId,
+                    Strength: club?.SportiveStrength ?? 50,
+                    Name: club?.DisplayName ?? GetClubDisplayName(p.ClubId));
+            })
+            .OrderByDescending(x => x.Strength)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(x => new StandingEntryReadModel(
+                x.ClubId,
+                Played: 0,
+                Won: 0,
+                Drawn: 0,
+                Lost: 0,
+                GoalsFor: 0,
+                GoalsAgainst: 0,
+                Points: 0,
+                GoalDifference: 0))
+            .ToArray();
+    }
 
     public FanPulseDigest BuildFanPulseDigest()
     {
@@ -258,8 +293,57 @@ public sealed partial class CareerSessionController
     }
 
     /// <summary>Puan durumu özet şeridini döner.</summary>
-    public StandingStripReadModel GetStandingsStrip(long seasonId, long? managedClubId = null, int topCount = 5) =>
-        Host.CompetitionModule.Queries.GetStandingsStrip(seasonId, managedClubId, topCount);
+    public StandingStripReadModel GetStandingsStrip(long seasonId, long? managedClubId = null, int topCount = 5)
+    {
+        var strip = Host.CompetitionModule.Queries.GetStandingsStrip(seasonId, managedClubId, topCount);
+        if (strip.Entries.Count > 0)
+        {
+            return strip;
+        }
+
+        var standings = GetStandings(seasonId);
+        if (standings.Count == 0)
+        {
+            return strip;
+        }
+
+        var ranked = standings
+            .Select((entry, index) => (
+                Rank: index + 1,
+                entry.ClubId,
+                entry.Points,
+                entry.Played,
+                IsManaged: managedClubId is long managed && managed == entry.ClubId))
+            .ToArray();
+
+        var top = ranked
+            .Take(topCount)
+            .Select(entry => new StandingStripEntryReadModel(
+                entry.Rank,
+                entry.ClubId,
+                entry.Points,
+                entry.Played,
+                entry.IsManaged))
+            .ToList();
+
+        var managedOutsideTop = false;
+        if (managedClubId is long clubId)
+        {
+            var managed = ranked.FirstOrDefault(entry => entry.ClubId == clubId);
+            if (managed.Rank > 0 && managed.Rank > topCount)
+            {
+                managedOutsideTop = true;
+                top.Add(new StandingStripEntryReadModel(
+                    managed.Rank,
+                    managed.ClubId,
+                    managed.Points,
+                    managed.Played,
+                    IsManaged: true));
+            }
+        }
+
+        return new StandingStripReadModel(top, managedOutsideTop);
+    }
 
     /// <summary>Tüm sezon fikstür maçlarını döner.</summary>
     public IReadOnlyList<FixtureReadModel> GetSeasonFixtures(long seasonId) =>
@@ -296,7 +380,7 @@ public sealed partial class CareerSessionController
             isHome,
             managedStrength,
             targetClub.SportiveStrength,
-            Host.CompetitionModule.Queries.GetStandings(season.SeasonId),
+            GetStandings(season.SeasonId),
             Host.CompetitionModule.Queries.GetSeasonFixtures(season.SeasonId));
     }
 

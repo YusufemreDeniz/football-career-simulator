@@ -55,6 +55,7 @@ internal static class CareerHubCopyFormatting
         if (node is Label label)
         {
             label.Text = ToPlayerFacingText(label.Text);
+            ShortenSecondaryCopy(label);
         }
         else if (node is Button button)
         {
@@ -72,6 +73,60 @@ internal static class CareerHubCopyFormatting
         {
             SanitizeScreenText(child);
         }
+    }
+
+    /// <summary>En fazla bu kadar karakterlik ikincil (soluk) açıklama ekranda kalır.</summary>
+    internal const int SecondaryCopyMaxCharacters = 90;
+
+    /// <summary>
+    /// Soluk renkli ikincil açıklamalar ekranı metin duvarına çeviriyordu. Yalnız ilk cümle
+    /// (en fazla <see cref="SecondaryCopyMaxCharacters"/>) görünür; tamamı ipucu olarak kalır.
+    /// Birincil metinlere (veri, başlık, uyarı) dokunulmaz.
+    /// </summary>
+    private static void ShortenSecondaryCopy(Label label)
+    {
+        if (label.AutowrapMode == TextServer.AutowrapMode.Off
+            || !label.HasThemeColorOverride("font_color")
+            || label.GetThemeColor("font_color") != CareerUiTheme.InkMuted)
+        {
+            return;
+        }
+
+        var text = label.Text;
+        var shortened = ShortenToFirstSentence(text, SecondaryCopyMaxCharacters);
+        if (!string.Equals(shortened, text, StringComparison.Ordinal))
+        {
+            label.TooltipText = text;
+            label.Text = shortened;
+        }
+    }
+
+    internal static string ShortenToFirstSentence(string text, int maxCharacters)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return text;
+        }
+
+        var firstLine = text.Replace("\r", string.Empty, StringComparison.Ordinal)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault() ?? string.Empty;
+        if (firstLine.Length <= maxCharacters)
+        {
+            return firstLine;
+        }
+
+        var window = firstLine[..maxCharacters];
+        var cut = new[] { ". ", " — ", " · ", "; " }
+            .Select(separator => window.LastIndexOf(separator, StringComparison.Ordinal))
+            .Max();
+        if (cut >= maxCharacters / 3)
+        {
+            return window[..cut].TrimEnd(' ', '·', '—', ';') + ".";
+        }
+
+        var space = window.LastIndexOf(' ');
+        return (space > 0 ? window[..space] : window).TrimEnd() + "…";
     }
 
     internal static string TranslateExpectation(string? code) =>

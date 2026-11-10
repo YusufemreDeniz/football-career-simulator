@@ -2,7 +2,14 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 
-set "ADB=C:\Users\yusufemredeniz\AppData\Local\Android\Sdk\platform-tools\adb.exe"
+rem ADB ortam degiskeni verilmisse onu kullan; yoksa bilinen platform-tools yollarini sirayla dene.
+if not defined ADB (
+  for %%A in (
+    "C:\Android\platform-tools\adb.exe"
+    "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe"
+  ) do if not defined ADB if exist %%A set "ADB=%%~A"
+)
+if not defined ADB set "ADB=adb"
 if not defined GODOT_EXE (
   for %%G in (
     "C:\Godot\Godot-4.7.2-Mono\Godot_v4.7.2-stable_mono_win64_console.exe"

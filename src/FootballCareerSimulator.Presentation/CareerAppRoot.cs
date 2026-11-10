@@ -27,6 +27,8 @@ public partial class CareerAppRoot : Control
             DisplayServer.ScreenSetOrientation(DisplayServer.ScreenOrientation.Landscape);
         }
 
+        ApplyHandheldScale();
+
         AnchorRight = 1f;
         AnchorBottom = 1f;
         GrowHorizontal = GrowDirection.Both;
@@ -100,6 +102,41 @@ public partial class CareerAppRoot : Control
             GD.PushError($"[CareerAppRoot] UI snapshot alınamadı: {ex}");
             GetTree().Quit(1);
         }
+    }
+
+    /// <summary>
+    /// Telefon (yüksek DPI, yatay) için arayüzü büyütür: sanal yükseklik ~540 px'e indirilir,
+    /// böylece her öğe ve yazı fiziksel olarak ~%33 büyür ve ekrana daha az şey sığar.
+    /// Masaüstünde "--handheld-ui" argümanıyla aynı görünüm denenebilir.
+    /// </summary>
+    /// <summary>Telefon arayüzü (büyütülmüş, kompakt) etkin mi — gerçek cihaz veya --handheld-ui.</summary>
+    internal static bool HandheldUi { get; private set; }
+
+    private void ApplyHandheldScale()
+    {
+        var handheld = OS.HasFeature("mobile")
+            || OS.HasFeature("android")
+            || OS.GetCmdlineUserArgs().Concat(OS.GetCmdlineArgs())
+                .Any(arg => string.Equals(arg, "--handheld-ui", StringComparison.Ordinal));
+        HandheldUi = handheld;
+        if (!handheld)
+        {
+            return;
+        }
+
+        var window = GetTree().Root;
+        var size = window.Size;
+        if (size.X <= 0 || size.Y <= 0)
+        {
+            return;
+        }
+
+        const float baseWidth = 1280f;
+        const float baseHeight = 720f;
+        const float targetVirtualHeight = 700f;
+        var stretch = Math.Min(size.X / baseWidth, size.Y / baseHeight);
+        var factor = size.Y / (stretch * targetVirtualHeight);
+        window.ContentScaleFactor = Math.Clamp(factor, 1f, 1.05f);
     }
 
     private static bool TryGetSnapshotPage(out string page)

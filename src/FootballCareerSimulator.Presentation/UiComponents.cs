@@ -481,9 +481,9 @@ internal static class UiComponents
     public static HBoxContainer PageHeader(string icon, string title, Control? rightWidget = null)
     {
         var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        row.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
+        row.AddThemeConstantOverride("separation", CareerUiTheme.SpaceS);
 
-        // Yeşil ikon kutucuğu
+        // Kompakt ikon rozeti
         var iconBox = new PanelContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         iconBox.AddThemeStyleboxOverride("panel", CareerUiTheme.PageIconBoxPanel());
         var iconLabel = new Label
@@ -493,8 +493,8 @@ internal static class UiComponents
             VerticalAlignment = VerticalAlignment.Center,
         };
         CareerUiTheme.StyleHeadline(iconLabel);
-        iconLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(16));
-        iconLabel.AddThemeColorOverride("font_color", new Color(0.02f, 0.08f, 0.04f, 1f));
+        iconLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        iconLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         iconBox.AddChild(iconLabel);
         row.AddChild(iconBox);
 

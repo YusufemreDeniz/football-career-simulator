@@ -38,21 +38,54 @@ public partial class CareerHubScreen
         return valLabel;
     }
 
+    private static Button TabButton(string text, bool selected = false)
+    {
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StyleTabButton(button, selected);
+        return button;
+    }
+
     private Control BuildFilePage()
     {
         var page = PageRoot();
 
-        // 1. Governance Telemetry Bar
-        _govTelemetryBar = new GridContainer
+        // -----------------------------------------------------------------
+        // SINGLE TOP BAR: Sub-tabs on left + Governance Telemetry on right
+        // -----------------------------------------------------------------
+        var topSubNavRow = new HBoxContainer
         {
-            Columns = 2,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        _govTelemetryBar.AddThemeConstantOverride("h_separation", 8);
-        _govTelemetryBar.AddThemeConstantOverride("v_separation", 8);
-        page.AddChild(_govTelemetryBar);
+        topSubNavRow.AddThemeConstantOverride("separation", 8);
+        page.AddChild(topSubNavRow);
 
-        _boardConfidenceBadgePanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var tabBtnRow = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        tabBtnRow.AddThemeConstantOverride("separation", 6);
+        topSubNavRow.AddChild(tabBtnRow);
+
+        var tabObjectivesBtn = TabButton("🎯 HEDEFLER & FİNANS", selected: true);
+        var tabCareerBtn = TabButton("🎖️ MENAJER KARİYERİ & BECERİLER", selected: false);
+        var tabSaveSettingsBtn = TabButton("💾 KAYIT & AYARLAR", selected: false);
+        tabBtnRow.AddChild(tabObjectivesBtn);
+        tabBtnRow.AddChild(tabCareerBtn);
+        tabBtnRow.AddChild(tabSaveSettingsBtn);
+
+        _govTelemetryBar = new GridContainer
+        {
+            Columns = 4,
+        };
+        _govTelemetryBar.AddThemeConstantOverride("h_separation", 6);
+        _govTelemetryBar.AddThemeConstantOverride("v_separation", 6);
+        topSubNavRow.AddChild(_govTelemetryBar);
+
+        _boardConfidenceBadgePanel = new PanelContainer();
         _boardConfidenceBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
         _boardConfidenceBadgeLabel = new Label { Text = "🏛️ Güven %—" };
         CareerUiTheme.StyleTableText(_boardConfidenceBadgeLabel);
@@ -60,7 +93,7 @@ public partial class CareerHubScreen
         _boardConfidenceBadgePanel.AddChild(_boardConfidenceBadgeLabel);
         _govTelemetryBar.AddChild(_boardConfidenceBadgePanel);
 
-        _operatingBalanceBadgePanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _operatingBalanceBadgePanel = new PanelContainer();
         _operatingBalanceBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.16f));
         _operatingBalanceBadgeLabel = new Label { Text = "💰 Net —" };
         CareerUiTheme.StyleTableText(_operatingBalanceBadgeLabel);
@@ -68,7 +101,7 @@ public partial class CareerHubScreen
         _operatingBalanceBadgePanel.AddChild(_operatingBalanceBadgeLabel);
         _govTelemetryBar.AddChild(_operatingBalanceBadgePanel);
 
-        _stadiumAttendanceBadgePanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _stadiumAttendanceBadgePanel = new PanelContainer();
         _stadiumAttendanceBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data, 0.16f));
         _stadiumAttendanceBadgeLabel = new Label { Text = "🏟️ %—" };
         CareerUiTheme.StyleTableText(_stadiumAttendanceBadgeLabel);
@@ -76,7 +109,7 @@ public partial class CareerHubScreen
         _stadiumAttendanceBadgePanel.AddChild(_stadiumAttendanceBadgeLabel);
         _govTelemetryBar.AddChild(_stadiumAttendanceBadgePanel);
 
-        _wageUtilizationBadgePanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _wageUtilizationBadgePanel = new PanelContainer();
         _wageUtilizationBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Stroke, 0.20f));
         _wageUtilizationBadgeLabel = new Label { Text = "💼 Maaş %—" };
         CareerUiTheme.StyleTableText(_wageUtilizationBadgeLabel);
@@ -84,79 +117,64 @@ public partial class CareerHubScreen
         _wageUtilizationBadgePanel.AddChild(_wageUtilizationBadgeLabel);
         _govTelemetryBar.AddChild(_wageUtilizationBadgePanel);
 
-        // ----------------------------------------------------
-        // BENTO ROW 1: BOARD OBJECTIVES (1.4f) + JOB MARKET (1.0f)
-        // ----------------------------------------------------
+        // =================================================================
+        // TAB 0: HEDEFLER & FİNANS (2-Column Widescreen Split)
+        // =================================================================
+        var tab0Split = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+        };
+        tab0Split.AddThemeConstantOverride("separation", 10);
+        page.AddChild(tab0Split);
+
         _fileTopGrid = new GridContainer
         {
             Columns = 1,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            SizeFlagsStretchRatio = 1.05f,
         };
-        _fileTopGrid.AddThemeConstantOverride("h_separation", 12);
-        _fileTopGrid.AddThemeConstantOverride("v_separation", 12);
-        page.AddChild(_fileTopGrid);
+        _fileTopGrid.AddThemeConstantOverride("h_separation", 8);
+        _fileTopGrid.AddThemeConstantOverride("v_separation", 8);
+        tab0Split.AddChild(_fileTopGrid);
 
-        // 2. Board Objectives Desk (1.4f)
-        var objectivesCard = AddCard(_fileTopGrid, "🎯 HEDEFLER", emphasized: true, expandVertical: true);
-        objectivesCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.4f;
+        var objectivesCard = AddCard(_fileTopGrid, "🎯 YÖNETİM HEDEFLERİ", emphasized: true, expandVertical: true);
         _boardObjectivesContainer = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _boardObjectivesContainer.AddThemeConstantOverride("separation", 8);
+        _boardObjectivesContainer.AddThemeConstantOverride("separation", 6);
         objectivesCard.AddChild(_boardObjectivesContainer);
 
-        // 5. Job Market Desk (1.0f)
-        var careerJobCard = AddCard(_fileTopGrid, "💼 İŞ TEKLİFLERİ", emphasized: false, expandVertical: true);
-        careerJobCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.0f;
-        var careerJobRow = ActionFlow();
-        careerJobCard.AddChild(careerJobRow);
-        _generateOfferButton = PrimaryButton("İş Teklifi Ara");
-        _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
-        careerJobRow.AddChild(_generateOfferButton);
-        _acceptOfferButton = AccentButton("Teklifi Kabul Et");
-        _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
-        careerJobRow.AddChild(_acceptOfferButton);
-        _signFreeAgentButton = SecondaryButton("Serbest Oyuncu İmzala");
-        _signFreeAgentButton.Pressed += () => CompleteTransferAndCelebrate(_controller.SignNextFreeAgentToManagedClub);
-        careerJobRow.AddChild(_signFreeAgentButton);
+        var rightFinanceCol = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            SizeFlagsStretchRatio = 1.0f,
+        };
+        rightFinanceCol.AddThemeConstantOverride("separation", 8);
+        tab0Split.AddChild(rightFinanceCol);
 
-        // ----------------------------------------------------
-        // BENTO ROW 2: FINANCE & LEDGER DESK (Full Width)
-        // ----------------------------------------------------
-        var financeCard = AddCard(page, "💰 FİNANS", emphasized: true);
+        var financeCard = AddCard(rightFinanceCol, "💰 KULÜP FİNANSI & KASASI", emphasized: true, expandVertical: true);
         _fileFinanceGrid = new GridContainer
         {
-            Columns = 1,
+            Columns = 2,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        _fileFinanceGrid.AddThemeConstantOverride("h_separation", 10);
-        _fileFinanceGrid.AddThemeConstantOverride("v_separation", 10);
+        _fileFinanceGrid.AddThemeConstantOverride("h_separation", 8);
+        _fileFinanceGrid.AddThemeConstantOverride("v_separation", 8);
         financeCard.AddChild(_fileFinanceGrid);
-
-        var projPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        projPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.FinanceLedgerCardPanel(true));
-        _fileFinanceGrid.AddChild(projPanel);
-        var projVBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        projVBox.AddThemeConstantOverride("separation", 6);
-        projPanel.AddChild(projVBox);
-        var projLabel = new Label { Text = "TAHMİN" };
-        CareerUiTheme.StyleHeadline(projLabel);
-        projLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
-        projLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
-        projVBox.AddChild(projLabel);
-        _financeProjectionLabel = BodyLabel("FinanceProjectionLabel", autowrap: true);
-        projVBox.AddChild(_financeProjectionLabel);
 
         var realPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         realPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.FinanceLedgerCardPanel(true));
         _fileFinanceGrid.AddChild(realPanel);
         var realVBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        realVBox.AddThemeConstantOverride("separation", 6);
+        realVBox.AddThemeConstantOverride("separation", 4);
         realPanel.AddChild(realVBox);
         var realHeader = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         realVBox.AddChild(realHeader);
-        var realTitle = new Label { Text = "KASA", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        var realTitle = new Label { Text = "KASA & GERÇEKLEŞEN", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         CareerUiTheme.StyleHeadline(realTitle);
         realTitle.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-        realTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        realTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         realHeader.AddChild(realTitle);
 
         _boardFinanceStatusBadgePanel = new PanelContainer();
@@ -173,27 +191,63 @@ public partial class CareerHubScreen
         _boardOutcomeSummaryLabel.Visible = false;
         realVBox.AddChild(_boardOutcomeSummaryLabel);
 
+        var projPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        projPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.FinanceLedgerCardPanel(true));
+        _fileFinanceGrid.AddChild(projPanel);
+        var projVBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        projVBox.AddThemeConstantOverride("separation", 4);
+        projPanel.AddChild(projVBox);
+        var projLabel = new Label { Text = "SEZON SONU TAHMİNİ" };
+        CareerUiTheme.StyleHeadline(projLabel);
+        projLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        projLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        projVBox.AddChild(projLabel);
+        _financeProjectionLabel = BodyLabel("FinanceProjectionLabel", autowrap: true);
+        projVBox.AddChild(_financeProjectionLabel);
+
         _clubEconomyLabel = BodyLabel("ClubEconomyLabel", autowrap: true);
         _clubEconomyLabel.Visible = false;
         financeCard.AddChild(_clubEconomyLabel);
 
-        // ----------------------------------------------------
-        // BENTO ROW 3: MANAGER LEGACY (1.4f) + SAVE & RECORD (1.0f)
-        // ----------------------------------------------------
+        var careerJobCard = AddCard(rightFinanceCol, "💼 KARİYER & İŞ TEKLİFLERİ", emphasized: false);
+        var careerJobRow = ActionFlow();
+        careerJobCard.AddChild(careerJobRow);
+        _generateOfferButton = PrimaryButton("İş Teklifi Ara");
+        _generateOfferButton.Pressed += () => Apply(_controller.GenerateJobOffer());
+        careerJobRow.AddChild(_generateOfferButton);
+        _acceptOfferButton = AccentButton("Teklifi Kabul Et");
+        _acceptOfferButton.Pressed += () => Apply(_controller.AcceptJobOffer());
+        careerJobRow.AddChild(_acceptOfferButton);
+        _signFreeAgentButton = SecondaryButton("Serbest Oyuncu İmzala");
+        _signFreeAgentButton.Pressed += () => CompleteTransferAndCelebrate(_controller.SignNextFreeAgentToManagedClub);
+        careerJobRow.AddChild(_signFreeAgentButton);
+
+        // =================================================================
+        // TAB 1: MENAJER KARİYERİ & BECERİLER (2-Column Widescreen Split)
+        // =================================================================
+        var tab1Split = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            Visible = false,
+        };
+        tab1Split.AddThemeConstantOverride("separation", 10);
+        page.AddChild(tab1Split);
+
         _fileBottomGrid = new GridContainer
         {
             Columns = 1,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            SizeFlagsStretchRatio = 1.15f,
         };
-        _fileBottomGrid.AddThemeConstantOverride("h_separation", 12);
-        _fileBottomGrid.AddThemeConstantOverride("v_separation", 12);
-        page.AddChild(_fileBottomGrid);
+        _fileBottomGrid.AddThemeConstantOverride("h_separation", 8);
+        _fileBottomGrid.AddThemeConstantOverride("v_separation", 8);
+        tab1Split.AddChild(_fileBottomGrid);
 
-        // 4. Manager Career Legacy (1.4f)
-        var legacyCard = AddCard(_fileBottomGrid, "🎖️ KARİYER", emphasized: true, expandVertical: true);
-        legacyCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.4f;
+        var legacyCard = AddCard(_fileBottomGrid, "🎖️ MENAJER PROFİLİ & BECERİLER", emphasized: true, expandVertical: true);
         var legacyHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        legacyHeaderRow.AddThemeConstantOverride("separation", 10);
+        legacyHeaderRow.AddThemeConstantOverride("separation", 8);
         legacyCard.AddChild(legacyHeaderRow);
 
         var managerInfoVBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -201,7 +255,7 @@ public partial class CareerHubScreen
 
         _careerLegacyHeadlineLabel = BodyLabel("CareerLegacyHeadlineLabel", autowrap: true);
         CareerUiTheme.StyleHeadline(_careerLegacyHeadlineLabel);
-        _careerLegacyHeadlineLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(15));
+        _careerLegacyHeadlineLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(14));
         managerInfoVBox.AddChild(_careerLegacyHeadlineLabel);
 
         _legacyTenureLabel = BodyLabel("LegacyTenureLabel", muted: true, autowrap: true);
@@ -212,7 +266,7 @@ public partial class CareerHubScreen
         _legacyReputationBadgeLabel = new Label { Text = "⭐ İtibar: —" };
         CareerUiTheme.StyleHeadline(_legacyReputationBadgeLabel);
         _legacyReputationBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-        _legacyReputationBadgeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        _legacyReputationBadgeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         _legacyReputationBadgePanel.AddChild(_legacyReputationBadgeLabel);
         legacyHeaderRow.AddChild(_legacyReputationBadgePanel);
 
@@ -221,16 +275,9 @@ public partial class CareerHubScreen
         _fileManagerLevelBadgeLabel = new Label { Text = "🎖️ Seviye 1 (0 XP)" };
         CareerUiTheme.StyleHeadline(_fileManagerLevelBadgeLabel);
         _fileManagerLevelBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
-        _fileManagerLevelBadgeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        _fileManagerLevelBadgeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         _fileManagerLevelBadgePanel.AddChild(_fileManagerLevelBadgeLabel);
         legacyHeaderRow.AddChild(_fileManagerLevelBadgePanel);
-
-        // Menajer Becerileri Kartı
-        var skillsTitle = new Label { Text = "🧠 MENAJER GELİŞİMİ & BECERİLERİ (SKILLS)" };
-        CareerUiTheme.StyleHeadline(skillsTitle);
-        skillsTitle.AddThemeColorOverride("font_color", CareerUiTheme.TextMuted);
-        skillsTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        legacyCard.AddChild(skillsTitle);
 
         _managerSkillsGrid = new GridContainer
         {
@@ -245,12 +292,6 @@ public partial class CareerHubScreen
         _managerSkillYouthLabel = CreateLegacyStatCard(_managerSkillsGrid, "🌱 GENÇ GELİŞTİRME", "—", CareerUiTheme.Accent);
         _managerSkillManMgmtLabel = CreateLegacyStatCard(_managerSkillsGrid, "🤝 İNSAN YÖNETİMİ", "—", CareerUiTheme.Data);
         _managerSkillNegotiationLabel = CreateLegacyStatCard(_managerSkillsGrid, "💼 TRANSFER PAZARLIĞI", "—", CareerUiTheme.ColorWarning);
-
-        var statsTitle = new Label { Text = "📊 KARİYER İSTATİSTİKLERİ" };
-        CareerUiTheme.StyleHeadline(statsTitle);
-        statsTitle.AddThemeColorOverride("font_color", CareerUiTheme.TextMuted);
-        statsTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        legacyCard.AddChild(statsTitle);
 
         _fileLegacyStatsGrid = new GridContainer
         {
@@ -273,25 +314,33 @@ public partial class CareerHubScreen
         _careerLegacyDevelopmentLabel.Visible = false;
         legacyCard.AddChild(_careerLegacyDevelopmentLabel);
 
-        var seasonListTitle = new Label { Text = "GEÇMİŞ" };
-        CareerUiTheme.StyleHeadline(seasonListTitle);
-        seasonListTitle.AddThemeColorOverride("font_color", CareerUiTheme.TextMuted);
-        seasonListTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        legacyCard.AddChild(seasonListTitle);
-
+        var historyCard = AddCard(tab1Split, "📜 KARİYER GEÇMİŞİ & SEZON ARŞİVİ", emphasized: false, expandVertical: true);
+        historyCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 0.85f;
         _careerSeasonList = new ItemList
         {
             Name = "CareerSeasonList",
-            CustomMinimumSize = new Vector2(0, 180),
+            CustomMinimumSize = new Vector2(0, 260),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
             MouseFilter = MouseFilterEnum.Ignore,
         };
         CareerUiTheme.StyleList(_careerSeasonList);
-        legacyCard.AddChild(_careerSeasonList);
+        historyCard.AddChild(_careerSeasonList);
 
-        // 6. Save / Load Desk (1.0f)
-        var saveCard = AddCard(_fileBottomGrid, "💾 KAYIT", emphasized: true, expandVertical: true);
-        saveCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.0f;
+        // =================================================================
+        // TAB 2: KAYIT & AYARLAR (2-Column Widescreen Split)
+        // =================================================================
+        var tab2Split = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            Visible = false,
+        };
+        tab2Split.AddThemeConstantOverride("separation", 10);
+        page.AddChild(tab2Split);
+
+        var saveCard = AddCard(tab2Split, "💾 KAYIT & OYUN DOSYASI", emphasized: true, expandVertical: true);
+        saveCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 0.95f;
         var saveTelemetryGrid = new GridContainer
         {
             Columns = 2,
@@ -323,10 +372,8 @@ public partial class CareerHubScreen
         menuButton.Pressed += () => BackToMenuRequested?.Invoke();
         saveLoadRow.AddChild(menuButton);
 
-        // ----------------------------------------------------
-        // BENTO ROW 4: EXPERIENCE & DEVICE SETTINGS
-        // ----------------------------------------------------
-        var experienceCard = AddCard(page, "⚙️ AYARLAR");
+        var experienceCard = AddCard(tab2Split, "⚙️ DENEYİM & ERİŞİLEBİLİRLİK AYARLARI", emphasized: false, expandVertical: true);
+        experienceCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.05f;
         _deviceAcceptanceLabel = BodyLabel("DeviceAcceptanceLabel", autowrap: true);
         _deviceAcceptanceLabel.Visible = false;
         experienceCard.AddChild(_deviceAcceptanceLabel);
@@ -390,16 +437,20 @@ public partial class CareerHubScreen
             });
         accessibilityRow.AddChild(_gamepadSettingButton);
 
-        RegisterMobileFocusLayout(
-            page,
-            HubPage.File,
-            Array.Empty<Control>(),
-            ("HEDEF", new Control[] { _fileTopGrid }),
-            ("FİNANS", new Control[] { _govTelemetryBar, financeCard.GetParent<Control>() }),
-            ("KARİYER", new Control[] { legacyCard.GetParent<Control>(), saveCard.GetParent<Control>() }),
-            ("AYAR", new Control[] { experienceCard.GetParent<Control>() }));
+        void SelectFileTab(int index)
+        {
+            tab0Split.Visible = index == 0;
+            tab1Split.Visible = index == 1;
+            tab2Split.Visible = index == 2;
+            CareerUiTheme.StyleTabButton(tabObjectivesBtn, index == 0);
+            CareerUiTheme.StyleTabButton(tabCareerBtn, index == 1);
+            CareerUiTheme.StyleTabButton(tabSaveSettingsBtn, index == 2);
+        }
+
+        tabObjectivesBtn.Pressed += () => SelectFileTab(0);
+        tabCareerBtn.Pressed += () => SelectFileTab(1);
+        tabSaveSettingsBtn.Pressed += () => SelectFileTab(2);
 
         return page;
     }
-
 }

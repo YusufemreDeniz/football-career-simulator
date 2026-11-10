@@ -78,8 +78,9 @@ public partial class CareerHubScreen : Control
     private Button _firstWeekGuideOpenButton = null!;
     private Button _firstWeekGuideNextButton = null!;
     private Button _officeNextStepButton = null!;
-    private HubPage _officeNextStepTarget = HubPage.Today;
-    private string _officeNextStepAction = Application.CareerHub.Queries.OfficeNextStepGuide.ActionNavigate;
+    private Application.CareerHub.Queries.ContinueStep? _continueStep;
+    private Label? _continuePreviewLabel;
+    private Control? _todayDecisionPanel;
     private Label _briefingLabel = null!;
     private Label _nextMatchOpponentLabel = null!;
     private Label _nextMatchVenueLabel = null!;
@@ -619,106 +620,69 @@ public partial class CareerHubScreen : Control
         PulseStatus(digest.ToStatusMessage());
     }
 
+    /// <summary>
+    /// Birincil düğme her zaman "Devam" döngüsünü taşır (ContinueFlowGuide). Nabız/rehber
+    /// adımı (transfer, lig, hazırlık önerileri) yalnız Gündem metnine yansır; birincil
+    /// düğmeyi ele geçirmez — oyuncu tek düğmeyle haftayı akıtır, maç gününde durur.
+    /// </summary>
     private void BindOfficeNextStep(Application.CareerHub.Queries.OfficeNextStep? step)
     {
-        if (step is null)
-        {
-            _officeNextStepButton.Visible = false;
-            if (_topContinueButton is not null)
-            {
-                _topContinueButton.Visible = false;
-            }
-            SyncTodayActionVisibility();
-            return;
-        }
-
-        _officeNextStepAction = step.ActionCode;
-        _officeNextStepTarget = step.TargetPageCode switch
-        {
-            Application.CareerHub.Queries.OfficeNextStepGuide.TargetClub => HubPage.Club,
-            Application.CareerHub.Queries.OfficeNextStepGuide.TargetTransfer => HubPage.Transfer,
-            Application.CareerHub.Queries.OfficeNextStepGuide.TargetPrep => HubPage.Prep,
-            Application.CareerHub.Queries.OfficeNextStepGuide.TargetWorld => HubPage.World,
-            _ => HubPage.Today,
-        };
-        _officeNextStepButton.Text = step.ButtonLabel;
+        _ = step;
+        _continueStep = _controller.BuildContinueStep();
+        var isAdvance = string.Equals(
+            _continueStep.Kind,
+            Application.CareerHub.Queries.ContinueFlowGuide.KindAdvance,
+            StringComparison.Ordinal);
+        var label = isAdvance ? "▶  DEVAM" : _continueStep.ButtonLabel;
+        _officeNextStepButton.Text = label;
+        _officeNextStepButton.TooltipText = $"{_continueStep.PreviewTitle}\n{_continueStep.PreviewBody}";
         _officeNextStepButton.Visible = true;
+        if (_continuePreviewLabel is not null)
+        {
+            _continuePreviewLabel.Text = $"{_continueStep.PreviewTitle}\n{_continueStep.PreviewBody}";
+        }
 
         if (_topContinueButton is not null)
         {
-            _topContinueButton.Text = "▶ " + step.ButtonLabel;
-            _topContinueButton.Visible = _officeNextStepButton.Visible;
-            _topContinueButton.TooltipText = step.ButtonLabel;
+            _topContinueButton.Text = isAdvance ? "▶ DEVAM" : "▶ " + _continueStep.ButtonLabel;
+            _topContinueButton.Visible = true;
+            _topContinueButton.TooltipText = _officeNextStepButton.TooltipText;
+            var isMatch = _continueStep.Kind is Application.CareerHub.Queries.ContinueFlowGuide.KindPrepareMatch
+                or Application.CareerHub.Queries.ContinueFlowGuide.KindPlayContinental;
+            if (isMatch)
+            {
+                CareerUiTheme.StylePrimaryButton(_topContinueButton);
+            }
+            else
+            {
+                CareerUiTheme.StyleAccentButton(_topContinueButton);
+            }
         }
 
         SyncTodayActionVisibility();
+        TidyGundemLabels();
     }
 
     private void OnOfficeNextStepPressed()
     {
-        switch (_officeNextStepAction)
+        var step = _continueStep ?? _controller.BuildContinueStep();
+        switch (step.Kind)
         {
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionApproveSelection:
-                Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
+            case Application.CareerHub.Queries.ContinueFlowGuide.KindAdvance:
+                Apply(_controller.RunContinueAdvance(step));
                 return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionOpenMatchDay:
-                OnPlayMatches();
+            case Application.CareerHub.Queries.ContinueFlowGuide.KindPrepareMatch:
+            case Application.CareerHub.Queries.ContinueFlowGuide.KindPlayContinental:
+                // Maç Öncesi ekranı kadro onayını kendisi ister; burada otomatik onay yok.
+                PlayInterfaceFeedback(MatchAudioCue.Whistle, vibrationDurationMs: 24);
+                Callable.From(() => MatchDayRequested?.Invoke()).CallDeferred();
                 return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceDay:
-                Apply(_controller.AdvanceToNextMeaningfulPoint());
-                return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceToNext:
-                Apply(_controller.AdvanceToNextMeaningfulPoint());
-                return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionTransitionSeason:
+            case Application.CareerHub.Queries.ContinueFlowGuide.KindTransitionSeason:
                 Apply(_controller.TransitionToNextSeason());
                 return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionApplyPrepSuggestion:
-                Apply(_controller.ApplySuggestedPreparationPlan());
-                return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionSellFringe:
-                Apply(_controller.SellFringePlayerFromManagedClub());
-                return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionOpenTransferWindow:
-                Apply(_controller.OpenTransferWindow());
-                return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionScanNeeds:
-                Apply(_controller.RefreshTransferNeedSuggestions());
-                ShowPage(HubPage.Transfer);
-                return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionPickTarget:
-                Apply(_controller.SuggestTransferTarget());
-                ShowPage(HubPage.Transfer);
-                return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionStartProcess:
-                Apply(_controller.OpenTransferProcessFromOldestTarget());
-                ShowPage(HubPage.Transfer);
-                SetTransferNegotiationExpanded(true);
-                return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceProcess:
-                Apply(_controller.AdvanceOldestTransferStep());
-                ShowPage(HubPage.Transfer);
-                SetTransferNegotiationExpanded(true);
-                return;
-            case Application.CareerHub.Queries.OfficeNextStepGuide.ActionAnswerOffers:
-                ShowPage(HubPage.Transfer);
-                SetTransferNegotiationExpanded(true);
-                return;
             default:
-                if (_officeNextStepTarget == HubPage.Today && _currentPage == HubPage.Today)
-                {
-                    if (_controller.HasDueContinentalMatch()
-                        || _controller.GetNextDueManagedFixture(_controller.GetCurrentGameDate().DayNumber) is not null)
-                    {
-                        OnPlayMatches();
-                    }
-                    else if (_controller.CanAdvanceTime())
-                    {
-                        Apply(_controller.AdvanceToNextMeaningfulPoint());
-                    }
-                    return;
-                }
-                ShowPage(_officeNextStepTarget);
+                ShowPage(HubPage.Today);
+                PulseStatus($"{step.PreviewTitle} — {step.PreviewBody}", false);
                 return;
         }
     }
@@ -740,7 +704,7 @@ public partial class CareerHubScreen : Control
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        shell.AddThemeConstantOverride("separation", 10);
+        shell.AddThemeConstantOverride("separation", 6);
         _shellMargin.AddChild(shell);
 
         // Sabit kariyer kabuğu: broadcast tarzı top bar paneli + kulüp/menajer kimliği + sonraki maç + devam CTA'sı.
@@ -1062,10 +1026,7 @@ public partial class CareerHubScreen : Control
             }
         }
 
-        if (page == HubPage.Club && _compactLayout && _clubSubPage == ClubSubPage.Overview)
-        {
-            ShowClubSubPage(ClubSubPage.AllPlayers);
-        }
+        // Allow Club Overview tab on all landscape viewports
 
         ApplyMobileFocusLayout(page, _compactLayout);
 
@@ -1105,7 +1066,7 @@ public partial class CareerHubScreen : Control
             safe.Top,
             safe.Right,
             safe.Bottom,
-            mobileRuntime: OS.HasFeature("mobile") || OS.HasFeature("android"));
+            mobileRuntime: CareerAppRoot.HandheldUi || OS.HasFeature("mobile") || OS.HasFeature("android"));
         _compactLayout = profile.IsCompact;
         _shellMargin.AddThemeConstantOverride("margin_left", profile.LeftMargin);
         _shellMargin.AddThemeConstantOverride("margin_right", profile.RightMargin);
@@ -1115,35 +1076,35 @@ public partial class CareerHubScreen : Control
         _brandLabel.Visible = !profile.IsCompact;
         _seasonLabel.Visible = !profile.IsCompact;
         _pageSubtitleLabel.Visible = false;
-        _clubCrest.CustomMinimumSize = new Vector2(profile.CrestSize, profile.CrestSize);
+        // Telefonda sekme zaten sayfayı söylüyor; büyük sayfa başlığı dikey alanı yiyordu.
+        var widescreenLandscape = Size.X >= 680f;
+        _pageTitleLabel.Visible = false;
+        _clubCrest.CustomMinimumSize = new Vector2(34, 34);
         _managerLabel.AddThemeFontSizeOverride(
             "font_size",
-            CareerUiTheme.FontSize(profile.IsCompact ? 18 : 22));
-        _pageTitleLabel.AddThemeFontSizeOverride(
-            "font_size",
-            CareerUiTheme.FontSize(profile.PageTitleFontSize));
+            CareerUiTheme.FontSize(profile.IsCompact ? 15 : 17));
         _liveChip.Visible = false;
         _dateLabel.AddThemeFontSizeOverride(
             "font_size",
-            CareerUiTheme.FontSize(profile.IsCompact ? 11 : 12));
-        _careerButton.CustomMinimumSize = new Vector2(profile.IsCompact ? 54 : 58, profile.TouchTargetHeight);
+            CareerUiTheme.FontSize(11));
+        _careerButton.CustomMinimumSize = new Vector2(54, 30);
         if (_topContinueButton is not null)
         {
-            _topContinueButton.CustomMinimumSize = new Vector2(profile.IsCompact ? 104 : 140, profile.TouchTargetHeight);
+            _topContinueButton.CustomMinimumSize = new Vector2(profile.IsCompact ? 102 : 118, 30);
             _topContinueButton.AddThemeFontSizeOverride(
                 "font_size",
-                CareerUiTheme.FontSize(profile.IsCompact ? 12 : 14));
+                CareerUiTheme.FontSize(12));
         }
         if (_nextMatchPill is not null)
         {
-            _nextMatchPill.Visible = !profile.IsCompact && _controller.BuildNextMatchBriefing().HasMatch;
+            _nextMatchPill.Visible = widescreenLandscape && _controller.BuildNextMatchBriefing().HasMatch;
         }
         if (_prepPitchHost is not null)
         {
-            _prepPitchHost.CustomMinimumSize = new Vector2(0, profile.IsCompact ? 340 : 400);
+            _prepPitchHost.CustomMinimumSize = new Vector2(0, profile.IsCompact ? 240 : 320);
         }
-        _statusLabel.CustomMinimumSize = new Vector2(0, profile.IsCompact ? 46 : 42);
-        _standingsTable.CustomMinimumSize = new Vector2(0, 500);
+        _statusLabel.CustomMinimumSize = new Vector2(0, 22);
+        _standingsTable.CustomMinimumSize = new Vector2(0, profile.IsCompact ? 260 : 360);
         if (_transferBentoGrid is not null)
         {
             _transferBentoGrid.Columns = Size.X >= 1500f ? 3 : Size.X >= 900f ? 2 : 1;
@@ -1181,28 +1142,23 @@ public partial class CareerHubScreen : Control
         _navButtons[(int)HubPage.World].Text = profile.IsCompact ? "📅 TAKVİM" : "TAKVİM";
         _navButtons[(int)HubPage.File].Text = profile.IsCompact ? "👤 PROFİL" : "PROFİL";
 
-        _squadAvgAgeBadgePanel.Visible = !profile.IsCompact;
-        _squadTotalValueBadgePanel.Visible = !profile.IsCompact;
-        _squadWageBillBadgePanel.Visible = !profile.IsCompact;
+        _squadAvgAgeBadgePanel.Visible = widescreenLandscape;
+        _squadTotalValueBadgePanel.Visible = widescreenLandscape;
+        _squadWageBillBadgePanel.Visible = widescreenLandscape;
         if (_squadFacilityBadgePanel is not null)
         {
-            _squadFacilityBadgePanel.Visible = !profile.IsCompact;
+            _squadFacilityBadgePanel.Visible = widescreenLandscape;
         }
         if (_squadChemistryBadgePanel is not null)
         {
-            _squadChemistryBadgePanel.Visible = !profile.IsCompact;
+            _squadChemistryBadgePanel.Visible = widescreenLandscape;
         }
-        _standingsTable.Visible = !profile.IsCompact;
-        _compactStandingsList.Visible = profile.IsCompact;
+        _standingsTable.Visible = widescreenLandscape;
+        _compactStandingsList.Visible = !widescreenLandscape;
 
         foreach (var page in _mobileFocusLayouts.Keys)
         {
             ApplyMobileFocusLayout(page, profile.IsCompact);
-        }
-
-        if (profile.IsCompact && _currentPage == HubPage.Club && _clubSubPage == ClubSubPage.Overview)
-        {
-            ShowClubSubPage(ClubSubPage.AllPlayers);
         }
 
         RefreshSquadStarVisibility();
@@ -1609,6 +1565,7 @@ public partial class CareerHubScreen : Control
         if (!string.IsNullOrWhiteSpace(result.NarrativeBridgeLine))
         {
             _officeLabel.Text = CompactText(result.NarrativeBridgeLine, 2);
+            TidyGundemLabels();
         }
 
         if (!string.IsNullOrWhiteSpace(result.NextFocusCode))
@@ -2495,9 +2452,18 @@ public partial class CareerHubScreen : Control
         {
             MatchScreenUi.ClearChildren(_boardObjectivesContainer);
 
+            var expText = economy.SeasonExpectation.ToString() switch
+            {
+                "TitleChallenge" => "🏆 Şampiyonluk Hedefi",
+                "EuropeanQualification" => "🌍 Avrupa Kupası Hedefi",
+                "TopHalf" => "📈 Üst Sıralar Hedefi",
+                "MidTable" => "⚖️ Orta Sıra / İstikrar Hedefi",
+                "Survival" or "AvoidRelegation" => "🛡️ Ligde Kalma Hedefi",
+                _ => economy.SeasonExpectation.ToString(),
+            };
             var seasonExpLabel = new Label
             {
-                Text = $"{economy.SeasonExpectation} · {economy.ClubName}",
+                Text = $"{expText} · {economy.ClubName}",
             };
             CareerUiTheme.StyleHeadline(seasonExpLabel);
             seasonExpLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
@@ -2662,7 +2628,7 @@ public partial class CareerHubScreen : Control
             safe.Top,
             safe.Right,
             safe.Bottom,
-            mobileRuntime: OS.HasFeature("mobile") || OS.HasFeature("android"));
+            mobileRuntime: CareerAppRoot.HandheldUi || OS.HasFeature("mobile") || OS.HasFeature("android"));
         var acceptance = MobileDeviceAcceptanceProfile.Evaluate(
             Mathf.RoundToInt(Size.X),
             Mathf.RoundToInt(Size.Y),
@@ -2762,7 +2728,8 @@ public partial class CareerHubScreen : Control
     private void RefreshFirstWeekGuide()
     {
         var digest = BuildFirstWeekGuide();
-        _firstWeekGuideCard.Visible = digest.IsVisible;
+        // İlk hafta rehberi metin yoğundu; Devam döngüsü yönlendirmeyi üstlendi.
+        _firstWeekGuideCard.Visible = false;
         if (!digest.IsVisible || digest.CurrentStep is null)
         {
             return;
@@ -4225,6 +4192,10 @@ public partial class CareerHubScreen : Control
                 ? briefing.FixtureLine
                 : briefing.Headline,
             briefing.HasMatch ? briefing.Headline : string.Empty);
+        if (!briefing.HasMatch && _controller.GetUpcomingManagedMatch() is not null)
+        {
+            _briefingLabel.Text = "Maç günü gelince Devam seni Maç Öncesi ekranına götürür; maç atlanmaz.";
+        }
 
         if (_nextMatchPill is not null && _nextMatchLabel is not null)
         {
@@ -4289,6 +4260,23 @@ public partial class CareerHubScreen : Control
                     _nextMatchApprovalLabel.AddThemeColorOverride("font_color", CareerUiTheme.InkMuted);
                     _nextMatchApprovalPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Stroke));
                 }
+            }
+            else if (_controller.GetUpcomingManagedMatch() is { } upcoming)
+            {
+                // Vadesi gelmemiş ama planlı maç: kart boş kalmaz, geri sayım gösterir.
+                var ownName = _controller.GetManagerCareer().EmployedClubId is long ownId
+                    ? _controller.GetClubDisplayName(ownId)
+                    : "Takımın";
+                _nextMatchCompetitionBadge.Text = "⚽ LİG MAÇI";
+                _nextMatchCompetitionBadge.AddThemeColorOverride("font_color", CareerUiTheme.Data);
+                _nextMatchVenueLabel.Text = upcoming.IsHome ? "İÇ SAHA" : "DEPLASMAN";
+                _nextMatchOpponentLabel.Text = upcoming.IsHome
+                    ? $"{ownName} vs {upcoming.OpponentName}"
+                    : $"{upcoming.OpponentName} vs {ownName}";
+                _nextMatchApprovalLabel.Text =
+                    $"⏳ {Application.CareerHub.Queries.ContinueFlowGuide.FormatCountdown(upcoming.DaysUntil)}";
+                _nextMatchApprovalLabel.AddThemeColorOverride("font_color", CareerUiTheme.Data);
+                _nextMatchApprovalPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data));
             }
             else
             {
@@ -4529,35 +4517,94 @@ public partial class CareerHubScreen : Control
     /// Merkez yüzeyi: tek birincil OfficeNextStep, en fazla bağlamsal XI↔Yedek ve
     /// çakışmayan 1 Gün yardımcı eylemi. Domain/debug tetikleri burada çoğaltılmaz.
     /// </summary>
+    /// <summary>
+    /// Gündem kartındaki nabız/hikâye/ofis satırlarını tekilleştirir. Eski "birincil düğme"
+    /// yönlendirmeleri Devam döngüsünde anlamsız kaldığı için atılır; ilerleme açıkken
+    /// "İlerleme açık" engel satırı gizlenir.
+    /// </summary>
+    private void TidyGundemLabels()
+    {
+        _blockerLabel.Visible = !_controller.CanAdvanceTime();
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var label in new[] { _pulseLabel, _weekStoryLabel, _recoveryPathLabel, _officeLabel })
+        {
+            if (string.IsNullOrWhiteSpace(label.Text))
+            {
+                continue;
+            }
+
+            var keptLines = new List<string>();
+            foreach (var rawLine in label.Text.Split('\n'))
+            {
+                var keptSegments = rawLine
+                    .Split(" · ", StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                    .Where(segment => !IsStaleCtaHint(segment))
+                    .Where(segment => seen.Add(NormalizeGundemKey(segment)))
+                    .ToArray();
+                if (keptSegments.Length > 0)
+                {
+                    keptLines.Add(string.Join(" · ", keptSegments));
+                }
+            }
+
+            label.Text = string.Join("\n", keptLines);
+            var managedElsewhere = label == _weekStoryLabel
+                || label == _recoveryPathLabel
+                || label == _officeLabel;
+            if (keptLines.Count == 0)
+            {
+                label.Visible = false;
+            }
+            else if (!managedElsewhere)
+            {
+                label.Visible = true;
+            }
+        }
+    }
+
+    private static bool IsStaleCtaHint(string segment) =>
+        segment.Contains("birincil düğme", StringComparison.OrdinalIgnoreCase)
+        || segment.StartsWith("Sıradaki:", StringComparison.OrdinalIgnoreCase)
+        || segment.StartsWith("Hava tutuyor", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeGundemKey(string segment)
+    {
+        var text = segment.Trim().TrimEnd('.', '!', ' ');
+        var colon = text.IndexOf(':');
+        // "Hava: X" ile "X" aynı haberdir.
+        if (colon > 0 && colon < 12)
+        {
+            text = text[(colon + 1)..].Trim();
+        }
+
+        return text;
+    }
+
     private void SyncTodayActionVisibility()
     {
-        var hasOpenDecision = _controller.GetPendingDecisions(take: 1).OpenCount > 0;
         var currentDay = _controller.GetCurrentGameDate().DayNumber;
         var pendingMatch = _controller.GetNextDueManagedFixture(currentDay);
         var hasContinentalMatch = _controller.HasDueContinentalMatch();
         var canAdvance = _controller.CanAdvanceTime();
 
-        // Bu eylemlerin tamamı OfficeNextStep tarafından zaten kapsanır.
+        // Tek birincil eylem: Devam (ContinueFlowGuide). Maç/onay/sezon/ilerleme düğmeleri onun kapsamında.
         _approveSelectionButton.Visible = false;
         _seasonTransitionButton.Visible = false;
         _advanceWeekButton.Visible = false;
+        _playButton.Visible = false;
+        _officeNextStepButton.Visible = _continueStep is not null;
+        if (_todayDecisionPanel is not null)
+        {
+            _todayDecisionPanel.Visible = _controller.GetPendingDecisions(take: 1).OpenCount > 0;
+        }
 
-        // Açık karar varken aynı kartta yalnızca gerçek diyalog seçenekleri kalır.
-        _officeNextStepButton.Visible = _officeNextStepButton.Visible && !hasOpenDecision;
-        _playButton.Visible =
-            !hasOpenDecision
-            && (pendingMatch is not null || hasContinentalMatch)
-            && !_officeNextStepButton.Visible;
-        _swapSelectionButton.Visible = !hasOpenDecision && pendingMatch is not null;
+        // İkincil hassas kontroller: maç günü XI↔Yedek, sakin günlerde tek gün ilerletme.
+        _swapSelectionButton.Visible = pendingMatch is not null;
         _advanceDayButton.Visible =
-            !hasOpenDecision
-            && canAdvance
+            canAdvance
             && pendingMatch is null
-            && !hasContinentalMatch
-            && (!_officeNextStepButton.Visible
-                || (_officeNextStepAction
-                    is not Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceDay
-                    and not Application.CareerHub.Queries.OfficeNextStepGuide.ActionAdvanceToNext));
+            && !hasContinentalMatch;
     }
 
     private void RefreshSquadList()
@@ -4684,7 +4731,7 @@ public partial class CareerHubScreen : Control
                 var starVal = EstimateSquadPlayerMarketValue(star, avgRating);
                 var valStr = starVal >= 1_000_000 ? $"{(double)starVal / 1_000_000:0.0}M TRY" : $"{starVal:N0} TRY";
                 _starMetaLabels[i].Text = $"{star.Age} Yaş · %{star.Fitness} Fit · {valStr}";
-                _starCards[i].Visible = !_compactLayout || i == 0;
+                _starCards[i].Visible = true;
             }
             else
             {
@@ -4710,7 +4757,9 @@ public partial class CareerHubScreen : Control
                 : $" · ⚠ {player.Availability}";
 
             var newBadge = player.PlayerId == _newTransferPlayerId ? " · YENİ" : string.Empty;
-            var formattedLine = $"#{player.SquadNumber}  {player.PositionCode}  {player.DisplayName}  ·  ⭐ {player.Rating}  ·  %{player.Fitness}{newBadge}{availabilityIndicator}";
+            var estVal = EstimateSquadPlayerMarketValue(player, avgRating);
+            var valTag = estVal >= 1_000_000 ? $"{(double)estVal / 1_000_000:0.0}M ₺" : $"{estVal / 1_000:N0}B ₺";
+            var formattedLine = $"#{player.SquadNumber,2}  [{player.PositionCode}]  {player.DisplayName} ({player.Age})  ·  ⭐ {player.Rating} ⚡ %{player.Fitness}  ·  💰 {valTag}{newBadge}{availabilityIndicator}";
             _squadList.AddItem(formattedLine);
             if (player.PlayerId == _newTransferPlayerId)
             {
@@ -4771,7 +4820,7 @@ public partial class CareerHubScreen : Control
         {
             if (_starCards[i] is not null)
             {
-                _starCards[i].Visible = _starPlayerIds[i].HasValue && (!_compactLayout || i == 0);
+                _starCards[i].Visible = _starPlayerIds[i].HasValue;
             }
         }
     }

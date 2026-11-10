@@ -26,12 +26,12 @@ internal static class TacticalPitchBoardUi
             selectedSlotIndex: null,
             onPlayerSelected ?? (_ => { }),
             interactionEnabled: onPlayerSelected is not null,
-            playerButtonMinimumSize: new Vector2(92, 58),
+            playerButtonMinimumSize: new Vector2(78, 48),
             formation: formation)
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(440, 320),
+            CustomMinimumSize = new Vector2(340, 210),
         });
         return root;
     }
@@ -53,15 +53,15 @@ internal static class TacticalPitchBoardUi
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             SizeFlagsVertical = Control.SizeFlags.ExpandFill,
         };
-        root.AddThemeConstantOverride("separation", 8);
+        root.AddThemeConstantOverride("separation", 6);
 
         root.AddChild(BuildPitch(
             board,
             selectedSlotIndex,
             selectPlayer,
             interactionEnabled,
-            new Vector2(480, 300),
-            new Vector2(76, 48),
+            new Vector2(360, 240),
+            new Vector2(72, 46),
             formation));
 
         root.AddChild(BuildBench(
@@ -69,7 +69,7 @@ internal static class TacticalPitchBoardUi
             selectedSlotIndex,
             selectPlayer,
             interactionEnabled,
-            new Vector2(76, 48)));
+            new Vector2(72, 46)));
 
         return root;
     }
