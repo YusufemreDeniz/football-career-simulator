@@ -3146,6 +3146,61 @@ internal static class WorldCalendarSqliteMigrator
         transaction.Commit();
     }
 
+    public static void MigrateV50ToV51InPlace(string filePath)
+    {
+        var backupPath = filePath + ".bak";
+        File.Copy(filePath, backupPath, overwrite: true);
+
+        var workingCopyPath = filePath + ".migrating.tmp";
+        if (File.Exists(workingCopyPath))
+        {
+            File.Delete(workingCopyPath);
+        }
+
+        File.Copy(filePath, workingCopyPath, overwrite: false);
+        try
+        {
+            MigrateV50ToV51(workingCopyPath);
+        }
+        catch (Exception ex) when (ex is not SaveIntegrityException)
+        {
+            SqliteConnection.ClearAllPools();
+            TryDelete(workingCopyPath);
+            throw new SaveCorruptionException(
+                "V50 production save'i güncel şemaya taşırken hata oluştu; orijinal dosya değiştirilmedi.",
+                ex);
+        }
+
+        ReplaceWorkingCopy(workingCopyPath, filePath);
+    }
+
+    /// <summary>
+    /// V51: hafızanın çözüm durumu (pekiştirildi / kısmen telafi / telafi edildi / sorgulandı), çözüm günü ve
+    /// gerekçesi kayda alınır. Eski kayıtlarda tüm hafızalar çözülmemiş (0) kabul edilir.
+    /// </summary>
+    private static void MigrateV50ToV51(string workingCopyPath)
+    {
+        using var connection = OpenMigrationConnection(workingCopyPath);
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        if (TableExists(connection, "MemoryState")
+            && !ColumnExists(connection, "MemoryState", "ResolutionStatus"))
+        {
+            ProductionSqliteCommands.ExecuteNonQuery(connection, transaction, """
+                ALTER TABLE MemoryState ADD COLUMN ResolutionStatus INTEGER NOT NULL DEFAULT 0;
+                ALTER TABLE MemoryState ADD COLUMN ResolvedDayNumber INTEGER NULL;
+                ALTER TABLE MemoryState ADD COLUMN ResolutionReasonCode TEXT NULL;
+                """);
+        }
+
+        ProductionSqliteCommands.ExecuteNonQuery(
+            connection,
+            transaction,
+            "UPDATE ProductionSaveManifest SET SchemaVersion = 51;");
+        transaction.Commit();
+    }
+
     private static void ReplaceWorkingCopy(string workingCopyPath, string filePath)
     {
         SqliteConnection.ClearAllPools();

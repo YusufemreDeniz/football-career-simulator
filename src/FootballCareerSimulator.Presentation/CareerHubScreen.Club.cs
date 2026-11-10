@@ -123,6 +123,9 @@ public partial class CareerHubScreen
         _clubFacilityMultiplierLabel = BodyLabel("ClubFacilityMultiplier", muted: true, autowrap: true);
         _clubFacilityMultiplierLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
         facilityInfoBox.AddChild(_clubFacilityMultiplierLabel);
+        _clubCultureLabel = BodyLabel("ClubCulture", muted: true, autowrap: true);
+        _clubCultureLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        facilityInfoBox.AddChild(_clubCultureLabel);
 
         _clubFacilityCostLabel = BodyLabel("ClubFacilityCost", muted: true, autowrap: true);
         _clubFacilityCostLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));

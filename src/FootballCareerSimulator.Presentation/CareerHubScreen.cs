@@ -175,6 +175,7 @@ public partial class CareerHubScreen : Control
     private Label _squadChemistryBadgeLabel = null!;
     private Label _clubFacilityLevelLabel = null!;
     private Label _clubFacilityMultiplierLabel = null!;
+    private Label? _clubCultureLabel;
     private Label _clubFacilityCostLabel = null!;
     private Button _upgradeFacilityButton = null!;
     private HBoxContainer _starSpotlightDesk = null!;
@@ -4613,6 +4614,13 @@ public partial class CareerHubScreen : Control
             _squadFacilityBadgeLabel.Text = $"🏗️ Tesis: Lv {club.FacilityLevel}/5 (x{club.FacilityTrainingMultiplier:0.00})";
             _clubFacilityLevelLabel.Text = $"🏗️ {club.DisplayName} Tesis & Altyapı: Seviye {club.FacilityLevel} / 5";
             _clubFacilityMultiplierLabel.Text = $"⚡ Antrenman & Gelişim Çarpanı: x{club.FacilityTrainingMultiplier:0.00} (+{(int)Math.Round((club.FacilityTrainingMultiplier - 1.0) * 100)}% hızlandırılmış oyuncu gelişimi)";
+            if (_clubCultureLabel is not null)
+            {
+                var culture = _controller.GetClubCulture();
+                _clubCultureLabel.Text = culture is null
+                    ? string.Empty
+                    : $"🏛️ Kulüp Kimliği: {culture.PhilosophySummary}";
+            }
             if (club.FacilityLevel >= 5)
             {
                 _clubFacilityCostLabel.Text = "⭐ Tesisler maksimum seviyede (Dünya Standartlarında Altyapı).";
@@ -4633,7 +4641,7 @@ public partial class CareerHubScreen : Control
         {
             var chemistry = _controller.GetTeamChemistry();
             _squadChemistryBadgeLabel.Text = $"👥 Kimya: %{chemistry.ChemistryScore} ({chemistry.ChemistryBand})";
-            _squadChemistryBadgePanel.TooltipText = $"Takım Kimyası: %{chemistry.ChemistryScore}\n{chemistry.NarrativeSummary}\nMaç Performans Çarpanı: x{chemistry.PerformanceMultiplier:0.00}";
+            _squadChemistryBadgePanel.TooltipText = $"Takım Kimyası: %{chemistry.ChemistryScore}\n{chemistry.NarrativeSummary}\nMaçta etkili olan: doğal mevki/rol uyumu (Taktik ekranı).";
         }
 
         var management = _controller.BuildPlayerManagementDigest();

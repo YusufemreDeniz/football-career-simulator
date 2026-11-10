@@ -27,8 +27,10 @@ public sealed class TeamPreparationModule
         MatchSelectionQueryService selectionQueries,
         PreMatchPromiseTensionQueryService promiseTension,
         SquadQueryService squadQueries,
-        TacticPlanQueryService tacticQueries)
+        TacticPlanQueryService tacticQueries,
+        MatchSelectionEditingService? selectionEditing = null)
     {
+        SelectionEditing = selectionEditing ?? new MatchSelectionEditingService(selectionStore, squadStore);
         SelectionStore = selectionStore;
         SquadStore = squadStore;
         TacticPlanStore = tacticPlanStore;
@@ -72,6 +74,9 @@ public sealed class TeamPreparationModule
     public SwapStarterWithBenchHandler SwapStarterWithBench { get; }
 
     public MatchSelectionQueryService SelectionQueries { get; }
+
+    /// <summary>Maç öncesi kadro düzenleme komutları (Presentation seçim store'una doğrudan yazmaz).</summary>
+    public MatchSelectionEditingService SelectionEditing { get; }
 
     public PreMatchPromiseTensionQueryService PromiseTension { get; }
 
@@ -157,6 +162,7 @@ public sealed class TeamPreparationModule
             selectionQueries,
             promiseTension,
             squadQueries,
-            new TacticPlanQueryService(tactics, managerCareerStore));
+            new TacticPlanQueryService(tactics, managerCareerStore),
+            new MatchSelectionEditingService(store, clubSquadStore, trainingStore, timelineStore));
     }
 }

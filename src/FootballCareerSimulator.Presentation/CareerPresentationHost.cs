@@ -92,6 +92,11 @@ public sealed class CareerPresentationHost
     /// <summary>Kıtasal turnuvanın kayda yazılan özü (yönetilen kulüp sonuçları).</summary>
     public FootballCareerSimulator.Application.Continental.IContinentalTournamentStore ContinentalStore { get; init; } =
         new FootballCareerSimulator.Application.Continental.InMemoryContinentalTournamentStore();
+
+    /// <summary>Kıtasal turnuva özetinin yazma kapısı.</summary>
+    public FootballCareerSimulator.Application.Continental.ContinentalTournamentService Continental { get; init; } =
+        new FootballCareerSimulator.Application.Continental.ContinentalTournamentService(
+            new FootballCareerSimulator.Application.Continental.InMemoryContinentalTournamentStore());
     public string DefaultSavePath { get; }
 
     public static IReadOnlyList<Application.ClubGovernance.Queries.ClubReadModel> GetNewCareerClubs(int rootSeed) =>
@@ -384,6 +389,7 @@ public sealed class CareerPresentationHost
             savePath)
         {
             ContinentalStore = continentalStore,
+            Continental = new FootballCareerSimulator.Application.Continental.ContinentalTournamentService(continentalStore),
         };
     }
 }

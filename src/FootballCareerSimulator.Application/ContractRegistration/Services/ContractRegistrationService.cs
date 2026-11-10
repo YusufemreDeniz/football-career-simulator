@@ -270,6 +270,10 @@ public sealed class ContractRegistrationService
             throw new ArgumentOutOfRangeException(nameof(minimumActiveContractsPerClub));
         }
 
+        // Kendi kendini onarma: vadesi geçmiş ama işlenmemiş sözleşmeler önce serbest oyuncuya çevrilir.
+        // Aksi halde bu oyuncular ne aktif ne serbest kalır ve lig yıllar içinde boşalır.
+        ExpireDueContracts(day);
+
         var renewed = 0;
         var affected = new HashSet<long>();
         foreach (var clubGroup in _freeAgentStore.FreeAgents
@@ -340,6 +344,7 @@ public sealed class ContractRegistrationService
                 renewed++;
                 affected.Add(clubIdValue);
             }
+
         }
 
         return new ContractPopulationContinuityResult(

@@ -10,16 +10,27 @@ namespace FootballCareerSimulator.Application.ClubGovernance.Services;
 public sealed class ClubDnaService
 {
     private readonly Dictionary<ClubId, ClubDnaProfile> _profiles = new();
+    private readonly FootballCareerSimulator.Application.ClubGovernance.Ports.IClubRegistryStore? _registry;
 
+    public ClubDnaService(FootballCareerSimulator.Application.ClubGovernance.Ports.IClubRegistryStore? registry = null)
+    {
+        _registry = registry;
+    }
+
+    /// <summary>
+    /// Kayıtlı (test/senaryo) profil yoksa kulübün güç ve kimliğinden deterministik kimlik türetilir.
+    /// </summary>
     public ClubDnaProfile GetOrCreateProfile(ClubId clubId)
     {
-        if (!_profiles.TryGetValue(clubId, out var profile))
+        if (_profiles.TryGetValue(clubId, out var registered))
         {
-            profile = ClubDnaProfile.CreateDefault(clubId);
-            _profiles[clubId] = profile;
+            return registered;
         }
 
-        return profile;
+        var club = _registry?.Registry.Clubs.FirstOrDefault(candidate => candidate.Id == clubId);
+        return club is null
+            ? ClubDnaProfile.CreateDefault(clubId)
+            : ClubDnaProfile.CreateSeeded(clubId, club.SportiveStrength);
     }
 
     public void RegisterProfile(ClubDnaProfile profile)
@@ -74,6 +85,12 @@ public sealed class ClubDnaService
         var summary = badges.Count > 0
             ? string.Join(", ", badges)
             : "Dengeli Kurumsal Yapı";
+        summary += profile.ManagerialPatience switch
+        {
+            < 35 => " · Yönetim kötü sonuçlara sert tepki verir",
+            > 70 => " · Yönetim kötü dönemde kredi tanır",
+            _ => string.Empty,
+        };
 
         return new ClubCultureDigest(
             profile.ClubId,

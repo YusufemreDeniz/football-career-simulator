@@ -30,6 +30,9 @@ public static class MemoryCanonicalStateHasher
                 .Append(";RP=").Append(memory.RelatedPromiseId?.Value.ToString() ?? "-")
                 .Append(";R=").Append(memory.RuleId)
                 .Append(";Rv=").Append(memory.RuleVersion)
+                .Append(";Res=").Append((int)memory.ResolutionStatus)
+                .Append(";ResOn=").Append(memory.ResolvedOn?.DayNumber.ToString() ?? "-")
+                .Append(";ResR=").Append(memory.ResolutionReasonCode ?? "-")
                 .Append('|');
         }
 

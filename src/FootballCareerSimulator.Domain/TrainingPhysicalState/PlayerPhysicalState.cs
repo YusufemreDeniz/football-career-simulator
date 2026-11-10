@@ -83,9 +83,15 @@ public sealed class PlayerPhysicalState
 
     public bool HasLocation => ClubId is not null && SlotIndex is int;
 
-    /// <summary>Sakatlıktan dönüşte düşük fitness varken geçici yükselmiş risk.</summary>
+    /// <summary>
+    /// Sakatlıktan dönüşte düşük fitness varken geçici yükselmiş risk. Yalnız kayıtlı bir sakatlık geçmişi
+    /// (kalıcı <see cref="LastInjuryReasonCode"/>) olan oyuncu için geçerlidir; hiç sakatlanmamış ama yorgun
+    /// oyuncu "dönüş riski" taşımaz. Fitness eşiğin üstüne çıkınca risk kendiliğinden kalkar.
+    /// </summary>
     public bool HasElevatedReturnRisk =>
-        !IsInjured && Fitness < ReturnRiskFitnessCeiling;
+        !IsInjured
+        && LastInjuryReasonCode is not null
+        && Fitness < ReturnRiskFitnessCeiling;
 
     public static PlayerPhysicalState CreateRested(PlayerId playerId, ClubId? clubId = null, int? slotIndex = null)
     {

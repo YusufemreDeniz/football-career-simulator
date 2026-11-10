@@ -550,6 +550,13 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
             version = 50;
         }
 
+        if (version == 50 && ProductionWorldCalendarSaveSchema.CurrentVersion >= 51)
+        {
+            WorldCalendarSqliteMigrator.MigrateV50ToV51InPlace(filePath);
+            wasMigrated = true;
+            version = 51;
+        }
+
         if (wasMigrated)
         {
             RepairManifestHash(filePath);
@@ -923,7 +930,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 RelatedPromiseId INTEGER NULL,
                 RuleId TEXT NOT NULL,
                 RuleVersion INTEGER NOT NULL,
-                ProcessedReinforcementKeysCsv TEXT NOT NULL
+                ProcessedReinforcementKeysCsv TEXT NOT NULL,
+                ResolutionStatus INTEGER NOT NULL DEFAULT 0,
+                ResolvedDayNumber INTEGER NULL,
+                ResolutionReasonCode TEXT NULL
             );
             """);
 
@@ -2200,14 +2210,21 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                     SourceEventKey, Category, CreatedDayNumber, LastReinforcedDayNumber,
                     BaseImportance, CurrentInfluence, Valence, Visibility, Status,
                     ReinforcementCount, RelatedPromiseId, RuleId, RuleVersion,
-                    ProcessedReinforcementKeysCsv)
+                    ProcessedReinforcementKeysCsv, ResolutionStatus, ResolvedDayNumber, ResolutionReasonCode)
                 VALUES (
                     $memoryId, $actorKind, $actorId, $subjectKind, $subjectId,
                     $sourceKey, $category, $created, $reinforced,
                     $baseImportance, $currentInfluence, $valence, $visibility, $status,
                     $reinforcement, $relatedPromise, $ruleId, $ruleVersion,
-                    $processedReinforcementKeys);
+                    $processedReinforcementKeys, $resolutionStatus, $resolvedDay, $resolutionReason);
                 """;
+            command.Parameters.AddWithValue("$resolutionStatus", (int)memory.ResolutionStatus);
+            command.Parameters.AddWithValue(
+                "$resolvedDay",
+                memory.ResolvedOn is GameDate resolvedOn ? resolvedOn.DayNumber : DBNull.Value);
+            command.Parameters.AddWithValue(
+                "$resolutionReason",
+                (object?)memory.ResolutionReasonCode ?? DBNull.Value);
             command.Parameters.AddWithValue("$memoryId", memory.MemoryId.Value);
             command.Parameters.AddWithValue("$actorKind", (int)memory.RememberingActor.Kind);
             command.Parameters.AddWithValue("$actorId", memory.RememberingActor.Id);
@@ -3389,13 +3406,16 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
         }
 
         var memories = new List<MemoryRecord>();
+        var resolutionColumns = ColumnExists(connection, "MemoryState", "ResolutionStatus")
+            ? "ResolutionStatus, ResolvedDayNumber, ResolutionReasonCode"
+            : "0, NULL, NULL";
         using var command = connection.CreateCommand();
-        command.CommandText = """
+        command.CommandText = $"""
             SELECT MemoryId, RememberingActorKind, RememberingActorId, SubjectKind, SubjectId,
                    SourceEventKey, Category, CreatedDayNumber, LastReinforcedDayNumber,
                    BaseImportance, CurrentInfluence, Valence, Visibility, Status,
                    ReinforcementCount, RelatedPromiseId, RuleId, RuleVersion,
-                   ProcessedReinforcementKeysCsv
+                   ProcessedReinforcementKeysCsv, {resolutionColumns}
             FROM MemoryState
             ORDER BY MemoryId;
             """;
@@ -3427,7 +3447,10 @@ public sealed class CareerSqlitePersistence : ICareerPersistence
                 relatedPromise,
                 reader.GetString(16),
                 reader.GetInt32(17),
-                reinforcementKeys));
+                reinforcementKeys,
+                (MemoryResolutionStatus)reader.GetInt32(19),
+                reader.IsDBNull(20) ? null : GameDate.FromDayNumber(reader.GetInt32(20)),
+                reader.IsDBNull(21) ? null : reader.GetString(21)));
         }
 
         return memories;

@@ -69,6 +69,46 @@ public sealed class ClubDnaProfile
         new(clubId);
 
     /// <summary>
+    /// Kulübün kalıcı kurumsal kimliği: kulüp kimliği ve sportif güçten deterministik türetilir, bu yüzden kayıt
+    /// gerektirmez ve aynı kulüp her kariyerde aynı karakteri taşır. Büyük kulüpler sabırsız ve harcamacı,
+    /// küçük kulüpler sabırlı, altyapıcı ve satıcıdır; her kulübe özgü ±15 puanlık sapma eklenir.
+    /// </summary>
+    public static ClubDnaProfile CreateSeeded(ClubId clubId, int sportiveStrength)
+    {
+        var tier = sportiveStrength - 60;
+        return new ClubDnaProfile(
+            clubId,
+            youthDevelopmentCulture: Score(60 - (tier * 0.8), clubId, 1),
+            recruitmentAggression: Score(40 + (tier * 1.5), clubId, 2),
+            sellingClubTendency: Score(60 - (tier * 1.2), clubId, 3),
+            managerialPatience: Score(70 - (tier * 1.2), clubId, 4),
+            wageDiscipline: Score(55, clubId, 5),
+            highIntensityTradition: Score(50, clubId, 6, jitterScale: 1.5));
+    }
+
+    private static int Score(double baseline, ClubId clubId, int salt, double jitterScale = 1.0)
+    {
+        var jitter = Jitter(clubId.Value, salt) * jitterScale;
+        return Math.Clamp((int)Math.Round(baseline + jitter), 10, 90);
+    }
+
+    /// <summary>Kulüp kimliği ve özellik tuzundan [-15, 15] aralığında deterministik sapma.</summary>
+    private static double Jitter(long clubId, int salt)
+    {
+        unchecked
+        {
+            var value = (ulong)clubId * 0x9E3779B97F4A7C15UL + (ulong)salt * 0xBF58476D1CE4E5B9UL;
+            value ^= value >> 30;
+            value *= 0xBF58476D1CE4E5B9UL;
+            value ^= value >> 27;
+            value *= 0x94D049BB133111EBUL;
+            value ^= value >> 31;
+            var unit = (value >> 11) / (double)(1UL << 53);
+            return (unit * 30.0) - 15.0;
+        }
+    }
+
+    /// <summary>
     /// Sezon sonu committed fact'leri ile kulüp DNA'sını aşamalı ve deterministik olarak günceller.
     /// </summary>
     public void RecordSeasonFacts(

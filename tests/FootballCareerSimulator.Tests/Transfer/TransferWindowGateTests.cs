@@ -114,7 +114,7 @@ public sealed class TransferWindowGateTests : IDisposable
             Array.Empty<Domain.SocialContinuity.MemoryRecord>());
 
         var loaded = persistence.Load(path);
-        Assert.Equal(50, loaded.SchemaVersion);
+        Assert.Equal(51, loaded.SchemaVersion);
         Assert.False(loaded.Timeline.TransferWindow.IsOpen);
     }
 

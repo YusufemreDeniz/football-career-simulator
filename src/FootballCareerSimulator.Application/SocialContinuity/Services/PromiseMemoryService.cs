@@ -11,6 +11,7 @@ public sealed class PromiseMemoryService
 {
     private readonly IMemoryStore _store;
     private readonly TrustMemoryService? _trustMemory;
+    private readonly MemoryResolutionEvaluator _redemption = new();
 
     public PromiseMemoryService(IMemoryStore store, TrustMemoryService? trustMemory = null)
     {
@@ -33,7 +34,32 @@ public sealed class PromiseMemoryService
         created += TryCreateForActor(promise.Promisee, promise, day) ? 1 : 0;
         created += TryCreateForActor(promise.Promisor, promise, day) ? 1 : 0;
         created += _trustMemory?.RecordFromPromiseOutcome(promise, day) ?? 0;
+        if (promise.Status == PromiseStatus.Fulfilled)
+        {
+            RedeemEarlierBrokenPromises(promise, day);
+        }
+
         return created;
+    }
+
+    /// <summary>
+    /// Redemption Memory: aynı söz verene karşı daha önce kırılmış sözlerin olumsuz anıları,
+    /// yeni sözün tutulmasıyla telafi edilir.
+    /// </summary>
+    private void RedeemEarlierBrokenPromises(Promise fulfilled, GameDate day)
+    {
+        var broken = _store.Memories
+            .Where(memory => memory.RememberingActor == fulfilled.Promisee
+                             && memory.Category == MemoryCategory.Promise
+                             && memory.Valence == MemoryValence.Negative
+                             && memory.ResolutionStatus != MemoryResolutionStatus.Resolved
+                             && memory.SubjectKind == MemorySubjectKind.Promise
+                             && memory.SubjectId != fulfilled.PromiseId.Value)
+            .ToArray();
+        foreach (var memory in broken)
+        {
+            _store.Upsert(_redemption.EvaluatePromiseFulfillmentRedemption(memory, day));
+        }
     }
 
     private bool TryCreateForActor(ActorRef rememberingActor, Promise promise, GameDate day)

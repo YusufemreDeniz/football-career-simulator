@@ -290,7 +290,22 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
         _output.WriteLine("Progress telemetry: {0}", _progress.Path);
 
         Assert.True(saved.Succeeded);
-        Assert.Equal(50, final.SchemaVersion);
+        Assert.Equal(51, final.SchemaVersion);
+
+        // Nüfus sağlığı: emekli olmayan her oyuncu ya aktif sözleşmeli ya serbest oyuncudur (sızıntı yok).
+        var finalDay = final.Timeline.CurrentDate;
+        var freeAgentIds = final.FreeAgents.Select(agent => agent.PlayerId).ToHashSet();
+        var activeContractIds = final.Contracts
+            .Where(contract => contract.IsActiveOn(finalDay))
+            .Select(contract => contract.PlayerId)
+            .ToHashSet();
+        var limbo = final.PlayerCareers
+            .Where(player => !player.IsRetired
+                             && !activeContractIds.Contains(player.Id)
+                             && !freeAgentIds.Contains(player.Id))
+            .Select(player => player.Id.Value)
+            .ToArray();
+        Assert.True(limbo.Length == 0, $"Sözleşmesiz ve serbest olmayan oyuncu kaldı: {limbo.Length}");
         Assert.Equal(10, final.League.Seasons.Count);
         Assert.All(final.League.Seasons, season => Assert.Equal(SeasonStatus.Archived, season.Status));
         Assert.Equal(
@@ -458,6 +473,11 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
             lifecycle);
 
         var eventRule = world.EventRuleEvaluation!;
+        // Üretim host'u ile aynı: gün geçişinde vadesi gelen sözleşmeler işlenir (CareerPresentationHost).
+        world.AdvanceSimulationTime.BindContractExpiryConsequences(
+            new FootballCareerSimulator.Application.ContractRegistration.Services.ContractExpiryDayBoundaryApplier(
+                contracts.Registration,
+                eventRule.Gate));
         var resets = new List<FootballCareerSimulator.Application.WorldCalendar.Ports.ICommandIdempotencyReset>
         {
             world.AdvanceSimulationTime,

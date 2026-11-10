@@ -305,39 +305,7 @@ public sealed partial class CareerSessionController
 
             var fixtureId = new Domain.Competition.FixtureId(pending.FixtureId);
             var cid = new Domain.Shared.ClubId(clubId);
-            var current = Host.TeamPreparationModule.SelectionStore.Get(fixtureId, cid);
-            var clubSquad = Host.TeamPreparationModule.SquadStore.Get(cid);
-            if (current is null)
-            {
-                current = Host.TrainingModule.Store is not null
-                    ? Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
-                        fixtureId,
-                        cid,
-                        Host.WorldModule.TimelineStore.Timeline.CurrentDate,
-                        Host.TrainingModule.Store.PhysicalBySlot,
-                        clubSquad)
-                    : Domain.TeamPreparation.MatchSelection.ApproveDefault(fixtureId, cid, clubSquad);
-            }
-
-            var startingList = current.StartingSlotIndices.ToList();
-            var idxA = startingList.IndexOf(starterSlotA);
-            var idxB = startingList.IndexOf(starterSlotB);
-            if (idxA < 0 || idxB < 0)
-            {
-                throw new Domain.TeamPreparation.TeamPreparationInvariantViolationException(
-                    "Seçilen oyuncular ilk 11 listesinde bulunamadı.");
-            }
-
-            startingList[idxA] = starterSlotB;
-            startingList[idxB] = starterSlotA;
-
-            var updated = Domain.TeamPreparation.MatchSelection.Approve(
-                current.FixtureId,
-                current.ClubId,
-                startingList,
-                current.BenchSlotIndices,
-                clubSquad);
-            Host.TeamPreparationModule.SelectionStore.Upsert(updated);
+            Host.TeamPreparationModule.SelectionEditing.SwapStarters(fixtureId, cid, starterSlotA, starterSlotB);
 
             var profiles = GetSquadProfiles(cid);
             var nameA = starterSlotA < profiles.Count ? profiles[starterSlotA].DisplayName : $"#{starterSlotA}";
@@ -375,39 +343,7 @@ public sealed partial class CareerSessionController
 
             var fixtureId = new Domain.Competition.FixtureId(pending.FixtureId);
             var cid = new Domain.Shared.ClubId(clubId);
-            var current = Host.TeamPreparationModule.SelectionStore.Get(fixtureId, cid);
-            var clubSquad = Host.TeamPreparationModule.SquadStore.Get(cid);
-            if (current is null)
-            {
-                current = Host.TrainingModule.Store is not null
-                    ? Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
-                        fixtureId,
-                        cid,
-                        Host.WorldModule.TimelineStore.Timeline.CurrentDate,
-                        Host.TrainingModule.Store.PhysicalBySlot,
-                        clubSquad)
-                    : Domain.TeamPreparation.MatchSelection.ApproveDefault(fixtureId, cid, clubSquad);
-            }
-
-            var benchList = current.BenchSlotIndices.ToList();
-            var idxA = benchList.IndexOf(benchSlotA);
-            var idxB = benchList.IndexOf(benchSlotB);
-            if (idxA < 0 || idxB < 0)
-            {
-                throw new Domain.TeamPreparation.TeamPreparationInvariantViolationException(
-                    "Seçilen oyuncular yedek kulübesinde bulunamadı.");
-            }
-
-            benchList[idxA] = benchSlotB;
-            benchList[idxB] = benchSlotA;
-
-            var updated = Domain.TeamPreparation.MatchSelection.Approve(
-                current.FixtureId,
-                current.ClubId,
-                current.StartingSlotIndices,
-                benchList,
-                clubSquad);
-            Host.TeamPreparationModule.SelectionStore.Upsert(updated);
+            Host.TeamPreparationModule.SelectionEditing.SwapBench(fixtureId, cid, benchSlotA, benchSlotB);
 
             var profiles = GetSquadProfiles(cid);
             var nameA = benchSlotA < profiles.Count ? profiles[benchSlotA].DisplayName : $"#{benchSlotA}";
@@ -434,19 +370,7 @@ public sealed partial class CareerSessionController
 
             var fixtureId = new Domain.Competition.FixtureId(pending.FixtureId);
             var cid = new Domain.Shared.ClubId(clubId);
-            var current = Host.TeamPreparationModule.SelectionStore.Get(fixtureId, cid);
-            var clubSquad = Host.TeamPreparationModule.SquadStore.Get(cid);
-            if (current is null)
-            {
-                current = Host.TrainingModule.Store is not null
-                    ? Simulation.TrainingPhysicalState.MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
-                        fixtureId,
-                        cid,
-                        Host.WorldModule.TimelineStore.Timeline.CurrentDate,
-                        Host.TrainingModule.Store.PhysicalBySlot,
-                        clubSquad)
-                    : Domain.TeamPreparation.MatchSelection.ApproveDefault(fixtureId, cid, clubSquad);
-            }
+            var current = Host.TeamPreparationModule.SelectionEditing.GetOrDefault(fixtureId, cid);
 
             var plan = Host.TeamPreparationModule.TacticPlanStore.Get(cid);
             var formation = targetFormation ?? plan?.Formation ?? Formation.F442;
@@ -473,13 +397,7 @@ public sealed partial class CareerSessionController
                 newStarting[slot] = currentStarters[assignment[slot]];
             }
 
-            var updated = Domain.TeamPreparation.MatchSelection.Approve(
-                current.FixtureId,
-                current.ClubId,
-                newStarting,
-                current.BenchSlotIndices,
-                clubSquad);
-            Host.TeamPreparationModule.SelectionStore.Upsert(updated);
+            Host.TeamPreparationModule.SelectionEditing.ReorderStartingXi(fixtureId, cid, newStarting);
 
             return UiActionResult.Ok($"⚡ Kadro {formation} dizilişine ve mevkilere göre otomatik yerleştirildi.");
         }
@@ -656,6 +574,14 @@ public sealed partial class CareerSessionController
         }
 
         return SellManagedClubPlayer(candidateId.Value);
+    }
+
+    public FootballCareerSimulator.Application.ClubGovernance.Queries.ClubCultureDigest? GetClubCulture()
+    {
+        var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
+        return clubId is long id
+            ? Host.ClubModule.Dna.BuildDigest(new Domain.Shared.ClubId(id))
+            : null;
     }
 
     public UiActionResult UpgradeFacilities()
@@ -5054,8 +4980,7 @@ public sealed partial class CareerSessionController
     }
 
     private void ClearMatchSelections() =>
-        Host.TeamPreparationModule.SelectionStore.ReplaceAll(
-            Array.Empty<Domain.TeamPreparation.MatchSelection>());
+        Host.TeamPreparationModule.SelectionEditing.ClearAll();
 
     private long ResolveNextSeasonId()
     {

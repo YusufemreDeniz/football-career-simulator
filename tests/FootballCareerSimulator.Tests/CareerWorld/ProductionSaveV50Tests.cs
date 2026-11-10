@@ -45,7 +45,7 @@ public sealed class ProductionSaveV50Tests : IDisposable
 
         var loaded = new CareerSqlitePersistence().Load(scenario.Path);
 
-        Assert.Equal(50, loaded.SchemaVersion);
+        Assert.Equal(51, loaded.SchemaVersion);
         Assert.False(loaded.WasMigrated);
 
         var club = loaded.ClubRegistry.GetClubOrThrow(scenario.ClubId);
@@ -73,7 +73,7 @@ public sealed class ProductionSaveV50Tests : IDisposable
         var loaded = new CareerSqlitePersistence().Load(scenario.Path);
 
         Assert.True(loaded.WasMigrated);
-        Assert.Equal(50, loaded.SchemaVersion);
+        Assert.Equal(51, loaded.SchemaVersion);
         var club = loaded.ClubRegistry.GetClubOrThrow(scenario.ClubId);
         Assert.Equal(Club.DefaultFacilityLevel(club.SportiveStrength), club.FacilityLevel);
         Assert.Equal(1, loaded.ManagerCareer.Progression.Level);

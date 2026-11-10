@@ -21,6 +21,7 @@ public sealed class ClubGovernanceModule
         Queries = queries;
         TransferBudget = transferBudget;
         WageBudget = wageBudget;
+        Dna = new ClubDnaService(store);
     }
 
     public IClubRegistryStore Store { get; }
@@ -28,6 +29,9 @@ public sealed class ClubGovernanceModule
     public ClubQueryService Queries { get; }
 
     public ClubTransferBudgetService TransferBudget { get; }
+
+    /// <summary>Kulüp kimliği (Club DNA): yönetim sabrı, altyapı, transfer ve maaş kültürü.</summary>
+    public ClubDnaService Dna { get; }
 
     public ClubWageBudgetService? WageBudget { get; private set; }
 

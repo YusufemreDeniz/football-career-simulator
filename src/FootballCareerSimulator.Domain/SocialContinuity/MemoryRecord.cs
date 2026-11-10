@@ -968,12 +968,12 @@ public sealed class MemoryRecord
 
     public MemoryRecord ApplyTimeDecay(GameDate asOf)
     {
-        var target = MemoryTimeDecay.ComputeCurrentInfluence(
+        var target = ApplyResolutionCeiling(MemoryTimeDecay.ComputeCurrentInfluence(
             Category,
             BaseImportance,
             LastReinforcedOn,
             asOf,
-            ReinforcementCount);
+            ReinforcementCount));
         if (target == CurrentInfluence)
         {
             return this;
@@ -1062,6 +1062,18 @@ public sealed class MemoryRecord
             ResolvedOn,
             ResolutionReasonCode);
     }
+
+    /// <summary>
+    /// Zaman bozulması baz önemden yeniden hesaplandığı için telafi edilmiş bir anıyı geri canlandırmamalı:
+    /// telafi edilen anı etkisiz kalır, kısmen telafi edilen yarıya, sorgulanan %70'e sınırlanır.
+    /// </summary>
+    private int ApplyResolutionCeiling(int influence) => ResolutionStatus switch
+    {
+        MemoryResolutionStatus.Resolved => 0,
+        MemoryResolutionStatus.PartiallyResolved => Math.Max(0, influence / 2),
+        MemoryResolutionStatus.Contradicted => Math.Max(0, (int)(influence * 0.7)),
+        _ => influence,
+    };
 
     public MemoryRecord MarkResolution(
         MemoryResolutionStatus newStatus,

@@ -498,11 +498,17 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             }
         }
 
+        // Club DNA: yönetimin sabrı kulübün kalıcı kimliğinden gelir (sabırsız yönetim yenilgide daha sert düşer).
+        var managedClub = _clubRegistryStore.Registry.Clubs.FirstOrDefault(club => club.Id == managedClubId);
+        var clubDna = managedClub is null
+            ? null
+            : Domain.ClubGovernance.ClubDnaProfile.CreateSeeded(managedClubId, managedClub.SportiveStrength);
         var assessment = _managerCareerStore.Career.ApplyMatchBoardAssessment(
             fixture.Id,
             outcome,
             position,
-            Math.Max(leagueSize, 1));
+            Math.Max(leagueSize, 1),
+            clubDna);
 
         var career = assessment.Career;
         var managerDismissed = false;
@@ -905,8 +911,42 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             return;
         }
 
-        ApplySocialContinuityForClub(fixture.Id, fixture.HomeClubId, day);
-        ApplySocialContinuityForClub(fixture.Id, fixture.AwayClubId, day);
+        ApplySocialContinuityForClub(fixture.Id, fixture.HomeClubId, day, IsCrucialFor(fixture, fixture.HomeClubId));
+        ApplySocialContinuityForClub(fixture.Id, fixture.AwayClubId, day, IsCrucialFor(fixture, fixture.AwayClubId));
+    }
+
+    /// <summary>
+    /// Kritik maç: rakip ilk dörtteyse veya iki takım puan tablosunda en fazla iki sıra arayla yarışıyorsa.
+    /// Kritik maçta ilk 11'de oynamak geçmiş kırgınlığı tamamen telafi eder (Redemption Memory).
+    /// </summary>
+    private bool IsCrucialFor(Fixture fixture, ClubId clubId)
+    {
+        var season = _competitionStore.League.Seasons
+            .FirstOrDefault(candidate => candidate.Fixtures.Any(f => f.Id == fixture.Id));
+        if (season is null)
+        {
+            return false;
+        }
+
+        var standings = season.Standings.Entries;
+        var opponent = fixture.HomeClubId == clubId ? fixture.AwayClubId : fixture.HomeClubId;
+        var clubRank = -1;
+        var opponentRank = -1;
+        for (var index = 0; index < standings.Count; index++)
+        {
+            if (standings[index].ClubId == clubId)
+            {
+                clubRank = index + 1;
+            }
+            else if (standings[index].ClubId == opponent)
+            {
+                opponentRank = index + 1;
+            }
+        }
+
+        return clubRank > 0
+               && opponentRank > 0
+               && (opponentRank <= 4 || Math.Abs(opponentRank - clubRank) <= 2);
     }
 
     private void ApplyMatchPerformanceMemory(Fixture fixture, MatchScore score, GameDate day)
@@ -1123,7 +1163,7 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
         }
     }
 
-    private void ApplySocialContinuityForClub(FixtureId fixtureId, ClubId clubId, GameDate day)
+    private void ApplySocialContinuityForClub(FixtureId fixtureId, ClubId clubId, GameDate day, bool isCrucialMatch)
     {
         var startingSlots = ResolveStartingSlots(fixtureId, clubId);
         var matchdaySlots = ResolveMatchdaySlots(fixtureId, clubId);
@@ -1143,7 +1183,8 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             startingIds,
             benchedIds,
             squadMemberIds,
-            day);
+            day,
+            isCrucialMatch);
     }
 
     private IReadOnlyList<int> ResolveStartingSlots(FixtureId fixtureId, ClubId clubId)

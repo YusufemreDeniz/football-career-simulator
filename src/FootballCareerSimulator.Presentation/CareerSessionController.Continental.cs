@@ -43,14 +43,8 @@ public sealed partial class CareerSessionController
 
         // Kayıtlı turnuva aynı sezon ve kulübe aitse, motor aynı tohum ve güçle kurulur ve
         // yönetilen kulübün sonuçları sırayla yeniden uygulanır (primler zaten bütçeye yazıldığı için tekrar ödenmez).
-        var record = Host.ContinentalStore.Record;
-        var resumesRecord = record is not null
-            && record.SeasonStartYear == seasonStartYear
-            && record.ManagedClubId == clubId;
-        if (resumesRecord)
-        {
-            managedStrength = record!.ManagedClubStrength;
-        }
+        var record = Host.Continental.ResumeOrStart(seasonStartYear, clubId, managedStrength);
+        managedStrength = record.ManagedClubStrength;
 
         var engine = new ContinentalTournamentEngine(
             timeline.RootSeed,
@@ -60,20 +54,9 @@ public sealed partial class CareerSessionController
             otherClubs,
             startDayNumber: startDay);
 
-        if (resumesRecord)
+        foreach (var result in record.ManagedResults)
         {
-            foreach (var result in record!.ManagedResults)
-            {
-                engine.RecordManagedMatchResult(result.FixtureId, result.HomeGoals, result.AwayGoals);
-            }
-        }
-        else
-        {
-            Host.ContinentalStore.Replace(new FootballCareerSimulator.Application.Continental.ContinentalTournamentRecord(
-                seasonStartYear,
-                clubId,
-                managedStrength,
-                Array.Empty<FootballCareerSimulator.Application.Continental.ContinentalManagedResult>()));
+            engine.RecordManagedMatchResult(result.FixtureId, result.HomeGoals, result.AwayGoals);
         }
 
         _continentalTournament = engine;
@@ -191,15 +174,7 @@ public sealed partial class CareerSessionController
         // Sonucu kıtasal motora ve kayda yazılacak özete kaydet; motorun döndürdüğü prim tam olarak bütçeye yazılır
         // (grup galibiyeti/beraberliği, tur atlama ve kupa primi dahil).
         var prizeDelta = engine.RecordManagedMatchResult(fixture.FixtureId, homeGoals, awayGoals, outcome.KeyMoments);
-        var record = Host.ContinentalStore.Record;
-        if (record is not null)
-        {
-            Host.ContinentalStore.Replace(record.WithResult(
-                new FootballCareerSimulator.Application.Continental.ContinentalManagedResult(
-                    fixture.FixtureId,
-                    homeGoals,
-                    awayGoals)));
-        }
+        Host.Continental.RecordManagedResult(fixture.FixtureId, homeGoals, awayGoals);
 
         if (prizeDelta > 0)
         {

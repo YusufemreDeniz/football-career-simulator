@@ -13,6 +13,7 @@ namespace FootballCareerSimulator.Application.SocialContinuity.Services;
 public sealed class SelectionMemoryService
 {
     private readonly IMemoryStore _store;
+    private readonly MemoryResolutionEvaluator _redemption = new();
 
     public SelectionMemoryService(IMemoryStore store)
     {
@@ -35,7 +36,8 @@ public sealed class SelectionMemoryService
         IReadOnlyList<PlayerId> startingPlayerIds,
         IReadOnlyList<PlayerId> benchedPlayerIds,
         IReadOnlyList<PlayerId>? squadMembers,
-        GameDate day)
+        GameDate day,
+        bool isCrucialMatch = false)
     {
         ArgumentNullException.ThrowIfNull(startingPlayerIds);
         ArgumentNullException.ThrowIfNull(benchedPlayerIds);
@@ -84,7 +86,46 @@ public sealed class SelectionMemoryService
             }
         }
 
+        ApplyStartRedemption(started, isCrucialMatch, day);
         return stats;
+    }
+
+    /// <summary>
+    /// Redemption Memory (Yenilik 7): ilk 11'de görev alan oyuncunun menajere karşı olumsuz seçim/söz/ilişki
+    /// anıları telafi edilir — kritik maçta tamamen, diğer maçlarda kısmen. Aynı gün ikinci kez uygulanmaz.
+    /// </summary>
+    public int ApplyStartRedemption(IEnumerable<PlayerId> startedPlayerIds, bool isCrucialMatch, GameDate day)
+    {
+        ArgumentNullException.ThrowIfNull(startedPlayerIds);
+        var redeemed = 0;
+        foreach (var playerId in startedPlayerIds.Distinct())
+        {
+            var remembering = new ActorRef(ActorKind.Player, playerId.Value);
+            var candidates = _store.Memories
+                .Where(memory => memory.RememberingActor == remembering
+                                 && memory.Status == MemoryStatus.Active
+                                 && memory.Valence == MemoryValence.Negative
+                                 && memory.Category is MemoryCategory.Selection
+                                     or MemoryCategory.Promise
+                                     or MemoryCategory.Relationship
+                                 && memory.ResolvedOn != day)
+                .ToArray();
+            foreach (var memory in candidates)
+            {
+                var resolved = _redemption.EvaluateSelectionRedemption(
+                    memory,
+                    isStartingAppearance: true,
+                    isCrucialMatch,
+                    day);
+                if (!ReferenceEquals(resolved, memory))
+                {
+                    _store.Upsert(resolved);
+                    redeemed++;
+                }
+            }
+        }
+
+        return redeemed;
     }
 
     private MemoryCandidateDecision TryCreateOrReinforce(
