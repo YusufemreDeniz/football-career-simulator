@@ -21,7 +21,7 @@ PowerShell'de depo kökünden:
 ```powershell
 dotnet test tests\FootballCareerSimulator.Tests\FootballCareerSimulator.Tests.csproj --no-restore --nologo --filter "Category!=LongRunning" --blame-hang-timeout 120s
 dotnet build src\FootballCareerSimulator.Presentation\FootballCareerSimulator.Presentation.csproj --no-restore --nologo
-& 'C:\Godot\Godot_v4.7-stable_mono_win64_console.exe' --headless --path '.\src\FootballCareerSimulator.Presentation' --career-smoke --quit-after 1
+& 'C:\Godot\Godot-4.7.2-Mono\Godot_v4.7.2-stable_mono_win64_console.exe' --headless --path '.\src\FootballCareerSimulator.Presentation' --career-smoke --quit-after 1
 cmd /c run-android.cmd --build-only
 ```
 

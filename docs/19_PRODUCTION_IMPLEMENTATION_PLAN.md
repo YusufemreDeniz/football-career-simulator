@@ -23,10 +23,11 @@
 
 Bu kontrol noktası 2026-08-21 kontrol noktasının üstündeki güncel durumdur; çelişen yerlerde bu bölüm geçerlidir.
 
-* Kalite kapısı: **1247/1247** hızlı saf .NET test (`Category!=LongRunning`), `LongRunning` 10 sezon kabulü **1/1**, çözüm derlemesi 0 hata/0 uyarı.
-* Save: **V50** (D-416). Tesis seviyesi, menajer seviye/XP/becerileri ve kıtasal turnuva özeti kalıcıdır; V49 kayıtlar otomatik taşınır.
+* Kalite kapısı: **1256** hızlı saf .NET test (`Category!=LongRunning`), `LongRunning` 10 sezon kabulü **1/1** (nüfus sağlığı kontrolüyle), çözüm derlemesi 0 hata/0 uyarı, Godot `CAREER_UI_SMOKE_TEST_RESULT=PASS`.
+* Save: **V51** (D-416, D-424). Tesis seviyesi, menajer seviye/XP/becerileri, kıtasal turnuva özeti ve hafıza çözüm durumu kalıcıdır; eski kayıtlar otomatik taşınır.
+* Zayıf yan düzeltmeleri (ikinci tur): özellik dondurma ve Definition of Done (D-422); Redemption Memory ve Club DNA oyuna bağlandı (D-423); nüfus sızıntısı giderildi ve soak üretim host'uyla hizalandı (D-425); kadro düzenleme ve kıtasal yazımlar Application katmanına taşındı (D-426); dönüş riski düzeltildi (D-427); `run-game.cmd`/`run-android.cmd` kurulu Godot'u otomatik bulur.
 * Denetimde düzeltilenler: tesis/ilerleme kaydının kaybolması, lig maçında çift XP (D-417), tesis çarpanının gelişime bağlı olmaması ve SinWave'in kullanılmaması (D-418), sözleşme talebinin native eşikten sapması ve indirim birimi çelişkisi (D-419), kıtasal turnuvada yeniden yüklemeyle prim tekrar kazanma, eleme beraberliği, prim tutarsızlığı ve elemeden sonra turnuvanın durması (D-420), transfer edilen oyuncunun tohum 0 ile yeniden üretilmesi ve sabit doğum yılı, takım kimyasında doğal mevki yerine uygunluk sayılması, nedensellik kaydında `Guid.NewGuid`, söz riskinin her aktif sözü işaretlemesi, sahte kondisyon önizlemesi, AI transferinde yarım kalan süreç/bütçe rezervasyonu ve scout değerlemesinde sabit 2 yıllık sözleşme varsayımı.
-* Açık kalanlar: Post-MVP Faz 2–10 servisleri üretime ve save şemasına bağlı değildir (D-421); Presentation'daki üç kadro değişim eylemi seçim store'una doğrudan yazar (docs/17 §335 mimari borcu); dönüş-sakatlık riski yalnız fitness eşiğine bağlıdır.
+* Açık kalanlar: Post-MVP Faz 1, 2, 5, 6, 8, 9, 10 servisleri üretime bağlı değildir (D-421); Club DNA'nın sezon olgularıyla evrimi ertelendi (D-423); `CareerSessionController` hâlâ büyük bir dosyadır (işlevsel değil, bakım borcu).
 
 ## Önceki Uygulama Kontrol Noktası — 2026-08-21
 

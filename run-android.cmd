@@ -3,7 +3,17 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 set "ADB=C:\Users\yusufemredeniz\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-set "GODOT_EXE=C:\Godot\Godot_v4.7-stable_mono_win64_console.exe"
+if not defined GODOT_EXE (
+  for %%G in (
+    "C:\Godot\Godot-4.7.2-Mono\Godot_v4.7.2-stable_mono_win64_console.exe"
+    "C:\Godot\Godot_v4.7.2-stable_mono_win64_console.exe"
+    "C:\Godot\Godot_v4.7-stable_mono_win64_console.exe"
+  ) do if not defined GODOT_EXE if exist %%G set "GODOT_EXE=%%~G"
+)
+if not defined GODOT_EXE (
+  echo [HATA] Godot 4.7 Mono console bulunamadi. GODOT_EXE ortam degiskenini ayarlayin.
+  exit /b 1
+)
 set "PRESENTATION_DIR=%~dp0src\FootballCareerSimulator.Presentation"
 set "APK_PATH=%PRESENTATION_DIR%\builds\android\FootballCareerSimulator-debug.apk"
 set "PACKAGE_NAME=com.yusufemredeniz.footballcareersimulator"

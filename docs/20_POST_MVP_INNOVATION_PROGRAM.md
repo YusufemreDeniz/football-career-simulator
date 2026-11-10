@@ -1196,8 +1196,8 @@ Phase 10: Career Chronicle (Kariyer Belgeseli)
    > **2026-11-09 denetim notu (D-421):** Fazların domain/servis kodu ve birim testleri mevcuttur; ancak Faz 2–10 servisleri hiçbir üretim modülünde kurulmaz ve durumları save şemasında yoktur (§6.13, §7.13, §8.13, §10.13, §11.13 gereksinimleri karşılanmadı). Faz 1 nedensellik sorgusu üretimden çağrılmaz. Aşağıdaki işaretler yalnız birim test kapsamını gösterir; daha önce listelenen `CausalityExplanationBuilderTests` ve `BehavioralEvidenceAggregatorTests` sınıfları depoda yoktur.
    - [x] Faz 1: Causality Foundation (birim test) — `CausalityRecordTests`, `RelationshipCausalityIntegrationTests`
    - [x] Faz 2: Behavioral Evidence (birim test) — `YouthPromiseTransferReactionTests`
-   - [x] Faz 3: Redemption Memory — `MemoryResolutionLifecycleTests`, `RedemptionToRelationshipIntegrationTests`
-   - [x] Faz 4: Club DNA — `ClubDnaCalculationTests`, `ClubDnaManagerConflictIntegrationTests`
+   - [x] Faz 3: Redemption Memory — `MemoryResolutionLifecycleTests`, `RedemptionToRelationshipIntegrationTests`; **2026-11-09 üretime bağlandı** (maç seçimi + söz tutma, V51 kalıcılık, `CoreLoopGuardTests`, D-423/D-424)
+   - [x] Faz 4: Club DNA — `ClubDnaCalculationTests`, `ClubDnaManagerConflictIntegrationTests`; **2026-11-09 üretime bağlandı** (deterministik kulüp kimliği → yönetim değerlendirmesi ve kulüp ekranı, D-423)
    - [x] Faz 5: Negotiation Behavioral Memory — `NegotiationMemoryEvaluationTests`, `TransferProcessWithMemoryTests`
    - [x] Faz 6: Epistemic Layer — `EpistemicBoundaryTests`
    - [x] Faz 7: Social Contagion — `SparseInfluenceGraphTests`, `CaptainFalloutContagionTests`
