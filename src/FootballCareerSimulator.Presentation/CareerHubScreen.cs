@@ -4255,6 +4255,7 @@ public partial class CareerHubScreen : Control
 
     private void RefreshTodayPulse()
     {
+        RefreshPortalAndDeck();
         var pulse = _controller.BuildTodayPulse();
         var pulseLines = pulse.PulseLines.Take(2).ToArray();
         var pulseSupport = pulseLines.Length > 0

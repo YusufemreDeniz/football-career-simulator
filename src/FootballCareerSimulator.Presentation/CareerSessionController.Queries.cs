@@ -720,4 +720,108 @@ public sealed partial class CareerSessionController
 
         return compiler.CompileSeasonChronicle(seasonYear, clubName, pos, wonTitle);
     }
+
+    private int _cardsUsedTodayCount;
+    private int _lastCardUseDayNumber = -1;
+
+    public MobilePortalAndDeckDigest BuildMobilePortalAndDeck()
+    {
+        var day = GetTimeline().CurrentDate;
+        if (_lastCardUseDayNumber != day.DayNumber)
+        {
+            _lastCardUseDayNumber = day.DayNumber;
+            _cardsUsedTodayCount = 0;
+        }
+
+        var clubId = GetEmployedClubId();
+        var nextMatch = BuildNextMatchBriefing();
+        var board = BuildSquadSelectionBoard();
+        var training = GetTrainingSummary();
+        var tactic = GetManagedClubTacticPlan();
+        var hasTactic = tactic is not null && !string.Equals(tactic.FormationName, "yok", StringComparison.OrdinalIgnoreCase);
+
+        var avgFitness = board.StartingXi.Count > 0
+            ? (int)Math.Round(board.StartingXi.Average(p => p.Fitness))
+            : 82;
+        var fatiguedCount = board.StartingXi.Count(p => p.Fitness < 75 || p.Fatigue >= 60);
+
+        var decisions = GetPendingDecisions(take: 3);
+        var decisionSummary = decisions.OpenCount > 0
+            ? FormatActiveBlockerSummary()
+            : null;
+        var openNeeds = GetManagedClubNeeds().OpenCount;
+        var facilityLevel = clubId.HasValue ? (GetClub(clubId.Value)?.FacilityLevel ?? 1) : 1;
+
+        var upcoming = GetUpcomingManagedMatch();
+        var hasMatch = upcoming is not null || nextMatch.HasMatch;
+        var oppName = upcoming?.OpponentName ?? (nextMatch.HasMatch ? nextMatch.Headline : "Fikstür Bekleniyor");
+        var isHome = upcoming?.IsHome ?? true;
+        int? daysUntil = upcoming?.DaysUntil ?? (nextMatch.HasMatch ? 0 : null);
+
+        return MobilePortalAndDeckDigest.Compose(
+            currentDate: day,
+            hasUpcomingMatch: hasMatch,
+            nextMatchDaysUntil: daysUntil,
+            nextOpponentName: oppName,
+            isHomeMatch: isHome,
+            isSelectionApproved: board.IsApproved,
+            hasTrainingPlan: training.HasPlan,
+            hasTacticPlan: hasTactic,
+            averageSquadFitness: avgFitness,
+            fatiguedPlayerCount: fatiguedCount,
+            pendingDecisionCount: decisions.OpenCount,
+            pendingDecisionSummary: decisionSummary,
+            openTransferNeedCount: openNeeds,
+            facilityLevel: facilityLevel,
+            cardsUsedTodayCount: _cardsUsedTodayCount);
+    }
+
+    public UiActionResult PlayTactileManagerCard(string cardCode)
+    {
+        var day = GetTimeline().CurrentDate;
+        if (_lastCardUseDayNumber != day.DayNumber)
+        {
+            _lastCardUseDayNumber = day.DayNumber;
+            _cardsUsedTodayCount = 0;
+        }
+
+        _cardsUsedTodayCount++;
+
+        switch (cardCode)
+        {
+            case MobilePortalAndDeckDigest.CardEnergyPack:
+            {
+                var res = ApplyLightRegeneration();
+                return UiActionResult.Ok(
+                    $"⚡ Enerji Paketi Kartı oynandı! Kadro kondisyonu tazelendi ve günlük kart görevi ilerledi. ({res.Message})");
+            }
+            case MobilePortalAndDeckDigest.CardPepTalk:
+            {
+                var decisions = GetPendingDecisions(take: 1);
+                if (decisions.OpenCount > 0)
+                {
+                    var ans = AnswerOldestPendingDecision(grantPromise: true);
+                    return UiActionResult.Ok(
+                        $"🔥 Motivasyon Konuşması Kartı oynandı! Bekleyen oyuncu talebine olumlu yanıt verildi ({ans.Message}).");
+                }
+
+                return UiActionResult.Ok(
+                    "🔥 Motivasyon Konuşması Kartı oynandı! Soyunma odası uyumu ve maç odak seviyesi yükseldi (+50 Menajer XP).");
+            }
+            case MobilePortalAndDeckDigest.CardPhysioSpa:
+            {
+                var res = RestEntireTeam();
+                return UiActionResult.Ok(
+                    $"🩺 Fizyo & Spa Kartı oynandı! Yorgun oyuncular korumaya alındı, sakatlık riski düşürüldü. ({res.Message})");
+            }
+            case MobilePortalAndDeckDigest.CardScoutPack:
+            {
+                var needRes = RefreshTransferNeedSuggestions();
+                return UiActionResult.Ok(
+                    $"🔭 Elit Scout Dosyası Kartı oynandı! Kadro ihtiyaçları tarandı ve yeni adaylar hazırlandı. ({needRes.Message})");
+            }
+            default:
+                return UiActionResult.Ok("🃏 Menajer kartı uygulandı.");
+        }
+    }
 }
