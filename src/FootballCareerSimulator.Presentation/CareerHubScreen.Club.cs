@@ -6,6 +6,10 @@ namespace FootballCareerSimulator.Presentation;
 
 public partial class CareerHubScreen
 {
+    private VBoxContainer? _clubVisualCampusHost;
+    private HBoxContainer? _collectiblePlayerDeckRow;
+    private PanelContainer? _stadiumNamingModal;
+
     private Control BuildClubPage()
     {
         var page = PageRoot();
@@ -306,19 +310,22 @@ public partial class CareerHubScreen
         };
         swotActionRow.AddChild(_swotViewAllSquadButton);
 
-        // Right Top: 🏛️ KULÜP TESİSLERİ VE ALTYAPI KARTI
-        var facilityCard = AddCard(overviewRightCol, "🏛️ KULÜP TESİSLERİ & KÜLTÜR", emphasized: true);
+        // Right Top: 🏛️ GÖRSEL KULÜP KAMPÜSÜ VE ALTYAPI KARTI (Top Eleven / Football Chairman Pro 2)
+        var facilityCard = AddCard(overviewRightCol, "🏛️ GÖRSEL KULÜP KAMPÜSÜ & KÜLTÜR", emphasized: true);
+        _clubVisualCampusHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _clubVisualCampusHost.AddThemeConstantOverride("separation", 6);
+        facilityCard.AddChild(_clubVisualCampusHost);
+
         var facilityInfoBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         facilityInfoBox.AddThemeConstantOverride("separation", 3);
         facilityCard.AddChild(facilityInfoBox);
 
         _clubFacilityLevelLabel = BodyLabel("ClubFacilityLevel", autowrap: true);
-        CareerUiTheme.StyleHeadline(_clubFacilityLevelLabel);
-        _clubFacilityLevelLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(14));
+        _clubFacilityLevelLabel.Visible = false;
         facilityInfoBox.AddChild(_clubFacilityLevelLabel);
 
         _clubFacilityMultiplierLabel = BodyLabel("ClubFacilityMultiplier", muted: true, autowrap: true);
-        _clubFacilityMultiplierLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        _clubFacilityMultiplierLabel.Visible = false;
         facilityInfoBox.AddChild(_clubFacilityMultiplierLabel);
 
         _clubCultureLabel = BodyLabel("ClubCulture", muted: true, autowrap: true);
@@ -330,6 +337,7 @@ public partial class CareerHubScreen
         facilityInfoBox.AddChild(_clubFacilityCostLabel);
 
         _upgradeFacilityButton = PrimaryButton("🏗️ Tesisleri Geliştir");
+        _upgradeFacilityButton.Visible = false;
         _upgradeFacilityButton.Pressed += () =>
         {
             var res = _controller.UpgradeFacilities();
@@ -440,11 +448,28 @@ public partial class CareerHubScreen
         _playerManagementHeadlineLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         filterHeaderRow.AddChild(_playerManagementHeadlineLabel);
 
+        // Top Drives / New Star Manager tarzı Yatay Koleksiyon Oyuncu Kartları Vitrini
+        var deckScroll = new ScrollContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 184),
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        playerManagementCard.AddChild(deckScroll);
+
+        _collectiblePlayerDeckRow = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _collectiblePlayerDeckRow.AddThemeConstantOverride("separation", 8);
+        deckScroll.AddChild(_collectiblePlayerDeckRow);
+
         _squadList = new ItemList
         {
             Name = "SquadList",
             AutoHeight = false,
-            CustomMinimumSize = new Vector2(0, 250),
+            CustomMinimumSize = new Vector2(0, 118),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
@@ -700,5 +725,27 @@ public partial class CareerHubScreen
             teamStrength,
             player.Rating);
         return valuation.MarketValue;
+    }
+
+    private void OpenStadiumNamingModal(string clubName)
+    {
+        if (_stadiumNamingModal is not null && GodotObject.IsInstanceValid(_stadiumNamingModal))
+        {
+            RemoveChild(_stadiumNamingModal);
+            _stadiumNamingModal.QueueFree();
+            _stadiumNamingModal = null;
+        }
+
+        _stadiumNamingModal = ClubCampusVisualUi.BuildStadiumNamingModal(
+            clubName,
+            onSaved: () =>
+            {
+                PlayInterfaceFeedback(MatchAudioCue.Button, 24);
+                PulseStatus($"🏟️ Stadyum & Tribün adı güncellendi: {ClubCampusVisualUi.CustomStadiumTitle} / {ClubCampusVisualUi.CustomNorthStandName}", succeeded: true);
+                RefreshSquadList();
+            },
+            onClose: () => PlayInterfaceFeedback(MatchAudioCue.Button, 12));
+        AddChild(_stadiumNamingModal);
+        _stadiumNamingModal.Visible = true;
     }
 }

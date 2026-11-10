@@ -4828,7 +4828,10 @@ public partial class CareerHubScreen : Control
                 var culture = _controller.GetClubCulture();
                 var climate = _controller.BuildDressingRoomSocialClimate();
                 var rumors = _controller.BuildActiveLockerRoomRumors();
-                var lines = new List<string>();
+                var lines = new List<string>
+                {
+                    $"🏟️ Kompleks: {ClubCampusVisualUi.CustomStadiumTitle} · {ClubCampusVisualUi.CustomNorthStandName}",
+                };
                 if (culture is not null)
                 {
                     lines.Add($"🏛️ Kulüp Kimliği: {culture.PhilosophySummary}");
@@ -4843,19 +4846,48 @@ public partial class CareerHubScreen : Control
                 }
                 _clubCultureLabel.Text = string.Join("\n", lines);
             }
+
+            var canUpgradeFacility = club.FacilityLevel < 5 && club.AvailableTransferFunds >= club.NextFacilityUpgradeCost;
+            string upgradeBtnText;
             if (club.FacilityLevel >= 5)
             {
                 _clubFacilityCostLabel.Text = "⭐ Tesisler maksimum seviyede (Dünya Standartlarında Altyapı).";
                 _upgradeFacilityButton.Disabled = true;
-                _upgradeFacilityButton.Text = "✅ Maksimum Seviye (5/5)";
+                upgradeBtnText = "✅ Maksimum Kampüs (5/5)";
+                _upgradeFacilityButton.Text = upgradeBtnText;
             }
             else
             {
                 _clubFacilityCostLabel.Text = $"💰 Sonraki Seviye Maliyeti: ₺{club.NextFacilityUpgradeCost:N0} · Mevcut Bütçe: ₺{club.AvailableTransferFunds:N0}";
-                _upgradeFacilityButton.Disabled = club.AvailableTransferFunds < club.NextFacilityUpgradeCost;
-                _upgradeFacilityButton.Text = club.AvailableTransferFunds >= club.NextFacilityUpgradeCost
-                    ? $"🏗️ Seviye {club.FacilityLevel + 1}'e Yükselt (₺{club.NextFacilityUpgradeCost:N0})"
+                _upgradeFacilityButton.Disabled = !canUpgradeFacility;
+                upgradeBtnText = canUpgradeFacility
+                    ? $"🏗️ Kampüsü Lv.{club.FacilityLevel + 1} Yap (₺{club.NextFacilityUpgradeCost:N0})"
                     : $"⚠️ Yetersiz Bütçe (₺{club.NextFacilityUpgradeCost:N0})";
+                _upgradeFacilityButton.Text = upgradeBtnText;
+            }
+
+            if (_clubVisualCampusHost is not null)
+            {
+                MatchScreenUi.ClearChildren(_clubVisualCampusHost);
+                var economy = _controller.BuildClubEconomy();
+                var attendancePct = economy?.AttendancePercent ?? 78;
+                var stadiumCap = economy?.StadiumCapacity ?? 42000;
+                _clubVisualCampusHost.AddChild(ClubCampusVisualUi.BuildCampusGrid(
+                    club.DisplayName,
+                    club.FacilityLevel,
+                    club.FacilityTrainingMultiplier,
+                    attendancePct,
+                    stadiumCap,
+                    onUpgradePressed: () =>
+                    {
+                        var res = _controller.UpgradeFacilities();
+                        Apply(res);
+                        RefreshUi();
+                        RefreshSquadList();
+                    },
+                    onRenameStadiumPressed: () => OpenStadiumNamingModal(club.DisplayName),
+                    canUpgrade: canUpgradeFacility,
+                    upgradeButtonText: upgradeBtnText));
             }
         }
 
@@ -4966,6 +4998,39 @@ public partial class CareerHubScreen : Control
             if (selectedIndex >= 0 && selectedIndex < visiblePlayers.Count)
             {
                 _squadList.Select(selectedIndex);
+            }
+        }
+
+        if (_collectiblePlayerDeckRow is not null)
+        {
+            MatchScreenUi.ClearChildren(_collectiblePlayerDeckRow);
+            foreach (var player in visiblePlayers.Take(16))
+            {
+                var estVal = EstimateSquadPlayerMarketValue(player, avgRating);
+                var isSelected = _selectedPlayerId == player.PlayerId;
+                var isNew = player.PlayerId == _newTransferPlayerId;
+                var card = ClubCampusVisualUi.BuildCollectiblePlayerCard(
+                    player,
+                    estVal,
+                    isSelected,
+                    isNew,
+                    onSelectCard: pid =>
+                    {
+                        PlayInterfaceFeedback(MatchAudioCue.Button, 12);
+                        _selectedPlayerId = pid;
+                        RefreshSquadList();
+                    },
+                    onOpenProfile: pid =>
+                    {
+                        PlayInterfaceFeedback(MatchAudioCue.Button, 18);
+                        OpenPlayerDossier(pid);
+                    },
+                    onQuickPromise: pid =>
+                    {
+                        PlayInterfaceFeedback(MatchAudioCue.Button, 24);
+                        Apply(_controller.PromisePlayingTimeToPlayer(pid));
+                    });
+                _collectiblePlayerDeckRow.AddChild(card);
             }
         }
 
