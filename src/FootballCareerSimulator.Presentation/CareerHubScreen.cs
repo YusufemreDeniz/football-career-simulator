@@ -645,7 +645,7 @@ public partial class CareerHubScreen : Control
             _continueStep.Kind,
             Application.CareerHub.Queries.ContinueFlowGuide.KindAdvance,
             StringComparison.Ordinal);
-        var label = isAdvance ? "▶  DEVAM" : _continueStep.ButtonLabel;
+        var label = isAdvance ? "DEVAM" : _continueStep.ButtonLabel;
         _officeNextStepButton.Text = label;
         _officeNextStepButton.TooltipText = $"{_continueStep.PreviewTitle}\n{_continueStep.PreviewBody}";
         _officeNextStepButton.Visible = true;
@@ -656,7 +656,7 @@ public partial class CareerHubScreen : Control
 
         if (_topContinueButton is not null)
         {
-            var topText = isAdvance ? "▶ DEVAM ET" : "⚽ " + _continueStep.ButtonLabel;
+            var topText = isAdvance ? "DEVAM ET" : _continueStep.ButtonLabel;
             _topContinueButton.Text = topText;
             _topContinueButton.Visible = true;
             _topContinueButton.TooltipText = _officeNextStepButton.TooltipText;
@@ -824,7 +824,7 @@ public partial class CareerHubScreen : Control
 
         _topBudgetBadgeLabel = new Label
         {
-            Text = "💰 — TRY",
+            Text = "BÜTÇE: — TRY",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleTableText(_topBudgetBadgeLabel);
@@ -846,7 +846,7 @@ public partial class CareerHubScreen : Control
 
         _topQuestBadgeLabel = new Label
         {
-            Text = "🎯 Görev 0/3",
+            Text = "Görev 0/3",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleTableText(_topQuestBadgeLabel);
@@ -868,7 +868,7 @@ public partial class CareerHubScreen : Control
 
         _managerLevelBadgeLabel = new Label
         {
-            Text = "⭐ SVY 1",
+            Text = "SVY 1",
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleTableText(_managerLevelBadgeLabel);
@@ -884,7 +884,7 @@ public partial class CareerHubScreen : Control
         _dateLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         _datePanel.AddChild(_dateLabel);
 
-        _fmPediaButton = SecondaryButton("📖 Sözlük");
+        _fmPediaButton = SecondaryButton("Sözlük");
         _fmPediaButton.CustomMinimumSize = new Vector2(76, 32);
         _fmPediaButton.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         _fmPediaButton.TooltipText = "FMPedia — Oyun mekanikleri, taktikler ve kart ekonomisi sözlüğü";
@@ -893,7 +893,7 @@ public partial class CareerHubScreen : Control
 
         _topContinueButton = new Button
         {
-            Text = "▶ DEVAM",
+            Text = "DEVAM",
             CustomMinimumSize = new Vector2(118, 32),
             SizeFlagsVertical = SizeFlags.ShrinkCenter,
             Visible = false,
@@ -902,7 +902,7 @@ public partial class CareerHubScreen : Control
         _topContinueButton.Pressed += OnOfficeNextStepPressed;
         topBarRight.AddChild(_topContinueButton);
 
-        _careerButton = SecondaryButton("💾 DOSYA");
+        _careerButton = SecondaryButton("DOSYA");
         _careerButton.CustomMinimumSize = new Vector2(68, 32);
         _careerButton.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         _careerButton.TooltipText = "Kariyer dosyası, kayıt ve ana menü";
@@ -1043,18 +1043,18 @@ public partial class CareerHubScreen : Control
         navRow.AddThemeConstantOverride("separation", CareerUiTheme.SeparationNav);
         navPanel.AddChild(navRow);
 
-        var navItems = new (HubPage Page, string Label)[]
+        var navItems = new (HubPage Page, string Label, string IconKey)[]
         {
-            (HubPage.Today, "⌂ PORTAL"),
-            (HubPage.Club, "🏛️ KAMPÜS"),
-            (HubPage.Prep, "🟩 TAKTİK"),
-            (HubPage.Transfer, "🔭 TRANSFER"),
-            (HubPage.World, "🏆 LİG & DÜNYA"),
-            (HubPage.File, "👤 MENAJER"),
+            (HubPage.Today, "PORTAL", "home"),
+            (HubPage.Club, "KAMPÜS", "campus"),
+            (HubPage.Prep, "TAKTİK", "pitch"),
+            (HubPage.Transfer, "TRANSFER", "radar"),
+            (HubPage.World, "LİG & DÜNYA", "trophy"),
+            (HubPage.File, "MENAJER", "user"),
         };
 
         _navButtons = new Button[6];
-        foreach (var (page, label) in navItems)
+        foreach (var (page, label, iconKey) in navItems)
         {
             var targetPage = page;
             var button = new Button
@@ -1064,6 +1064,12 @@ public partial class CareerHubScreen : Control
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 CustomMinimumSize = new Vector2(0, 42),
             };
+            var iconOverlay = new BroadcastVectorIcon(iconKey, CareerUiTheme.ActionBright, 14f)
+            {
+                MouseFilter = MouseFilterEnum.Ignore,
+                Position = new Vector2(10f, 14f),
+            };
+            button.AddChild(iconOverlay);
             button.Pressed += () => ShowPage(targetPage);
             CareerUiTheme.StyleHubNavButton(button, selected: targetPage == HubPage.Today);
             navRow.AddChild(button);
@@ -1072,7 +1078,7 @@ public partial class CareerHubScreen : Control
 
         _bottomContinueButton = new Button
         {
-            Text = "▶ DEVAM ET",
+            Text = "DEVAM ET",
             CustomMinimumSize = new Vector2(156, 42),
             SizeFlagsVertical = SizeFlags.ShrinkCenter,
             TooltipText = "Başparmak hızlı ilerleme: Sıradaki önemli olaya veya maça ilerle",
@@ -1228,12 +1234,12 @@ public partial class CareerHubScreen : Control
             _fileLegacyStatsGrid.Columns = compactFileLayout ? 2 : 4;
         }
 
-        _navButtons[(int)HubPage.Today].Text = _compactLayout ? "⌂ PORTAL" : "⌂ PORTAL";
-        _navButtons[(int)HubPage.Club].Text = _compactLayout ? "🏛️ KAMPÜS" : "🏛️ KAMPÜS & KADRO";
-        _navButtons[(int)HubPage.Prep].Text = _compactLayout ? "🟩 TAKTİK" : "🟩 TAKTİK & SAHA";
-        _navButtons[(int)HubPage.Transfer].Text = _compactLayout ? "🔭 TRANSFER" : "🔭 TRANSFER & SCOUT";
-        _navButtons[(int)HubPage.World].Text = _compactLayout ? "🏆 LİG" : "🏆 LİG & DÜNYA";
-        _navButtons[(int)HubPage.File].Text = _compactLayout ? "👤 MENAJER" : "👤 MENAJER";
+        _navButtons[(int)HubPage.Today].Text = "PORTAL";
+        _navButtons[(int)HubPage.Club].Text = _compactLayout ? "KAMPÜS" : "KAMPÜS & KADRO";
+        _navButtons[(int)HubPage.Prep].Text = _compactLayout ? "TAKTİK" : "TAKTİK & SAHA";
+        _navButtons[(int)HubPage.Transfer].Text = _compactLayout ? "TRANSFER" : "TRANSFER & SCOUT";
+        _navButtons[(int)HubPage.World].Text = _compactLayout ? "LİG" : "LİG & DÜNYA";
+        _navButtons[(int)HubPage.File].Text = "MENAJER";
 
         _squadAvgAgeBadgePanel.Visible = widescreenLandscape;
         _squadTotalValueBadgePanel.Visible = widescreenLandscape;
@@ -1312,33 +1318,23 @@ public partial class CareerHubScreen : Control
             return (null, title);
         }
 
-        string[] commonEmojis = ["🔍", "⭐", "📋", "📊", "🏆", "🎯", "💰", "🎖️", "💼", "💾", "⚙️", "🤝", "📤", "👥", "⚡", "🛡️", "🔥", "⚽", "📅", "🏢"];
-        foreach (var emoji in commonEmojis)
-        {
-            if (trimmed.StartsWith(emoji))
-            {
-                var rest = trimmed[emoji.Length..].TrimStart(' ', '·', '-');
-                return (emoji, rest);
-            }
-        }
+        if (trimmed.Contains("PUAN DURUMU")) return ("book", trimmed);
+        if (trimmed.Contains("FİKSTÜR")) return ("calendar", trimmed);
+        if (trimmed.Contains("İSTİHBARAT") || trimmed.Contains("RAKİP")) return ("campus", trimmed);
+        if (trimmed.Contains("HEDEF") || trimmed.Contains("BEKLENTİ")) return ("target", trimmed);
+        if (trimmed.Contains("MUHASEBE") || trimmed.Contains("BÜTÇE") || trimmed.Contains("FİNANS") || trimmed.Contains("KASA")) return ("coin", trimmed);
+        if (trimmed.Contains("MİRAS") || trimmed.Contains("PROFİL")) return ("star", trimmed);
+        if (trimmed.Contains("PİYASA") || trimmed.Contains("TEKLİF") || trimmed.Contains("SÖZLEŞME")) return ("handshake", trimmed);
+        if (trimmed.Contains("KAYIT") || trimmed.Contains("DOSYA")) return ("book", trimmed);
+        if (trimmed.Contains("AYAR") || trimmed.Contains("DENEYİM")) return ("sliders", trimmed);
+        if (trimmed.Contains("GÖRÜŞME")) return ("handshake", trimmed);
+        if (trimmed.Contains("GİDEN")) return ("radar", trimmed);
+        if (trimmed.Contains("ANTRENMAN") || trimmed.Contains("POTANSİYEL")) return ("star", trimmed);
+        if (trimmed.Contains("KADRO") || trimmed.Contains("OYUNCU")) return ("user", trimmed);
+        if (trimmed.Contains("TAKTIK") || trimmed.Contains("TAKTİK") || trimmed.Contains("SAHA")) return ("pitch", trimmed);
+        if (trimmed.Contains("TRANSFER")) return ("radar", trimmed);
 
-        if (trimmed.Contains("PUAN DURUMU")) return ("📋", trimmed);
-        if (trimmed.Contains("FİKSTÜR")) return ("📅", trimmed);
-        if (trimmed.Contains("İSTİHBARAT") || trimmed.Contains("RAKİP")) return ("🏢", trimmed);
-        if (trimmed.Contains("HEDEF") || trimmed.Contains("BEKLENTİ")) return ("🎯", trimmed);
-        if (trimmed.Contains("MUHASEBE") || trimmed.Contains("BÜTÇE") || trimmed.Contains("FİNANS") || trimmed.Contains("KASA")) return ("💰", trimmed);
-        if (trimmed.Contains("MİRAS") || trimmed.Contains("PROFİL")) return ("🎖️", trimmed);
-        if (trimmed.Contains("PİYASA") || trimmed.Contains("TEKLİF") || trimmed.Contains("SÖZLEŞME")) return ("💼", trimmed);
-        if (trimmed.Contains("KAYIT") || trimmed.Contains("DOSYA")) return ("💾", trimmed);
-        if (trimmed.Contains("AYAR") || trimmed.Contains("DENEYİM")) return ("⚙️", trimmed);
-        if (trimmed.Contains("GÖRÜŞME")) return ("🤝", trimmed);
-        if (trimmed.Contains("GİDEN")) return ("📤", trimmed);
-        if (trimmed.Contains("ANTRENMAN") || trimmed.Contains("POTANSİYEL")) return ("⭐", trimmed);
-        if (trimmed.Contains("KADRO") || trimmed.Contains("OYUNCU")) return ("👥", trimmed);
-        if (trimmed.Contains("TAKTIK") || trimmed.Contains("TAKTİK") || trimmed.Contains("SAHA")) return ("📋", trimmed);
-        if (trimmed.Contains("TRANSFER")) return ("🔄", trimmed);
-
-        return (null, title);
+        return ("shield", trimmed);
     }
 
     private static HFlowContainer ActionFlow()
@@ -1496,9 +1492,9 @@ public partial class CareerHubScreen : Control
             .TakeLast(5)
             .Select(result => result switch
             {
-                'G' or 'W' => $"🟢{result}",
-                'B' or 'D' => $"⚪{result}",
-                'M' or 'L' => $"🔴{result}",
+                'G' or 'W' => $"[+{result}]",
+                'B' or 'D' => $"[={result}]",
+                'M' or 'L' => $"[-{result}]",
                 _ => result.ToString(),
             });
         return string.Join(" ", results);
@@ -1698,7 +1694,7 @@ public partial class CareerHubScreen : Control
 
         _newTransferPlayerId = signed.PlayerId;
         _audioDirector?.TryPlayCue(MatchAudioCue.ResultWin, signed.SquadNumber);
-        _transferWelcomeHeadlineLabel.Text = $"✍ HOŞ GELDİN, {signed.DisplayName.ToUpperInvariant()}!";
+        _transferWelcomeHeadlineLabel.Text = $"HOŞ GELDİN, {signed.DisplayName.ToUpperInvariant()}!";
         _transferWelcomeMetaLabel.Text =
             $"#{signed.SquadNumber} · {signed.PositionName} ({signed.PositionCode}) · {signed.Rating} GÜÇ\n"
             + "İmza tamamlandı; oyuncu A takım listesinde #YENİ rozetiyle işaretlendi.";
@@ -1864,8 +1860,8 @@ public partial class CareerHubScreen : Control
         }
 
         _clubPlanCaptionLabel.Text = board.IsApproved
-            ? "✓ Onaylı XI ve yedekler — Takas için bir oyuncuya, ardından yedeğe dokun."
-            : "⚠️ Taslak XI ve yedekler — Oyuncuları dokunarak takas et ve maça hazırla.";
+            ? "Onaylı XI ve yedekler — Takas için bir oyuncuya, ardından yedeğe dokun."
+            : "Taslak XI ve yedekler — Oyuncuları dokunarak takas et ve maça hazırla.";
         _clubPlanPitchHost.AddChild(
             TacticalPitchBoardUi.Build(
                 board,
@@ -1882,10 +1878,10 @@ public partial class CareerHubScreen : Control
         var players = _controller.BuildPlayerManagementDigest().Players;
         var groups = new[]
         {
-            (Code: "GK", Title: "🧤 KALECİ", Minimum: 2, Color: CareerUiTheme.Data),
-            (Code: "DEF", Title: "🛡️ SAVUNMA", Minimum: 7, Color: CareerUiTheme.ActionBright),
-            (Code: "MID", Title: "⚙️ ORTA SAHA", Minimum: 6, Color: CareerUiTheme.Accent),
-            (Code: "FWD", Title: "⚡ HÜCUM", Minimum: 4, Color: CareerUiTheme.DangerSoft),
+            (Code: "GK", Title: "KALECİ", Minimum: 2, Color: CareerUiTheme.Data),
+            (Code: "DEF", Title: "SAVUNMA", Minimum: 7, Color: CareerUiTheme.ActionBright),
+            (Code: "MID", Title: "ORTA SAHA", Minimum: 6, Color: CareerUiTheme.Accent),
+            (Code: "FWD", Title: "HÜCUM", Minimum: 4, Color: CareerUiTheme.DangerSoft),
         };
 
         foreach (var group in groups)
@@ -1907,7 +1903,7 @@ public partial class CareerHubScreen : Control
             card.AddChild(body);
             var title = new Label
             {
-                Text = $"{group.Title} · {line.Length} OYUNCU · {(sufficient ? "✓ YETERLİ" : "⚠ EKSİK")}",
+                Text = $"{group.Title} · {line.Length} OYUNCU · {(sufficient ? "YETERLİ" : "EKSİK")}",
             };
             CareerUiTheme.StyleEyebrow(title, sufficient ? group.Color : CareerUiTheme.DangerSoft);
             body.AddChild(title);
@@ -2034,10 +2030,10 @@ public partial class CareerHubScreen : Control
             + $"Güven: %{candidate.KnowledgePercent} ({candidate.ConfidenceTierLabel}) · Risk: {candidate.RiskLabel} · İlgi: {candidate.InterestLabel}";
         _scoutCandidateDetailLabel.TooltipText = candidate.ToDetailText();
         _scoutMarketValueBadgeLabel.Text = candidate.MarketValue == 0
-            ? "💎 SERBEST"
-            : $"💎 {candidate.MarketValue:N0} TRY";
-        _scoutWageExpectationBadgeLabel.Text = $"💵 {candidate.SuggestedWeeklyWage:N0}/hf";
-        _scoutTransferChanceBadgeLabel.Text = $"🎯 %{candidate.InterestPercent} · {candidate.InterestLabel}";
+            ? "SERBEST"
+            : $"{candidate.MarketValue:N0} TRY";
+        _scoutWageExpectationBadgeLabel.Text = $"{candidate.SuggestedWeeklyWage:N0}/hf";
+        _scoutTransferChanceBadgeLabel.Text = $"%{candidate.InterestPercent} · {candidate.InterestLabel}";
         _transferFeeInput.Value = candidate.SuggestedOpeningFee;
         _transferWageInput.Value = candidate.SuggestedWeeklyWage;
         _contractYearsInput.Value = candidate.Age switch
@@ -2085,28 +2081,16 @@ public partial class CareerHubScreen : Control
         else
         {
             // Ana satır: kritik istatistikler tek bakışta görünür
-            var fitness = selected.Fitness switch
-            {
-                >= 85 => "💪",
-                >= 60 => "🟡",
-                _ => "🔴"
-            };
-            var relIcon = selected.RelationshipState switch
-            {
-                "Güçlü" => "🟢",
-                "Kırılgan" => "🔴",
-                _ => "⚪"
-            };
-            var availability = selected.Availability == "Hazır" ? string.Empty : $" · ⚠ {selected.Availability}";
-            var promiseFlag = selected.PromiseSummary == "aktif söz yok" ? string.Empty : " · 🤝 söz";
+            var availability = selected.Availability == "Hazır" ? string.Empty : $" · {selected.Availability}";
+            var promiseFlag = selected.PromiseSummary == "aktif söz yok" ? string.Empty : " · SÖZ";
             var workload = string.IsNullOrWhiteSpace(selected.WorkloadHint)
                 ? string.Empty
                 : $" · {selected.WorkloadHint}";
             _playerDetailLabel.Text =
                 $"{selected.DisplayName} · {selected.PositionCode} · GÜÇ {selected.Rating}"
-                + $" · {fitness} Fit %{selected.Fitness}"
+                + $" · Fit %{selected.Fitness}"
                 + $" · {selected.FatigueRiskBand}"
-                + $" · {relIcon} {selected.RelationshipState}"
+                + $" · {selected.RelationshipState}"
                 + availability
                 + workload
                 + promiseFlag
@@ -2132,7 +2116,7 @@ public partial class CareerHubScreen : Control
 
     private void OnLoadGamePressed()
     {
-        BeginSaveAction(_loadGameButton, "⏳ Yükleniyor...");
+        BeginSaveAction(_loadGameButton, "Yükleniyor...");
         Callable.From(() =>
         {
             var result = _controller.LoadGame();
@@ -2144,18 +2128,18 @@ public partial class CareerHubScreen : Control
             {
                 Apply(result);
             }
-            EndSaveAction(_loadGameButton, "↻ Yeniden Yükle", result.Succeeded);
+            EndSaveAction(_loadGameButton, "Yeniden Yükle", result.Succeeded);
         }).CallDeferred();
     }
 
     private void OnSaveGamePressed()
     {
-        BeginSaveAction(_saveGameButton, "⏳ Kaydediliyor...");
+        BeginSaveAction(_saveGameButton, "Kaydediliyor...");
         Callable.From(() =>
         {
             var result = _controller.SaveGame();
             Apply(result);
-            EndSaveAction(_saveGameButton, "⚡ Hızlı Kaydet", result.Succeeded);
+            EndSaveAction(_saveGameButton, "Hızlı Kaydet", result.Succeeded);
         }).CallDeferred();
     }
 
@@ -2169,7 +2153,7 @@ public partial class CareerHubScreen : Control
     private void EndSaveAction(Button button, string idleText, bool succeeded)
     {
         button.Disabled = false;
-        button.Text = succeeded ? $"✓ {idleText}" : $"⚠ {idleText}";
+        button.Text = succeeded ? $"TAMAM: {idleText}" : $"HATA: {idleText}";
         button.Modulate = Colors.White;
         if (!CareerUiTheme.ReducedMotion)
         {
@@ -2193,7 +2177,7 @@ public partial class CareerHubScreen : Control
 
         if (_managerLevelBadgeLabel is not null)
         {
-            _managerLevelBadgeLabel.Text = $"⭐ SVY {manager.ManagerLevel} ({manager.ExperiencePoints} XP)";
+            _managerLevelBadgeLabel.Text = $"SVY {manager.ManagerLevel} ({manager.ExperiencePoints} XP)";
             _managerLevelBadgePanel.TooltipText = $"Menajer Seviyesi: {manager.ManagerLevel}\nToplam Deneyim: {manager.ExperiencePoints} XP\nSonraki Seviyeye Kalan: {Math.Max(0, manager.XpToNextLevel - manager.ExperiencePoints)} XP";
         }
 
@@ -2206,7 +2190,7 @@ public partial class CareerHubScreen : Control
                 ? $"Aktif teklif: {GetClubDisplayNameSafe(offerClubId)}"
                 : "Aktif teklif yok · Kulüp ekranından iş ara";
             _managerLabel.Text = "SERBEST MENAJER";
-            _seasonLabel.Text = $"{manager.DisplayName} · 🎖️ Seviye {manager.ManagerLevel} ({manager.ExperiencePoints} XP) · Son kulüp: {lastClub} · İtibar {manager.ManagerReputation}";
+            _seasonLabel.Text = $"{manager.DisplayName} · Seviye {manager.ManagerLevel} ({manager.ExperiencePoints} XP) · Son kulüp: {lastClub} · İtibar {manager.ManagerReputation}";
             _progressLabel.Text = offerText;
         }
         else
@@ -2218,7 +2202,7 @@ public partial class CareerHubScreen : Control
                 ? $"Yönetim {confidence} · {TranslateRisk(manager.EmploymentRiskBand)} · {TranslateExpectation(manager.SeasonExpectation)}"
                 : string.Empty;
             _managerLabel.Text = clubName.ToUpperInvariant();
-            _seasonLabel.Text = $"{manager.DisplayName} · 🎖️ Seviye {manager.ManagerLevel} ({manager.ExperiencePoints} XP) · {boardText} · İtibar {manager.ManagerReputation}";
+            _seasonLabel.Text = $"{manager.DisplayName} · Seviye {manager.ManagerLevel} ({manager.ExperiencePoints} XP) · {boardText} · İtibar {manager.ManagerReputation}";
         }
 
         var periodText = period is null
@@ -2333,8 +2317,8 @@ public partial class CareerHubScreen : Control
             var budget = _controller.GetTransferBudget(clubId.Value);
             var mVal = budget.Available / 1_000_000.0;
             _topBudgetBadgeLabel.Text = mVal >= 1.0
-                ? $"💰 {mVal:0.0}M TRY"
-                : $"💰 {budget.Available:N0} TRY";
+                ? $"BÜTÇE: {mVal:0.0}M TRY"
+                : $"BÜTÇE: {budget.Available:N0} TRY";
         }
 
         if (_topQuestBadgeLabel is not null)
@@ -2345,21 +2329,21 @@ public partial class CareerHubScreen : Control
             var completedQuests = (training.HasPlan ? 1 : 0)
                 + (tactic is not null && !string.Equals(tactic.FormationName, "yok", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
                 + (board.IsApproved || !board.HasMatch ? 1 : 0);
-            _topQuestBadgeLabel.Text = $"🎯 Görev {completedQuests}/3";
+            _topQuestBadgeLabel.Text = $"Görev {completedQuests}/3";
         }
 
         // MERKEZ (PORTAL): bekleyen zorunlu karar sayısı
         var decisions = _controller.GetPendingDecisions(take: 5);
         var pendingCount = decisions.OpenCount;
-        var todayLabel = "⌂ PORTAL";
+        var todayLabel = "PORTAL";
         _navButtons[(int)HubPage.Today].Text = pendingCount > 0 ? $"{todayLabel} ({pendingCount})" : todayLabel;
 
         // KAMPÜS & KADRO: onay bekleyen maç varsa uyarı
         var currentDay = _controller.GetCurrentGameDate().DayNumber;
         var pendingMatch = _controller.GetNextDueManagedFixture(currentDay);
         _navButtons[(int)HubPage.Club].Text = pendingMatch is { IsApproved: false }
-            ? "🏛️ KAMPÜS !"
-            : (_compactLayout ? "🏛️ KAMPÜS" : "🏛️ KAMPÜS & KADRO");
+            ? "KAMPÜS !"
+            : (_compactLayout ? "KAMPÜS" : "KAMPÜS & KADRO");
 
         // TRANSFER & SCOUT: bekleyen teklif veya pencere açık
         var window = _controller.GetTransferWindow();
@@ -2368,19 +2352,19 @@ public partial class CareerHubScreen : Control
         var needsOpen = _controller.GetManagedClubNeeds().OpenCount > 0;
         var transferPending = offers.PendingCount > 0 || proposals.PendingCount > 0 || needsOpen;
         _navButtons[(int)HubPage.Transfer].Text = transferPending
-            ? "🔭 TRANSFER !"
+            ? "TRANSFER !"
             : window.IsOpen
-                ? "🔭 TRANSFER ●"
-                : (_compactLayout ? "🔭 TRANSFER" : "🔭 TRANSFER & SCOUT");
+                ? "TRANSFER [+]"
+                : (_compactLayout ? "TRANSFER" : "TRANSFER & SCOUT");
 
         // TAKTİK & SAHA: antrenman planı yoksa uyarı
         var tr = _controller.GetTrainingSummary();
         _navButtons[(int)HubPage.Prep].Text = tr.ClubId is not null && !tr.HasPlan
-            ? "🟩 TAKTİK !"
-            : (_compactLayout ? "🟩 TAKTİK" : "🟩 TAKTİK & SAHA");
+            ? "TAKTİK !"
+            : (_compactLayout ? "TAKTİK" : "TAKTİK & SAHA");
 
-        _navButtons[(int)HubPage.World].Text = _compactLayout ? "🏆 LİG" : "🏆 LİG & DÜNYA";
-        _navButtons[(int)HubPage.File].Text = "👤 MENAJER";
+        _navButtons[(int)HubPage.World].Text = _compactLayout ? "LİG" : "LİG & DÜNYA";
+        _navButtons[(int)HubPage.File].Text = "MENAJER";
     }
 
     private void RefreshClubBranding()
@@ -2428,7 +2412,7 @@ public partial class CareerHubScreen : Control
             var badgesText = behavior.StyleBadges.Count > 0
                 ? string.Join(" · ", behavior.StyleBadges)
                 : "Dengeli / Gözlemleniyor";
-            _legacyTenureLabel.Text = $"{legacy.RecordLine}\n🧬 Menajer Kimliği: {badgesText} (Söz %{behavior.PromiseReliability} · Genç %{behavior.YouthOpportunity})";
+            _legacyTenureLabel.Text = $"{legacy.RecordLine}\nMenajer Kimliği: {badgesText} (Söz %{behavior.PromiseReliability} · Genç %{behavior.YouthOpportunity})";
         }
 
         if (_legacyReputationBadgeLabel is not null)
@@ -2436,13 +2420,13 @@ public partial class CareerHubScreen : Control
             var career = _controller.Host.ManagerModule.Store.Career;
             var rep = career.Reputation.Value;
             var repTitle = rep >= 80 ? "Elit Menajer" : (rep >= 60 ? "Kıdemli Menajer" : (rep >= 40 ? "Profesyonel" : "Çaylak"));
-            _legacyReputationBadgeLabel.Text = $"⭐ İtibar: {rep} ({repTitle})";
+            _legacyReputationBadgeLabel.Text = $"İtibar: {rep} ({repTitle})";
         }
 
         var managerCareer = _controller.GetManagerCareer();
         if (_fileManagerLevelBadgeLabel is not null)
         {
-            _fileManagerLevelBadgeLabel.Text = $"🎖️ Seviye {managerCareer.ManagerLevel} ({managerCareer.ExperiencePoints} / {managerCareer.XpToNextLevel} XP)";
+            _fileManagerLevelBadgeLabel.Text = $"Seviye {managerCareer.ManagerLevel} ({managerCareer.ExperiencePoints} / {managerCareer.XpToNextLevel} XP)";
         }
 
         if (_managerSkillTacticalLabel is not null)
@@ -2495,7 +2479,7 @@ public partial class CareerHubScreen : Control
         var currentChronicle = _controller.BuildCurrentSeasonChronicle();
         if (currentChronicle is not null)
         {
-            _careerSeasonList.AddItem($"📖 {currentChronicle.SeasonTitle} — {currentChronicle.SeasonVerdict}");
+            _careerSeasonList.AddItem($"{currentChronicle.SeasonTitle} — {currentChronicle.SeasonVerdict}");
         }
 
         foreach (var season in legacy.Seasons)
@@ -2506,14 +2490,14 @@ public partial class CareerHubScreen : Control
         var desk = _controller.BuildSaveDeskDigest();
         _saveDeskLabel.Text = desk.ToDisplayText();
         _saveLastWriteBadgeLabel.Text = desk.SaveLastWriteUtc is DateTimeOffset stamp
-            ? $"🕒 Son Kayıt: {stamp.ToLocalTime():g}"
-            : "🕒 Son Kayıt: Henüz yok";
+            ? $"Son Kayıt: {stamp.ToLocalTime():g}"
+            : "Son Kayıt: Henüz yok";
         var autosaveNote = desk.RollingAutosaveCount > 0
             ? $" · Yedek {desk.RollingAutosaveCount}/3"
             : string.Empty;
-        _saveActiveSlotBadgeLabel.Text = $"📁 Aktif Slot: {desk.ActiveSlot}{autosaveNote}";
-        _saveWorldSeedBadgeLabel.Text = $"🌍 Dünya Seed: {desk.WorldSeed}";
-        _saveFileSizeBadgeLabel.Text = $"💽 Dosya Boyutu: {FormatFileSize(desk.SaveSizeBytes)}";
+        _saveActiveSlotBadgeLabel.Text = $"Aktif Slot: {desk.ActiveSlot}{autosaveNote}";
+        _saveWorldSeedBadgeLabel.Text = $"Dünya Seed: {desk.WorldSeed}";
+        _saveFileSizeBadgeLabel.Text = $"Dosya Boyutu: {FormatFileSize(desk.SaveSizeBytes)}";
         UpdateSaveDeskButtons();
     }
 
@@ -2542,10 +2526,10 @@ public partial class CareerHubScreen : Control
         if (economy is null)
         {
             _clubEconomyLabel.Text = "Kulüp ekonomisi: aktif görev bulunmuyor.";
-            if (_boardConfidenceBadgeLabel is not null) _boardConfidenceBadgeLabel.Text = "🏛️ Güven %—";
-            if (_operatingBalanceBadgeLabel is not null) _operatingBalanceBadgeLabel.Text = "💰 Net —";
-            if (_stadiumAttendanceBadgeLabel is not null) _stadiumAttendanceBadgeLabel.Text = "🏟️ %—";
-            if (_wageUtilizationBadgeLabel is not null) _wageUtilizationBadgeLabel.Text = "💼 Maaş %—";
+            if (_boardConfidenceBadgeLabel is not null) _boardConfidenceBadgeLabel.Text = "Güven %—";
+            if (_operatingBalanceBadgeLabel is not null) _operatingBalanceBadgeLabel.Text = "Net —";
+            if (_stadiumAttendanceBadgeLabel is not null) _stadiumAttendanceBadgeLabel.Text = "Doluluk %—";
+            if (_wageUtilizationBadgeLabel is not null) _wageUtilizationBadgeLabel.Text = "Maaş %—";
             return;
         }
 
@@ -2559,7 +2543,7 @@ public partial class CareerHubScreen : Control
             var conf = economy.BoardConfidence ?? 50;
             var confColor = conf >= 70 ? CareerUiTheme.ActionBright : (conf >= 40 ? CareerUiTheme.ColorWarning : CareerUiTheme.DangerSoft);
             var confText = conf >= 75 ? "Çok Güçlü" : (conf >= 55 ? "İyi" : (conf >= 40 ? "Baskı Altında" : "Kritik"));
-            _boardConfidenceBadgeLabel.Text = $"🏛️ Güven %{conf}";
+            _boardConfidenceBadgeLabel.Text = $"Güven %{conf}";
             _boardConfidenceBadgeLabel.TooltipText = confText;
             _boardConfidenceBadgeLabel.AddThemeColorOverride("font_color", confColor);
             _boardConfidenceBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(confColor, 0.20f));
@@ -2568,7 +2552,7 @@ public partial class CareerHubScreen : Control
         if (_operatingBalanceBadgeLabel is not null && _operatingBalanceBadgePanel is not null)
         {
             var balText = economy.ProjectedOperatingBalance >= 0 ? $"+{economy.ProjectedOperatingBalance:N0}" : $"-{Math.Abs(economy.ProjectedOperatingBalance):N0}";
-            _operatingBalanceBadgeLabel.Text = $"💰 {balText} {economy.CurrencyCode}";
+            _operatingBalanceBadgeLabel.Text = $"{balText} {economy.CurrencyCode}";
             _operatingBalanceBadgeLabel.TooltipText = balanceTone;
             _operatingBalanceBadgeLabel.AddThemeColorOverride("font_color", balanceColor);
             _operatingBalanceBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(balanceColor, 0.16f));
@@ -2576,13 +2560,13 @@ public partial class CareerHubScreen : Control
 
         if (_stadiumAttendanceBadgeLabel is not null)
         {
-            _stadiumAttendanceBadgeLabel.Text = $"🏟️ %{economy.AttendancePercent}";
+            _stadiumAttendanceBadgeLabel.Text = $"Doluluk %{economy.AttendancePercent}";
             _stadiumAttendanceBadgeLabel.TooltipText = $"{economy.ProjectedAverageAttendance:N0}/{economy.StadiumCapacity:N0}";
         }
 
         if (_wageUtilizationBadgeLabel is not null)
         {
-            _wageUtilizationBadgeLabel.Text = $"💼 Maaş %{economy.WageUtilizationPercent}";
+            _wageUtilizationBadgeLabel.Text = $"Maaş %{economy.WageUtilizationPercent}";
             _wageUtilizationBadgeLabel.TooltipText = $"Boşluk {economy.WeeklyWageHeadroom:N0} {economy.CurrencyCode}/hf";
         }
 
@@ -2593,11 +2577,11 @@ public partial class CareerHubScreen : Control
 
             var expText = economy.SeasonExpectation.ToString() switch
             {
-                "TitleChallenge" => "🏆 Şampiyonluk Hedefi",
-                "EuropeanQualification" => "🌍 Avrupa Kupası Hedefi",
-                "TopHalf" => "📈 Üst Sıralar Hedefi",
-                "MidTable" => "⚖️ Orta Sıra / İstikrar Hedefi",
-                "Survival" or "AvoidRelegation" => "🛡️ Ligde Kalma Hedefi",
+                "TitleChallenge" => "Şampiyonluk Hedefi",
+                "EuropeanQualification" => "Avrupa Kupası Hedefi",
+                "TopHalf" => "Üst Sıralar Hedefi",
+                "MidTable" => "Orta Sıra / İstikrar Hedefi",
+                "Survival" or "AvoidRelegation" => "Ligde Kalma Hedefi",
                 _ => economy.SeasonExpectation.ToString(),
             };
             var seasonExpLabel = new Label
@@ -2613,12 +2597,12 @@ public partial class CareerHubScreen : Control
             {
                 var (statusText, statusColor) = objective.Status switch
                 {
-                    Application.ClubGovernance.Queries.BoardObjectiveStatus.Achieved => ("✓ Tamamlandı", CareerUiTheme.ActionBright),
-                    Application.ClubGovernance.Queries.BoardObjectiveStatus.OnTrack => ("🟢 Yolunda", CareerUiTheme.ActionBright),
-                    Application.ClubGovernance.Queries.BoardObjectiveStatus.AtRisk => ("⚠️ Riskte", CareerUiTheme.ColorWarning),
-                    Application.ClubGovernance.Queries.BoardObjectiveStatus.OffTrack => ("🔴 Geride", CareerUiTheme.DangerSoft),
-                    Application.ClubGovernance.Queries.BoardObjectiveStatus.Failed => ("✕ Başarısız", CareerUiTheme.DangerSoft),
-                    _ => ("⚪ Başlamadı", CareerUiTheme.TextMuted),
+                    Application.ClubGovernance.Queries.BoardObjectiveStatus.Achieved => ("Tamamlandı", CareerUiTheme.ActionBright),
+                    Application.ClubGovernance.Queries.BoardObjectiveStatus.OnTrack => ("Yolunda", CareerUiTheme.ActionBright),
+                    Application.ClubGovernance.Queries.BoardObjectiveStatus.AtRisk => ("Riskte", CareerUiTheme.ColorWarning),
+                    Application.ClubGovernance.Queries.BoardObjectiveStatus.OffTrack => ("Geride", CareerUiTheme.DangerSoft),
+                    Application.ClubGovernance.Queries.BoardObjectiveStatus.Failed => ("Başarısız", CareerUiTheme.DangerSoft),
+                    _ => ("Başlamadı", CareerUiTheme.TextMuted),
                 };
 
                 var objPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -2920,7 +2904,7 @@ public partial class CareerHubScreen : Control
     {
         var exists = _controller.SaveFileExists();
         _loadGameButton.Disabled = !exists;
-        _loadGameButton.Text = exists ? "↻ Yeniden Yükle" : "↻ Yeniden Yükle (kayıt yok)";
+        _loadGameButton.Text = exists ? "Yeniden Yükle" : "Yeniden Yükle (kayıt yok)";
     }
 
     private void RefreshTransferWindowStatus()
@@ -2941,7 +2925,7 @@ public partial class CareerHubScreen : Control
 
         if (_transferWindowBadgeLabel is not null)
         {
-            _transferWindowBadgeLabel.Text = window.IsOpen ? "🟢 Transfer Penceresi Açık" : "🔒 Pencere Kapalı";
+            _transferWindowBadgeLabel.Text = window.IsOpen ? "Transfer Penceresi Açık" : "Pencere Kapalı";
             _transferWindowBadgeLabel.AddThemeColorOverride("font_color", window.IsOpen ? CareerUiTheme.ActionBright : CareerUiTheme.InkMuted);
             _transferWindowBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(window.IsOpen ? CareerUiTheme.ActionBright : CareerUiTheme.Stroke, 0.16f));
         }
@@ -3013,8 +2997,8 @@ public partial class CareerHubScreen : Control
             _transferBudgetLabel.Text = "Transfer bütçesi: işsiz — kayıt yok.";
             if (_transferBudgetBadgeLabel is not null)
             {
-                _transferBudgetBadgeLabel.Text = "💰 Bütçe: —";
-                _wageBudgetBadgeLabel.Text = "💵 Maaş: —";
+                _transferBudgetBadgeLabel.Text = "Bütçe: —";
+                _wageBudgetBadgeLabel.Text = "Maaş: —";
             }
             return;
         }
@@ -3033,8 +3017,8 @@ public partial class CareerHubScreen : Control
 
         if (_transferBudgetBadgeLabel is not null)
         {
-            _transferBudgetBadgeLabel.Text = $"💰 Transfer Bütçesi: {budget.Available:N0} TRY";
-            _wageBudgetBadgeLabel.Text = wage is null ? "💵 Maaş: —" : $"💵 Maaş Bütçesi: {wage.Available:N0} TRY/hf";
+            _transferBudgetBadgeLabel.Text = $"Transfer Bütçesi: {budget.Available:N0} TRY";
+            _wageBudgetBadgeLabel.Text = wage is null ? "Maaş: —" : $"Maaş Bütçesi: {wage.Available:N0} TRY/hf";
         }
     }
 
@@ -3131,7 +3115,7 @@ public partial class CareerHubScreen : Control
             }));
         var intel = _controller.BuildActiveSellerNegotiationIntel();
         var intelLine = intel is not null
-            ? $"\n🧠 Karşı Kulüp Hafızası: {intel.MarketReputationSummary} (Agresiflik %{intel.OpeningBidAggressionScore} · İnatçılık %{intel.PersistenceIndexScore})"
+            ? $"\nKarşı Kulüp Hafızası: {intel.MarketReputationSummary} (Agresiflik %{intel.OpeningBidAggressionScore} · İnatçılık %{intel.PersistenceIndexScore})"
             : string.Empty;
         _transferProcessLabel.Text = $"{view.ActiveCount} aktif görüşme\n\n{preview}{intelLine}";
         _advanceDealButton.Disabled = false;
@@ -3219,10 +3203,10 @@ public partial class CareerHubScreen : Control
     private void UpdateScopeButtonStyles()
     {
         if (_scopeAllButton is null) return;
-        _scopeAllButton.Text = _scoutMarketScope == TransferMarketScope.All ? "[🌍 TÜM DÜNYA]" : "🌍 Tüm Dünya";
-        _scopeDomesticButton.Text = _scoutMarketScope == TransferMarketScope.Domestic ? "[🇹🇷 SÜPER LİG]" : "🇹🇷 Süper Lig";
-        _scopeEuroButton.Text = _scoutMarketScope == TransferMarketScope.EuropeanElite ? "[⭐ AVRUPA ELİTİ]" : "⭐ Avrupa Eliti";
-        _scopeFreeButton.Text = _scoutMarketScope == TransferMarketScope.FreeAgents ? "[🆓 SERBESTLER]" : "🆓 Serbestler";
+        _scopeAllButton.Text = _scoutMarketScope == TransferMarketScope.All ? "[TÜM DÜNYA]" : "Tüm Dünya";
+        _scopeDomesticButton.Text = _scoutMarketScope == TransferMarketScope.Domestic ? "[SÜPER LİG]" : "Süper Lig";
+        _scopeEuroButton.Text = _scoutMarketScope == TransferMarketScope.EuropeanElite ? "[AVRUPA ELİTİ]" : "Avrupa Eliti";
+        _scopeFreeButton.Text = _scoutMarketScope == TransferMarketScope.FreeAgents ? "[SERBESTLER]" : "Serbestler";
     }
 
     private void RefreshShortlistTargetStatus()
@@ -3245,7 +3229,7 @@ public partial class CareerHubScreen : Control
                 : candidate.MarketValue >= 1_000_000
                     ? $"{candidate.MarketValue / 1_000_000d:0.0}M"
                     : $"{candidate.MarketValue / 1_000d:0}K";
-            var state = candidate.IsListedTarget ? " · ⭐" : candidate.IsShortlisted ? " · ✓" : string.Empty;
+            var state = candidate.IsListedTarget ? " · [HEDEF]" : candidate.IsShortlisted ? " · [İZLEMEDE]" : string.Empty;
             _scoutCandidateList.AddItem(
                 $"{candidate.PositionCode}  {candidate.DisplayName} · {candidate.EstimatedAbilityLow}-{candidate.EstimatedAbilityHigh} · {value}{state}");
         }
@@ -3487,7 +3471,7 @@ public partial class CareerHubScreen : Control
         var options = string.Join(
             "\n",
             digest.Options.Take(3).Select(option =>
-                $"{(option.IsRecommended ? "★" : "·")} {option.Title}: "
+                $"{(option.IsRecommended ? "[ÖNERİ]" : "·")} {option.Title}: "
                 + $"{option.BoostLine} {option.RiskLine}"));
         _matchTrainingPriorityLabel.Text = CompactSummary(digest.Headline, digest.SquadStatusLine);
         _matchTrainingPriorityLabel.TooltipText = $"{digest.StaffFeedback}\n{options}";
@@ -3526,7 +3510,7 @@ public partial class CareerHubScreen : Control
             if (_matchTrainingPriorityButtons.TryGetValue(option.Priority, out var button))
             {
                 button.Disabled = !hasDueMatch;
-                button.Text = isSelected ? "✓ Seçili" : "Seç";
+                button.Text = isSelected ? "SEÇİLİ" : "Seç";
                 if (isSelected)
                 {
                     CareerUiTheme.StylePrimaryButton(button);
@@ -3610,8 +3594,8 @@ public partial class CareerHubScreen : Control
         if (tactic is null || tactic.ClubId is null)
         {
             _tacticLabel.Text = "Taktik: işsiz — plan yok.";
-            if (_prepFitnessBadgeLabel is not null) _prepFitnessBadgeLabel.Text = "⚡ XI Zindelik: %—";
-            if (_prepSharpnessBadgeLabel is not null) _prepSharpnessBadgeLabel.Text = "🎯 Maç Modifiyesi: —";
+            if (_prepFitnessBadgeLabel is not null) _prepFitnessBadgeLabel.Text = "XI Zindelik: %—";
+            if (_prepSharpnessBadgeLabel is not null) _prepSharpnessBadgeLabel.Text = "Maç Modifiyesi: —";
             if (_prepRiskBadgeLabel is not null) _prepRiskBadgeLabel.Text = "— Kadro Durumu";
             if (_prepApprovalBadgeLabel is not null) _prepApprovalBadgeLabel.Text = "— Onay";
             RefreshPreparationBriefing();
@@ -3623,8 +3607,8 @@ public partial class CareerHubScreen : Control
         if (string.Equals(tactic.FormationName, "yok", StringComparison.Ordinal))
         {
             _tacticLabel.Text = "Taktik: henüz yok — lig kur / formasyon seç.";
-            if (_prepFitnessBadgeLabel is not null) _prepFitnessBadgeLabel.Text = "⚡ XI Zindelik: %—";
-            if (_prepSharpnessBadgeLabel is not null) _prepSharpnessBadgeLabel.Text = "🎯 Maç Modifiyesi: —";
+            if (_prepFitnessBadgeLabel is not null) _prepFitnessBadgeLabel.Text = "XI Zindelik: %—";
+            if (_prepSharpnessBadgeLabel is not null) _prepSharpnessBadgeLabel.Text = "Maç Modifiyesi: —";
             if (_prepRiskBadgeLabel is not null) _prepRiskBadgeLabel.Text = "— Kadro Durumu";
             if (_prepApprovalBadgeLabel is not null) _prepApprovalBadgeLabel.Text = "— Onay";
             RefreshPreparationBriefing();
@@ -3649,17 +3633,17 @@ public partial class CareerHubScreen : Control
             if (board.StartingXi.Count > 0)
             {
                 var avgFit = (int)Math.Round(board.StartingXi.Average(p => p.Fitness));
-                _prepFitnessBadgeLabel.Text = $"⚡ XI Zindelik: %{avgFit}";
+                _prepFitnessBadgeLabel.Text = $"XI Zindelik: %{avgFit}";
             }
             else
             {
-                _prepFitnessBadgeLabel.Text = "⚡ XI Zindelik: %—";
+                _prepFitnessBadgeLabel.Text = "XI Zindelik: %—";
             }
         }
 
         if (_prepSharpnessBadgeLabel is not null)
         {
-            _prepSharpnessBadgeLabel.Text = $"🎯 Maç Modifiyesi: {modifierLabel}";
+            _prepSharpnessBadgeLabel.Text = $"Maç Modifiyesi: {modifierLabel}";
         }
 
         if (_prepRiskBadgeLabel is not null && _prepRiskBadgePanel is not null)
@@ -3668,13 +3652,13 @@ public partial class CareerHubScreen : Control
             var injuredCount = board.StartingXi.Concat(board.Bench).Count(p => !p.IsAvailable);
             if (injuredCount > 0 || tiredCount > 0)
             {
-                _prepRiskBadgeLabel.Text = $"⚠️ {tiredCount} Yorgun · {injuredCount} Sakat";
+                _prepRiskBadgeLabel.Text = $"{tiredCount} Yorgun · {injuredCount} Sakat";
                 _prepRiskBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.DangerSoft);
                 _prepRiskBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.DangerSoft, 0.20f));
             }
             else
             {
-                _prepRiskBadgeLabel.Text = "✓ Kadro Zinde";
+                _prepRiskBadgeLabel.Text = "Kadro Zinde";
                 _prepRiskBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Data);
                 _prepRiskBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data, 0.20f));
             }
@@ -3684,13 +3668,13 @@ public partial class CareerHubScreen : Control
         {
             if (board.IsApproved)
             {
-                _prepApprovalBadgeLabel.Text = "✓ Kadro Onaylı";
+                _prepApprovalBadgeLabel.Text = "Kadro Onaylı";
                 _prepApprovalBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
                 _prepApprovalBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
             }
             else
             {
-                _prepApprovalBadgeLabel.Text = "⚠️ Onay Bekliyor";
+                _prepApprovalBadgeLabel.Text = "Onay Bekliyor";
                 _prepApprovalBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorWarning);
                 _prepApprovalBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning, 0.20f));
             }
@@ -3729,13 +3713,13 @@ public partial class CareerHubScreen : Control
         {
             var (threatText, threatColor) = opponentDossier.ThreatKind switch
             {
-                OpponentThreatKind.WinningStreak => ("🔥 Seri Galibiyet Tehdidi", CareerUiTheme.DangerSoft),
-                OpponentThreatKind.ProductiveAttack => ("⚡ Üretken Hücum Hattı", CareerUiTheme.DangerSoft),
-                OpponentThreatKind.SquadQuality => ("⭐ Yüksek Kadro Kalitesi", CareerUiTheme.DangerSoft),
-                OpponentThreatKind.TopZoneTempo => ("🚀 Zirve Yarışı Temposu", CareerUiTheme.Accent),
-                OpponentThreatKind.DefensiveResistance => ("🛡️ Dirençli Savunma Bloğu", CareerUiTheme.Accent),
-                OpponentThreatKind.LosingStreak => ("📉 Kırılgan Form Grafiği", CareerUiTheme.ActionBright),
-                _ => ("ℹ️ Dengeli Rakip Profili", CareerUiTheme.Data),
+                OpponentThreatKind.WinningStreak => ("Seri Galibiyet Tehdidi", CareerUiTheme.DangerSoft),
+                OpponentThreatKind.ProductiveAttack => ("Üretken Hücum Hattı", CareerUiTheme.DangerSoft),
+                OpponentThreatKind.SquadQuality => ("Yüksek Kadro Kalitesi", CareerUiTheme.DangerSoft),
+                OpponentThreatKind.TopZoneTempo => ("Zirve Yarışı Temposu", CareerUiTheme.Accent),
+                OpponentThreatKind.DefensiveResistance => ("Dirençli Savunma Bloğu", CareerUiTheme.Accent),
+                OpponentThreatKind.LosingStreak => ("Kırılgan Form Grafiği", CareerUiTheme.ActionBright),
+                _ => ("Dengeli Rakip Profili", CareerUiTheme.Data),
             };
             _prepOpponentThreatBadgeLabel.Text = threatText;
             _prepOpponentThreatBadgeLabel.AddThemeColorOverride("font_color", threatColor);
@@ -3750,16 +3734,16 @@ public partial class CareerHubScreen : Control
         var (signalPrefix, signalBadgeText, signalColor) = matchup.Signal switch
         {
             Application.TeamPreparation.Queries.MatchupPlanSignal.Opportunity => (
-                "✅ [FIRSAT / AVANTAJ]",
-                "✅ Taktiksel Fırsat",
+                "[FIRSAT / AVANTAJ]",
+                "Taktiksel Fırsat",
                 CareerUiTheme.ActionBright),
             Application.TeamPreparation.Queries.MatchupPlanSignal.Risk => (
-                "⚠️ [RİSK / TEHLİKE]",
-                "⚠️ Taktiksel Risk",
+                "[RİSK / TEHLİKE]",
+                "Taktiksel Risk",
                 CareerUiTheme.DangerSoft),
             _ => (
-                "ℹ️ [DENGELİ]",
-                "ℹ️ Dengeli Eşleşme",
+                "[DENGELİ]",
+                "Dengeli Eşleşme",
                 CareerUiTheme.Data),
         };
 
@@ -3772,9 +3756,9 @@ public partial class CareerHubScreen : Control
 
         var checklist = _controller.BuildPreMatchReadinessChecklist();
         var meta = _controller.BuildLeagueTacticalIntelligence();
-        var metaLine = $"\n📊 Lig Trendi: {meta.PrevailingMetaName} (Önerilen Antitez: {meta.RecommendedCounterFormation} / {meta.RecommendedCounterApproach})";
+        var metaLine = $"\nLig Trendi: {meta.PrevailingMetaName} (Önerilen Antitez: {meta.RecommendedCounterFormation} / {meta.RecommendedCounterApproach})";
         var checkLine = checklist.HasUpcomingMatch
-            ? $"\n📋 Maç Öncesi Kontrol: {checklist.SummaryBadgeText} — {checklist.Headline}"
+            ? $"\nMaç Öncesi Kontrol: {checklist.SummaryBadgeText} — {checklist.Headline}"
             : string.Empty;
         _prepMatchupLabel.Text = CompactSummary(matchup.BrandTitle, matchup.VerdictLine) + metaLine + checkLine;
         _prepMatchupLabel.TooltipText = $"{signalPrefix} {matchup.SelectionLine}\n\n{checklist.ToCompactText()}";
@@ -3812,20 +3796,20 @@ public partial class CareerHubScreen : Control
         }
 
         _prepPitchCaptionLabel.Text = board.IsApproved
-            ? "✓ Onaylı İlk 11 — Değişiklik için sahadan bir oyuncuya, ardından yedek kulübesine dokun."
-            : "⚠️ Taslak İlk 11 — Oyuncuları dokunarak takas et ve 'Kadro Onayla' ile maça hazırla.";
+            ? "Onaylı İlk 11 — Değişiklik için sahadan bir oyuncuya, ardından yedek kulübesine dokun."
+            : "Taslak İlk 11 — Oyuncuları dokunarak takas et ve 'Kadro Onayla' ile maça hazırla.";
 
         if (_prepApprovalBadgeLabel is not null && _prepApprovalBadgePanel is not null)
         {
             if (board.IsApproved)
             {
-                _prepApprovalBadgeLabel.Text = "✓ Kadro Onaylı";
+                _prepApprovalBadgeLabel.Text = "Kadro Onaylı";
                 _prepApprovalBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
                 _prepApprovalBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
             }
             else
             {
-                _prepApprovalBadgeLabel.Text = "⚠️ Onay Bekliyor";
+                _prepApprovalBadgeLabel.Text = "Onay Bekliyor";
                 _prepApprovalBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorWarning);
                 _prepApprovalBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning, 0.20f));
             }
@@ -3834,7 +3818,7 @@ public partial class CareerHubScreen : Control
         if (_prepApproveSelectionButton is not null)
         {
             _prepApproveSelectionButton.Disabled = board.IsApproved;
-            _prepApproveSelectionButton.Text = board.IsApproved ? "✓ Kadro Onaylandı" : "✓ Kadro Onayla";
+            _prepApproveSelectionButton.Text = board.IsApproved ? "Kadro Onaylandı" : "Kadro Onayla";
             if (board.IsApproved)
             {
                 CareerUiTheme.StyleSecondaryButton(_prepApproveSelectionButton);
@@ -3911,11 +3895,11 @@ public partial class CareerHubScreen : Control
         {
             if (tactic is not null && tactic.ClubId is not null)
             {
-                _formationPickerButton.Text = $"📋 Diziliş: {FormationPickerModal.FormatLabel(tactic.Formation)} (Tümü)";
+                _formationPickerButton.Text = $"Diziliş: {FormationPickerModal.FormatLabel(tactic.Formation)} (Tümü)";
             }
             else
             {
-                _formationPickerButton.Text = "📋 Tüm Dizilişler (14)";
+                _formationPickerButton.Text = "Tüm Dizilişler (14)";
             }
         }
         _formation442Button.ButtonPressed = tactic is not null && tactic.ClubId is not null && tactic.Formation == Formation.F442;
@@ -3989,8 +3973,9 @@ public partial class CareerHubScreen : Control
             else CareerUiTheme.StyleSecondaryButton(_scenarioPatientControlBtn);
         }
 
-        // OSM / FM26 Taktiksel Odak Kaydırıcılarını senkronize et
+        // 5 Kademeli Taktik Seviye Bloklarını (Segmented Pills) senkronize et
         _suppressTacticSliderCallback = true;
+        SyncSegmentedTacticPills(tactic?.Approach, tactic?.Pressing, tactic?.DefensiveLine);
         if (_tacticApproachSlider is not null && _tacticApproachSliderValLabel is not null)
         {
             _tacticApproachSlider.Editable = employed;
@@ -4003,9 +3988,9 @@ public partial class CareerHubScreen : Control
             _tacticApproachSlider.Value = appVal;
             _tacticApproachSliderValLabel.Text = appVal switch
             {
-                1 => "🛡️ Defansif",
-                3 => "🔥 Tam Hücum",
-                _ => "⚖️ Dengeli",
+                1 => "Defansif",
+                3 => "Tam Hücum",
+                _ => "Dengeli",
             };
         }
         if (_tacticPressingSlider is not null && _tacticPressingSliderValLabel is not null)
@@ -4020,9 +4005,9 @@ public partial class CareerHubScreen : Control
             _tacticPressingSlider.Value = pressVal;
             _tacticPressingSliderValLabel.Text = pressVal switch
             {
-                1 => "🧱 Geri Blok",
-                3 => "⚡ Önde Pres",
-                _ => "⚖️ Orta Pres",
+                1 => "Geri Blok",
+                3 => "Önde Pres",
+                _ => "Orta Pres",
             };
         }
         if (_tacticLineSlider is not null && _tacticLineSliderValLabel is not null)
@@ -4037,14 +4022,14 @@ public partial class CareerHubScreen : Control
             _tacticLineSlider.Value = lineVal;
             _tacticLineSliderValLabel.Text = lineVal switch
             {
-                1 => "🛡️ Derin Hat",
-                3 => "🚀 Yüksek Hat",
-                _ => "⚖️ Standart Hat",
+                1 => "Derin Hat",
+                3 => "Yüksek Hat",
+                _ => "Standart Hat",
             };
         }
         _suppressTacticSliderCallback = false;
 
-        // Top Eleven Antrenman Hazırlık Bonusu (%0-%40) & Kondisyon Barını güncelle
+        // Antrenman Hazırlık Bonusu (%0-%40) & Kondisyon Barını güncelle
         var trainingSummary = _controller.GetTrainingSummary();
         if (_trainingReadinessBonusBar is not null && _trainingReadinessBonusLabel is not null)
         {
@@ -4057,13 +4042,13 @@ public partial class CareerHubScreen : Control
                     _ => 18,
                 };
             _trainingReadinessBonusBar.Value = bonusPct;
-            _trainingReadinessBonusLabel.Text = $"🎯 Maç Hazırlık Bonusu: +%{bonusPct} / %40";
+            _trainingReadinessBonusLabel.Text = $"Maç Hazırlık Bonusu: +%{bonusPct} / %40";
         }
         if (_trainingSquadConditionBar is not null && _trainingSquadConditionLabel is not null)
         {
             var avgFit = trainingSummary.HasPlan ? Math.Clamp(trainingSummary.AverageFitness ?? 82, 0, 100) : 82;
             _trainingSquadConditionBar.Value = avgFit;
-            _trainingSquadConditionLabel.Text = $"⚡ Kadro Kondisyonu: %{avgFit}";
+            _trainingSquadConditionLabel.Text = $"Kadro Kondisyonu: %{avgFit}";
         }
     }
 
@@ -4215,8 +4200,8 @@ public partial class CareerHubScreen : Control
         var first = pending.OpenRequests[0];
         _decisionCausalityPanel.Visible = true;
         _decisionCausalityLabel.Text = string.IsNullOrWhiteSpace(desk.CausalityLine)
-            ? "❔ BU NEDEN OLDU? Kararın bağlamı henüz oluşmadı; talep türü ve son tarih üzerinden değerlendir."
-            : $"❔ BU NEDEN OLDU?  {desk.CausalityLine}";
+            ? "BU NEDEN OLDU? Kararın bağlamı henüz oluşmadı; talep türü ve son tarih üzerinden değerlendir."
+            : $"BU NEDEN OLDU?  {desk.CausalityLine}";
         var causalityColor = desk.IsHardBlocker ? CareerUiTheme.DangerSoft : CareerUiTheme.ColorWarning;
         _decisionCausalityPanel.AddThemeStyleboxOverride(
             "panel",
@@ -4247,7 +4232,7 @@ public partial class CareerHubScreen : Control
         if (grant is not null)
         {
             _grantDecisionButton.Visible = true;
-            _grantDecisionButton.Text = $"✓ {grant.DisplayText}";
+            _grantDecisionButton.Text = grant.DisplayText;
             _grantDecisionButton.Disabled = !grant.IsEligible;
         }
         else
@@ -4259,7 +4244,7 @@ public partial class CareerHubScreen : Control
         if (refuse is not null)
         {
             _refuseDecisionButton.Visible = true;
-            _refuseDecisionButton.Text = $"✕ {refuse.DisplayText}";
+            _refuseDecisionButton.Text = refuse.DisplayText;
             _refuseDecisionButton.Disabled = !refuse.IsEligible;
         }
         else
@@ -4347,7 +4332,7 @@ public partial class CareerHubScreen : Control
             >= 40 => CareerUiTheme.ColorWarning,
             _ => CareerUiTheme.DangerSoft,
         };
-        _fanApprovalBadgeLabel.Text = $"♥ %{fanPulse.ApprovalRating}  {fanPulse.Trend}";
+        _fanApprovalBadgeLabel.Text = $"ONAY %{fanPulse.ApprovalRating}  {fanPulse.Trend}";
         _fanApprovalBadgeLabel.AddThemeColorOverride("font_color", fanColor);
         _fanApprovalBadgePanel.AddThemeStyleboxOverride(
             "panel",
@@ -4362,7 +4347,7 @@ public partial class CareerHubScreen : Control
         var weekMood = _controller.BuildWeekMood(weekStoryActive: weekStory.IsActive);
         if (weekStory.IsActive && !string.IsNullOrWhiteSpace(weekStory.StoryLine))
         {
-            _weekStoryLabel.Text = $"📖 {weekStory.StoryLine}";
+            _weekStoryLabel.Text = weekStory.StoryLine;
             _weekStoryLabel.Visible = true;
         }
         else
@@ -4374,7 +4359,7 @@ public partial class CareerHubScreen : Control
         var recoveryPath = _controller.BuildInjuryRecoveryPath();
         if (recoveryPath.IsActive && !string.IsNullOrWhiteSpace(recoveryPath.Headline))
         {
-            _recoveryPathLabel.Text = $"🏥 {recoveryPath.Headline}";
+            _recoveryPathLabel.Text = $"SAĞLIK: {recoveryPath.Headline}";
             _recoveryPathLabel.Visible = true;
         }
         else
@@ -4439,7 +4424,7 @@ public partial class CareerHubScreen : Control
                 var matchLine = !string.IsNullOrWhiteSpace(briefing.FixtureLine)
                     ? briefing.FixtureLine
                     : briefing.Headline;
-                _nextMatchLabel.Text = $"⚔ {matchLine}";
+                _nextMatchLabel.Text = $"MAÇ: {matchLine}";
                 _nextMatchPill.Visible = true;
                 _nextMatchPill.TooltipText = briefing.Headline;
             }
@@ -4456,38 +4441,38 @@ public partial class CareerHubScreen : Control
             {
                 if (hasDueEuro)
                 {
-                    _nextMatchCompetitionBadge.Text = "⭐ AVRUPA KUPASI";
+                    _nextMatchCompetitionBadge.Text = "AVRUPA KUPASI";
                     _nextMatchCompetitionBadge.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
                     _nextMatchVenueLabel.Text = "AVRUPA GECESİ";
                     _nextMatchOpponentLabel.Text = briefing.Headline;
-                    _nextMatchApprovalLabel.Text = "⭐ Avrupa Maçına Hazır";
+                    _nextMatchApprovalLabel.Text = "Avrupa Maçına Hazır";
                     _nextMatchApprovalLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
                     _nextMatchApprovalPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent));
                 }
                 else if (pending is not null)
                 {
-                    _nextMatchCompetitionBadge.Text = "🏆 LİG MAÇI";
+                    _nextMatchCompetitionBadge.Text = "LİG MAÇI";
                     _nextMatchCompetitionBadge.AddThemeColorOverride("font_color", CareerUiTheme.Data);
-                    _nextMatchVenueLabel.Text = pending.IsHome ? "🏠 İÇ SAHA" : "✈️ DEPLASMAN";
+                    _nextMatchVenueLabel.Text = pending.IsHome ? "İÇ SAHA" : "DEPLASMAN";
                     var oppName = _controller.GetClubDisplayName(pending.OpponentClubId);
                     _nextMatchOpponentLabel.Text = $"vs {oppName}";
 
                     if (pending.IsApproved)
                     {
-                        _nextMatchApprovalLabel.Text = "✓ Kadro Onaylandı";
+                        _nextMatchApprovalLabel.Text = "Kadro Onaylandı";
                         _nextMatchApprovalLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
                         _nextMatchApprovalPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright));
                     }
                     else
                     {
-                        _nextMatchApprovalLabel.Text = "⚠️ Kadro Onayı Bekliyor";
+                        _nextMatchApprovalLabel.Text = "Kadro Onayı Bekliyor";
                         _nextMatchApprovalLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorWarning);
                         _nextMatchApprovalPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning));
                     }
                 }
                 else
                 {
-                    _nextMatchCompetitionBadge.Text = "⚽ MÜSABAKA";
+                    _nextMatchCompetitionBadge.Text = "MÜSABAKA";
                     _nextMatchCompetitionBadge.AddThemeColorOverride("font_color", CareerUiTheme.Data);
                     _nextMatchVenueLabel.Text = "STADYUM";
                     _nextMatchOpponentLabel.Text = briefing.Headline;
@@ -4502,14 +4487,14 @@ public partial class CareerHubScreen : Control
                 var ownName = _controller.GetManagerCareer().EmployedClubId is long ownId
                     ? _controller.GetClubDisplayName(ownId)
                     : "Takımın";
-                _nextMatchCompetitionBadge.Text = "⚽ LİG MAÇI";
+                _nextMatchCompetitionBadge.Text = "LİG MAÇI";
                 _nextMatchCompetitionBadge.AddThemeColorOverride("font_color", CareerUiTheme.Data);
                 _nextMatchVenueLabel.Text = upcoming.IsHome ? "İÇ SAHA" : "DEPLASMAN";
                 _nextMatchOpponentLabel.Text = upcoming.IsHome
                     ? $"{ownName} vs {upcoming.OpponentName}"
                     : $"{upcoming.OpponentName} vs {ownName}";
                 _nextMatchApprovalLabel.Text =
-                    $"⏳ {Application.CareerHub.Queries.ContinueFlowGuide.FormatCountdown(upcoming.DaysUntil)}";
+                    Application.CareerHub.Queries.ContinueFlowGuide.FormatCountdown(upcoming.DaysUntil);
                 _nextMatchApprovalLabel.AddThemeColorOverride("font_color", CareerUiTheme.Data);
                 _nextMatchApprovalPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data));
             }
@@ -4626,7 +4611,7 @@ public partial class CareerHubScreen : Control
 
             var clubLabel = BodyLabel($"Club_{entry.ClubId}");
             var name = _controller.GetClubDisplayName(entry.ClubId);
-            clubLabel.Text = entry.IsManaged ? $"★ {name}" : name;
+            clubLabel.Text = entry.IsManaged ? $"[KULÜP] {name}" : name;
             clubLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             clubLabel.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             if (entry.IsManaged)
@@ -4667,11 +4652,11 @@ public partial class CareerHubScreen : Control
         var tactic = _controller.GetManagedClubTacticPlan();
         if (tactic is null || tactic.ClubId is null || string.Equals(tactic.FormationName, "yok", StringComparison.Ordinal))
         {
-            _todayTacticsSummaryLabel.Text = "⚽ Taktik: Henüz belirlenmedi";
+            _todayTacticsSummaryLabel.Text = "Taktik: Henüz belirlenmedi";
         }
         else
         {
-            _todayTacticsSummaryLabel.Text = $"⚽ {tactic.FormationName} · {tactic.ApproachName} · {tactic.PressingName}";
+            _todayTacticsSummaryLabel.Text = $"{tactic.FormationName} · {tactic.ApproachName} · {tactic.PressingName}";
         }
 
         var training = _controller.GetTrainingSummary();
@@ -4681,12 +4666,12 @@ public partial class CareerHubScreen : Control
             : string.Empty;
         if (training.ClubId is null || !training.HasPlan)
         {
-            _todayFitnessSummaryLabel.Text = $"⚡ Kondisyon: Plan yok{congestionNote}";
+            _todayFitnessSummaryLabel.Text = $"Kondisyon: Plan yok{congestionNote}";
         }
         else
         {
             var injuryText = training.InjuredSlotCount > 0 ? $" · Sakat: {training.InjuredSlotCount}" : " · Sakat Yok";
-            _todayFitnessSummaryLabel.Text = $"⚡ XI Kondisyon: %{training.AverageFitness} · Yorgunluk: %{training.AverageFatigue}{injuryText}{congestionNote}";
+            _todayFitnessSummaryLabel.Text = $"XI Kondisyon: %{training.AverageFitness} · Yorgunluk: %{training.AverageFatigue}{injuryText}{congestionNote}";
         }
     }
 
@@ -4699,12 +4684,12 @@ public partial class CareerHubScreen : Control
         if (_controller.HasDueContinentalMatch())
         {
             _playButton.Disabled = false;
-            _playButton.Text = "⭐ Avrupa Maçına Çık";
+            _playButton.Text = "AVRUPA MAÇINA ÇIK";
             CareerUiTheme.StyleAccentButton(_playButton);
         }
         else
         {
-            _playButton.Disabled = dueMatchCount == 0;
+            _playButton.Disabled = false;
             var tension = _controller.GetPromiseTensionForNextDueMatch(currentDay);
             var atRisk = tension is
             {
@@ -4713,12 +4698,12 @@ public partial class CareerHubScreen : Control
             };
 
             _playButton.Text = dueMatchCount == 0
-                ? "Maç Gününe Git"
+                ? "MAÇA ÇIK"
                 : selectionBlocksPlay
-                    ? $"✓ Kadro Onayla & Maça Git ({dueMatchCount})"
+                    ? $"KADRO ONAYLA & MAÇA ÇIK ({dueMatchCount})"
                     : atRisk
-                        ? $"Maç Gününe Git ({dueMatchCount}) · söz riski"
-                        : $"Maç Gününe Git ({dueMatchCount})";
+                        ? $"MAÇA ÇIK ({dueMatchCount}) · SÖZ RİSKİ"
+                        : $"MAÇA ÇIK ({dueMatchCount})";
             CareerUiTheme.StylePrimaryButton(_playButton);
         }
 
@@ -4827,18 +4812,16 @@ public partial class CareerHubScreen : Control
         var hasContinentalMatch = _controller.HasDueContinentalMatch();
         var canAdvance = _controller.CanAdvanceTime();
 
-        // Tek birincil eylem: Devam (ContinueFlowGuide). Maç/onay/sezon/ilerleme düğmeleri onun kapsamında.
         _approveSelectionButton.Visible = false;
         _seasonTransitionButton.Visible = false;
         _advanceWeekButton.Visible = false;
-        _playButton.Visible = false;
-        _officeNextStepButton.Visible = _continueStep is not null;
+        _playButton.Visible = true;
+        _officeNextStepButton.Visible = _continueStep is not null && pendingMatch is null && !hasContinentalMatch;
         if (_todayDecisionPanel is not null)
         {
             _todayDecisionPanel.Visible = _controller.GetPendingDecisions(take: 1).OpenCount > 0;
         }
 
-        // İkincil hassas kontroller: maç günü XI↔Yedek, sakin günlerde tek gün ilerletme.
         _swapSelectionButton.Visible = pendingMatch is not null;
         _advanceDayButton.Visible =
             canAdvance
@@ -4868,14 +4851,14 @@ public partial class CareerHubScreen : Control
             RefreshPlayerDetail();
             RefreshClubPitch(Array.Empty<PlayerManagementLine>());
 
-            _squadOvrBadgeLabel.Text = "⭐ Güç —";
-            _squadCapacityBadgeLabel.Text = "👥 Kadro: 0 / 25";
-            _squadAvgAgeBadgeLabel.Text = "🎂 Yaş —";
-            _squadTotalValueBadgeLabel.Text = "💰 Değer —";
-            _squadWageBillBadgeLabel.Text = "💵 Maaş —";
+            _squadOvrBadgeLabel.Text = "Güç —";
+            _squadCapacityBadgeLabel.Text = "Kadro: 0 / 25";
+            _squadAvgAgeBadgeLabel.Text = "Yaş —";
+            _squadTotalValueBadgeLabel.Text = "Değer —";
+            _squadWageBillBadgeLabel.Text = "Maaş —";
             if (_squadFacilityBadgeLabel is not null)
             {
-                _squadFacilityBadgeLabel.Text = "🏗️ Tesis —";
+                _squadFacilityBadgeLabel.Text = "Tesis —";
                 _clubFacilityLevelLabel.Text = "Kulüp görevi yok.";
                 _clubFacilityMultiplierLabel.Text = "Antrenman çarpanı: —";
                 _clubFacilityCostLabel.Text = "İşsiz durumda tesis geliştirilemez.";
@@ -4897,9 +4880,9 @@ public partial class CareerHubScreen : Control
         var club = _controller.GetClub(clubId);
         if (club is not null && _clubFacilityLevelLabel is not null)
         {
-            _squadFacilityBadgeLabel.Text = $"🏗️ Tesis: Lv {club.FacilityLevel}/5 (x{club.FacilityTrainingMultiplier:0.00})";
-            _clubFacilityLevelLabel.Text = $"🏗️ {club.DisplayName} Tesis & Altyapı: Seviye {club.FacilityLevel} / 5";
-            _clubFacilityMultiplierLabel.Text = $"⚡ Antrenman & Gelişim Çarpanı: x{club.FacilityTrainingMultiplier:0.00} (+{(int)Math.Round((club.FacilityTrainingMultiplier - 1.0) * 100)}% hızlandırılmış oyuncu gelişimi)";
+            _squadFacilityBadgeLabel.Text = $"Tesis: Lv {club.FacilityLevel}/5 (x{club.FacilityTrainingMultiplier:0.00})";
+            _clubFacilityLevelLabel.Text = $"{club.DisplayName} Tesis & Altyapı: Seviye {club.FacilityLevel} / 5";
+            _clubFacilityMultiplierLabel.Text = $"Antrenman & Gelişim Çarpanı: x{club.FacilityTrainingMultiplier:0.00} (+{(int)Math.Round((club.FacilityTrainingMultiplier - 1.0) * 100)}% hızlandırılmış oyuncu gelişimi)";
             if (_clubCultureLabel is not null)
             {
                 var culture = _controller.GetClubCulture();
@@ -4907,19 +4890,19 @@ public partial class CareerHubScreen : Control
                 var rumors = _controller.BuildActiveLockerRoomRumors();
                 var lines = new List<string>
                 {
-                    $"🏟️ Kompleks: {ClubCampusVisualUi.CustomStadiumTitle} · {ClubCampusVisualUi.CustomNorthStandName}",
+                    $"Kompleks: {ClubCampusVisualUi.CustomStadiumTitle} · {ClubCampusVisualUi.CustomNorthStandName}",
                 };
                 if (culture is not null)
                 {
-                    lines.Add($"🏛️ Kulüp Kimliği: {culture.PhilosophySummary}");
+                    lines.Add($"Kulüp Kimliği: {culture.PhilosophySummary}");
                 }
                 if (climate is not null)
                 {
-                    lines.Add($"🤝 Soyunma Odası İklimi: {climate.ClimateStateTurkish} (Uyum %{climate.HarmonyScore} · Gerilim %{climate.FrictionScore})");
+                    lines.Add($"Soyunma Odası İklimi: {climate.ClimateStateTurkish} (Uyum %{climate.HarmonyScore} · Gerilim %{climate.FrictionScore})");
                 }
                 if (rumors.TotalActiveCount > 0)
                 {
-                    lines.Add($"🗣️ Kulis ({rumors.TotalActiveCount}): {rumors.ActiveRumors[0].NarrativeText}");
+                    lines.Add($"Kulis ({rumors.TotalActiveCount}): {rumors.ActiveRumors[0].NarrativeText}");
                 }
                 _clubCultureLabel.Text = string.Join("\n", lines);
             }
@@ -4928,18 +4911,18 @@ public partial class CareerHubScreen : Control
             string upgradeBtnText;
             if (club.FacilityLevel >= 5)
             {
-                _clubFacilityCostLabel.Text = "⭐ Tesisler maksimum seviyede (Dünya Standartlarında Altyapı).";
+                _clubFacilityCostLabel.Text = "Tesisler maksimum seviyede (Dünya Standartlarında Altyapı).";
                 _upgradeFacilityButton.Disabled = true;
-                upgradeBtnText = "✅ Maksimum Kampüs (5/5)";
+                upgradeBtnText = "Maksimum Kampüs (5/5)";
                 _upgradeFacilityButton.Text = upgradeBtnText;
             }
             else
             {
-                _clubFacilityCostLabel.Text = $"💰 Sonraki Seviye Maliyeti: ₺{club.NextFacilityUpgradeCost:N0} · Mevcut Bütçe: ₺{club.AvailableTransferFunds:N0}";
+                _clubFacilityCostLabel.Text = $"Sonraki Seviye Maliyeti: {club.NextFacilityUpgradeCost:N0} TRY · Mevcut Bütçe: {club.AvailableTransferFunds:N0} TRY";
                 _upgradeFacilityButton.Disabled = !canUpgradeFacility;
                 upgradeBtnText = canUpgradeFacility
-                    ? $"🏗️ Kampüsü Lv.{club.FacilityLevel + 1} Yap (₺{club.NextFacilityUpgradeCost:N0})"
-                    : $"⚠️ Yetersiz Bütçe (₺{club.NextFacilityUpgradeCost:N0})";
+                    ? $"Kampüsü Lv.{club.FacilityLevel + 1} Yap ({club.NextFacilityUpgradeCost:N0} TRY)"
+                    : $"Yetersiz Bütçe ({club.NextFacilityUpgradeCost:N0} TRY)";
                 _upgradeFacilityButton.Text = upgradeBtnText;
             }
 
@@ -4971,7 +4954,7 @@ public partial class CareerHubScreen : Control
         if (_squadChemistryBadgeLabel is not null)
         {
             var chemistry = _controller.GetTeamChemistry();
-            _squadChemistryBadgeLabel.Text = $"👥 Kimya: %{chemistry.ChemistryScore} ({chemistry.ChemistryBand})";
+            _squadChemistryBadgeLabel.Text = $"Kimya: %{chemistry.ChemistryScore} ({chemistry.ChemistryBand})";
             _squadChemistryBadgePanel.TooltipText = $"Takım Kimyası: %{chemistry.ChemistryScore}\n{chemistry.NarrativeSummary}\nMaçta etkili olan: doğal mevki/rol uyumu (Taktik ekranı).";
         }
 
@@ -4984,15 +4967,15 @@ public partial class CareerHubScreen : Control
         var totalWage = management.Players.Sum(p => p.WeeklyWage ?? 0);
         var totalMarketValue = management.Players.Sum(p => (long)EstimateSquadPlayerMarketValue(p, avgRating));
 
-        _squadOvrBadgeLabel.Text = $"⭐ Güç {avgRating}";
-        _squadCapacityBadgeLabel.Text = $"👥 {squadCount}/{capacity.MaxMembers}";
-        _squadAvgAgeBadgeLabel.Text = $"🎂 {avgAge:0.0}";
+        _squadOvrBadgeLabel.Text = $"Güç {avgRating}";
+        _squadCapacityBadgeLabel.Text = $"Kadro {squadCount}/{capacity.MaxMembers}";
+        _squadAvgAgeBadgeLabel.Text = $"Yaş {avgAge:0.0}";
         _squadTotalValueBadgeLabel.Text = totalMarketValue >= 1_000_000
-            ? $"💰 {(double)totalMarketValue / 1_000_000:0.0}M"
-            : $"💰 {totalMarketValue:N0}";
+            ? $"Değer {(double)totalMarketValue / 1_000_000:0.0}M"
+            : $"Değer {totalMarketValue:N0}";
         _squadWageBillBadgeLabel.Text = totalWage >= 1_000_000
-            ? $"💵 {(double)totalWage / 1_000_000:0.00}M/hf"
-            : $"💵 {totalWage:N0}/hf";
+            ? $"Maaş {(double)totalWage / 1_000_000:0.00}M/hf"
+            : $"Maaş {totalWage:N0}/hf";
 
         // 2. Yıldız Oyuncu Vitrini (Top 3 Stars)
         var topStars = management.Players
@@ -5010,7 +4993,7 @@ public partial class CareerHubScreen : Control
                 _starPlayerIds[i] = star.PlayerId;
                 _starPosBadges[i].Text = $"[{star.PositionCode}]";
                 _starPosBadges[i].AddThemeColorOverride("font_color", CareerUiTheme.PositionGroupColor(star.PositionCode));
-                _starRatingBadges[i].Text = $"⭐ {star.Rating} GÜÇ";
+                _starRatingBadges[i].Text = $"{star.Rating} GÜÇ";
                 _starNameLabels[i].Text = star.DisplayName;
                 var starVal = EstimateSquadPlayerMarketValue(star, avgRating);
                 var valStr = starVal >= 1_000_000 ? $"{(double)starVal / 1_000_000:0.0}M TRY" : $"{starVal:N0} TRY";
@@ -5038,12 +5021,12 @@ public partial class CareerHubScreen : Control
         {
             var availabilityIndicator = player.Availability == "Hazır"
                 ? string.Empty
-                : $" · ⚠ {player.Availability}";
+                : $" · [{player.Availability}]";
 
             var newBadge = player.PlayerId == _newTransferPlayerId ? " · YENİ" : string.Empty;
             var estVal = EstimateSquadPlayerMarketValue(player, avgRating);
-            var valTag = estVal >= 1_000_000 ? $"{(double)estVal / 1_000_000:0.0}M ₺" : $"{estVal / 1_000:N0}B ₺";
-            var formattedLine = $"#{player.SquadNumber,2}  [{player.PositionCode}]  {player.DisplayName} ({player.Age})  ·  ⭐ {player.Rating} ⚡ %{player.Fitness}  ·  💰 {valTag}{newBadge}{availabilityIndicator}";
+            var valTag = estVal >= 1_000_000 ? $"{(double)estVal / 1_000_000:0.0}M TRY" : $"{estVal / 1_000:N0}B TRY";
+            var formattedLine = $"#{player.SquadNumber,2}  [{player.PositionCode}]  {player.DisplayName} ({player.Age})  ·  OVR {player.Rating}  ·  FIT %{player.Fitness}  ·  {valTag}{newBadge}{availabilityIndicator}";
             _squadList.AddItem(formattedLine);
             if (player.PlayerId == _newTransferPlayerId)
             {
@@ -5096,6 +5079,7 @@ public partial class CareerHubScreen : Control
                         PlayInterfaceFeedback(MatchAudioCue.Button, 12);
                         _selectedPlayerId = pid;
                         RefreshSquadList();
+                        OpenPlayerCardBottomSheet(pid);
                     },
                     onOpenProfile: pid =>
                     {
@@ -5164,67 +5148,67 @@ public partial class CareerHubScreen : Control
 
         if (avgRating >= 75)
         {
-            AddSwotItem(_swotStrengthsVBox, $"✓ Kadro reyting ortalaması ({avgRating}) lig standartlarında üst düzey rekabetçi seviyede.", CareerUiTheme.ActionBright);
+            AddSwotItem(_swotStrengthsVBox, $"+ Kadro reyting ortalaması ({avgRating}) lig standartlarında üst düzey rekabetçi seviyede.", CareerUiTheme.ActionBright);
         }
         else
         {
-            AddSwotItem(_swotStrengthsVBox, $"✓ Kadro genelinde yüksek dinamizm ve gelişim potansiyeli hakim ({avgRating} OVR).", CareerUiTheme.ActionBright);
+            AddSwotItem(_swotStrengthsVBox, $"+ Kadro genelinde yüksek dinamizm ve gelişim potansiyeli hakim ({avgRating} OVR).", CareerUiTheme.ActionBright);
         }
 
         var youngPlayers = management.Players.Count(p => p.Age <= 23);
         if (youngPlayers > 0)
         {
-            AddSwotItem(_swotStrengthsVBox, $"✓ As takımda {youngPlayers} adet 23 yaş ve altı gelecek vadeden genç yetenek mevcut.", CareerUiTheme.ActionBright);
+            AddSwotItem(_swotStrengthsVBox, $"+ As takımda {youngPlayers} adet 23 yaş ve altı gelecek vadeden genç yetenek mevcut.", CareerUiTheme.ActionBright);
         }
 
         var topGk = management.Players.Where(p => p.PositionCode is "KL" or "GK").OrderByDescending(p => p.Rating).FirstOrDefault();
         if (topGk is not null && topGk.Rating >= 72)
         {
-            AddSwotItem(_swotStrengthsVBox, $"✓ Kalede {topGk.DisplayName} ({topGk.Rating} GÜÇ) ile güven veren 1. kaleci hattı.", CareerUiTheme.ActionBright);
+            AddSwotItem(_swotStrengthsVBox, $"+ Kalede {topGk.DisplayName} ({topGk.Rating} GÜÇ) ile güven veren 1. kaleci hattı.", CareerUiTheme.ActionBright);
         }
 
         if (management.Players.Count is >= 20 and <= 25)
         {
-            AddSwotItem(_swotStrengthsVBox, $"✓ Kadro büyüklüğü ({management.Players.Count}/25) ideal operasyonel rotasyon dengesinde.", CareerUiTheme.ActionBright);
+            AddSwotItem(_swotStrengthsVBox, $"+ Kadro büyüklüğü ({management.Players.Count}/25) ideal operasyonel rotasyon dengesinde.", CareerUiTheme.ActionBright);
         }
 
         var hasWeakness = false;
         if (overview.Signals.Any(s => s.Code == SquadOverviewDigest.SignalDepth))
         {
-            AddSwotItem(_swotWeaknessesVBox, "✕ Mevki derinliğinde boşluk tespit edildi: Rotasyon alternatifleri kısıtlı.", CareerUiTheme.DangerSoft);
+            AddSwotItem(_swotWeaknessesVBox, "- Mevki derinliğinde boşluk tespit edildi: Rotasyon alternatifleri kısıtlı.", CareerUiTheme.DangerSoft);
             hasWeakness = true;
         }
 
         var fatCount = management.Players.Count(p => p.HasFatigueRisk);
         if (fatCount > 0)
         {
-            AddSwotItem(_swotWeaknessesVBox, $"⚠️ {fatCount} as oyuncuda aşırı maç yorgunluğu tespit edildi (Dinlendirme önerilir).", CareerUiTheme.ColorWarning);
+            AddSwotItem(_swotWeaknessesVBox, $"! {fatCount} as oyuncuda aşırı maç yorgunluğu tespit edildi (Dinlendirme önerilir).", CareerUiTheme.ColorWarning);
             hasWeakness = true;
         }
 
         var promCount = management.Players.Count(p => p.HasPromiseRisk);
         if (promCount > 0)
         {
-            AddSwotItem(_swotWeaknessesVBox, $"⚠️ {promCount} oyuncu ile verilen söz risk altında (Moral/ilişki kaybı riski).", CareerUiTheme.ColorWarning);
+            AddSwotItem(_swotWeaknessesVBox, $"! {promCount} oyuncu ile verilen söz risk altında (Moral/ilişki kaybı riski).", CareerUiTheme.ColorWarning);
             hasWeakness = true;
         }
 
         var injCount = management.Players.Count(p => p.IsInjured);
         if (injCount > 0)
         {
-            AddSwotItem(_swotWeaknessesVBox, $"🩹 {injCount} oyuncu sakatlığı nedeniyle maç kadrosunda yer alamıyor.", CareerUiTheme.DangerSoft);
+            AddSwotItem(_swotWeaknessesVBox, $"- {injCount} oyuncu sakatlığı nedeniyle maç kadrosunda yer alamıyor.", CareerUiTheme.DangerSoft);
             hasWeakness = true;
         }
 
         if (capacity.IsOverCapacity)
         {
-            AddSwotItem(_swotWeaknessesVBox, $"⚠️ {capacity.OverflowPlayerIds.Count} oyuncu sözleşme kotası fazlası (Kadro dışı).", CareerUiTheme.ColorWarning);
+            AddSwotItem(_swotWeaknessesVBox, $"! {capacity.OverflowPlayerIds.Count} oyuncu sözleşme kotası fazlası (Kadro dışı).", CareerUiTheme.ColorWarning);
             hasWeakness = true;
         }
 
         if (!hasWeakness)
         {
-            AddSwotItem(_swotWeaknessesVBox, "✓ Şu anda kadroda kritik bir derinlik açığı veya acil risk bulunmuyor.", CareerUiTheme.InkMuted);
+            AddSwotItem(_swotWeaknessesVBox, "+ Şu anda kadroda kritik bir derinlik açığı veya acil risk bulunmuyor.", CareerUiTheme.InkMuted);
         }
     }
 
@@ -5438,7 +5422,7 @@ public partial class CareerHubScreen : Control
                 {
                     managedIndex = i;
                 }
-                var prefix = isManaged ? "⭐ " : "   ";
+                var prefix = isManaged ? "[KULÜP] " : "   ";
                 var fixtureLine = f.IsPlayed
                     ? $"{prefix}[E] {f.HomeClubName,-14}  {f.HomeScore} - {f.AwayScore}  {f.AwayClubName,14} [D] · {f.StageName} (Gün {f.ScheduledDayNumber})"
                     : $"{prefix}[E] {f.HomeClubName,-14}    vs    {f.AwayClubName,14} [D] · {f.StageName} (Gün {f.ScheduledDayNumber})";
@@ -5487,7 +5471,7 @@ public partial class CareerHubScreen : Control
             {
                 managedFixtureIndex = i;
             }
-            var prefix = isManaged ? "⭐ " : "   ";
+            var prefix = isManaged ? "[KULÜP] " : "   ";
             var isPlayed = fixture.HomeGoals.HasValue && fixture.AwayGoals.HasValue;
             var fixtureLine = isPlayed
                 ? $"{prefix}[E] {home,-14}  {fixture.HomeGoals} - {fixture.AwayGoals}  {away,14} [D] · {fixture.ScheduledIsoDate} · Oynandı"
@@ -5541,11 +5525,11 @@ public partial class CareerHubScreen : Control
                 ? (isHome ? " · [Kulübünüz Ev Sahibi]" : " · [Kulübünüz Deplasman]")
                 : string.Empty;
 
-            _worldFixtureDetailLabel.Text = $"⭐ {f.StageName} · Takvim Günü: {f.ScheduledDayNumber}{roleText}\n{statusText}\nGalibiyet Primi: +3.500.000 TRY · Beraberlik Primi: +1.200.000 TRY";
+            _worldFixtureDetailLabel.Text = $"{f.StageName} · Takvim Günü: {f.ScheduledDayNumber}{roleText}\n{statusText}\nGalibiyet Primi: +3.500.000 TRY · Beraberlik Primi: +1.200.000 TRY";
 
             _worldFixturePrepButton.Visible = isManagedFixture && !f.IsPlayed;
-            _worldFixtureHomeInspectButton.Text = $"🏠 {f.HomeClubName} İncele";
-            _worldFixtureAwayInspectButton.Text = $"✈️ {f.AwayClubName} İncele";
+            _worldFixtureHomeInspectButton.Text = $"[EV] {f.HomeClubName} İncele";
+            _worldFixtureAwayInspectButton.Text = $"[DEP] {f.AwayClubName} İncele";
             _worldFixtureDetailCard.Visible = true;
             return;
         }
@@ -5583,8 +5567,8 @@ public partial class CareerHubScreen : Control
         _worldFixtureDetailLabel.Text = $"Hafta {fixture.Round} · Tarih: {fixture.ScheduledIsoDate}{domRoleText}\n{domStatusText}";
 
         _worldFixturePrepButton.Visible = isManaged && fixture.Status == nameof(FixtureStatus.Planned);
-        _worldFixtureHomeInspectButton.Text = $"🏠 {homeName} İncele";
-        _worldFixtureAwayInspectButton.Text = $"✈️ {awayName} İncele";
+        _worldFixtureHomeInspectButton.Text = $"[EV] {homeName} İncele";
+        _worldFixtureAwayInspectButton.Text = $"[DEP] {awayName} İncele";
         _worldFixtureDetailCard.Visible = true;
     }
 
@@ -5686,20 +5670,20 @@ public partial class CareerHubScreen : Control
         if (EuropeanElite202627DataPack.TryGetClub(clubId, out var euroElite))
         {
             var stars = string.Join(", ", euroElite.Players.OrderByDescending(p => p.CurrentAbility ?? 75).Take(4).Select(p => $"{p.DisplayName} ({p.CurrentAbility ?? 75})"));
-            _worldClubHeadlineLabel.Text = $"{euroElite.OfficialName} ({euroElite.ShortCode}) · {euroElite.Country} · Güç: ⭐ {euroElite.SportiveStrength} / 100";
-            _worldClubBadgeLabel.Text = $"⭐ AVRUPA DEVİ ({euroElite.LeagueName})";
+            _worldClubHeadlineLabel.Text = $"{euroElite.OfficialName} ({euroElite.ShortCode}) · {euroElite.Country} · Güç: {euroElite.SportiveStrength} / 100";
+            _worldClubBadgeLabel.Text = $"AVRUPA DEVİ ({euroElite.LeagueName})";
             _worldClubBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
 
-            _worldClubRatingBadgeLabel.Text = $"⭐ Güç: {euroElite.SportiveStrength} / 100";
+            _worldClubRatingBadgeLabel.Text = $"Güç: {euroElite.SportiveStrength} / 100";
             _worldClubRatingBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.RatingBadgePanel(euroElite.SportiveStrength));
-            _worldClubThreatBadgeLabel.Text = $"🌍 {euroElite.Country} ({euroElite.LeagueName})";
+            _worldClubThreatBadgeLabel.Text = $"{euroElite.Country} ({euroElite.LeagueName})";
             CareerUiTheme.StyleEyebrow(_worldClubThreatBadgeLabel, CareerUiTheme.Accent);
             _worldClubThreatBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.20f));
             _worldClubThreatBadgePanel.Visible = true;
 
-            _worldClubPerformanceLabel.Text = $"🌍 AVRUPA KULÜP DOSYASI\nÜlke / Lig: {euroElite.Country} ({euroElite.LeagueName})\nTransfer Bütçe Limiti: {euroElite.TransferBudgetLimit:N0} TRY\nSportif Güç: ⭐ {euroElite.SportiveStrength} / 100\nÖne Çıkan Yıldızlar: {stars}";
+            _worldClubPerformanceLabel.Text = $"AVRUPA KULÜP DOSYASI\nÜlke / Lig: {euroElite.Country} ({euroElite.LeagueName})\nTransfer Bütçe Limiti: {euroElite.TransferBudgetLimit:N0} TRY\nSportif Güç: {euroElite.SportiveStrength} / 100\nÖne Çıkan Yıldızlar: {stars}";
 
-            _worldClubThreatLabel.Text = $"⚔️ KADRO VE TEHDİT ANALİZİ\nAvrupa Elit Kulübü ({euroElite.Players.Count} Kayıtlı Yıldız Oyuncu)\nKulüp Kodu: {euroElite.ShortCode}\nUluslararası Güç Puanı: ⭐ {euroElite.SportiveStrength} / 100";
+            _worldClubThreatLabel.Text = $"KADRO VE TEHDİT ANALİZİ\nAvrupa Elit Kulübü ({euroElite.Players.Count} Kayıtlı Yıldız Oyuncu)\nKulüp Kodu: {euroElite.ShortCode}\nUluslararası Güç Puanı: {euroElite.SportiveStrength} / 100";
 
             var euroEngine = _controller.GetOrInitContinentalTournament();
             var managedId = _controller.GetEmployedClubId();
@@ -5710,12 +5694,12 @@ public partial class CareerHubScreen : Control
             foreach (var f in euroH2H)
             {
                 var played = f.IsPlayed ? $"{f.HomeScore} - {f.AwayScore} (Oynandı)" : "Henüz oynanmadı";
-                h2hLines.Add($"⭐ {f.StageName}: {f.HomeClubName} vs {f.AwayClubName} · {played}");
+                h2hLines.Add($"{f.StageName}: {f.HomeClubName} vs {f.AwayClubName} · {played}");
             }
 
             _worldClubHeadToHeadLabel.Text = h2hLines.Count > 0
-                ? "🤝 AVRUPA MÜSABAKALARI\n" + string.Join("\n", h2hLines)
-                : "🤝 AVRUPA MÜSABAKALARI\nBu sezon henüz bu takımla eşleşme kaydı bulunmuyor.";
+                ? "AVRUPA MÜSABAKALARI\n" + string.Join("\n", h2hLines)
+                : "AVRUPA MÜSABAKALARI\nBu sezon henüz bu takımla eşleşme kaydı bulunmuyor.";
 
             _worldClubPrepButton.Visible = false;
             _worldClubTransferButton.Visible = true;
@@ -5741,23 +5725,23 @@ public partial class CareerHubScreen : Control
         var managedClubId = _controller.GetEmployedClubId();
         var isManagedClub = managedClubId.HasValue && managedClubId.Value == clubId;
 
-        _worldClubHeadlineLabel.Text = $"{clubName} · Kadro Gücü: ⭐ {club?.SportiveStrength ?? 50} / 100";
+        _worldClubHeadlineLabel.Text = $"{clubName} · Kadro Gücü: {club?.SportiveStrength ?? 50} / 100";
 
         var strength = club?.SportiveStrength ?? 50;
-        _worldClubRatingBadgeLabel.Text = $"⭐ Güç: {strength} / 100";
+        _worldClubRatingBadgeLabel.Text = $"Güç: {strength} / 100";
         _worldClubRatingBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.RatingBadgePanel(strength));
 
         if (dossier is not null)
         {
             var (threatText, threatColor) = dossier.ThreatKind switch
             {
-                OpponentThreatKind.WinningStreak => ("🔥 Galibiyet Serisi", CareerUiTheme.Accent),
-                OpponentThreatKind.ProductiveAttack => ("⚡ Golcü Hücum", CareerUiTheme.ActionBright),
-                OpponentThreatKind.SquadQuality => ("⭐ Yüksek Kadro Kalitesi", CareerUiTheme.Accent),
-                OpponentThreatKind.TopZoneTempo => ("🚀 Yüksek Tempo", CareerUiTheme.ActionBright),
-                OpponentThreatKind.DefensiveResistance => ("🛡️ Sert Savunma", CareerUiTheme.Data),
-                OpponentThreatKind.LosingStreak => ("⚠️ Düşüş Formunda", CareerUiTheme.ColorWarning),
-                _ => ("⚖️ Dengeli Eşleşme", CareerUiTheme.Stroke),
+                OpponentThreatKind.WinningStreak => ("Galibiyet Serisi", CareerUiTheme.Accent),
+                OpponentThreatKind.ProductiveAttack => ("Golcü Hücum", CareerUiTheme.ActionBright),
+                OpponentThreatKind.SquadQuality => ("Yüksek Kadro Kalitesi", CareerUiTheme.Accent),
+                OpponentThreatKind.TopZoneTempo => ("Yüksek Tempo", CareerUiTheme.ActionBright),
+                OpponentThreatKind.DefensiveResistance => ("Sert Savunma", CareerUiTheme.Data),
+                OpponentThreatKind.LosingStreak => ("Düşüş Formunda", CareerUiTheme.ColorWarning),
+                _ => ("Dengeli Eşleşme", CareerUiTheme.Stroke),
             };
             _worldClubThreatBadgeLabel.Text = threatText;
             CareerUiTheme.StyleEyebrow(_worldClubThreatBadgeLabel, threatColor);
@@ -5771,17 +5755,17 @@ public partial class CareerHubScreen : Control
 
         if (isNextOpponent)
         {
-            _worldClubBadgeLabel.Text = "🎯 SIRADAKİ RAKİBİNİZ (Yaklaşan Müsabaka — Taktik Hazırlığı Yapabilirsiniz)";
+            _worldClubBadgeLabel.Text = "SIRADAKİ RAKİBİNİZ (Yaklaşan Müsabaka — Taktik Hazırlığı Yapabilirsiniz)";
             _worldClubBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         }
         else if (isManagedClub)
         {
-            _worldClubBadgeLabel.Text = "🛡️ ÇALIŞTIRDIĞINIZ KULÜP";
+            _worldClubBadgeLabel.Text = "ÇALIŞTIRDIĞINIZ KULÜP";
             _worldClubBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Data);
         }
         else if (standingRank.Rank == 1)
         {
-            _worldClubBadgeLabel.Text = "🏆 LİG LİDERİ";
+            _worldClubBadgeLabel.Text = "LİG LİDERİ";
             _worldClubBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         }
         else if (standingRank.Rank > 0)
@@ -5802,18 +5786,18 @@ public partial class CareerHubScreen : Control
             : string.Empty;
 
         _worldClubPerformanceLabel.Text = string.IsNullOrWhiteSpace(splitsLine)
-            ? $"📊 LİG & FORM PERFORMANSI\n{standingLine}\n{formLine}"
-            : $"📊 LİG & FORM PERFORMANSI\n{standingLine}\n{formLine}\n{splitsLine}";
+            ? $"LİG & FORM PERFORMANSI\n{standingLine}\n{formLine}"
+            : $"LİG & FORM PERFORMANSI\n{standingLine}\n{formLine}\n{splitsLine}";
 
         var strengthLine = isManagedClub
             ? $"Güç: Çalıştırdığınız kulüp ({club?.SportiveStrength ?? 50} puan)."
             : dossier?.StrengthLine ?? "Kadro dengeli.";
         var threatLine = dossier?.ThreatLine ?? "Tehdit verisi yok.";
-        _worldClubThreatLabel.Text = $"⚔️ GÖRELİ GÜÇ & OYUN KİMLİĞİ\n{strengthLine}\n{threatLine}";
+        _worldClubThreatLabel.Text = $"GÖRELİ GÜÇ & OYUN KİMLİĞİ\n{strengthLine}\n{threatLine}";
 
         if (isManagedClub)
         {
-            _worldClubHeadToHeadLabel.Text = "🤝 BU SEZONKİ KARŞILAŞMALAR\nKendi kulübünüzü inceliyorsunuz. Kadro derinliği ve taktik planı için KULÜP ve TAKTİK sekmelerini kullanabilirsiniz.";
+            _worldClubHeadToHeadLabel.Text = "BU SEZONKİ KARŞILAŞMALAR\nKendi kulübünüzü inceliyorsunuz. Kadro derinliği ve taktik planı için KULÜP ve TAKTİK sekmelerini kullanabilirsiniz.";
         }
         else
         {
@@ -5842,8 +5826,8 @@ public partial class CareerHubScreen : Control
             }
 
             _worldClubHeadToHeadLabel.Text = headToHeadLines.Count > 0
-                ? "🤝 BU SEZONKİ KARŞILAŞMALAR\n" + string.Join("\n", headToHeadLines)
-                : "🤝 BU SEZONKİ KARŞILAŞMALAR\nBu sezon henüz karşılaşma kaydı bulunmuyor.";
+                ? "BU SEZONKİ KARŞILAŞMALAR\n" + string.Join("\n", headToHeadLines)
+                : "BU SEZONKİ KARŞILAŞMALAR\nBu sezon henüz karşılaşma kaydı bulunmuyor.";
         }
 
         _worldClubPrepButton.Visible = isNextOpponent;
@@ -5873,11 +5857,11 @@ public partial class CareerHubScreen : Control
     private void RefreshContinentalStandings()
     {
         var digest = _controller.BuildContinentalTournamentDigest();
-        _leagueBriefingLabel.Text = $"⭐ {digest.TournamentTitle} · {digest.StageName}\nÖdül Havuzu: {digest.PrizeSummaryText}";
+        _leagueBriefingLabel.Text = $"{digest.TournamentTitle} · {digest.StageName}\nÖdül Havuzu: {digest.PrizeSummaryText}";
         _leagueStatisticsLabel.Text = "Gruplar: 4 Grup (A, B, C, D) · Her grupta 1 Süper Lig + 3 Avrupa Devi (Real Madrid, Man City, Bayern, PSG...)\nİlk 2 sırayı alan takımlar Çeyrek Final'e yükselir.\nGalibiyet Primi: +3.500.000 TRY · Beraberlik Primi: +1.200.000 TRY";
 
-        _leagueRoundBadgeLabel.Text = $"⭐ {digest.StageName}";
-        _leagueMatchesBadgeLabel.Text = "⚽ 4 Grup · 16 Kulüp";
+        _leagueRoundBadgeLabel.Text = digest.StageName;
+        _leagueMatchesBadgeLabel.Text = "4 Grup · 16 Kulüp";
         _attackLeaderClubLabel.Text = "Avrupa Eliti";
         _attackLeaderStatLabel.Text = "Şampiyonluk Mücadelesi";
         _defenseLeaderClubLabel.Text = "Grup Etabı";
@@ -5891,7 +5875,7 @@ public partial class CareerHubScreen : Control
             .FirstOrDefault(s => s.ClubId == managedClubId);
 
         _managedLeagueStatisticsLabel.Text = managedEntry is not null
-            ? $"Kulübünüz {managedEntry.ClubName}: {managedEntry.Points} Puan ({managedEntry.Won}G {managedEntry.Drawn}B {managedEntry.Lost}M · Averaj {managedEntry.GoalDifference:+0;-#;0}) · {(managedEntry.Rank <= 2 ? "🏆 İlk İkide (Üst Tur Hattı)" : "Grup Etabı Mücadelesi")}"
+            ? $"Kulübünüz {managedEntry.ClubName}: {managedEntry.Points} Puan ({managedEntry.Won}G {managedEntry.Drawn}B {managedEntry.Lost}M · Averaj {managedEntry.GoalDifference:+0;-#;0}) · {(managedEntry.Rank <= 2 ? "İlk İkide (Üst Tur Hattı)" : "Grup Etabı Mücadelesi")}"
             : "Kulübümüz Avrupa Şampiyonlar Kupası'nda mücadele ediyor.";
 
         _standingsTable.Clear();
@@ -5940,8 +5924,8 @@ public partial class CareerHubScreen : Control
                     compactRowToSelect = compactIndex;
                 }
 
-                var rankText = index < 2 ? $"⭐ {index + 1}" : $"   {index + 1}";
-                var clubDisplayName = managedClubId == entry.ClubId ? $"🛡️ {entry.ClubName}" : entry.ClubName;
+                var rankText = index < 2 ? $"▌{index + 1}" : $"  {index + 1}";
+                var clubDisplayName = managedClubId == entry.ClubId ? $"[KULÜP] {entry.ClubName}" : entry.ClubName;
 
                 var values = new[]
                 {
@@ -6025,14 +6009,14 @@ public partial class CareerHubScreen : Control
         }
 
         var roundNum = (int)_roundSelector.Value;
-        _leagueRoundBadgeLabel.Text = $"📅 Hafta {roundNum} / {CompetitionMvpConstraints.MaxLeagueFixtureRound}";
+        _leagueRoundBadgeLabel.Text = $"Hafta {roundNum} / {CompetitionMvpConstraints.MaxLeagueFixtureRound}";
 
         var allFixtures = _controller.GetSeasonFixtures(season.SeasonId);
         var playedMatches = allFixtures.Count(f => f.HomeGoals.HasValue);
         var totalGoals = allFixtures.Where(f => f.HomeGoals.HasValue).Sum(f => f.HomeGoals!.Value + f.AwayGoals!.Value);
         _leagueMatchesBadgeLabel.Text = playedMatches > 0
-            ? $"⚽ {playedMatches} Maç · {(double)totalGoals / playedMatches:0.00} Gol/Maç"
-            : "⚽ 0 Maç · — Gol/Maç";
+            ? $"{playedMatches} Maç · {(double)totalGoals / playedMatches:0.00} Gol/Maç"
+            : "0 Maç · — Gol/Maç";
 
         var managedClubId = _controller.GetEmployedClubId();
         var standings = _controller.GetStandings(season.SeasonId);
@@ -6105,14 +6089,14 @@ public partial class CareerHubScreen : Control
             var zoneColor = StandingsZoneColor(index, standings.Count);
             var rankDisplay = index switch
             {
-                0 => "▌🏆 1",
-                <= 3 => $"▌⭐ {index + 1}",
-                _ when index >= standings.Count - 3 => $"▌🔻 {index + 1}",
+                0 => "▌1",
+                <= 3 => $"▌{index + 1}",
+                _ when index >= standings.Count - 3 => $"▌{index + 1}",
                 _ => (index + 1).ToString(),
             };
 
             var clubNameText = _controller.GetClubDisplayName(entry.ClubId);
-            var clubDisplay = managedClubId == entry.ClubId ? $"🛡️ {clubNameText}" : clubNameText;
+            var clubDisplay = managedClubId == entry.ClubId ? $"[KULÜP] {clubNameText}" : clubNameText;
 
             var compactIndex = AddCompactStanding(
                 entry.ClubId,

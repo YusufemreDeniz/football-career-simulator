@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using FootballCareerSimulator.Application.TeamPreparation.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using Godot;
@@ -26,7 +29,7 @@ internal static class TacticalPitchBoardUi
             selectedSlotIndex: null,
             onPlayerSelected ?? (_ => { }),
             interactionEnabled: onPlayerSelected is not null,
-            playerButtonMinimumSize: new Vector2(78, 48),
+            playerButtonMinimumSize: new Vector2(68, 56),
             formation: formation)
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -60,7 +63,7 @@ internal static class TacticalPitchBoardUi
             selectedSlotIndex,
             selectPlayer,
             interactionEnabled,
-            new Vector2(72, 46),
+            new Vector2(68, 56),
             formation)
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -68,7 +71,7 @@ internal static class TacticalPitchBoardUi
             CustomMinimumSize = new Vector2(360, 226),
         };
 
-        // FM26 / SM27 tarzı Canlı Faz Görselleştirme Anahtarı (Topla Hücum Fazı ↔ Standart ↔ Topsuz Savunma Blok)
+        // Canlı Faz Görselleştirme Anahtarı (Topla Hücum Fazı ↔ Standart ↔ Topsuz Savunma Blok)
         var phaseToggleBar = new HBoxContainer
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -78,19 +81,19 @@ internal static class TacticalPitchBoardUi
 
         var phaseStandardBtn = new Button
         {
-            Text = "⚖️ Standart Diziliş",
+            Text = "Standart Diziliş",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 26),
         };
         var phaseInPossessionBtn = new Button
         {
-            Text = "⚽ Topla (Hücum Fazı)",
+            Text = "Topla (Hücum Fazı)",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 26),
         };
         var phaseOutPossessionBtn = new Button
         {
-            Text = "🛡️ Topsuz (Kilit Blok)",
+            Text = "Topsuz (Kilit Blok)",
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, 26),
         };
@@ -131,7 +134,7 @@ internal static class TacticalPitchBoardUi
             selectedSlotIndex,
             selectPlayer,
             interactionEnabled,
-            new Vector2(72, 46)));
+            new Vector2(68, 56)));
 
         return root;
     }
@@ -190,7 +193,7 @@ internal static class TacticalPitchBoardUi
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
             VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            CustomMinimumSize = new Vector2(0, 68),
+            CustomMinimumSize = new Vector2(0, 66),
         };
         root.AddChild(scroll);
         var bench = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
@@ -210,184 +213,127 @@ internal static class TacticalPitchBoardUi
         return root;
     }
 
+    /// <summary>
+    /// Kural 4: Oyuncular düz dikdörtgen/daire yerine; altında gölgesi olan, etrafında dairesel kondisyon
+    /// halkası (arc) bulunan ve içinde forma numarası yazan katmanlı jetonlar (PitchKitTokenButton) olarak çizilir.
+    /// </summary>
     internal static Button PlayerButton(
         SquadSelectionPlayerDigest player,
         bool selected,
         bool interactionEnabled,
         Vector2? minimumSize = null)
     {
-        var cardSize = minimumSize ?? new Vector2(88, 56);
-        var button = new Button
-        {
-            TooltipText = $"{player.DisplayName} · {player.PositionName} · Güç {player.Rating} · Kondisyon %{player.Fitness} · Yorgunluk +{player.Fatigue}"
-                + (player.IsAvailable ? string.Empty : " · [SAKAT]"),
-            Disabled = !interactionEnabled || (!player.IsAvailable && !player.IsStarter),
-            CustomMinimumSize = cardSize,
-            ClipContents = true,
-        };
-        CareerUiTheme.StylePitchChip(button, selected);
-
-        var margin = new MarginContainer
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        margin.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        margin.AddThemeConstantOverride("margin_left", 3);
-        margin.AddThemeConstantOverride("margin_top", 3);
-        margin.AddThemeConstantOverride("margin_right", 3);
-        margin.AddThemeConstantOverride("margin_bottom", 3);
-        button.AddChild(margin);
-
-        var cardBox = new VBoxContainer
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
-        };
-        cardBox.AddThemeConstantOverride("separation", 2);
-        margin.AddChild(cardBox);
-
-        // Row 1: [Position Badge] [Condition/Status Icon] [Rating Badge]
-        var topRow = new HBoxContainer
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
-        };
-        topRow.AddThemeConstantOverride("separation", 2);
-        cardBox.AddChild(topRow);
-
-        // Position Badge with Role Color
-        var posPanel = new PanelContainer
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
-        };
-        posPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.PositionBadgePanel(player.PositionCode));
-        var posLabel = new Label
-        {
-            Text = player.PositionCode,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
-        CareerUiTheme.ApplyDisplayFont(posLabel);
-        posLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
-        posLabel.AddThemeColorOverride("font_color", Colors.White);
-        posPanel.AddChild(posLabel);
-        topRow.AddChild(posPanel);
-
-        // Middle Status / Fitness symbol
-        var statusLabel = new Label
-        {
-            Text = !player.IsAvailable
-                ? "🩹"
-                : player.Fitness < 75
-                    ? "⚠️"
-                    : player.Fitness >= 90
-                        ? "⚡"
-                        : "•",
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-        };
-        statusLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(9));
-        statusLabel.AddThemeColorOverride("font_color", CareerUiTheme.FitnessColor(player.Fitness));
-        topRow.AddChild(statusLabel);
-
-        // Rating Badge with Tier Color
-        var ratingPanel = new PanelContainer
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
-        };
-        ratingPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.RatingBadgePanel(player.Rating));
-        var ratingLabel = new Label
-        {
-            Text = player.Rating.ToString(),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
-        CareerUiTheme.ApplyDisplayFont(ratingLabel);
-        ratingLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        ratingLabel.AddThemeColorOverride("font_color", CareerUiTheme.RatingColor(player.Rating));
-        ratingPanel.AddChild(ratingLabel);
-        topRow.AddChild(ratingPanel);
-
-        // Row 2: Condition progress bar & percent
-        var conditionRow = new HBoxContainer
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Center,
-        };
-        conditionRow.AddThemeConstantOverride("separation", 2);
-        cardBox.AddChild(conditionRow);
-
-        var fitnessBar = new ProgressBar
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            MinValue = 0,
-            MaxValue = 100,
-            Value = Math.Clamp(player.Fitness, 0, 100),
-            ShowPercentage = false,
-            CustomMinimumSize = new Vector2(34, 3),
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
-        };
-        var fitnessFill = new StyleBoxFlat
-        {
-            BgColor = CareerUiTheme.FitnessColor(player.Fitness),
-            CornerRadiusTopLeft = 2,
-            CornerRadiusTopRight = 2,
-            CornerRadiusBottomRight = 2,
-            CornerRadiusBottomLeft = 2,
-        };
-        var fitnessBg = new StyleBoxFlat
-        {
-            BgColor = new Color(0f, 0f, 0f, 0.45f),
-            CornerRadiusTopLeft = 2,
-            CornerRadiusTopRight = 2,
-            CornerRadiusBottomRight = 2,
-            CornerRadiusBottomLeft = 2,
-        };
-        fitnessBar.AddThemeStyleboxOverride("fill", fitnessFill);
-        fitnessBar.AddThemeStyleboxOverride("background", fitnessBg);
-        conditionRow.AddChild(fitnessBar);
-
-        var fitnessText = new Label
-        {
-            Text = $"%{player.Fitness}",
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Right,
-        };
-        CareerUiTheme.ApplyBodyFont(fitnessText);
-        fitnessText.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(9));
-        fitnessText.AddThemeColorOverride("font_color", CareerUiTheme.FitnessColor(player.Fitness));
-        conditionRow.AddChild(fitnessText);
-
-        // Row 3: Player Name Strip
-        var nameLabel = new Label
-        {
-            Text = ShortName(player.DisplayName),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
-            ClipText = true,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-        };
-        CareerUiTheme.ApplyBodyFont(nameLabel);
-        nameLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        nameLabel.AddThemeColorOverride("font_color", selected ? CareerUiTheme.ActionBright : CareerUiTheme.Ink);
-        cardBox.AddChild(nameLabel);
-
-        return button;
+        return new PitchKitTokenButton(player, selected, interactionEnabled, minimumSize ?? new Vector2(68, 56));
     }
 
     internal static string ShortName(string name)
     {
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return parts.Length > 1 ? parts[^1] : name;
+    }
+}
+
+/// <summary>
+/// Kural 4: Altında yumuşak gölgesi olan, etrafında dairesel kondisyon halkası (DrawArc) bulunan,
+/// içinde forma numarası yazan ve altında cam isim plakası taşıyan katmanlı forma jetonu.
+/// </summary>
+internal sealed partial class PitchKitTokenButton : Button
+{
+    private readonly SquadSelectionPlayerDigest _player;
+    private readonly bool _selected;
+
+    public PitchKitTokenButton(
+        SquadSelectionPlayerDigest player,
+        bool selected,
+        bool interactionEnabled,
+        Vector2 minSize)
+    {
+        _player = player;
+        _selected = selected;
+        CustomMinimumSize = minSize;
+        Flat = true;
+        Text = string.Empty;
+        Disabled = !interactionEnabled || (!player.IsAvailable && !player.IsStarter);
+        TooltipText = $"{player.DisplayName} · {player.PositionName} · Güç {player.Rating} · Kondisyon %{player.Fitness} · Yorgunluk +{player.Fatigue}"
+            + (player.IsAvailable ? string.Empty : " · [SAKAT]");
+    }
+
+    public override void _Draw()
+    {
+        var s = Size;
+        if (s.X <= 4f || s.Y <= 4f)
+        {
+            s = CustomMinimumSize;
+        }
+
+        var tokenCenter = new Vector2(s.X * 0.5f, s.Y * 0.38f);
+        var radius = Mathf.Min(s.X, s.Y) * 0.30f;
+        var posColor = CareerUiTheme.PositionGroupColor(_player.PositionCode);
+        var fitColor = _player.IsAvailable ? CareerUiTheme.FitnessColor(_player.Fitness) : CareerUiTheme.DangerSoft;
+
+        // 1. Alt gölge (Drop Shadow)
+        DrawCircle(tokenCenter + new Vector2(0f, 4f), radius + 3.5f, new Color(0f, 0f, 0f, 0.58f));
+
+        // Seçili oyuncu parlak halka (Neon Glow)
+        if (_selected)
+        {
+            DrawCircle(tokenCenter, radius + 6f, new Color(CareerUiTheme.ActionBright.R, CareerUiTheme.ActionBright.G, CareerUiTheme.ActionBright.B, 0.28f));
+            DrawArc(tokenCenter, radius + 5.5f, 0f, Mathf.Tau, 32, CareerUiTheme.ActionBright, 2.2f, true);
+        }
+
+        // 2. Dış dairesel kondisyon halkası arka planı + aktif yay (Fitness Arc)
+        DrawArc(tokenCenter, radius + 2.8f, 0f, Mathf.Tau, 28, new Color(0.03f, 0.06f, 0.10f, 0.88f), 3.0f, true);
+        var fitSweep = Mathf.Clamp(_player.Fitness / 100f, 0.06f, 1f) * Mathf.Tau;
+        DrawArc(tokenCenter, radius + 2.8f, -Mathf.Pi * 0.5f, -Mathf.Pi * 0.5f + fitSweep, 28, fitColor, 2.8f, true);
+
+        // 3. İç Forma Jetonu (Katmanlı Kalkan / Forma Dairesi)
+        DrawCircle(tokenCenter, radius, new Color(0.075f, 0.118f, 0.188f, 0.96f));
+        DrawCircle(tokenCenter, radius - 2f, new Color(posColor.R, posColor.G, posColor.B, 0.88f));
+        // Üst omuz/yaka parlaklığı
+        DrawArc(tokenCenter, radius - 2.5f, Mathf.Pi * 1.15f, Mathf.Pi * 1.85f, 16, new Color(1f, 1f, 1f, 0.42f), 2.0f, true);
+
+        var font = ThemeDB.FallbackFont;
+        if (font is not null)
+        {
+            // 4. İçinde forma numarası (SlotIndex 1..11 veya 12..18)
+            var shirtNo = (_player.SlotIndex + 1).ToString();
+            DrawString(
+                font,
+                new Vector2(tokenCenter.X - radius, tokenCenter.Y + 4.5f),
+                shirtNo,
+                HorizontalAlignment.Center,
+                radius * 2f,
+                12,
+                Colors.White);
+
+            // Sağ üstte küçük OVR rozeti
+            var ovrCenter = tokenCenter + new Vector2(radius * 0.85f, -radius * 0.72f);
+            DrawCircle(ovrCenter, 7.5f, new Color(0.04f, 0.07f, 0.12f, 0.96f));
+            DrawArc(ovrCenter, 7.5f, 0f, Mathf.Tau, 16, CareerUiTheme.RatingColor(_player.Rating), 1.3f, true);
+            DrawString(
+                font,
+                new Vector2(ovrCenter.X - 8f, ovrCenter.Y + 3.5f),
+                _player.Rating.ToString(),
+                HorizontalAlignment.Center,
+                16f,
+                8,
+                CareerUiTheme.RatingColor(_player.Rating));
+
+            // 5. Alt cam isim plakası
+            var plateRect = new Rect2(2f, s.Y - 16f, s.X - 4f, 14f);
+            DrawRect(plateRect, new Color(0.05f, 0.09f, 0.15f, 0.90f), true);
+            DrawLine(new Vector2(plateRect.Position.X, plateRect.Position.Y), new Vector2(plateRect.End.X, plateRect.Position.Y), _selected ? CareerUiTheme.ActionBright : CareerUiTheme.SpecularBorder, 1f);
+
+            var labelText = $"{_player.PositionCode} {TacticalPitchBoardUi.ShortName(_player.DisplayName)}";
+            DrawString(
+                font,
+                new Vector2(plateRect.Position.X + 2f, plateRect.Position.Y + 10.5f),
+                labelText,
+                HorizontalAlignment.Center,
+                plateRect.Size.X - 4f,
+                9,
+                _selected ? CareerUiTheme.ActionBright : CareerUiTheme.Ink);
+        }
     }
 }
 
@@ -538,7 +484,7 @@ internal sealed partial class TacticalPitchBoard : Control
     private readonly Vector2 _playerButtonMinimumSize;
     private readonly Formation _formation;
     private readonly List<(Button Button, Vector2 BasePosition)> _buttons = [];
-    private int _phaseMode; // 0: Standard, 1: In-Possession (Attacking), 2: Out-of-Possession (Compact Block)
+    private int _phaseMode;
 
     public TacticalPitchBoard(
         IReadOnlyList<SquadSelectionPlayerDigest> players,
@@ -552,9 +498,24 @@ internal sealed partial class TacticalPitchBoard : Control
         _selectedSlotIndex = selectedSlotIndex;
         _selectPlayer = selectPlayer;
         _interactionEnabled = interactionEnabled;
-        _playerButtonMinimumSize = playerButtonMinimumSize ?? new Vector2(88, 56);
+        _playerButtonMinimumSize = playerButtonMinimumSize ?? new Vector2(68, 56);
         _formation = formation;
         ClipContents = true;
+    }
+
+    /// <summary>
+    /// Normalize saha koordinatını (0..1, 0..1) hafif perspektifli (trapezoid) stadyum sahasına izdüşürür.
+    /// </summary>
+    private Vector2 ProjectToTrapezoid(Vector2 norm)
+    {
+        var topInset = Size.X * 0.085f;
+        var bottomInset = Size.X * 0.020f;
+        var yPad = Mathf.Max(8f, Size.Y * 0.03f);
+        var py = Mathf.Lerp(yPad, Size.Y - yPad, norm.Y);
+        var leftX = Mathf.Lerp(topInset, bottomInset, norm.Y);
+        var rightX = Mathf.Lerp(Size.X - topInset, Size.X - bottomInset, norm.Y);
+        var px = Mathf.Lerp(leftX, rightX, norm.X);
+        return new Vector2(px, py);
     }
 
     public void AnimateToPhaseMode(int mode)
@@ -569,7 +530,7 @@ internal sealed partial class TacticalPitchBoard : Control
         {
             var (button, basePos) = _buttons[i];
             var shifted = ComputePhasePosition(basePos, i, _phaseMode);
-            var target = new Vector2(shifted.X * Size.X, shifted.Y * Size.Y) - (button.Size * 0.5f);
+            var target = ProjectToTrapezoid(shifted) - (button.Size * 0.5f);
             tween.TweenProperty(button, "position", target, 0.28d);
         }
 
@@ -585,7 +546,6 @@ internal sealed partial class TacticalPitchBoard : Control
 
         if (phaseMode == 1)
         {
-            // Topla Hücum Fazı (IP): Takım boyu öne çıkar, bekler ve kanatlar çizgiye/ileriye bindirir
             var yShift = basePos.Y > 0.65f ? -0.11f : (basePos.Y > 0.40f ? -0.13f : -0.06f);
             var xSpread = basePos.X < 0.30f ? -0.04f : (basePos.X > 0.70f ? 0.04f : 0f);
             return new Vector2(
@@ -593,7 +553,6 @@ internal sealed partial class TacticalPitchBoard : Control
                 Mathf.Clamp(basePos.Y + yShift, 0.14f, 0.86f));
         }
 
-        // Topsuz Kilit Blok (OOP): Takım kendi yarı sahasında kompaktlaşır, hatlar birbirine yaklaşır
         var compactX = Mathf.Lerp(basePos.X, 0.50f, 0.22f);
         var compactY = Mathf.Clamp(basePos.Y + 0.12f, 0.32f, 0.84f);
         return new Vector2(compactX, compactY);
@@ -621,38 +580,53 @@ internal sealed partial class TacticalPitchBoard : Control
 
     public override void _Draw()
     {
-        var field = new Rect2(Vector2.Zero, Size);
-        // Zengin stadyum çimi arka planı
-        DrawRect(field, new Color(0.045f, 0.16f, 0.10f));
+        // Stadyum gece arka planı (#070B12)
+        DrawRect(new Rect2(Vector2.Zero, Size), CareerUiTheme.BackgroundDeep, true);
 
-        // Dönüşümlü çim biçim şeritleri
-        var stripeCount = 10;
-        var stripeHeight = Size.Y / stripeCount;
-        for (var stripe = 0; stripe < stripeCount; stripe += 2)
+        // Kural 4: Koyu zümrüt yeşili (#0A2E23 / #0D382B) çim şeritleri olan hafif perspektifli (trapezoid) stadyum sahası
+        var turfDark = new Color(0.0392f, 0.1804f, 0.1373f, 1f);  // #0A2E23
+        var turfLight = new Color(0.0510f, 0.2196f, 0.1686f, 1f); // #0D382B
+        const int stripeCount = 10;
+
+        for (var i = 0; i < stripeCount; i++)
         {
-            DrawRect(new Rect2(0, stripe * stripeHeight, Size.X, stripeHeight), new Color(0.06f, 0.20f, 0.12f));
+            var y0 = i / (float)stripeCount;
+            var y1 = (i + 1) / (float)stripeCount;
+            var pTopLeft = ProjectToTrapezoid(new Vector2(0f, y0));
+            var pTopRight = ProjectToTrapezoid(new Vector2(1f, y0));
+            var pBotRight = ProjectToTrapezoid(new Vector2(1f, y1));
+            var pBotLeft = ProjectToTrapezoid(new Vector2(0f, y1));
+            DrawColoredPolygon(
+                new Vector2[] { pTopLeft, pTopRight, pBotRight, pBotLeft },
+                i % 2 == 0 ? turfDark : turfLight);
         }
 
-        // Faz Odak Bölgesi Görselleştirmesi (SM27 / FM26 Taktiksel Isı Bölgeleri)
+        // Faz Odak Bölgesi Görselleştirmesi
         if (_phaseMode == 1)
         {
-            // Hücum 3. Bölge & Kanat Koridorları Isı Alanı
-            DrawRect(new Rect2(0, 0, Size.X, Size.Y * 0.42f), new Color(0.98f, 0.68f, 0.16f, 0.13f), filled: true);
-            DrawLine(new Vector2(0, Size.Y * 0.42f), new Vector2(Size.X, Size.Y * 0.42f), new Color(0.98f, 0.75f, 0.22f, 0.72f), 2f);
+            var h0 = ProjectToTrapezoid(new Vector2(0f, 0f));
+            var h1 = ProjectToTrapezoid(new Vector2(1f, 0f));
+            var h2 = ProjectToTrapezoid(new Vector2(1f, 0.42f));
+            var h3 = ProjectToTrapezoid(new Vector2(0f, 0.42f));
+            DrawColoredPolygon(new Vector2[] { h0, h1, h2, h3 }, new Color(1.0f, 0.72f, 0f, 0.14f));
+            DrawLine(h3, h2, new Color(1.0f, 0.72f, 0f, 0.75f), 2f);
         }
         else if (_phaseMode == 2)
         {
-            // Kompakt Savunma Bloğu Kalkan Alanı
-            DrawRect(new Rect2(Size.X * 0.12f, Size.Y * 0.46f, Size.X * 0.76f, Size.Y * 0.40f), new Color(0.22f, 0.68f, 0.98f, 0.15f), filled: true);
-            DrawRect(new Rect2(Size.X * 0.12f, Size.Y * 0.46f, Size.X * 0.76f, Size.Y * 0.40f), new Color(0.22f, 0.75f, 0.98f, 0.65f), filled: false, width: 2f);
+            var b0 = ProjectToTrapezoid(new Vector2(0.12f, 0.46f));
+            var b1 = ProjectToTrapezoid(new Vector2(0.88f, 0.46f));
+            var b2 = ProjectToTrapezoid(new Vector2(0.88f, 0.86f));
+            var b3 = ProjectToTrapezoid(new Vector2(0.12f, 0.86f));
+            DrawColoredPolygon(new Vector2[] { b0, b1, b2, b3 }, new Color(0.22f, 0.74f, 0.97f, 0.15f));
+            DrawPolyline(new Vector2[] { b0, b1, b2, b3, b0 }, new Color(0.22f, 0.74f, 0.97f, 0.65f), 2f, true);
         }
 
         // Taktiksel Pas & Uyum Bağlantı Çizgileri
         var linkColor = _phaseMode == 1
-            ? new Color(0.98f, 0.78f, 0.24f, 0.32f)
+            ? new Color(1.0f, 0.72f, 0.0f, 0.34f)
             : _phaseMode == 2
-                ? new Color(0.28f, 0.78f, 0.98f, 0.32f)
-                : new Color(0.18f, 0.90f, 0.58f, 0.24f);
+                ? new Color(0.22f, 0.74f, 0.97f, 0.34f)
+                : new Color(0.0f, 0.96f, 0.61f, 0.26f);
 
         for (var i = 1; i < _buttons.Count; i++)
         {
@@ -662,61 +636,57 @@ internal sealed partial class TacticalPitchBoard : Control
                 var p2 = ComputePhasePosition(_buttons[j].BasePosition, j, _phaseMode);
                 if (p1.DistanceTo(p2) <= 0.34f)
                 {
-                    DrawLine(
-                        new Vector2(p1.X * Size.X, p1.Y * Size.Y),
-                        new Vector2(p2.X * Size.X, p2.Y * Size.Y),
-                        linkColor,
-                        1.8f);
+                    DrawLine(ProjectToTrapezoid(p1), ProjectToTrapezoid(p2), linkColor, 1.8f, true);
                 }
             }
         }
 
-        // Net, taktiksel beyaz-nane saha çizgileri
-        var line = new Color(0.85f, 0.95f, 0.90f, 0.65f);
-        var inset = Mathf.Max(12, Size.X * 0.025f);
-        var inner = new Rect2(inset, inset, Size.X - (inset * 2), Size.Y - (inset * 2));
-        DrawRect(inner, line, false, 2);
+        // Perspektif (Trapezoid) Beyaz-Neon Saha Çizgileri
+        var line = new Color(0.85f, 0.96f, 0.91f, 0.68f);
+        var tl = ProjectToTrapezoid(new Vector2(0f, 0f));
+        var tr = ProjectToTrapezoid(new Vector2(1f, 0f));
+        var br = ProjectToTrapezoid(new Vector2(1f, 1f));
+        var bl = ProjectToTrapezoid(new Vector2(0f, 1f));
+        DrawPolyline(new Vector2[] { tl, tr, br, bl, tl }, line, 2f, true);
 
         // Orta saha çizgisi
-        var midY = Size.Y * 0.5f;
-        DrawLine(new Vector2(inset, midY), new Vector2(Size.X - inset, midY), line, 2);
+        var midLeft = ProjectToTrapezoid(new Vector2(0f, 0.5f));
+        var midRight = ProjectToTrapezoid(new Vector2(1f, 0.5f));
+        DrawLine(midLeft, midRight, line, 2f, true);
 
-        // Orta yuvarlak ve orta nokta
-        var centerRadius = Mathf.Min(Size.X, Size.Y) * 0.13f;
-        var center = new Vector2(Size.X * 0.5f, midY);
-        DrawArc(center, centerRadius, 0, Mathf.Tau, 48, line, 2);
+        // Orta yuvarlak (perspektif elips)
+        var center = ProjectToTrapezoid(new Vector2(0.5f, 0.5f));
+        var rx = (midRight.X - midLeft.X) * 0.14f;
+        var ry = Size.Y * 0.11f;
+        var ellipsePts = new Vector2[33];
+        for (var i = 0; i <= 32; i++)
+        {
+            var a = i * Mathf.Tau / 32f;
+            ellipsePts[i] = center + new Vector2(Mathf.Cos(a) * rx, Mathf.Sin(a) * ry);
+        }
+        DrawPolyline(ellipsePts, line, 1.8f, true);
         DrawCircle(center, 3f, line);
 
-        // Ceza sahaları
-        var boxWidth = Size.X * 0.44f;
-        var boxHeight = Size.Y * 0.16f;
-        var topBoxRect = new Rect2((Size.X - boxWidth) * 0.5f, inset, boxWidth, boxHeight);
-        var bottomBoxRect = new Rect2((Size.X - boxWidth) * 0.5f, Size.Y - inset - boxHeight, boxWidth, boxHeight);
-        DrawRect(topBoxRect, line, false, 2);
-        DrawRect(bottomBoxRect, line, false, 2);
+        // Üst ve Alt Ceza Sahaları (Trapezoid)
+        DrawTrapezoidBox(new Vector2(0.22f, 0f), new Vector2(0.78f, 0.16f), line, 2f);
+        DrawTrapezoidBox(new Vector2(0.22f, 0.84f), new Vector2(0.78f, 1f), line, 2f);
 
-        // Kale sahaları (6 pas)
-        var goalWidth = Size.X * 0.22f;
-        var goalHeight = Size.Y * 0.06f;
-        DrawRect(new Rect2((Size.X - goalWidth) * 0.5f, inset, goalWidth, goalHeight), line, false, 1.5f);
-        DrawRect(new Rect2((Size.X - goalWidth) * 0.5f, Size.Y - inset - goalHeight, goalWidth, goalHeight), line, false, 1.5f);
+        // 6 Pas (Kale Sahaları)
+        DrawTrapezoidBox(new Vector2(0.36f, 0f), new Vector2(0.64f, 0.06f), line, 1.5f);
+        DrawTrapezoidBox(new Vector2(0.36f, 0.94f), new Vector2(0.64f, 1f), line, 1.5f);
 
         // Penaltı noktaları
-        var topPenaltySpot = new Vector2(Size.X * 0.5f, inset + (boxHeight * 0.68f));
-        var bottomPenaltySpot = new Vector2(Size.X * 0.5f, Size.Y - inset - (boxHeight * 0.68f));
-        DrawCircle(topPenaltySpot, 2.5f, line);
-        DrawCircle(bottomPenaltySpot, 2.5f, line);
+        DrawCircle(ProjectToTrapezoid(new Vector2(0.5f, 0.11f)), 2.5f, line);
+        DrawCircle(ProjectToTrapezoid(new Vector2(0.5f, 0.89f)), 2.5f, line);
+    }
 
-        // Ceza yayı (D-box)
-        DrawArc(topPenaltySpot, centerRadius * 0.6f, 0.25f * Mathf.Pi, 0.75f * Mathf.Pi, 24, line, 1.5f);
-        DrawArc(bottomPenaltySpot, centerRadius * 0.6f, 1.25f * Mathf.Pi, 1.75f * Mathf.Pi, 24, line, 1.5f);
-
-        // Korner yayları
-        var cornerRadius = 8f;
-        DrawArc(new Vector2(inset, inset), cornerRadius, 0, 0.5f * Mathf.Pi, 12, line, 1.5f);
-        DrawArc(new Vector2(Size.X - inset, inset), cornerRadius, 0.5f * Mathf.Pi, Mathf.Pi, 12, line, 1.5f);
-        DrawArc(new Vector2(inset, Size.Y - inset), cornerRadius, 1.5f * Mathf.Pi, Mathf.Tau, 12, line, 1.5f);
-        DrawArc(new Vector2(Size.X - inset, Size.Y - inset), cornerRadius, Mathf.Pi, 1.5f * Mathf.Pi, 12, line, 1.5f);
+    private void DrawTrapezoidBox(Vector2 minNorm, Vector2 maxNorm, Color color, float width)
+    {
+        var p0 = ProjectToTrapezoid(new Vector2(minNorm.X, minNorm.Y));
+        var p1 = ProjectToTrapezoid(new Vector2(maxNorm.X, minNorm.Y));
+        var p2 = ProjectToTrapezoid(new Vector2(maxNorm.X, maxNorm.Y));
+        var p3 = ProjectToTrapezoid(new Vector2(minNorm.X, maxNorm.Y));
+        DrawPolyline(new Vector2[] { p0, p1, p2, p3, p0 }, color, width, true);
     }
 
     private void LayoutPlayers()
@@ -726,7 +696,7 @@ internal sealed partial class TacticalPitchBoard : Control
             var (button, basePos) = _buttons[i];
             var shifted = ComputePhasePosition(basePos, i, _phaseMode);
             button.Size = _playerButtonMinimumSize;
-            var target = new Vector2(shifted.X * Size.X, shifted.Y * Size.Y);
+            var target = ProjectToTrapezoid(shifted);
             button.Position = target - (button.Size * 0.5f);
         }
     }

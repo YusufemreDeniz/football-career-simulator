@@ -1,3 +1,4 @@
+using System.Linq;
 using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
 using Godot;
@@ -9,6 +10,7 @@ public partial class CareerHubScreen
     private VBoxContainer? _clubVisualCampusHost;
     private HBoxContainer? _collectiblePlayerDeckRow;
     private PanelContainer? _stadiumNamingModal;
+    private PanelContainer? _playerBottomSheetModal;
 
     private Control BuildClubPage()
     {
@@ -26,12 +28,12 @@ public partial class CareerHubScreen
         tabRow.AddThemeConstantOverride("separation", 4);
         topControlRow.AddChild(tabRow);
 
-        _clubTabOverviewButton = new Button { Text = "🏛️ KULÜP ÖZETİ" };
+        _clubTabOverviewButton = new Button { Text = "KULÜP ÖZETİ" };
         _clubTabOverviewButton.Pressed += () => ShowClubSubPage(ClubSubPage.Overview);
         CareerUiTheme.StyleTabButton(_clubTabOverviewButton, selected: true);
         tabRow.AddChild(_clubTabOverviewButton);
 
-        _clubTabAllButton = new Button { Text = "👥 KADRO & ALTYAPI" };
+        _clubTabAllButton = new Button { Text = "KADRO & ALTYAPI" };
         _clubTabAllButton.Pressed += () =>
         {
             _squadListFilterCode = null;
@@ -43,7 +45,7 @@ public partial class CareerHubScreen
         CareerUiTheme.StyleTabButton(_clubTabAllButton, selected: false);
         tabRow.AddChild(_clubTabAllButton);
 
-        _clubTabPlanButton = new Button { Text = "📋 İLK 11 & DERİNLİK" };
+        _clubTabPlanButton = new Button { Text = "İLK 11 & DERİNLİK" };
         _clubTabPlanButton.Pressed += () => ShowClubSubPage(ClubSubPage.Plan);
         CareerUiTheme.StyleTabButton(_clubTabPlanButton, selected: false);
         tabRow.AddChild(_clubTabPlanButton);
@@ -60,7 +62,7 @@ public partial class CareerHubScreen
 
         _squadOvrBadgePanel = new PanelContainer();
         _squadOvrBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.20f));
-        _squadOvrBadgeLabel = new Label { Text = "⭐ Güç —" };
+        _squadOvrBadgeLabel = new Label { Text = "Güç —" };
         CareerUiTheme.StyleTableText(_squadOvrBadgeLabel);
         _squadOvrBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         _squadOvrBadgePanel.AddChild(_squadOvrBadgeLabel);
@@ -68,7 +70,7 @@ public partial class CareerHubScreen
 
         _squadCapacityBadgePanel = new PanelContainer();
         _squadCapacityBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.16f));
-        _squadCapacityBadgeLabel = new Label { Text = "👥 —/25" };
+        _squadCapacityBadgeLabel = new Label { Text = "Kadro —/25" };
         CareerUiTheme.StyleTableText(_squadCapacityBadgeLabel);
         _squadCapacityBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _squadCapacityBadgePanel.AddChild(_squadCapacityBadgeLabel);
@@ -76,7 +78,7 @@ public partial class CareerHubScreen
 
         _squadAvgAgeBadgePanel = new PanelContainer();
         _squadAvgAgeBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data, 0.16f));
-        _squadAvgAgeBadgeLabel = new Label { Text = "🎂 Yaş —" };
+        _squadAvgAgeBadgeLabel = new Label { Text = "Yaş —" };
         CareerUiTheme.StyleTableText(_squadAvgAgeBadgeLabel);
         _squadAvgAgeBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Data);
         _squadAvgAgeBadgePanel.AddChild(_squadAvgAgeBadgeLabel);
@@ -84,7 +86,7 @@ public partial class CareerHubScreen
 
         _squadTotalValueBadgePanel = new PanelContainer();
         _squadTotalValueBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.16f));
-        _squadTotalValueBadgeLabel = new Label { Text = "💰 Değer —" };
+        _squadTotalValueBadgeLabel = new Label { Text = "Değer —" };
         CareerUiTheme.StyleTableText(_squadTotalValueBadgeLabel);
         _squadTotalValueBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         _squadTotalValueBadgePanel.AddChild(_squadTotalValueBadgeLabel);
@@ -92,7 +94,7 @@ public partial class CareerHubScreen
 
         _squadWageBillBadgePanel = new PanelContainer();
         _squadWageBillBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Stroke, 0.20f));
-        _squadWageBillBadgeLabel = new Label { Text = "💵 Maaş —" };
+        _squadWageBillBadgeLabel = new Label { Text = "Maaş —" };
         CareerUiTheme.StyleTableText(_squadWageBillBadgeLabel);
         _squadWageBillBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.TextPrimary);
         _squadWageBillBadgePanel.AddChild(_squadWageBillBadgeLabel);
@@ -100,7 +102,7 @@ public partial class CareerHubScreen
 
         _squadFacilityBadgePanel = new PanelContainer();
         _squadFacilityBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning, 0.20f));
-        _squadFacilityBadgeLabel = new Label { Text = "🏗️ Tesis: —" };
+        _squadFacilityBadgeLabel = new Label { Text = "Tesis: —" };
         CareerUiTheme.StyleTableText(_squadFacilityBadgeLabel);
         _squadFacilityBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorWarning);
         _squadFacilityBadgePanel.AddChild(_squadFacilityBadgeLabel);
@@ -108,7 +110,7 @@ public partial class CareerHubScreen
 
         _squadChemistryBadgePanel = new PanelContainer();
         _squadChemistryBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
-        _squadChemistryBadgeLabel = new Label { Text = "👥 Kimya: —" };
+        _squadChemistryBadgeLabel = new Label { Text = "Kimya: —" };
         CareerUiTheme.StyleTableText(_squadChemistryBadgeLabel);
         _squadChemistryBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _squadChemistryBadgePanel.AddChild(_squadChemistryBadgeLabel);
@@ -116,7 +118,6 @@ public partial class CareerHubScreen
 
         // ====================================================
         // SUB-PAGE 1: KULÜP ÖZETİ (2-COLUMN WIDESCREEN BENTO)
-        // Left: Top 3 Stars + SWOT Report | Right: Facilities + Active XI Pitch
         // ====================================================
         _clubOverviewPanel = new VBoxContainer
         {
@@ -152,8 +153,8 @@ public partial class CareerHubScreen
         overviewRightCol.AddThemeConstantOverride("separation", 8);
         overviewGrid.AddChild(overviewRightCol);
 
-        // Left Top: ⭐ TAKIMIN YILDIZLARI (Top 3 Stars)
-        var spotlightCard = AddCard(overviewLeftCol, "⭐ TAKIMIN YILDIZLARI", emphasized: true);
+        // Left Top: TAKIMIN YILDIZLARI (Top 3 Stars)
+        var spotlightCard = AddCard(overviewLeftCol, "TAKIMIN YILDIZLARI", emphasized: true);
         _starSpotlightHeadline = BodyLabel("StarSpotlightHeadline", muted: true, autowrap: true);
         _starSpotlightHeadline.Visible = false;
         spotlightCard.AddChild(_starSpotlightHeadline);
@@ -196,7 +197,7 @@ public partial class CareerHubScreen
             topRow.AddChild(posBadge);
             _starPosBadges[i] = posBadge;
 
-            var ratingBadge = new Label { Text = "⭐ —" };
+            var ratingBadge = new Label { Text = "— OVR" };
             CareerUiTheme.StyleTableText(ratingBadge);
             ratingBadge.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
             topRow.AddChild(ratingBadge);
@@ -215,7 +216,7 @@ public partial class CareerHubScreen
             cardVBox.AddChild(metaLabel);
             _starMetaLabels[i] = metaLabel;
 
-            var inspectBtn = SecondaryButton("🔍 Profil");
+            var inspectBtn = SecondaryButton("Profil");
             inspectBtn.CustomMinimumSize = new Vector2(0, 26);
             inspectBtn.Pressed += () =>
             {
@@ -228,8 +229,8 @@ public partial class CareerHubScreen
             _starInspectButtons[i] = inspectBtn;
         }
 
-        // Left Bottom: 📋 TAKIM RAPORU (SWOT)
-        var swotCard = AddCard(overviewLeftCol, "📋 KADRO ANALİZ RAPORU (SWOT)", emphasized: true, expandVertical: true);
+        // Left Bottom: TAKIM RAPORU (SWOT)
+        var swotCard = AddCard(overviewLeftCol, "KADRO ANALİZ RAPORU (SWOT)", emphasized: true, expandVertical: true);
         _swotPanel = new HBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -253,7 +254,7 @@ public partial class CareerHubScreen
         _swotStrengthsVBox.AddThemeConstantOverride("separation", 4);
         strengthsBox.AddChild(_swotStrengthsVBox);
 
-        var strengthsTitle = new Label { Text = "✓ GÜÇLÜ YÖNLER" };
+        var strengthsTitle = new Label { Text = "GÜÇLÜ YÖNLER" };
         CareerUiTheme.StyleHeadline(strengthsTitle);
         strengthsTitle.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         strengthsTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
@@ -274,7 +275,7 @@ public partial class CareerHubScreen
         _swotWeaknessesVBox.AddThemeConstantOverride("separation", 4);
         weaknessesBox.AddChild(_swotWeaknessesVBox);
 
-        var weaknessesTitle = new Label { Text = "⚠️ RİSKLER & EKSİKLER" };
+        var weaknessesTitle = new Label { Text = "RİSKLER & EKSİKLER" };
         CareerUiTheme.StyleHeadline(weaknessesTitle);
         weaknessesTitle.AddThemeColorOverride("font_color", CareerUiTheme.DangerSoft);
         weaknessesTitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
@@ -283,7 +284,7 @@ public partial class CareerHubScreen
         var swotActionRow = ActionFlow();
         swotCard.AddChild(swotActionRow);
 
-        _clubDeclareNeedButton = PrimaryButton("🎯 Transfer İhtiyacı Bildir");
+        _clubDeclareNeedButton = PrimaryButton("Transfer İhtiyacı Bildir");
         _clubDeclareNeedButton.Pressed += () =>
         {
             Apply(_controller.DeclarePositionGapNeed());
@@ -291,7 +292,7 @@ public partial class CareerHubScreen
         };
         swotActionRow.AddChild(_clubDeclareNeedButton);
 
-        _swotRestFatiguedButton = SecondaryButton("⚡ Takımı Dinlendir");
+        _swotRestFatiguedButton = SecondaryButton("Takımı Dinlendir");
         _swotRestFatiguedButton.Pressed += () =>
         {
             Apply(_controller.RestEntireTeam());
@@ -299,7 +300,7 @@ public partial class CareerHubScreen
         };
         swotActionRow.AddChild(_swotRestFatiguedButton);
 
-        _swotViewAllSquadButton = SecondaryButton("👥 Tüm Kadroyu Aç →");
+        _swotViewAllSquadButton = SecondaryButton("Tüm Kadroyu Aç");
         _swotViewAllSquadButton.Pressed += () =>
         {
             _squadListFilterCode = null;
@@ -310,8 +311,8 @@ public partial class CareerHubScreen
         };
         swotActionRow.AddChild(_swotViewAllSquadButton);
 
-        // Right Top: 🏛️ GÖRSEL KULÜP KAMPÜSÜ VE ALTYAPI KARTI (Top Eleven / Football Chairman Pro 2)
-        var facilityCard = AddCard(overviewRightCol, "🏛️ GÖRSEL KULÜP KAMPÜSÜ & KÜLTÜR", emphasized: true);
+        // Right Top: GÖRSEL KULÜP KAMPÜSÜ VE ALTYAPI KARTI
+        var facilityCard = AddCard(overviewRightCol, "GÖRSEL KULÜP KAMPÜSÜ & KÜLTÜR", emphasized: true);
         _clubVisualCampusHost = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _clubVisualCampusHost.AddThemeConstantOverride("separation", 6);
         facilityCard.AddChild(_clubVisualCampusHost);
@@ -336,7 +337,7 @@ public partial class CareerHubScreen
         _clubFacilityCostLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         facilityInfoBox.AddChild(_clubFacilityCostLabel);
 
-        _upgradeFacilityButton = PrimaryButton("🏗️ Tesisleri Geliştir");
+        _upgradeFacilityButton = PrimaryButton("Tesisleri Geliştir");
         _upgradeFacilityButton.Visible = false;
         _upgradeFacilityButton.Pressed += () =>
         {
@@ -347,8 +348,8 @@ public partial class CareerHubScreen
         };
         facilityCard.AddChild(_upgradeFacilityButton);
 
-        // Right Bottom: ⚽ AKTİF İLK 11 SAHA GÖRÜNÜMÜ
-        var pitchCard = AddCard(overviewRightCol, "⚽ AKTİF İLK 11 DİZİLİŞİ", emphasized: false, expandVertical: true);
+        // Right Bottom: AKTİF İLK 11 SAHA GÖRÜNÜMÜ
+        var pitchCard = AddCard(overviewRightCol, "AKTİF İLK 11 DİZİLİŞİ", emphasized: false, expandVertical: true);
         _clubPitchCaptionLabel = BodyLabel("ClubPitchCaption", muted: true, autowrap: true);
         pitchCard.AddChild(_clubPitchCaptionLabel);
         _clubPitchHost = new VBoxContainer
@@ -376,9 +377,7 @@ public partial class CareerHubScreen
         _clubOverviewPanel.AddChild(_clubSignalRow);
 
         // ====================================================
-        // SUB-PAGE 2: KADRO & ALTYAPI (2-COLUMN WIDESCREEN TABLE + ACADEMY/DYNAMICS)
-        // Left: Full Squad Table (8-10 visible rows) + Quick Actions
-        // Right: Youth Academy + Dressing Room Dynamics
+        // SUB-PAGE 2: KADRO & ALTYAPI (COLLECTIBLE FUT CARDS + TABLE + ACADEMY)
         // ====================================================
         _clubAllPlayersPanel = new VBoxContainer
         {
@@ -397,8 +396,8 @@ public partial class CareerHubScreen
         playersSplitRow.AddThemeConstantOverride("separation", 10);
         _clubAllPlayersPanel.AddChild(playersSplitRow);
 
-        // Left Column: A Takım Kadro Tablosu + Hızlı İşlemler
-        var playerManagementCard = AddCard(playersSplitRow, "👥 A TAKIM KADROSU", emphasized: true, expandVertical: true);
+        // Left Column: A Takım Koleksiyon Kartları + Kadro Tablosu
+        var playerManagementCard = AddCard(playersSplitRow, "A TAKIM KOLEKSİYON KARTLARI & KADRO", emphasized: true, expandVertical: true);
         if (playerManagementCard.GetParent() is Control pmPanel)
         {
             pmPanel.SizeFlagsStretchRatio = 1.45f;
@@ -416,31 +415,31 @@ public partial class CareerHubScreen
         _squadFilterBar.AddThemeConstantOverride("v_separation", 4);
         filterHeaderRow.AddChild(_squadFilterBar);
 
-        _squadFilterAllBtn = PrimaryButton("🌍 Tümü");
+        _squadFilterAllBtn = PrimaryButton("Tümü");
         _squadFilterAllBtn.Pressed += () => ApplySquadCategoryFilter("ALL");
         _squadFilterBar.AddChild(_squadFilterAllBtn);
 
-        _squadFilterGkBtn = SecondaryButton("🧤 KL");
+        _squadFilterGkBtn = SecondaryButton("KL");
         _squadFilterGkBtn.Pressed += () => ApplySquadCategoryFilter("GK");
         _squadFilterBar.AddChild(_squadFilterGkBtn);
 
-        _squadFilterDefBtn = SecondaryButton("🛡️ DEF");
+        _squadFilterDefBtn = SecondaryButton("DEF");
         _squadFilterDefBtn.Pressed += () => ApplySquadCategoryFilter("DEF");
         _squadFilterBar.AddChild(_squadFilterDefBtn);
 
-        _squadFilterMidBtn = SecondaryButton("⚡ ORT");
+        _squadFilterMidBtn = SecondaryButton("ORT");
         _squadFilterMidBtn.Pressed += () => ApplySquadCategoryFilter("MID");
         _squadFilterBar.AddChild(_squadFilterMidBtn);
 
-        _squadFilterFwdBtn = SecondaryButton("🎯 HÜC");
+        _squadFilterFwdBtn = SecondaryButton("HÜC");
         _squadFilterFwdBtn.Pressed += () => ApplySquadCategoryFilter("FWD");
         _squadFilterBar.AddChild(_squadFilterFwdBtn);
 
-        _squadFilterYouthBtn = SecondaryButton("🌱 U21");
+        _squadFilterYouthBtn = SecondaryButton("U21");
         _squadFilterYouthBtn.Pressed += () => ApplySquadCategoryFilter("YOUTH");
         _squadFilterBar.AddChild(_squadFilterYouthBtn);
 
-        _squadFilterRiskBtn = SecondaryButton("⚠️ Riskli");
+        _squadFilterRiskBtn = SecondaryButton("Riskli");
         _squadFilterRiskBtn.Pressed += () => ApplySquadCategoryFilter("RISK");
         _squadFilterBar.AddChild(_squadFilterRiskBtn);
 
@@ -448,11 +447,11 @@ public partial class CareerHubScreen
         _playerManagementHeadlineLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         filterHeaderRow.AddChild(_playerManagementHeadlineLabel);
 
-        // Top Drives / New Star Manager tarzı Yatay Koleksiyon Oyuncu Kartları Vitrini
+        // Kural 3: 140x200px dikey Top Drives / FUT Koleksiyon Oyuncu Kartları Vitrini
         var deckScroll = new ScrollContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 184),
+            CustomMinimumSize = new Vector2(0, 212),
             HorizontalScrollMode = ScrollContainer.ScrollMode.Auto,
             VerticalScrollMode = ScrollContainer.ScrollMode.Disabled,
         };
@@ -462,14 +461,14 @@ public partial class CareerHubScreen
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        _collectiblePlayerDeckRow.AddThemeConstantOverride("separation", 8);
+        _collectiblePlayerDeckRow.AddThemeConstantOverride("separation", 10);
         deckScroll.AddChild(_collectiblePlayerDeckRow);
 
         _squadList = new ItemList
         {
             Name = "SquadList",
             AutoHeight = false,
-            CustomMinimumSize = new Vector2(0, 118),
+            CustomMinimumSize = new Vector2(0, 108),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
@@ -487,7 +486,7 @@ public partial class CareerHubScreen
         var jobRow = ActionFlow();
         playerManagementCard.AddChild(jobRow);
 
-        _openSelectedPlayerDossierButton = AccentButton("🔍 Oyuncu Profili & Görüşme");
+        _openSelectedPlayerDossierButton = AccentButton("Oyuncu Profili & Görüşme");
         _openSelectedPlayerDossierButton.TooltipText = "Seçili oyuncunun ayrıntılı analiz dosyasını ve özel görüşme ekranını aç";
         _openSelectedPlayerDossierButton.Pressed += () =>
         {
@@ -498,25 +497,25 @@ public partial class CareerHubScreen
         };
         jobRow.AddChild(_openSelectedPlayerDossierButton);
 
-        _promiseStartButton = SecondaryButton("🤝 İlk 11 Sözü");
+        _promiseStartButton = SecondaryButton("İlk 11 Sözü");
         _promiseStartButton.Pressed += () =>
             ApplySelectedPlayer(_controller.PromiseStartingOpportunityToPlayer);
         jobRow.AddChild(_promiseStartButton);
 
-        _promisePlayingTimeButton = SecondaryButton("⏱ Süre Sözü");
+        _promisePlayingTimeButton = SecondaryButton("Süre Sözü");
         _promisePlayingTimeButton.Pressed += () =>
             ApplySelectedPlayer(_controller.PromisePlayingTimeToPlayer);
         jobRow.AddChild(_promisePlayingTimeButton);
 
-        _sellFringeButton = DangerButton("🏷 Satışa Çıkar");
+        _sellFringeButton = DangerButton("Satışa Çıkar");
         _sellFringeButton.Pressed += () => Apply(_controller.SellFringePlayerFromManagedClub());
         jobRow.AddChild(_sellFringeButton);
 
-        _promoteOverflowButton = SecondaryButton("⬆ Taşanı Kadroya Al");
+        _promoteOverflowButton = SecondaryButton("Taşanı Kadroya Al");
         _promoteOverflowButton.Pressed += () => Apply(_controller.PromoteOverflowPlayerToSquad());
         jobRow.AddChild(_promoteOverflowButton);
 
-        _releaseCapacityButton = SecondaryButton("✂ Yer Aç");
+        _releaseCapacityButton = SecondaryButton("Yer Aç");
         _releaseCapacityButton.Pressed += () => Apply(_controller.ReleaseToFreeSquadCapacity());
         jobRow.AddChild(_releaseCapacityButton);
 
@@ -530,7 +529,7 @@ public partial class CareerHubScreen
         playersRightCol.AddThemeConstantOverride("separation", 8);
         playersSplitRow.AddChild(playersRightCol);
 
-        var academyCard = AddCard(playersRightCol, "🌱 ALTYAPI AKADEMİSİ", expandVertical: true);
+        var academyCard = AddCard(playersRightCol, "ALTYAPI AKADEMİSİ", expandVertical: true);
         _academyIntakeLabel = BodyLabel("AcademyIntakeLabel", autowrap: true);
         academyCard.AddChild(_academyIntakeLabel);
         _academyCandidateList = new ItemList
@@ -546,13 +545,13 @@ public partial class CareerHubScreen
 
         var academyRow = ActionFlow();
         academyCard.AddChild(academyRow);
-        _academyAcceptButton = PrimaryButton("✓ Akademide Tut");
+        _academyAcceptButton = PrimaryButton("Akademide Tut");
         _academyAcceptButton.Pressed += () => ApplySelectedAcademyCandidate(accept: true);
         academyRow.AddChild(_academyAcceptButton);
-        _academyRejectButton = SecondaryButton("✕ Kapat");
+        _academyRejectButton = SecondaryButton("Kapat");
         _academyRejectButton.Pressed += () => ApplySelectedAcademyCandidate(accept: false);
         academyRow.AddChild(_academyRejectButton);
-        _academyPromoteButton = AccentButton("⬆ A Takıma Çıkar");
+        _academyPromoteButton = AccentButton("A Takıma Çıkar");
         _academyPromoteButton.Pressed += PromoteSelectedAcademyPlayer;
         academyRow.AddChild(_academyPromoteButton);
 
@@ -569,7 +568,7 @@ public partial class CareerHubScreen
         _academyLifecycleList.ItemSelected += OnAcademyLifecyclePlayerSelected;
         academyCard.AddChild(_academyLifecycleList);
 
-        var teamDynamicsCard = AddCard(playersRightCol, "🤝 SOYUNMA ODASI & DİNAMİKLER");
+        var teamDynamicsCard = AddCard(playersRightCol, "SOYUNMA ODASI & DİNAMİKLER");
         _dressingRoomEchoLabel = BodyLabel("DressingRoomEchoLabel", autowrap: true);
         _dressingRoomEchoLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         teamDynamicsCard.AddChild(_dressingRoomEchoLabel);
@@ -630,14 +629,14 @@ public partial class CareerHubScreen
         _clubPlanPanel.AddThemeConstantOverride("separation", 8);
         page.AddChild(_clubPlanPanel);
 
-        var planCard = AddCard(_clubPlanPanel, "📋 İLK 11 YERLEŞİMİ & MEVKİ DERİNLİĞİ", emphasized: true, expandVertical: true);
+        var planCard = AddCard(_clubPlanPanel, "İLK 11 YERLEŞİMİ & MEVKİ DERİNLİĞİ", emphasized: true, expandVertical: true);
         var planActionRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         planActionRow.AddThemeConstantOverride("separation", 8);
         planCard.AddChild(planActionRow);
         _clubPlanCaptionLabel = BodyLabel("ClubPlanCaption", muted: true, autowrap: true);
         _clubPlanCaptionLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         planActionRow.AddChild(_clubPlanCaptionLabel);
-        var clubSmartRotBtn = PrimaryButton("🎯 Akıllı Rotasyon 11'i Uygula");
+        var clubSmartRotBtn = PrimaryButton("Akıllı Rotasyon 11'i Uygula");
         clubSmartRotBtn.Pressed += () =>
         {
             Apply(_controller.ApplySmartRotationForNextMatch());
@@ -727,6 +726,49 @@ public partial class CareerHubScreen
         return valuation.MarketValue;
     }
 
+    private void OpenPlayerCardBottomSheet(long playerId)
+    {
+        if (_playerBottomSheetModal is not null && GodotObject.IsInstanceValid(_playerBottomSheetModal))
+        {
+            RemoveChild(_playerBottomSheetModal);
+            _playerBottomSheetModal.QueueFree();
+            _playerBottomSheetModal = null;
+        }
+
+        var management = _controller.BuildPlayerManagementDigest();
+        var player = management.Players.FirstOrDefault(p => p.PlayerId == playerId);
+        if (player is null)
+        {
+            return;
+        }
+
+        var avgRating = management.Players.Count > 0
+            ? (int)System.Math.Round(management.Players.Average(p => p.Rating))
+            : 70;
+        var estVal = EstimateSquadPlayerMarketValue(player, avgRating);
+
+        _playerBottomSheetModal = ClubCampusVisualUi.BuildPlayerBottomSheetModal(
+            player,
+            estVal,
+            onOpenDossier: pid =>
+            {
+                PlayInterfaceFeedback(MatchAudioCue.Button, 18);
+                OpenPlayerDossier(pid);
+            },
+            onPromiseStarter: pid =>
+            {
+                PlayInterfaceFeedback(MatchAudioCue.Button, 24);
+                Apply(_controller.PromiseStartingOpportunityToPlayer(pid));
+            },
+            onPromiseMinutes: pid =>
+            {
+                PlayInterfaceFeedback(MatchAudioCue.Button, 24);
+                Apply(_controller.PromisePlayingTimeToPlayer(pid));
+            },
+            onClose: () => PlayInterfaceFeedback(MatchAudioCue.Button, 12));
+        AddChild(_playerBottomSheetModal);
+    }
+
     private void OpenStadiumNamingModal(string clubName)
     {
         if (_stadiumNamingModal is not null && GodotObject.IsInstanceValid(_stadiumNamingModal))
@@ -741,7 +783,7 @@ public partial class CareerHubScreen
             onSaved: () =>
             {
                 PlayInterfaceFeedback(MatchAudioCue.Button, 24);
-                PulseStatus($"🏟️ Stadyum & Tribün adı güncellendi: {ClubCampusVisualUi.CustomStadiumTitle} / {ClubCampusVisualUi.CustomNorthStandName}", succeeded: true);
+                PulseStatus($"Stadyum & Tribün adı güncellendi: {ClubCampusVisualUi.CustomStadiumTitle} / {ClubCampusVisualUi.CustomNorthStandName}", succeeded: true);
                 RefreshSquadList();
             },
             onClose: () => PlayInterfaceFeedback(MatchAudioCue.Button, 12));

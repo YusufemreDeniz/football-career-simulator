@@ -93,7 +93,7 @@ public sealed record MobilePortalAndDeckDigest(
                 calendar.Add(new CalendarDayTile(
                     offset,
                     dayBadge,
-                    "⚽",
+                    "ball",
                     $"vs {nextOpponentName}",
                     $"MAÇ GÜNÜ · {venue}",
                     IsMatchDay: true,
@@ -104,7 +104,7 @@ public sealed record MobilePortalAndDeckDigest(
                 calendar.Add(new CalendarDayTile(
                     offset,
                     dayBadge,
-                    "♻",
+                    "medical",
                     "Rejenerasyon",
                     "Maç ertesi toparlanma",
                     IsMatchDay: false,
@@ -115,7 +115,7 @@ public sealed record MobilePortalAndDeckDigest(
                 calendar.Add(new CalendarDayTile(
                     offset,
                     dayBadge,
-                    "🛌",
+                    "medical",
                     "Dinlenme Önerisi",
                     $"{fatiguedPlayerCount} yorgun oyuncu",
                     IsMatchDay: false,
@@ -127,7 +127,7 @@ public sealed record MobilePortalAndDeckDigest(
                 calendar.Add(new CalendarDayTile(
                     offset,
                     dayBadge,
-                    isTacticalDay ? "🎯" : "⚡",
+                    isTacticalDay ? "target" : "bolt",
                     isTacticalDay ? "Taktik Prova" : "Antrenman Drili",
                     isTacticalDay ? "Son maç provası" : "Kondisyon & form",
                     IsMatchDay: false,
@@ -144,34 +144,34 @@ public sealed record MobilePortalAndDeckDigest(
         {
             new(
                 "OBJ_TRAINING",
-                "⚡",
+                "bolt",
                 "Günlük İdman & Kondisyon Drili",
                 objTrainingDone
                     ? "Takım antrenman temposu ve kondisyon barı hazır."
                     : "Antrenman drili seç veya yorgun kadroya rejenerasyon uygula.",
                 "+40 XP · +%8 Hazırlık",
                 objTrainingDone,
-                objTrainingDone ? "✓ Tamamlandı" : "⚡ İdman Uygula"),
+                objTrainingDone ? "Tamamlandı" : "İdman Uygula"),
             new(
                 "OBJ_ROTATION",
-                "🎯",
+                "target",
                 "Maç Kadrosu & Akıllı Rotasyon",
                 objSquadDone
                     ? "İlk 11 onaylandı, söz verilen oyuncular kontrol edildi."
                     : "Sıradaki maç için Akıllı Rotasyon 11'i kur ve kadroyu onayla.",
                 "+45 XP · +Güven",
                 objSquadDone,
-                objSquadDone ? "✓ Tamamlandı" : "🎯 Rotasyon & Onay"),
+                objSquadDone ? "Tamamlandı" : "Rotasyon & Onay"),
             new(
                 "OBJ_TACTIC_CARD",
-                "🃏",
+                "cards",
                 "Dokunsal Menajer Kartı Kullan",
                 objTacticDone
                     ? "Bugünün menajer kartı hamlesi sahaya yansıdı."
                     : "Desteden bir Enerji, Motivasyon, Spa veya Scout kartı oyna.",
                 "+50 XP · +Moral Bonus",
                 objTacticDone,
-                objTacticDone ? "✓ Tamamlandı" : "🃏 Kart Oyna"),
+                objTacticDone ? "Tamamlandı" : "Kart Oyna"),
         };
 
         var completedCount = objectives.Count(o => o.IsCompleted);
@@ -183,40 +183,40 @@ public sealed record MobilePortalAndDeckDigest(
         {
             new(
                 CardEnergyPack,
-                "⚡",
+                "bolt",
                 "ENERJİ PAKETİ",
                 "EPİK KART",
                 "Yorgun oyunculara +12 Kondisyon & -15 Yorgunluk",
-                $"🏋️ Antrenman Tesisi (Sv.{facilityLevel})",
+                $"Antrenman Tesisi (Sv.{facilityLevel})",
                 remainingEnergy,
-                "⚡ Enerji Bas"),
+                "Enerji Bas"),
             new(
                 CardPepTalk,
-                "🔥",
+                "flame",
                 "MOTİVASYON KONUŞMASI",
                 "ALTIN KART",
                 "Soyunma odası güveni +8 & İlk 11 odak patlaması",
-                "🗣️ Teknik Ekip & Kaptan",
+                "Teknik Ekip & Kaptan",
                 Math.Max(1, baseCharges),
-                "🔥 Konuşma Yap"),
+                "Konuşma Yap"),
             new(
                 CardPhysioSpa,
-                "🩺",
+                "medical",
                 "FİZYO & SPA BAKIMI",
                 "NADİR KART",
                 "Tüm kadroda sakatlık riski -%35 & hızlı toparlanma",
-                $"🏥 Sağlık Merkezi (Sv.{facilityLevel})",
+                $"Sağlık Merkezi (Sv.{facilityLevel})",
                 remainingEnergy,
-                "🩺 Spa Uygula"),
+                "Spa Uygula"),
             new(
                 CardScoutPack,
-                "🔭",
+                "radar",
                 "ELİT SCOUT DOSYASI",
                 "ÖZEL KART",
                 "Eksik mevkiye anında 3 karşılaştırmalı transfer adayı",
-                "🔭 Baş Gözlemci Ağı",
+                "Baş Gözlemci Ağı",
                 Math.Max(1, baseCharges),
-                "🔭 Rapor Aç"),
+                "Rapor Aç"),
         };
 
         // 4. FM26 Portal Stream (Must Respond / Tasks / Staff Advice)
@@ -226,14 +226,14 @@ public sealed record MobilePortalAndDeckDigest(
         {
             stream.Add(new PortalFeedTile(
                 FilterMustRespond,
-                "🔥 ZORUNLU KARAR",
-                "⚖️",
+                "ZORUNLU KARAR",
+                "warning",
                 $"Masada {pendingDecisionCount} bekleyen kritik karar var",
                 string.IsNullOrWhiteSpace(pendingDecisionSummary)
                     ? "Oyuncu veya yönetim talebini yanıtlamadan hafta kapanmaz."
                     : pendingDecisionSummary,
                 "ACTION_ANSWER_DECISION",
-                "⚖️ Kararı Yanıtla",
+                "Kararı Yanıtla",
                 IsUrgent: true));
         }
 
@@ -241,12 +241,12 @@ public sealed record MobilePortalAndDeckDigest(
         {
             stream.Add(new PortalFeedTile(
                 FilterTasks,
-                "📋 MAÇ GÖREVİ",
-                "🟩",
+                "MAÇ GÖREVİ",
+                "pitch",
                 $"{nextOpponentName} maçı için İlk 11 onayı bekleniyor",
                 "Akıllı Rotasyon ile yorgunları dinlendirip tek dokunuşla kadroyu onaylayabilirsin.",
                 "ACTION_SMART_ROTATION",
-                "🎯 Akıllı 11 & Onayla",
+                "Akıllı 11 & Onayla",
                 IsUrgent: true));
         }
 
@@ -254,24 +254,24 @@ public sealed record MobilePortalAndDeckDigest(
         {
             stream.Add(new PortalFeedTile(
                 FilterAdvice,
-                "💡 BAŞ FİZYOTERAPİST",
-                "🩺",
+                "BAŞ FİZYOTERAPİST",
+                "medical",
                 $"Kadro zindeliği %{averageSquadFitness} ({fatiguedPlayerCount} yorgun oyuncu)",
                 "Maç temposu düşmeden Enerji Paketi veya Fizyo Spa kartı kullanmanız öneriliyor.",
                 CardEnergyPack,
-                "⚡ Enerji Kartı Kullan",
+                "Enerji Kartı Kullan",
                 IsUrgent: fatiguedPlayerCount >= 3));
         }
         else
         {
             stream.Add(new PortalFeedTile(
                 FilterAdvice,
-                "💡 YARDIMCI ANTRENÖR",
-                "🏋️",
+                "YARDIMCI ANTRENÖR",
+                "bolt",
                 $"Takım zindeliği yüksek (%{averageSquadFitness})",
                 "Oyuncular yüksek tempolu taktik idmana ve önde baskı planına hazır.",
                 "ACTION_OPEN_TACTICS",
-                "🟩 Taktik Sahayı Aç",
+                "Taktik Sahayı Aç",
                 IsUrgent: false));
         }
 
@@ -279,24 +279,24 @@ public sealed record MobilePortalAndDeckDigest(
         {
             stream.Add(new PortalFeedTile(
                 FilterAdvice,
-                "💡 BAŞ GÖZLEMCİ",
-                "🔭",
+                "BAŞ GÖZLEMCİ",
+                "radar",
                 $"{openTransferNeedCount} açık kadro ihtiyacı için adaylar hazır",
                 "3 adaylı karşılaştırma masasında güven kademesi yüksek oyuncuları incele.",
                 CardScoutPack,
-                "🔭 3 Adayı Karşılaştır",
+                "3 Adayı Karşılaştır",
                 IsUrgent: false));
         }
         else
         {
             stream.Add(new PortalFeedTile(
                 FilterTasks,
-                "📋 KULÜP KAMPÜSÜ",
-                "🏟️",
+                "KULÜP KAMPÜSÜ",
+                "campus",
                 $"Tesis Seviyesi Sv.{facilityLevel} · Kampüs Kart Üretimi Aktif",
                 "Stadyum, antrenman ve akademi kampüsünü geliştirerek haftalık kart ve gelir bonusunu artır.",
                 "ACTION_OPEN_CAMPUS",
-                "🏛️ Kampüsü Aç",
+                "Kampüsü Aç",
                 IsUrgent: false));
         }
 

@@ -12,7 +12,12 @@ public partial class CareerHubScreen
     private VBoxContainer _dailyObjectivesBox = null!;
     private Label _dailyObjectivesProgressBadge = null!;
     private VBoxContainer _portalStreamBox = null!;
-    private GridContainer _tactileDeckGrid = null!;
+    private HBoxContainer _tactileDeckHandRow = null!;
+    private Label _matchHeroHomeNameLabel = null!;
+    private Label _matchHeroAwayNameLabel = null!;
+    private Label _matchHeroCountdownLabel = null!;
+    private BroadcastCrestBadge _matchHeroHomeCrest = null!;
+    private BroadcastCrestBadge _matchHeroAwayCrest = null!;
     private string _activePortalFilter = MobilePortalAndDeckDigest.FilterAll;
     private Button _portalFilterAllBtn = null!;
     private Button _portalFilterUrgentBtn = null!;
@@ -25,7 +30,7 @@ public partial class CareerHubScreen
         page.SizeFlagsVertical = SizeFlags.ExpandFill;
 
         // ====================================================
-        // TOP STRIP: 7-DAY VISUAL CALENDAR CAROUSEL (FM26 / SM27 PORTAL)
+        // 1. ÜST ŞERİT: 7 GÜNLÜK GÖRSEL TAKVİM (BROADCAST STADIUM NOIR)
         // ====================================================
         var calendarStripPanel = new PanelContainer
         {
@@ -42,52 +47,32 @@ public partial class CareerHubScreen
         calendarStripPanel.AddChild(_portalCalendarRow);
 
         // ====================================================
-        // 3-COLUMN PORTAL & TACTILE CARD DECK (FM26 + SM27 + NEW STAR MANAGER)
-        // Col 1: Sıradaki Maç Showdown + Günlük Hedefler (5 Dk Oturum Döngüsü)
-        // Col 2: Portal Merkezi (Zorunlu / Görev / Teknik Ekip Karoları) + Karar Masası
-        // Col 3: Dokunsal Menajer Kart Destesi (4 Kart) + Canlı Süper Lig Tablosu
+        // 2. EN ÜST ANA BÖLÜM: SİNEMATİK "MAÇ GÜNÜ HERO KARTI" (Rule 6)
+        // Ev Sahibi vs Deplasman Armaları, Geri Sayım ve Parlayan MAÇA ÇIK Butonu
         // ====================================================
-        var bentoRow = new HBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        bentoRow.AddThemeConstantOverride("separation", 10);
-        page.AddChild(bentoRow);
-
-        // ====================================================
-        // COLUMN 1: NEXT MATCH HERO + DAILY OBJECTIVES (SM27 5-MINUTE LOOP)
-        // ====================================================
-        var col1 = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            SizeFlagsStretchRatio = 1.25f,
-        };
-        col1.AddThemeConstantOverride("separation", 8);
-        bentoRow.AddChild(col1);
-
         var matchNeonPanel = new PanelContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         matchNeonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel(strongGlow: true));
-        col1.AddChild(matchNeonPanel);
+        page.AddChild(matchNeonPanel);
 
         var matchCard = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        matchCard.AddThemeConstantOverride("separation", 5);
+        matchCard.AddThemeConstantOverride("separation", 8);
         matchNeonPanel.AddChild(matchCard);
 
-        // Top meta row: Header + Venue + Approval Pill
+        // Üst Yayın Meta Satırı: Turnuva + Saha + Geri Sayım + Kadro Onay Rozeti
         var matchMetaRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        matchMetaRow.AddThemeConstantOverride("separation", 6);
+        matchMetaRow.AddThemeConstantOverride("separation", 8);
         matchCard.AddChild(matchMetaRow);
 
+        matchMetaRow.AddChild(new BroadcastVectorIcon("trophy", CareerUiTheme.Accent, 16f));
+
         _nextMatchCompetitionBadge = BodyLabel("NextMatchCompetitionBadge");
-        _nextMatchCompetitionBadge.Text = "🏆 LİG MAÇI";
+        _nextMatchCompetitionBadge.Text = "SÜPER LİG YAYINI";
         _nextMatchCompetitionBadge.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         CareerUiTheme.ApplyDisplayFont(_nextMatchCompetitionBadge);
         matchMetaRow.AddChild(_nextMatchCompetitionBadge);
@@ -100,156 +85,228 @@ public partial class CareerHubScreen
         _nextMatchVenuePill.AddChild(_nextMatchVenueLabel);
         matchMetaRow.AddChild(_nextMatchVenuePill);
 
+        var countdownPill = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        countdownPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.22f));
+        _matchHeroCountdownLabel = BodyLabel("MatchHeroCountdownLabel");
+        _matchHeroCountdownLabel.Text = "MAÇ GÜNÜ BEKLENİYOR";
+        _matchHeroCountdownLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        _matchHeroCountdownLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        countdownPill.AddChild(_matchHeroCountdownLabel);
+        matchMetaRow.AddChild(countdownPill);
+
         var metaSpacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         matchMetaRow.AddChild(metaSpacer);
 
         _nextMatchApprovalPill = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
         _nextMatchApprovalPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning));
         _nextMatchApprovalLabel = BodyLabel("NextMatchApprovalLabel");
-        _nextMatchApprovalLabel.Text = "⚠️ Kadro Onayı";
+        _nextMatchApprovalLabel.Text = "Kadro Onayı";
         _nextMatchApprovalLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         _nextMatchApprovalLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorWarning);
         _nextMatchApprovalPill.AddChild(_nextMatchApprovalLabel);
         matchMetaRow.AddChild(_nextMatchApprovalPill);
 
-        // Opponent Hero Display
+        // Sinematik Karşılaşma Sahnesi: Ev Sahibi Arması — Merkez VS & MAÇA ÇIK — Deplasman Arması
+        var showdownRow = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Alignment = BoxContainer.AlignmentMode.Center,
+        };
+        showdownRow.AddThemeConstantOverride("separation", 18);
+        matchCard.AddChild(showdownRow);
+
+        // Sol: Ev Sahibi Kulüp Arması + İsim
+        var homeCol = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Alignment = BoxContainer.AlignmentMode.End,
+        };
+        homeCol.AddThemeConstantOverride("separation", 12);
+        showdownRow.AddChild(homeCol);
+
+        var homeTextStack = new VBoxContainer
+        {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        };
+        homeTextStack.AddThemeConstantOverride("separation", 2);
+        homeCol.AddChild(homeTextStack);
+
+        var homeTag = new Label
+        {
+            Text = "EV SAHİBİ",
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        CareerUiTheme.StyleEyebrow(homeTag, CareerUiTheme.ActionBright);
+        homeTag.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
+        homeTextStack.AddChild(homeTag);
+
+        _matchHeroHomeNameLabel = new Label
+        {
+            Text = "KULÜBÜMÜZ",
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        CareerUiTheme.ApplyDisplayFont(_matchHeroHomeNameLabel);
+        _matchHeroHomeNameLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(18));
+        _matchHeroHomeNameLabel.AddThemeColorOverride("font_color", Colors.White);
+        homeTextStack.AddChild(_matchHeroHomeNameLabel);
+
+        _matchHeroHomeCrest = new BroadcastCrestBadge("EV", CareerUiTheme.ActionBright, CareerUiTheme.Accent);
+        homeCol.AddChild(_matchHeroHomeCrest);
+
+        // Merkez: VS Başlığı + Taktik Özeti + Parlayan MAÇA ÇIK Butonu
+        var centerHeroCol = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Alignment = BoxContainer.AlignmentMode.Center,
+        };
+        centerHeroCol.AddThemeConstantOverride("separation", 4);
+        showdownRow.AddChild(centerHeroCol);
+
         _nextMatchOpponentLabel = TitleLabel("NextMatchOpponentLabel");
+        _nextMatchOpponentLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _nextMatchOpponentLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        _nextMatchOpponentLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(18));
-        _nextMatchOpponentLabel.Text = "vs —";
-        matchCard.AddChild(_nextMatchOpponentLabel);
+        _nextMatchOpponentLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(17));
+        _nextMatchOpponentLabel.Text = "VS —";
+        centerHeroCol.AddChild(_nextMatchOpponentLabel);
 
         _briefingLabel = BodyLabel("BriefingLabel", muted: true, autowrap: true);
+        _briefingLabel.HorizontalAlignment = HorizontalAlignment.Center;
         _briefingLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        matchCard.AddChild(_briefingLabel);
+        centerHeroCol.AddChild(_briefingLabel);
 
         _selectionLabel = BodyLabel("SelectionLabel", muted: true, autowrap: true);
         _selectionLabel.Visible = false;
-        matchCard.AddChild(_selectionLabel);
+        centerHeroCol.AddChild(_selectionLabel);
 
-        var tacticsStripPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        tacticsStripPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
-        matchCard.AddChild(tacticsStripPanel);
+        var tacticsLineRow = new HBoxContainer
+        {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        tacticsLineRow.AddThemeConstantOverride("separation", 12);
+        centerHeroCol.AddChild(tacticsLineRow);
 
-        var tacticsCard = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        tacticsCard.AddThemeConstantOverride("separation", 3);
-        tacticsStripPanel.AddChild(tacticsCard);
-
-        _todayTacticsSummaryLabel = BodyLabel("TodayTacticsSummary", autowrap: true);
-        _todayTacticsSummaryLabel.Text = "⚽ 4-4-2 · Dengeli · Dengeli Pres";
+        _todayTacticsSummaryLabel = BodyLabel("TodayTacticsSummary", autowrap: false);
+        _todayTacticsSummaryLabel.Text = "4-4-2 · Dengeli · Dengeli Pres";
         _todayTacticsSummaryLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _todayTacticsSummaryLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        tacticsCard.AddChild(_todayTacticsSummaryLabel);
+        tacticsLineRow.AddChild(_todayTacticsSummaryLabel);
 
-        _todayFitnessSummaryLabel = BodyLabel("TodayFitnessSummary", muted: true, autowrap: true);
-        _todayFitnessSummaryLabel.Text = "⚡ Kondisyon Özeti Hazırlanıyor";
+        _todayFitnessSummaryLabel = BodyLabel("TodayFitnessSummary", muted: true, autowrap: false);
+        _todayFitnessSummaryLabel.Text = "Kondisyon Özeti Hazırlanıyor";
         _todayFitnessSummaryLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        tacticsCard.AddChild(_todayFitnessSummaryLabel);
+        tacticsLineRow.AddChild(_todayFitnessSummaryLabel);
 
-        var primaryRow = ActionFlow();
-        matchCard.AddChild(primaryRow);
-        _openTacticsButton = SecondaryButton("🟩 Saha & Taktik");
+        var heroCtaRow = new HBoxContainer
+        {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        heroCtaRow.AddThemeConstantOverride("separation", 8);
+        centerHeroCol.AddChild(heroCtaRow);
+
+        _openTacticsButton = SecondaryButton("Taktik Tahtası");
+        _openTacticsButton.CustomMinimumSize = new Vector2(120, 36);
         _openTacticsButton.Pressed += () => ShowPage(HubPage.Prep);
-        primaryRow.AddChild(_openTacticsButton);
+        heroCtaRow.AddChild(_openTacticsButton);
 
-        _approveSelectionButton = AccentButton("✓ 11'i Onayla");
+        _playButton = PrimaryButton("MAÇA ÇIK");
+        _playButton.CustomMinimumSize = new Vector2(170, 38);
+        _playButton.Pressed += () =>
+        {
+            var curDay = _controller.GetCurrentGameDate().DayNumber;
+            if (_controller.GetNextDueManagedFixture(curDay) is not null || _controller.HasDueContinentalMatch())
+            {
+                OnPlayMatches();
+            }
+            else
+            {
+                OnOfficeNextStepPressed();
+            }
+        };
+        heroCtaRow.AddChild(_playButton);
+
+        _officeNextStepButton = AccentButton("DEVAM ET");
+        _officeNextStepButton.CustomMinimumSize = new Vector2(124, 36);
+        _officeNextStepButton.Pressed += OnOfficeNextStepPressed;
+        heroCtaRow.AddChild(_officeNextStepButton);
+
+        _approveSelectionButton = AccentButton("11'i Onayla");
+        _approveSelectionButton.Visible = false;
         _approveSelectionButton.Pressed += () => Apply(_controller.ApproveDefaultSelectionForNextDueMatch());
-        primaryRow.AddChild(_approveSelectionButton);
+        heroCtaRow.AddChild(_approveSelectionButton);
 
-        _playButton = PrimaryButton("⚽ MAÇA GİT");
-        _playButton.Pressed += OnPlayMatches;
-        primaryRow.AddChild(_playButton);
-
-        _swapSelectionButton = SecondaryButton("⇄ XI ↔ Yedek");
+        _swapSelectionButton = SecondaryButton("XI / Yedek");
         _swapSelectionButton.Visible = false;
         _swapSelectionButton.Pressed += () => Apply(_controller.SwapLastStarterWithFirstBenchForNextDueMatch());
-        primaryRow.AddChild(_swapSelectionButton);
+        heroCtaRow.AddChild(_swapSelectionButton);
 
-        _restEntireTeamButton = SecondaryButton("🛌 Dinlendir");
+        _restEntireTeamButton = SecondaryButton("Dinlendir");
         _restEntireTeamButton.Pressed += () => Apply(_controller.RestEntireTeam());
-        primaryRow.AddChild(_restEntireTeamButton);
+        heroCtaRow.AddChild(_restEntireTeamButton);
 
-        _lightRegenerationButton = SecondaryButton("♻ Hafif İdman");
+        _lightRegenerationButton = SecondaryButton("Hafif İdman");
         _lightRegenerationButton.Visible = false;
         _lightRegenerationButton.Pressed += () => Apply(_controller.ApplyLightRegeneration());
-        primaryRow.AddChild(_lightRegenerationButton);
-
-        // Daily Objectives Card (SM27 / Top Eleven 5-Minute Loop)
-        var objectivesNeonPanel = new PanelContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        objectivesNeonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel());
-        col1.AddChild(objectivesNeonPanel);
-
-        var objectivesCard = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        objectivesCard.AddThemeConstantOverride("separation", 6);
-        objectivesNeonPanel.AddChild(objectivesCard);
-
-        var objHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        objHeaderRow.AddThemeConstantOverride("separation", 6);
-        objectivesCard.AddChild(objHeaderRow);
-        objHeaderRow.AddChild(UiComponents.PageHeader("🎯", "GÜNLÜK HEDEFLER (5 DK OTURUM)"));
-
-        var objBadgePanel = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
-        objBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.22f));
-        _dailyObjectivesProgressBadge = new Label { Text = "0/3 Tamam" };
-        CareerUiTheme.StyleTableText(_dailyObjectivesProgressBadge);
-        _dailyObjectivesProgressBadge.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-        objBadgePanel.AddChild(_dailyObjectivesProgressBadge);
-        objHeaderRow.AddChild(objBadgePanel);
-
-        _dailyObjectivesBox = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        _dailyObjectivesBox.AddThemeConstantOverride("separation", 6);
-        objectivesCard.AddChild(_dailyObjectivesBox);
-
-        // Keep hidden legacy controls alive so controller bindings never null-ref
-        _continuePreviewLabel = BodyLabel("ContinuePreviewLabel", muted: true, autowrap: true);
-        _continuePreviewLabel.Visible = false;
-        objectivesCard.AddChild(_continuePreviewLabel);
-
-        var timeRow = ActionFlow();
-        objectivesCard.AddChild(timeRow);
-
-        _officeNextStepButton = PrimaryButton("▶ DEVAM ET");
-        _officeNextStepButton.CustomMinimumSize = new Vector2(110, 30);
-        _officeNextStepButton.Pressed += OnOfficeNextStepPressed;
-        timeRow.AddChild(_officeNextStepButton);
+        heroCtaRow.AddChild(_lightRegenerationButton);
 
         _advanceDayButton = SecondaryButton("+1 Gün");
         _advanceDayButton.Pressed += () => Apply(_controller.AdvanceDays(1));
-        timeRow.AddChild(_advanceDayButton);
+        heroCtaRow.AddChild(_advanceDayButton);
 
         _advanceWeekButton = SecondaryButton("+7 Gün");
+        _advanceWeekButton.Visible = false;
         _advanceWeekButton.Pressed += () => Apply(_controller.AdvanceDays(7));
-        timeRow.AddChild(_advanceWeekButton);
+        heroCtaRow.AddChild(_advanceWeekButton);
 
-        _seasonTransitionButton = AccentButton("🏁 Yeni Sezon");
+        _seasonTransitionButton = AccentButton("Yeni Sezon");
+        _seasonTransitionButton.Visible = false;
         _seasonTransitionButton.Pressed += () => Apply(_controller.TransitionToNextSeason());
-        timeRow.AddChild(_seasonTransitionButton);
+        heroCtaRow.AddChild(_seasonTransitionButton);
 
-        // ====================================================
-        // COLUMN 2: FM26 PORTAL STREAM (FILTERS + ACTION TILES + DECISION DESK)
-        // ====================================================
-        var col2 = new VBoxContainer
+        // Sağ: Deplasman Kulüp Arması + İsim
+        var awayCol = new HBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            SizeFlagsStretchRatio = 1.25f,
+            Alignment = BoxContainer.AlignmentMode.Begin,
         };
-        col2.AddThemeConstantOverride("separation", 8);
-        bentoRow.AddChild(col2);
+        awayCol.AddThemeConstantOverride("separation", 12);
+        showdownRow.AddChild(awayCol);
 
-        // Decision Desk Card (Visible when a decision is pending)
+        _matchHeroAwayCrest = new BroadcastCrestBadge("DEP", CareerUiTheme.Data, CareerUiTheme.SpecularBorder);
+        awayCol.AddChild(_matchHeroAwayCrest);
+
+        var awayTextStack = new VBoxContainer
+        {
+            Alignment = BoxContainer.AlignmentMode.Center,
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        };
+        awayTextStack.AddThemeConstantOverride("separation", 2);
+        awayCol.AddChild(awayTextStack);
+
+        var awayTag = new Label
+        {
+            Text = "RAKİP / DEPLASMAN",
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        CareerUiTheme.StyleEyebrow(awayTag, CareerUiTheme.Data);
+        awayTag.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
+        awayTextStack.AddChild(awayTag);
+
+        _matchHeroAwayNameLabel = new Label
+        {
+            Text = "RAKİP KULÜP",
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        CareerUiTheme.ApplyDisplayFont(_matchHeroAwayNameLabel);
+        _matchHeroAwayNameLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(18));
+        _matchHeroAwayNameLabel.AddThemeColorOverride("font_color", Colors.White);
+        awayTextStack.AddChild(_matchHeroAwayNameLabel);
+
+        // ====================================================
+        // 3. ORTA BÖLÜM: ZORUNLU KARAR MASASI & KOMPAKT PORTAL AKIŞI
+        // ====================================================
         var decisionNeonPanel = new PanelContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -257,12 +314,12 @@ public partial class CareerHubScreen
         };
         decisionNeonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel(strongGlow: true));
         _todayDecisionPanel = decisionNeonPanel;
-        col2.AddChild(decisionNeonPanel);
+        page.AddChild(decisionNeonPanel);
 
         var decisionCard = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         decisionCard.AddThemeConstantOverride("separation", 6);
         decisionNeonPanel.AddChild(decisionCard);
-        decisionCard.AddChild(UiComponents.PageHeader("⚖️", "ZORUNLU KARAR MASASI"));
+        decisionCard.AddChild(UiComponents.PageHeader("warning", "ZORUNLU KARAR MASASI"));
 
         _deskLabel = BodyLabel("DeskLabel", autowrap: true);
         decisionCard.AddChild(_deskLabel);
@@ -282,45 +339,45 @@ public partial class CareerHubScreen
 
         var deskRow = ActionFlow();
         decisionCard.AddChild(deskRow);
-        _grantDecisionButton = AccentButton("✓ Kabul Et");
+        _grantDecisionButton = AccentButton("Kabul Et");
         _grantDecisionButton.Pressed += () => ApplyDecision(
             () => _controller.AnswerOldestPendingDecision(grantPromise: true));
         deskRow.AddChild(_grantDecisionButton);
-        _refuseDecisionButton = DangerButton("✕ Reddet");
+        _refuseDecisionButton = DangerButton("Reddet");
         _refuseDecisionButton.Pressed += () => ApplyDecision(
             () => _controller.AnswerOldestPendingDecision(grantPromise: false));
         deskRow.AddChild(_refuseDecisionButton);
-        _disciplineWarningButton = SecondaryButton("⚠ Uyarı");
+        _disciplineWarningButton = SecondaryButton("Uyarı");
         _disciplineWarningButton.Pressed += () =>
             ApplyDecision(() => _controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueWarning));
         deskRow.AddChild(_disciplineWarningButton);
-        _disciplineFineButton = DangerButton("⛔ Ceza");
+        _disciplineFineButton = DangerButton("Ceza");
         _disciplineFineButton.Pressed += () =>
             ApplyDecision(() => _controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionIssueFine));
         deskRow.AddChild(_disciplineFineButton);
-        _disciplineSupportButton = PrimaryButton("♥ Destekle");
+        _disciplineSupportButton = PrimaryButton("Destekle");
         _disciplineSupportButton.Pressed += () =>
             ApplyDecision(() => _controller.AnswerOldestPendingWithOption(Domain.Interaction.DecisionRequest.OptionOfferSupport));
         deskRow.AddChild(_disciplineSupportButton);
-        _boardCounterButton = AccentButton("⇄ Karşı Teklif");
+        _boardCounterButton = AccentButton("Karşı Teklif");
         _boardCounterButton.Pressed += () =>
             ApplyDecision(() => _controller.AnswerOldestPendingWithOption(
                 Domain.Interaction.DecisionRequest.OptionCounterBoardDemand));
         deskRow.AddChild(_boardCounterButton);
-        _pressCriticizeButton = DangerButton("🎙 Eleştir");
+        _pressCriticizeButton = DangerButton("Eleştir");
         _pressCriticizeButton.Pressed += () =>
             ApplyDecision(() => _controller.AnswerOldestPendingWithOption(
                 Domain.Interaction.DecisionRequest.OptionPubliclyCriticize));
         deskRow.AddChild(_pressCriticizeButton);
 
-        // FM26 Unified Portal Card
+        // Tek Akışlı Portal & Günlük Hedefler Paneli
         var portalNeonPanel = new PanelContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
         portalNeonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel());
-        col2.AddChild(portalNeonPanel);
+        page.AddChild(portalNeonPanel);
 
         var portalCard = new VBoxContainer
         {
@@ -331,146 +388,142 @@ public partial class CareerHubScreen
         portalNeonPanel.AddChild(portalCard);
 
         var portalHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        portalHeaderRow.AddThemeConstantOverride("separation", 6);
+        portalHeaderRow.AddThemeConstantOverride("separation", 8);
         portalCard.AddChild(portalHeaderRow);
-        portalHeaderRow.AddChild(UiComponents.PageHeader("📬", "PORTAL & TEKNİK EKİP MASASI"));
+        portalHeaderRow.AddChild(UiComponents.PageHeader("radar", "PORTAL AKIŞI & GÜNLÜK HEDEFLER"));
+
+        var objBadgePanel = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
+        objBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.22f));
+        _dailyObjectivesProgressBadge = new Label { Text = "0/3 Tamam" };
+        CareerUiTheme.StyleTableText(_dailyObjectivesProgressBadge);
+        _dailyObjectivesProgressBadge.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        objBadgePanel.AddChild(_dailyObjectivesProgressBadge);
+        portalHeaderRow.AddChild(objBadgePanel);
 
         _fanApprovalBadgePanel = new PanelContainer { SizeFlagsVertical = SizeFlags.ShrinkCenter };
         _fanApprovalBadgePanel.AddThemeStyleboxOverride(
             "panel",
             CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.18f));
-        _fanApprovalBadgeLabel = new Label { Text = "♥ %50" };
+        _fanApprovalBadgeLabel = new Label { Text = "Taraftar %50" };
         CareerUiTheme.StyleTableText(_fanApprovalBadgeLabel);
         _fanApprovalBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _fanApprovalBadgePanel.AddChild(_fanApprovalBadgeLabel);
         portalHeaderRow.AddChild(_fanApprovalBadgePanel);
 
-        // 4 Portal Filter Pills (FM26 Portal Spec)
-        var portalFilterRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        portalFilterRow.AddThemeConstantOverride("separation", 4);
-        portalCard.AddChild(portalFilterRow);
-
-        _portalFilterAllBtn = new Button { Text = "📰 Tümü", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _portalFilterAllBtn = new Button { Text = "Tümü", CustomMinimumSize = new Vector2(74, 26) };
         _portalFilterAllBtn.Pressed += () => SetPortalFilter(MobilePortalAndDeckDigest.FilterAll);
-        portalFilterRow.AddChild(_portalFilterAllBtn);
+        portalHeaderRow.AddChild(_portalFilterAllBtn);
 
-        _portalFilterUrgentBtn = new Button { Text = "🔥 Zorunlu", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _portalFilterUrgentBtn = new Button { Text = "Zorunlu", CustomMinimumSize = new Vector2(78, 26) };
         _portalFilterUrgentBtn.Pressed += () => SetPortalFilter(MobilePortalAndDeckDigest.FilterMustRespond);
-        portalFilterRow.AddChild(_portalFilterUrgentBtn);
+        portalHeaderRow.AddChild(_portalFilterUrgentBtn);
 
-        _portalFilterTasksBtn = new Button { Text = "📋 Görevler", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _portalFilterTasksBtn = new Button { Text = "Görevler", CustomMinimumSize = new Vector2(78, 26) };
         _portalFilterTasksBtn.Pressed += () => SetPortalFilter(MobilePortalAndDeckDigest.FilterTasks);
-        portalFilterRow.AddChild(_portalFilterTasksBtn);
+        portalHeaderRow.AddChild(_portalFilterTasksBtn);
 
-        _portalFilterAdviceBtn = new Button { Text = "💡 Tavsiye", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _portalFilterAdviceBtn = new Button { Text = "Tavsiye", CustomMinimumSize = new Vector2(78, 26) };
         _portalFilterAdviceBtn.Pressed += () => SetPortalFilter(MobilePortalAndDeckDigest.FilterAdvice);
-        portalFilterRow.AddChild(_portalFilterAdviceBtn);
+        portalHeaderRow.AddChild(_portalFilterAdviceBtn);
         UpdatePortalFilterStyles();
+
+        var portalScroll = new MobileScrollContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+        };
+        portalCard.AddChild(portalScroll);
+
+        var portalInnerStack = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        portalInnerStack.AddThemeConstantOverride("separation", 6);
+        portalScroll.AddChild(portalInnerStack);
+
+        _dailyObjectivesBox = new VBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _dailyObjectivesBox.AddThemeConstantOverride("separation", 4);
+        portalInnerStack.AddChild(_dailyObjectivesBox);
 
         _portalStreamBox = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        _portalStreamBox.AddThemeConstantOverride("separation", 6);
-        portalCard.AddChild(_portalStreamBox);
+        _portalStreamBox.AddThemeConstantOverride("separation", 4);
+        portalInnerStack.AddChild(_portalStreamBox);
 
-        // Compact Fan / Week Story / Injury strip at bottom of Portal
         _fanFeedLabel = BodyLabel("FanFeedLabel", muted: true, autowrap: true);
         _fanFeedLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         portalCard.AddChild(_fanFeedLabel);
 
-        _blockerLabel = BodyLabel("BlockerLabel", autowrap: true);
-        _blockerLabel.Visible = false;
-        portalCard.AddChild(_blockerLabel);
-        _pulseLabel = BodyLabel("PulseLabel", muted: true, autowrap: true);
-        _pulseLabel.Visible = false;
-        portalCard.AddChild(_pulseLabel);
-        _weekStoryLabel = BodyLabel("WeekStoryLabel", autowrap: true);
-        _weekStoryLabel.Visible = false;
-        portalCard.AddChild(_weekStoryLabel);
-        _recoveryPathLabel = BodyLabel("RecoveryPathLabel", autowrap: true);
-        _recoveryPathLabel.Visible = false;
-        portalCard.AddChild(_recoveryPathLabel);
-        _officeLabel = BodyLabel("OfficeLabel", muted: true, autowrap: true);
-        _officeLabel.Visible = false;
-        portalCard.AddChild(_officeLabel);
-
-        // Hidden First Week Guide container kept for compatibility
-        var guideHost = new VBoxContainer { Visible = false };
-        col2.AddChild(guideHost);
-        _firstWeekGuideCard = guideHost;
-        _firstWeekGuideLabel = BodyLabel("FirstWeekGuideLabel", autowrap: true);
-        guideHost.AddChild(_firstWeekGuideLabel);
-        _firstWeekGuideOpenButton = PrimaryButton("Ekranı Aç");
-        guideHost.AddChild(_firstWeekGuideOpenButton);
-        _firstWeekGuideNextButton = SecondaryButton("Tamamlandı →");
-        guideHost.AddChild(_firstWeekGuideNextButton);
-
         // ====================================================
-        // COLUMN 3: TACTILE MANAGER CARD DECK (NEW STAR MANAGER / TOP DRIVES) + STANDINGS
+        // 4. EN ALT BÖLÜM: "YÜZEN EL DESTESİ" (FLOATING CARD HAND — Rule 6)
+        // 2x2 sağ sütun yerine ekranın altında hafif açılı duran koleksiyon el destesi
         // ====================================================
-        var col3 = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            SizeFlagsStretchRatio = 1.15f,
-        };
-        col3.AddThemeConstantOverride("separation", 8);
-        bentoRow.AddChild(col3);
-
-        var deckNeonPanel = new PanelContainer
+        var handWrapper = new PanelContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        deckNeonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel(strongGlow: true));
-        col3.AddChild(deckNeonPanel);
+        handWrapper.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
+        page.AddChild(handWrapper);
 
-        var deckCard = new VBoxContainer
+        var handStack = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        deckCard.AddThemeConstantOverride("separation", 6);
-        deckNeonPanel.AddChild(deckCard);
-        deckCard.AddChild(UiComponents.PageHeader("🃏", "DOKUNSAL MENAJER KART DESTESİ"));
+        handStack.AddThemeConstantOverride("separation", 4);
+        handWrapper.AddChild(handStack);
 
-        _tactileDeckGrid = new GridContainer
-        {
-            Columns = 2,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-        };
-        _tactileDeckGrid.AddThemeConstantOverride("h_separation", 6);
-        _tactileDeckGrid.AddThemeConstantOverride("v_separation", 6);
-        deckCard.AddChild(_tactileDeckGrid);
+        var handHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        handHeaderRow.AddThemeConstantOverride("separation", 8);
+        handStack.AddChild(handHeaderRow);
+        handHeaderRow.AddChild(UiComponents.PageHeader("cards", "YÜZEN EL DESTESİ  ·  ANLIK MENAJER HAMLE KARTLARI"));
 
-        var standingsNeonPanel = new PanelContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        standingsNeonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel());
-        col3.AddChild(standingsNeonPanel);
-
-        var standingsCard = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        standingsCard.AddThemeConstantOverride("separation", 5);
-        standingsNeonPanel.AddChild(standingsCard);
-        standingsCard.AddChild(UiComponents.PageHeader("📊", "SÜPER LİG TABLOSU"));
-
-        _miniStandingsContainer = new VBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-        };
-        _miniStandingsContainer.AddThemeConstantOverride("separation", 3);
-        standingsCard.AddChild(_miniStandingsContainer);
-
-        _openFullStandingsButton = SecondaryButton("📊 Tam Tablo & Fikstür →");
+        _openFullStandingsButton = SecondaryButton("Tam Lig Tablosu & Fikstür");
+        _openFullStandingsButton.CustomMinimumSize = new Vector2(180, 28);
         _openFullStandingsButton.Pressed += () => ShowPage(HubPage.World);
-        standingsCard.AddChild(_openFullStandingsButton);
+        handHeaderRow.AddChild(_openFullStandingsButton);
+
+        _tactileDeckHandRow = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Alignment = BoxContainer.AlignmentMode.Center,
+            CustomMinimumSize = new Vector2(0, 152),
+        };
+        _tactileDeckHandRow.AddThemeConstantOverride("separation", 14);
+        handStack.AddChild(_tactileDeckHandRow);
+
+        // Arka planda controller bağlamalarını koruyan gizli uyumluluk düğümleri
+        var hiddenCompatHost = new VBoxContainer { Visible = false };
+        page.AddChild(hiddenCompatHost);
+
+        _continuePreviewLabel = BodyLabel("ContinuePreviewLabel", muted: true, autowrap: true);
+        hiddenCompatHost.AddChild(_continuePreviewLabel);
+        _blockerLabel = BodyLabel("BlockerLabel", autowrap: true);
+        hiddenCompatHost.AddChild(_blockerLabel);
+        _pulseLabel = BodyLabel("PulseLabel", muted: true, autowrap: true);
+        hiddenCompatHost.AddChild(_pulseLabel);
+        _weekStoryLabel = BodyLabel("WeekStoryLabel", autowrap: true);
+        hiddenCompatHost.AddChild(_weekStoryLabel);
+        _recoveryPathLabel = BodyLabel("RecoveryPathLabel", autowrap: true);
+        hiddenCompatHost.AddChild(_recoveryPathLabel);
+        _officeLabel = BodyLabel("OfficeLabel", muted: true, autowrap: true);
+        hiddenCompatHost.AddChild(_officeLabel);
+
+        _firstWeekGuideCard = hiddenCompatHost;
+        _firstWeekGuideLabel = BodyLabel("FirstWeekGuideLabel", autowrap: true);
+        hiddenCompatHost.AddChild(_firstWeekGuideLabel);
+        _firstWeekGuideOpenButton = PrimaryButton("Ekranı Aç");
+        hiddenCompatHost.AddChild(_firstWeekGuideOpenButton);
+        _firstWeekGuideNextButton = SecondaryButton("Tamamlandı");
+        hiddenCompatHost.AddChild(_firstWeekGuideNextButton);
+
+        _miniStandingsContainer = new VBoxContainer();
+        hiddenCompatHost.AddChild(_miniStandingsContainer);
 
         return page;
     }
@@ -497,14 +550,17 @@ public partial class CareerHubScreen
 
     private void RefreshPortalAndDeck()
     {
-        if (_portalCalendarRow is null || _dailyObjectivesBox is null || _portalStreamBox is null || _tactileDeckGrid is null)
+        if (_portalCalendarRow is null || _dailyObjectivesBox is null || _portalStreamBox is null || _tactileDeckHandRow is null)
         {
             return;
         }
 
         var portal = _controller.BuildMobilePortalAndDeck();
 
-        // 1. Render 7-Day Visual Calendar Strip
+        // Hero Kartı Ev Sahibi vs Deplasman Armaları ve Geri Sayımı Güncelle
+        RefreshMatchdayHeroShowdown(portal);
+
+        // 1. Render 7-Day Visual Calendar Strip (Vektörel İkonlarla)
         MatchScreenUi.ClearChildren(_portalCalendarRow);
         foreach (var dayTile in portal.CalendarStrip)
         {
@@ -529,18 +585,28 @@ public partial class CareerHubScreen
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
                 Alignment = BoxContainer.AlignmentMode.Center,
             };
-            tileBox.AddThemeConstantOverride("separation", 1);
+            tileBox.AddThemeConstantOverride("separation", 2);
             tilePanel.AddChild(tileBox);
+
+            var topRow = new HBoxContainer
+            {
+                Alignment = BoxContainer.AlignmentMode.Center,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            };
+            topRow.AddThemeConstantOverride("separation", 4);
+            tileBox.AddChild(topRow);
+
+            topRow.AddChild(new BroadcastVectorIcon(dayTile.Icon, tileColor, 12f));
 
             var topLabel = new Label
             {
-                Text = $"{dayTile.DayBadge} · {dayTile.Icon}",
+                Text = dayTile.DayBadge,
                 HorizontalAlignment = HorizontalAlignment.Center,
             };
             CareerUiTheme.StyleTableText(topLabel);
             topLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
             topLabel.AddThemeColorOverride("font_color", tileColor);
-            tileBox.AddChild(topLabel);
+            topRow.AddChild(topLabel);
 
             var titleLabel = new Label
             {
@@ -553,11 +619,11 @@ public partial class CareerHubScreen
             tileBox.AddChild(titleLabel);
         }
 
-        // 2. Render 5-Minute Daily Objectives
-        _dailyObjectivesProgressBadge.Text = $"🎯 {portal.CompletedObjectivesCount}/{portal.TotalObjectivesCount} Tamam";
+        // 2. Render Daily Objectives
+        _dailyObjectivesProgressBadge.Text = $"Hedef {portal.CompletedObjectivesCount}/{portal.TotalObjectivesCount} Tamam";
         if (_topQuestBadgeLabel is not null)
         {
-            _topQuestBadgeLabel.Text = $"🎯 Görev {portal.CompletedObjectivesCount}/{portal.TotalObjectivesCount}";
+            _topQuestBadgeLabel.Text = $"Görev {portal.CompletedObjectivesCount}/{portal.TotalObjectivesCount}";
         }
 
         MatchScreenUi.ClearChildren(_dailyObjectivesBox);
@@ -572,13 +638,15 @@ public partial class CareerHubScreen
             row.AddThemeConstantOverride("separation", 8);
             objPanel.AddChild(row);
 
+            row.AddChild(new BroadcastVectorIcon(obj.Icon, objColor, 18f));
+
             var copyBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
             copyBox.AddThemeConstantOverride("separation", 2);
             row.AddChild(copyBox);
 
             var titleLbl = new Label
             {
-                Text = $"{obj.Icon} {obj.Title}  ({obj.RewardBadge})",
+                Text = $"{obj.Title}  ({obj.RewardBadge})",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
             };
             CareerUiTheme.StyleHeadline(titleLbl);
@@ -600,9 +668,9 @@ public partial class CareerHubScreen
             copyBox.AddChild(prog);
 
             var actionBtn = obj.IsCompleted
-                ? SecondaryButton("✓ Tamam")
+                ? SecondaryButton("Tamamlandı")
                 : PrimaryButton(obj.ActionButtonLabel);
-            actionBtn.CustomMinimumSize = new Vector2(118, 30);
+            actionBtn.CustomMinimumSize = new Vector2(118, 28);
             actionBtn.Disabled = obj.IsCompleted;
             var code = obj.ObjectiveCode;
             actionBtn.Pressed += () => ExecuteDailyObjectiveAction(code);
@@ -635,18 +703,20 @@ public partial class CareerHubScreen
                 itemRow.AddThemeConstantOverride("separation", 8);
                 itemPanel.AddChild(itemRow);
 
+                itemRow.AddChild(new BroadcastVectorIcon(item.Icon, itemColor, 18f));
+
                 var textCol = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
                 textCol.AddThemeConstantOverride("separation", 2);
                 itemRow.AddChild(textCol);
 
-                var badgeLbl = new Label { Text = $"{item.RoleBadge}" };
+                var badgeLbl = new Label { Text = item.RoleBadge };
                 CareerUiTheme.StyleEyebrow(badgeLbl, itemColor);
                 badgeLbl.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
                 textCol.AddChild(badgeLbl);
 
                 var headLbl = new Label
                 {
-                    Text = $"{item.Icon} {item.Headline}",
+                    Text = item.Headline,
                     AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 };
                 CareerUiTheme.StyleHeadline(headLbl);
@@ -659,7 +729,7 @@ public partial class CareerHubScreen
                 textCol.AddChild(detailLbl);
 
                 var btn = item.IsUrgent ? AccentButton(item.ActionLabel) : SecondaryButton(item.ActionLabel);
-                btn.CustomMinimumSize = new Vector2(124, 32);
+                btn.CustomMinimumSize = new Vector2(124, 30);
                 btn.SizeFlagsVertical = SizeFlags.ShrinkCenter;
                 var actionCode = item.ActionCode;
                 btn.Pressed += () => ExecutePortalTileAction(actionCode);
@@ -667,10 +737,17 @@ public partial class CareerHubScreen
             }
         }
 
-        // 4. Render Tactile Manager Card Deck (2x2 Collectible Cards)
-        MatchScreenUi.ClearChildren(_tactileDeckGrid);
-        foreach (var card in portal.TactileDeck)
+        // 4. Render Floating Card Hand (Yüzen El Destesi — Rule 6)
+        MatchScreenUi.ClearChildren(_tactileDeckHandRow);
+        float[] fanAngles = [-5.5f, -1.8f, 1.8f, 5.5f];
+        float[] fanOffsetsY = [6f, 0f, 0f, 6f];
+
+        for (var i = 0; i < portal.TactileDeck.Count; i++)
         {
+            var card = portal.TactileDeck[i];
+            var angle = i < fanAngles.Length ? fanAngles[i] : 0f;
+            var offsetY = i < fanOffsetsY.Length ? fanOffsetsY[i] : 0f;
+
             var cardColor = card.CardCode switch
             {
                 MobilePortalAndDeckDigest.CardEnergyPack => CareerUiTheme.ActionBright,
@@ -679,26 +756,39 @@ public partial class CareerHubScreen
                 _ => CareerUiTheme.ColorWarning,
             };
 
-            var cardPanel = new PanelContainer
+            var handSlot = new Control
             {
+                CustomMinimumSize = new Vector2(215, 146),
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
             };
-            cardPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(cardColor, 0.18f));
-            _tactileDeckGrid.AddChild(cardPanel);
+            _tactileDeckHandRow.AddChild(handSlot);
+
+            var cardPanel = new PanelContainer
+            {
+                CustomMinimumSize = new Vector2(210, 138),
+                Position = new Vector2(0, offsetY),
+                PivotOffset = new Vector2(105, 70),
+                RotationDegrees = CareerUiTheme.ReducedMotion ? 0f : angle,
+            };
+            cardPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(cardColor, 0.22f));
+            handSlot.AddChild(cardPanel);
 
             var cardBox = new VBoxContainer
             {
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
             };
-            cardBox.AddThemeConstantOverride("separation", 3);
+            cardBox.AddThemeConstantOverride("separation", 4);
             cardPanel.AddChild(cardBox);
 
             var headerRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            headerRow.AddThemeConstantOverride("separation", 6);
             cardBox.AddChild(headerRow);
+
+            headerRow.AddChild(new BroadcastVectorIcon(card.Icon, cardColor, 15f));
 
             var rarityLbl = new Label
             {
-                Text = $"{card.Icon} {card.RarityTier}",
+                Text = card.RarityTier,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
             };
             CareerUiTheme.StyleEyebrow(rarityLbl, cardColor);
@@ -728,6 +818,26 @@ public partial class CareerHubScreen
             playCardBtn.CustomMinimumSize = new Vector2(0, 28);
             var code = card.CardCode;
             var targetPanel = cardPanel;
+            var baseAngle = CareerUiTheme.ReducedMotion ? 0f : angle;
+            var baseY = offsetY;
+
+            playCardBtn.MouseEntered += () =>
+            {
+                if (!CareerUiTheme.ReducedMotion)
+                {
+                    targetPanel.RotationDegrees = 0f;
+                    targetPanel.Position = new Vector2(0, baseY - 6f);
+                }
+            };
+            playCardBtn.MouseExited += () =>
+            {
+                if (!CareerUiTheme.ReducedMotion)
+                {
+                    targetPanel.RotationDegrees = baseAngle;
+                    targetPanel.Position = new Vector2(0, baseY);
+                }
+            };
+
             playCardBtn.Pressed += () =>
             {
                 PlayInterfaceFeedback(MatchAudioCue.Whistle, vibrationDurationMs: 22);
@@ -744,6 +854,72 @@ public partial class CareerHubScreen
             };
             cardBox.AddChild(playCardBtn);
         }
+    }
+
+    private void RefreshMatchdayHeroShowdown(MobilePortalAndDeckDigest portal)
+    {
+        if (_matchHeroHomeNameLabel is null || _matchHeroAwayNameLabel is null)
+        {
+            return;
+        }
+
+        var manager = _controller.GetManagerCareer();
+        var clubName = manager.EmployedClubId is long cid
+            ? _controller.GetClubDisplayName(cid)
+            : "KULÜBÜMÜZ";
+
+        var currentDay = _controller.GetCurrentGameDate().DayNumber;
+        var nextFixture = _controller.GetNextDueManagedFixture(currentDay);
+        var matchTile = portal.CalendarStrip.FirstOrDefault(t => t.IsMatchDay);
+
+        if (nextFixture is not null)
+        {
+            var isHome = nextFixture.IsHome;
+            var oppName = _controller.GetClubDisplayName(nextFixture.OpponentClubId);
+            var homeName = isHome ? clubName : oppName;
+            var awayName = isHome ? oppName : clubName;
+
+            _matchHeroHomeNameLabel.Text = homeName.ToUpperInvariant();
+            _matchHeroAwayNameLabel.Text = awayName.ToUpperInvariant();
+            _matchHeroHomeCrest.SetBadgeText(ExtractInitials(homeName));
+            _matchHeroAwayCrest.SetBadgeText(ExtractInitials(awayName));
+            _matchHeroCountdownLabel.Text = "BUGÜN MAÇ GÜNÜ  ·  CANLI YAYIN HAZIR";
+        }
+        else if (matchTile is not null)
+        {
+            var oppRaw = matchTile.Title.Replace("MAÇ:", "", StringComparison.OrdinalIgnoreCase).Trim();
+            _matchHeroHomeNameLabel.Text = clubName.ToUpperInvariant();
+            _matchHeroAwayNameLabel.Text = oppRaw.ToUpperInvariant();
+            _matchHeroHomeCrest.SetBadgeText(ExtractInitials(clubName));
+            _matchHeroAwayCrest.SetBadgeText(ExtractInitials(oppRaw));
+            _matchHeroCountdownLabel.Text = matchTile.DayOffset == 0
+                ? "BUGÜN MAÇ GÜNÜ"
+                : $"GERİ SAYIM: MAÇA {matchTile.DayOffset} GÜN";
+        }
+        else
+        {
+            _matchHeroHomeNameLabel.Text = clubName.ToUpperInvariant();
+            _matchHeroAwayNameLabel.Text = "SIRADAKİ RAKİP";
+            _matchHeroHomeCrest.SetBadgeText(ExtractInitials(clubName));
+            _matchHeroAwayCrest.SetBadgeText("SL");
+            _matchHeroCountdownLabel.Text = "FİKSTÜR TAKİBİ";
+        }
+    }
+
+    private static string ExtractInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return "FK";
+        }
+
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+        {
+            return $"{char.ToUpperInvariant(parts[0][0])}{char.ToUpperInvariant(parts[1][0])}";
+        }
+
+        return name.Length >= 2 ? name[..2].ToUpperInvariant() : name.ToUpperInvariant();
     }
 
     private void ExecuteDailyObjectiveAction(string objectiveCode)
@@ -787,6 +963,75 @@ public partial class CareerHubScreen
                 Apply(_controller.PlayTactileManagerCard(actionCode));
                 ShowPage(HubPage.Transfer);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Maç Günü Hero Kartı için özel _Draw() ile çizilen vektörel kulüp arması (Rule 1 & Rule 6).
+    /// </summary>
+    private sealed partial class BroadcastCrestBadge : Control
+    {
+        private string _initials;
+        private readonly Color _primary;
+        private readonly Color _secondary;
+
+        public BroadcastCrestBadge(string initials, Color primary, Color secondary)
+        {
+            _initials = initials;
+            _primary = primary;
+            _secondary = secondary;
+            CustomMinimumSize = new Vector2(56, 62);
+            MouseFilter = MouseFilterEnum.Ignore;
+        }
+
+        public void SetBadgeText(string initials)
+        {
+            _initials = initials;
+            QueueRedraw();
+        }
+
+        public override void _Draw()
+        {
+            var w = Size.X;
+            var h = Size.Y;
+            Vector2[] outerShield =
+            [
+                new Vector2(w * 0.50f, 3f),
+                new Vector2(w - 4f, h * 0.20f),
+                new Vector2(w - 7f, h * 0.66f),
+                new Vector2(w * 0.50f, h - 3f),
+                new Vector2(7f, h * 0.66f),
+                new Vector2(4f, h * 0.20f),
+            ];
+            DrawColoredPolygon(outerShield, new Color(0.05f, 0.09f, 0.16f, 0.95f));
+
+            Vector2[] leftHalf =
+            [
+                new Vector2(w * 0.50f, 6f),
+                new Vector2(w * 0.50f, h - 6f),
+                new Vector2(9f, h * 0.64f),
+                new Vector2(6f, h * 0.22f),
+            ];
+            DrawColoredPolygon(leftHalf, new Color(_primary.R, _primary.G, _primary.B, 0.28f));
+
+            Vector2[] outline =
+            [
+                outerShield[0], outerShield[1], outerShield[2],
+                outerShield[3], outerShield[4], outerShield[5], outerShield[0],
+            ];
+            DrawPolyline(outline, _primary, 2.2f);
+            DrawCircle(new Vector2(w * 0.50f, 12f), 3f, _secondary);
+
+            var font = ThemeDB.FallbackFont;
+            var textSize = font.GetStringSize(_initials, HorizontalAlignment.Center, -1, 14);
+            DrawString(
+                font,
+                new Vector2((w - textSize.X) * 0.5f, (h * 0.58f) + (textSize.Y * 0.25f)),
+                _initials,
+                HorizontalAlignment.Center,
+                -1,
+                14,
+                Colors.White);
         }
     }
 }

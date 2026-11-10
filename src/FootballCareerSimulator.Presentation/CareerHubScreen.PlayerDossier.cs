@@ -108,15 +108,17 @@ public partial class CareerHubScreen
         topBar.AddThemeConstantOverride("separation", 8);
         content.AddChild(topBar);
 
+        topBar.AddChild(new BroadcastVectorIcon("book", CareerUiTheme.Accent, 16f));
+
         var headerLabel = BodyLabel("DossierHeaderLabel");
-        headerLabel.Text = "📋 FUTBOLCU DOSYASI & TEKNİK ANALİZ RAPORU";
+        headerLabel.Text = "FUTBOLCU DOSYASI & TEKNİK ANALİZ RAPORU";
         CareerUiTheme.ApplyDisplayFont(headerLabel);
         headerLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
         headerLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         headerLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         topBar.AddChild(headerLabel);
 
-        var topCloseBtn = SecondaryButton("✕");
+        var topCloseBtn = SecondaryButton("Kapat");
         topCloseBtn.CustomMinimumSize = new Vector2(34, 26);
         topCloseBtn.Pressed += ClosePlayerDossier;
         topBar.AddChild(topCloseBtn);
@@ -197,7 +199,7 @@ public partial class CareerHubScreen
         gridContainer.AddChild(row1);
 
         // Kart 1: Yetenek & Potansiyel
-        var abilityCard = AddDossierCard(row1, "⭐ YETENEK & POTANSİYEL");
+        var abilityCard = AddDossierCard(row1, "YETENEK & POTANSİYEL");
         _dossierAbilityLabel = BodyLabel("DossierAbility");
         _dossierAbilityLabel.Text = "Mevcut: 82 / Tavan: 88";
         abilityCard.AddChild(_dossierAbilityLabel);
@@ -220,7 +222,7 @@ public partial class CareerHubScreen
         abilityCard.AddChild(_dossierCareerPhaseLabel);
 
         // Kart 2: Fizik & Kondisyon
-        var physicalCard = AddDossierCard(row1, "⚡ FİZİK & KONDİSYON");
+        var physicalCard = AddDossierCard(row1, "FİZİK & KONDİSYON");
         _dossierFitnessLabel = BodyLabel("DossierFitness");
         _dossierFitnessLabel.Text = "Kondisyon: %95 · Yorgunluk: %5";
         physicalCard.AddChild(_dossierFitnessLabel);
@@ -245,7 +247,7 @@ public partial class CareerHubScreen
         _dossierAvailabilityBadge = new PanelContainer();
         _dossierAvailabilityBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright));
         _dossierAvailabilityLabel = BodyLabel("DossierAvailLabel");
-        _dossierAvailabilityLabel.Text = "✓ Maça Hazır";
+        _dossierAvailabilityLabel.Text = "Maça Hazır";
         _dossierAvailabilityLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _dossierAvailabilityBadge.AddChild(_dossierAvailabilityLabel);
         availRow.AddChild(_dossierAvailabilityBadge);
@@ -260,7 +262,7 @@ public partial class CareerHubScreen
         gridContainer.AddChild(row2);
 
         // Kart 3: Sözleşme & Maliyet
-        var contractCard = AddDossierCard(row2, "💼 SÖZLEŞME & KULÜP");
+        var contractCard = AddDossierCard(row2, "SÖZLEŞME & KULÜP");
         _dossierContractWageLabel = BodyLabel("DossierWage");
         _dossierContractWageLabel.Text = "Haftalık Ücret: 45.000 TRY";
         contractCard.AddChild(_dossierContractWageLabel);
@@ -270,9 +272,9 @@ public partial class CareerHubScreen
         contractCard.AddChild(_dossierContractEndLabel);
 
         // Kart 4: İlişki & Soyunma Odası
-        var socialCard = AddDossierCard(row2, "🤝 İLİŞKİ & SOYUNMA ODASI");
+        var socialCard = AddDossierCard(row2, "İLİŞKİ & SOYUNMA ODASI");
         _dossierRelationshipLabel = BodyLabel("DossierRel");
-        _dossierRelationshipLabel.Text = "İlişki: Güçlü 🟢";
+        _dossierRelationshipLabel.Text = "İlişki: Güçlü";
         socialCard.AddChild(_dossierRelationshipLabel);
 
         _dossierSocialMetricsLabel = BodyLabel("DossierSocialMetrics", muted: true);
@@ -307,37 +309,37 @@ public partial class CareerHubScreen
         meetingContent.AddChild(_privateMeetingResultLabel);
         var meetingTopics = ActionFlow();
         meetingContent.AddChild(meetingTopics);
-        AddPrivateMeetingButton(meetingTopics, "♥ Destek", Application.SocialContinuity.Services.PrivateMeetingTopic.Reassurance);
-        AddPrivateMeetingButton(meetingTopics, "⏱ Süre", Application.SocialContinuity.Services.PrivateMeetingTopic.PlayingTime);
-        AddPrivateMeetingButton(meetingTopics, "⚠ Form", Application.SocialContinuity.Services.PrivateMeetingTopic.PerformanceWarning);
-        AddPrivateMeetingButton(meetingTopics, "© Kaptanlık", Application.SocialContinuity.Services.PrivateMeetingTopic.Captaincy);
-        AddPrivateMeetingButton(meetingTopics, "✍ Sözleşme", Application.SocialContinuity.Services.PrivateMeetingTopic.Contract);
+        AddPrivateMeetingButton(meetingTopics, "Destek", Application.SocialContinuity.Services.PrivateMeetingTopic.Reassurance);
+        AddPrivateMeetingButton(meetingTopics, "Süre", Application.SocialContinuity.Services.PrivateMeetingTopic.PlayingTime);
+        AddPrivateMeetingButton(meetingTopics, "Form", Application.SocialContinuity.Services.PrivateMeetingTopic.PerformanceWarning);
+        AddPrivateMeetingButton(meetingTopics, "Kaptanlık", Application.SocialContinuity.Services.PrivateMeetingTopic.Captaincy);
+        AddPrivateMeetingButton(meetingTopics, "Sözleşme", Application.SocialContinuity.Services.PrivateMeetingTopic.Contract);
 
         // Footer Action Row
         var actionRow = ActionFlow();
         content.AddChild(actionRow);
 
-        _playerDossierMeetingButton = AccentButton("🗣 Özel Görüşme");
+        _playerDossierMeetingButton = AccentButton("Özel Görüşme");
         _playerDossierMeetingButton.Pressed += () =>
             _privateMeetingPanel.Visible = !_privateMeetingPanel.Visible;
         actionRow.AddChild(_playerDossierMeetingButton);
 
-        _playerDossierSellButton = DangerButton("🏷 Satışa Çıkar");
+        _playerDossierSellButton = DangerButton("Satışa Çıkar");
         _playerDossierSellButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         _playerDossierSellButton.Pressed += OnPlayerDossierSellPressed;
         actionRow.AddChild(_playerDossierSellButton);
 
-        _playerDossierPromiseButton = SecondaryButton("🤝 11 Sözü Ver");
+        _playerDossierPromiseButton = SecondaryButton("11 Sözü Ver");
         _playerDossierPromiseButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         _playerDossierPromiseButton.Pressed += OnPlayerDossierPromisePressed;
         actionRow.AddChild(_playerDossierPromiseButton);
 
-        _playerDossierDecisionButton = SecondaryButton("⚖ Karar Aç");
+        _playerDossierDecisionButton = SecondaryButton("Karar Aç");
         _playerDossierDecisionButton.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         _playerDossierDecisionButton.Pressed += OnPlayerDossierDecisionPressed;
         actionRow.AddChild(_playerDossierDecisionButton);
 
-        var close = PrimaryButton("✕ Kapat");
+        var close = PrimaryButton("Kapat");
         close.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         close.Pressed += ClosePlayerDossier;
         actionRow.AddChild(close);
@@ -426,13 +428,13 @@ public partial class CareerHubScreen
         if (player.IsInjured)
         {
             _dossierAvailabilityBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorCritical));
-            _dossierAvailabilityLabel.Text = $"🩹 {player.Availability}";
+            _dossierAvailabilityLabel.Text = player.Availability;
             _dossierAvailabilityLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorCritical);
         }
         else
         {
             _dossierAvailabilityBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright));
-            _dossierAvailabilityLabel.Text = "✓ Maça Hazır";
+            _dossierAvailabilityLabel.Text = "Maça Hazır";
             _dossierAvailabilityLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         }
 
@@ -444,13 +446,7 @@ public partial class CareerHubScreen
         _dossierContractEndLabel.Text = $"Bitiş Tarihi: {player.ContractEnd}";
 
         // Social
-        var relIcon = player.RelationshipState switch
-        {
-            "Güçlü" => "🟢",
-            "Kırılgan" => "🔴",
-            _ => "⚪"
-        };
-        _dossierRelationshipLabel.Text = $"Menajerle İlişki: {player.RelationshipState} {relIcon}";
+        _dossierRelationshipLabel.Text = $"Menajerle İlişki: {player.RelationshipState}";
         if (player.Trust is int trust && player.Respect is int respect && player.Compatibility is int compat)
         {
             _dossierSocialMetricsLabel.Text = $"Güven: %{trust} · Saygı: %{respect} · Uyum: %{compat}";
@@ -514,7 +510,7 @@ public partial class CareerHubScreen
         _dossierRelationshipLabel.Text = $"Kulübe İlgi: {candidate.InterestLabel}";
         _dossierSocialMetricsLabel.Text = candidate.IsAffordable
             ? "Kulüp bütçesi bu transferi karşılayabilir."
-            : "⚠️ Bütçe Üstü: Teklifi düşür veya maaş bütçesini gözden geçir.";
+            : "Bütçe Üstü: Teklifi düşür veya maaş bütçesini gözden geçir.";
 
         _dossierPromiseLabel.Text = $"Önerilen Kadro Rolü: {candidate.RecommendedSquadRole}";
         _dossierCausalityLabel.Text = $"Tavsiye Açılış Teklifi: {candidate.SuggestedOpeningFee:N0} TRY";
@@ -584,8 +580,8 @@ public partial class CareerHubScreen
         _playerDossierSellButton.Visible = employed && hasPlayer;
         _playerDossierSellButton.Disabled = !windowOpen || !hasPlayer;
         _playerDossierSellButton.Text = windowOpen
-            ? "🏷 Satışa Çıkar"
-            : "🏷 Satışa Çıkar (kapalı)";
+            ? "Satışa Çıkar"
+            : "Satışa Çıkar (kapalı)";
 
         if (_playerDossierPromiseButton is not null)
         {

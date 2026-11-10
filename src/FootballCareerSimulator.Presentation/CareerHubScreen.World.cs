@@ -28,7 +28,7 @@ public partial class CareerHubScreen
         compSwitchRow.AddThemeConstantOverride("separation", 4);
         topControlRow.AddChild(compSwitchRow);
 
-        _leagueCompButton = new Button { Text = "🇹🇷 Süper Lig" };
+        _leagueCompButton = new Button { Text = "Süper Lig" };
         _leagueCompButton.Pressed += () =>
         {
             _showingContinentalLeague = false;
@@ -39,7 +39,7 @@ public partial class CareerHubScreen
         CareerUiTheme.StyleTabButton(_leagueCompButton, selected: true);
         compSwitchRow.AddChild(_leagueCompButton);
 
-        _euroCompButton = new Button { Text = "⭐ Şampiyonlar Kupası" };
+        _euroCompButton = new Button { Text = "Şampiyonlar Kupası" };
         _euroCompButton.Pressed += () =>
         {
             _showingContinentalLeague = true;
@@ -50,12 +50,12 @@ public partial class CareerHubScreen
         CareerUiTheme.StyleTabButton(_euroCompButton, selected: false);
         compSwitchRow.AddChild(_euroCompButton);
 
-        _worldTabFixturesBtn = new Button { Text = "📅 FİKSTÜR & MAÇLAR" };
+        _worldTabFixturesBtn = new Button { Text = "FİKSTÜR & MAÇLAR" };
         _worldTabFixturesBtn.Pressed += () => ShowWorldSubTab(0);
         CareerUiTheme.StyleTabButton(_worldTabFixturesBtn, selected: true);
         compSwitchRow.AddChild(_worldTabFixturesBtn);
 
-        _worldTabDossierBtn = new Button { Text = "🏆 LİDERLER & KULÜP DOSYASI" };
+        _worldTabDossierBtn = new Button { Text = "LİDERLER & KULÜP DOSYASI" };
         _worldTabDossierBtn.Pressed += () => ShowWorldSubTab(1);
         CareerUiTheme.StyleTabButton(_worldTabDossierBtn, selected: false);
         compSwitchRow.AddChild(_worldTabDossierBtn);
@@ -69,7 +69,7 @@ public partial class CareerHubScreen
 
         _leagueRoundBadgePanel = new PanelContainer();
         _leagueRoundBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.18f));
-        _leagueRoundBadgeLabel = new Label { Text = "📅 Hafta: —" };
+        _leagueRoundBadgeLabel = new Label { Text = "Hafta: —" };
         CareerUiTheme.StyleTableText(_leagueRoundBadgeLabel);
         _leagueRoundBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         _leagueRoundBadgePanel.AddChild(_leagueRoundBadgeLabel);
@@ -77,7 +77,7 @@ public partial class CareerHubScreen
 
         _leagueMatchesBadgePanel = new PanelContainer();
         _leagueMatchesBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data, 0.18f));
-        _leagueMatchesBadgeLabel = new Label { Text = "⚽ Maçlar: —" };
+        _leagueMatchesBadgeLabel = new Label { Text = "Maçlar: —" };
         CareerUiTheme.StyleTableText(_leagueMatchesBadgeLabel);
         _leagueMatchesBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Data);
         _leagueMatchesBadgePanel.AddChild(_leagueMatchesBadgeLabel);
@@ -97,7 +97,7 @@ public partial class CareerHubScreen
         page.AddChild(worldSplitRow);
 
         // ── LEFT COLUMN: PERMANENT LEAGUE STANDINGS TABLE ──────────────────────
-        var tableCard = AddCard(worldSplitRow, "📋 PUAN DURUMU", emphasized: true, expandVertical: true);
+        var tableCard = AddCard(worldSplitRow, "PUAN DURUMU", emphasized: true, expandVertical: true);
         if (tableCard.GetParent() is Control tablePanel)
         {
             tablePanel.SizeFlagsStretchRatio = 1.45f;
@@ -163,14 +163,14 @@ public partial class CareerHubScreen
         worldSplitRow.AddChild(rightCol);
 
         // TAB 0: HAFTALIK FİKSTÜR & MAÇ ÖNİZLEME
-        var fixtureCard = AddCard(rightCol, "📅 HAFTALIK FİKSTÜR", emphasized: false, expandVertical: true);
+        var fixtureCard = AddCard(rightCol, "HAFTALIK FİKSTÜR", emphasized: false, expandVertical: true);
         _worldFixturesHost = fixtureCard.GetParent<Control>();
 
         var roundRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         roundRow.AddThemeConstantOverride("separation", 6);
         fixtureCard.AddChild(roundRow);
 
-        _fixturePrevRoundButton = SecondaryButton("◀ Önceki");
+        _fixturePrevRoundButton = SecondaryButton("Önceki");
         _fixturePrevRoundButton.Pressed += () =>
         {
             if (_roundSelector.Value > _roundSelector.MinValue)
@@ -195,7 +195,7 @@ public partial class CareerHubScreen
         _roundSelector.ValueChanged += _ => RefreshFixtureList();
         roundRow.AddChild(_roundSelector);
 
-        _fixtureNextRoundButton = SecondaryButton("Sonraki ▶");
+        _fixtureNextRoundButton = SecondaryButton("Sonraki");
         _fixtureNextRoundButton.Pressed += () =>
         {
             if (_roundSelector.Value < _roundSelector.MaxValue)
@@ -238,11 +238,11 @@ public partial class CareerHubScreen
         var fixtureActionRow = ActionFlow();
         fixtureDetailContent.AddChild(fixtureActionRow);
 
-        _worldFixturePrepButton = AccentButton("🎯 Maç Hazırlığına Git");
+        _worldFixturePrepButton = AccentButton("Maç Hazırlığına Git");
         _worldFixturePrepButton.Pressed += () => ShowPage(HubPage.Prep);
         fixtureActionRow.AddChild(_worldFixturePrepButton);
 
-        _worldFixtureHomeInspectButton = SecondaryButton("🏠 Ev Sahibi");
+        _worldFixtureHomeInspectButton = SecondaryButton("Ev Sahibi");
         _worldFixtureHomeInspectButton.Pressed += () =>
         {
             if (_selectedFixtureHomeClubId.HasValue)
@@ -253,7 +253,7 @@ public partial class CareerHubScreen
         };
         fixtureActionRow.AddChild(_worldFixtureHomeInspectButton);
 
-        _worldFixtureAwayInspectButton = SecondaryButton("✈️ Deplasman");
+        _worldFixtureAwayInspectButton = SecondaryButton("Deplasman");
         _worldFixtureAwayInspectButton.Pressed += () =>
         {
             if (_selectedFixtureAwayClubId.HasValue)
@@ -285,7 +285,7 @@ public partial class CareerHubScreen
         rightCol.AddChild(dossierHost);
         _worldDossierHost = dossierHost;
 
-        var statisticsCard = AddCard(dossierHost, "🏆 LİG LİDERLERİ & SEZON ÖZETİ");
+        var statisticsCard = AddCard(dossierHost, "LİG LİDERLERİ & SEZON ÖZETİ");
         _leagueBriefingLabel = BodyLabel("LeagueBriefingLabel", muted: true, autowrap: true);
         statisticsCard.AddChild(_leagueBriefingLabel);
 
@@ -301,7 +301,7 @@ public partial class CareerHubScreen
         attackPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatLeaderCardPanel(CareerUiTheme.Accent));
         var attackBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         attackBox.AddThemeConstantOverride("separation", 2);
-        var attackHeader = new Label { Text = "⚡ EN İYİ HÜCUM" };
+        var attackHeader = new Label { Text = "EN İYİ HÜCUM" };
         CareerUiTheme.StyleEyebrow(attackHeader, CareerUiTheme.Accent);
         attackBox.AddChild(attackHeader);
         _attackLeaderClubLabel = new Label { Text = "—" };
@@ -318,7 +318,7 @@ public partial class CareerHubScreen
         defensePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatLeaderCardPanel(CareerUiTheme.Data));
         var defenseBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         defenseBox.AddThemeConstantOverride("separation", 2);
-        var defenseHeader = new Label { Text = "🛡️ EN SIKI SAVUNMA" };
+        var defenseHeader = new Label { Text = "EN SIKI SAVUNMA" };
         CareerUiTheme.StyleEyebrow(defenseHeader, CareerUiTheme.Data);
         defenseBox.AddChild(defenseHeader);
         _defenseLeaderClubLabel = new Label { Text = "—" };
@@ -335,7 +335,7 @@ public partial class CareerHubScreen
         formPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.StatLeaderCardPanel(CareerUiTheme.ActionBright));
         var formBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         formBox.AddThemeConstantOverride("separation", 2);
-        var formHeader = new Label { Text = "🔥 FORM LİDERİ" };
+        var formHeader = new Label { Text = "FORM LİDERİ" };
         CareerUiTheme.StyleEyebrow(formHeader, CareerUiTheme.ActionBright);
         formBox.AddChild(formHeader);
         _formLeaderClubLabel = new Label { Text = "—" };
@@ -352,7 +352,7 @@ public partial class CareerHubScreen
         CareerUiTheme.StyleEyebrow(_managedLeagueStatisticsLabel, CareerUiTheme.Ink);
         statisticsCard.AddChild(_managedLeagueStatisticsLabel);
 
-        _worldClubDossierCard = AddCard(dossierHost, "🏢 SEÇİLİ KULÜP İSTİHBARAT RAPORU", emphasized: true, expandVertical: true);
+        _worldClubDossierCard = AddCard(dossierHost, "SEÇİLİ KULÜP İSTİHBARAT RAPORU", emphasized: true, expandVertical: true);
 
         var dossierHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         dossierHeaderRow.AddThemeConstantOverride("separation", 8);
@@ -365,7 +365,7 @@ public partial class CareerHubScreen
 
         _worldClubRatingBadgePanel = new PanelContainer();
         _worldClubRatingBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.RatingBadgePanel(75));
-        _worldClubRatingBadgeLabel = new Label { Text = "⭐ 75" };
+        _worldClubRatingBadgeLabel = new Label { Text = "GÜÇ 75" };
         CareerUiTheme.StyleEyebrow(_worldClubRatingBadgeLabel, CareerUiTheme.RatingColor(75));
         _worldClubRatingBadgePanel.AddChild(_worldClubRatingBadgeLabel);
         dossierHeaderRow.AddChild(_worldClubRatingBadgePanel);
@@ -379,7 +379,7 @@ public partial class CareerHubScreen
 
         _worldClubThreatBadgePanel = new PanelContainer { Visible = false };
         _worldClubThreatBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning, 0.18f));
-        _worldClubThreatBadgeLabel = new Label { Text = "⚠️ Tehdit" };
+        _worldClubThreatBadgeLabel = new Label { Text = "Tehdit" };
         CareerUiTheme.StyleEyebrow(_worldClubThreatBadgeLabel, CareerUiTheme.ColorWarning);
         _worldClubThreatBadgePanel.AddChild(_worldClubThreatBadgeLabel);
         dossierBadgeRow.AddChild(_worldClubThreatBadgePanel);
@@ -414,15 +414,15 @@ public partial class CareerHubScreen
         var clubActionRow = ActionFlow();
         _worldClubDossierCard.AddChild(clubActionRow);
 
-        _worldClubPrepButton = AccentButton("🎯 Maç Hazırlığı");
+        _worldClubPrepButton = AccentButton("Maç Hazırlığı");
         _worldClubPrepButton.Pressed += () => ShowPage(HubPage.Prep);
         clubActionRow.AddChild(_worldClubPrepButton);
 
-        _worldClubTransferButton = SecondaryButton("🔍 Transfer Adayları");
+        _worldClubTransferButton = SecondaryButton("Transfer Adayları");
         _worldClubTransferButton.Pressed += () => ShowPage(HubPage.Transfer);
         clubActionRow.AddChild(_worldClubTransferButton);
 
-        _worldClubFixtureButton = SecondaryButton("📅 Fikstürde Bul");
+        _worldClubFixtureButton = SecondaryButton("Fikstürde Bul");
         _worldClubFixtureButton.Pressed += () =>
         {
             OnWorldClubFixtureJumpPressed();

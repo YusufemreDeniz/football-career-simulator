@@ -9,13 +9,14 @@ namespace FootballCareerSimulator.Presentation;
 /// </summary>
 internal static class CareerUiTheme
 {
-    public static readonly Color BackgroundDeep = new(0.031f, 0.055f, 0.102f, 1f);
-    public static readonly Color Background = new(0.051f, 0.086f, 0.153f, 1f);
-    public static readonly Color BackgroundNavy = new(0.067f, 0.114f, 0.200f, 1f);
-    public static readonly Color Surface = new(0.075f, 0.125f, 0.212f, 0.97f);
-    public static readonly Color SurfaceRaised = new(0.098f, 0.161f, 0.267f, 0.98f);
-    public static readonly Color SurfaceSoft = new(0.086f, 0.141f, 0.235f, 0.92f);
-    public static readonly Color Stroke = new(0.165f, 0.275f, 0.435f, 0.78f);
+    public static readonly Color BackgroundDeep = new(0.0275f, 0.0431f, 0.0706f, 1f); // #070B12
+    public static readonly Color Background = new(0.0392f, 0.0627f, 0.1059f, 1f);     // #0A101B
+    public static readonly Color BackgroundNavy = new(0.0510f, 0.0824f, 0.1333f, 1f); // #0D1522
+    public static readonly Color Surface = new(0.0745f, 0.1176f, 0.1882f, 0.85f);     // #131E30 (%85 opaklık)
+    public static readonly Color SurfaceRaised = new(0.0745f, 0.1176f, 0.1882f, 0.90f);
+    public static readonly Color SurfaceSoft = new(0.0745f, 0.1176f, 0.1882f, 0.85f);
+    public static readonly Color SpecularBorder = new(0.1647f, 0.2627f, 0.3961f, 1f); // #2A4365 parlak üst çizgi
+    public static readonly Color Stroke = new(0.1647f, 0.2627f, 0.3961f, 0.85f);
 
     // Existing callers treat Ink as foreground, Accent as prestige and Action as primary CTA.
     private static GameExperiencePreferences _preferences = GameExperiencePreferences.Default;
@@ -27,10 +28,10 @@ internal static class CareerUiTheme
     public static Color InkMuted => _preferences.HighContrast
         ? new Color(0.79f, 0.86f, 0.94f, 1f)
         : new Color(0.588f, 0.682f, 0.808f, 1f);
-    public static readonly Color Accent = new(0.961f, 0.722f, 0.180f, 1f);
-    public static readonly Color Action = new(0.133f, 0.855f, 0.510f, 1f);
-    public static readonly Color ActionBright = new(0.243f, 0.937f, 0.608f, 1f);
-    public static readonly Color ActionHover = ActionBright;
+    public static readonly Color Accent = new(1.000f, 0.7216f, 0.000f, 1f);       // #FFB800 Yayın Altını
+    public static readonly Color Action = new(0.000f, 0.9608f, 0.6078f, 1f);      // #00F59B Neon Çim Yeşili
+    public static readonly Color ActionBright = new(0.000f, 0.9608f, 0.6078f, 1f);// #00F59B Neon Çim Yeşili
+    public static readonly Color ActionHover = new(0.200f, 0.985f, 0.695f, 1f);
     public static readonly Color DangerSoft = new(0.973f, 0.357f, 0.400f, 1f);
     public static readonly Color Data = new(0.220f, 0.741f, 0.973f, 1f);
 
@@ -386,33 +387,30 @@ internal static class CareerUiTheme
     }
 
     /// <summary>
-    /// Yayın stüdyosu ve modern futbol menajerliği (FM27 / SM27) tarzı koyu lacivert/slate kart paneli.
-    /// Vurgulu kartlarda sol/üst kenarda ince altın-zümrüt aksan bulunur.
+    /// Broadcast Stadium Noir (Şampiyonlar Ligi TV yayını + EA FC / Top Drives kart estetiği)
+    /// Cam (Glassmorphism) kart şablonu: #131E30 (%85 opaklık), 14px yuvarlatılmış köşe,
+    /// üst kenarında 1px #2A4365 parlak çizgi (specular highlight) ve yumuşak alt gölge (shadow_size = 12).
     /// </summary>
     public static StyleBoxFlat NeonGlowPanel(bool strongGlow = false) =>
         new()
         {
-            BgColor = strongGlow
-                ? new Color(0.082f, 0.137f, 0.231f, 0.98f)
-                : new Color(0.067f, 0.114f, 0.196f, 0.96f),
-            BorderColor = strongGlow
-                ? new Color(Accent.R, Accent.G, Accent.B, 0.65f)
-                : new Color(0.180f, 0.302f, 0.478f, 0.72f),
-            BorderWidthLeft = strongGlow ? 2 : 1,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
+            BorderWidthLeft = strongGlow ? 2 : 0,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 10,
-            CornerRadiusTopRight = 10,
-            CornerRadiusBottomRight = 10,
-            CornerRadiusBottomLeft = 10,
-            ContentMarginLeft = 10,
-            ContentMarginRight = 10,
-            ContentMarginTop = 8,
-            ContentMarginBottom = 8,
-            ShadowColor = new Color(0f, 0f, 0f, strongGlow ? 0.50f : 0.38f),
-            ShadowSize = strongGlow ? 8 : 5,
-            ShadowOffset = new Vector2(0, 2),
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
+            ContentMarginLeft = 12,
+            ContentMarginRight = 12,
+            ContentMarginTop = 10,
+            ContentMarginBottom = 10,
+            ShadowColor = new Color(0f, 0f, 0f, 0.56f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
 
     /// <summary>
@@ -421,16 +419,16 @@ internal static class CareerUiTheme
     public static StyleBoxFlat PageIconBoxPanel() =>
         new()
         {
-            BgColor = new Color(Action.R, Action.G, Action.B, 0.18f),
-            BorderColor = new Color(ActionBright.R, ActionBright.G, ActionBright.B, 0.55f),
-            BorderWidthLeft = 1,
+            BgColor = new Color(Action.R, Action.G, Action.B, 0.16f),
+            BorderColor = new Color(ActionBright.R, ActionBright.G, ActionBright.B, 0.65f),
+            BorderWidthLeft = 0,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 7,
-            CornerRadiusTopRight = 7,
-            CornerRadiusBottomRight = 7,
-            CornerRadiusBottomLeft = 7,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 8,
+            CornerRadiusTopRight = 8,
+            CornerRadiusBottomRight = 8,
+            CornerRadiusBottomLeft = 8,
             ContentMarginLeft = 6,
             ContentMarginRight = 6,
             ContentMarginTop = 4,
@@ -438,25 +436,28 @@ internal static class CareerUiTheme
         };
 
     /// <summary>
-    /// Mini stat kart — koyu lacivert bento kutusu, kompakt.
+    /// Mini stat kart — Glassmorphism bento kutusu.
     /// </summary>
     public static StyleBoxFlat MiniStatCardPanel() =>
         new()
         {
-            BgColor = new Color(0.055f, 0.094f, 0.169f, 0.94f),
-            BorderColor = new Color(0.176f, 0.294f, 0.467f, 0.58f),
-            BorderWidthLeft = 2,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
+            BorderWidthLeft = 0,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
-            ContentMarginLeft = 8,
-            ContentMarginRight = 8,
-            ContentMarginTop = 6,
-            ContentMarginBottom = 6,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
+            ContentMarginLeft = 10,
+            ContentMarginRight = 10,
+            ContentMarginTop = 8,
+            ContentMarginBottom = 8,
+            ShadowColor = new Color(0f, 0f, 0f, 0.50f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
 
     /// <summary>
@@ -583,26 +584,26 @@ internal static class CareerUiTheme
     }
 
     public static StyleBoxFlat SoftPanel() =>
-        PanelStyle(SurfaceSoft, new Color(Stroke.R, Stroke.G, Stroke.B, 0.54f), radius: 8, contentMargin: 8, shadowSize: 3);
+        PanelStyle(Surface, SpecularBorder, radius: 14, contentMargin: 10, shadowSize: 12);
 
     public static StyleBoxFlat HeroPanel() =>
         PanelStyle(
-            SurfaceRaised,
-            new Color(Accent.R, Accent.G, Accent.B, 0.58f),
-            radius: 10,
-            contentMargin: 10,
-            shadowSize: 6);
+            Surface,
+            SpecularBorder,
+            radius: 14,
+            contentMargin: 12,
+            shadowSize: 12);
 
     public static StyleBoxFlat CardPanel(bool emphasized = false) =>
         NeonGlowPanel(strongGlow: emphasized);
 
     public static StyleBoxFlat NavigationPanel() =>
         PanelStyle(
-            new Color(BackgroundDeep.R, BackgroundDeep.G, BackgroundDeep.B, 0.96f),
-            Stroke,
-            radius: 10,
+            Surface,
+            SpecularBorder,
+            radius: 14,
             contentMargin: 4,
-            shadowSize: 6);
+            shadowSize: 12);
 
     /// <summary>
     /// Yatay kariyer navigasyonu: yayın grafiği gibi ince, her ekranda sabit bir şerit.
@@ -610,23 +611,23 @@ internal static class CareerUiTheme
     public static StyleBoxFlat TopNavigationPanel() =>
         new()
         {
-            BgColor = new Color(0.043f, 0.075f, 0.137f, 0.98f),
-            BorderColor = new Color(Stroke.R, Stroke.G, Stroke.B, 0.65f),
-            BorderWidthLeft = 1,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
+            BorderWidthLeft = 0,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
-            ContentMarginLeft = 3,
-            ContentMarginRight = 3,
-            ContentMarginTop = 2,
-            ContentMarginBottom = 2,
-            ShadowColor = new Color(0f, 0f, 0f, 0.42f),
-            ShadowSize = 6,
-            ShadowOffset = new Vector2(0, 2),
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
+            ContentMarginLeft = 6,
+            ContentMarginRight = 6,
+            ContentMarginTop = 4,
+            ContentMarginBottom = 4,
+            ShadowColor = new Color(0f, 0f, 0f, 0.52f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
 
     public static StyleBoxFlat PillPanel() =>
@@ -1254,45 +1255,47 @@ internal static class CareerUiTheme
     public static StyleBoxFlat StatLeaderCardPanel(Color accentColor) =>
         new()
         {
-            BgColor = new Color(0.020f, 0.067f, 0.102f, 0.90f),
-            BorderColor = new Color(accentColor.R, accentColor.G, accentColor.B, 0.45f),
-            BorderWidthLeft = 3,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
+            BorderWidthLeft = 2,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 12,
             ContentMarginRight = 12,
             ContentMarginTop = 10,
-            ShadowColor = new Color(0f, 0f, 0f, 0.35f),
-            ShadowSize = 4,
+            ContentMarginBottom = 10,
+            ShadowColor = new Color(0f, 0f, 0f, 0.50f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
 
     /// <summary>Kadro yıldız kartı yüzeyi (Spotlight vitrini).</summary>
     public static StyleBoxFlat SquadStarCardPanel(Color? accentColor = null)
     {
-        var accent = accentColor ?? Accent;
         return new StyleBoxFlat
         {
-            BgColor = new Color(0.025f, 0.086f, 0.122f, 0.94f),
-            BorderColor = new Color(accent.R, accent.G, accent.B, 0.40f),
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
             BorderWidthLeft = 2,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 12,
             ContentMarginRight = 12,
             ContentMarginTop = 10,
             ContentMarginBottom = 10,
-            ShadowColor = new Color(0f, 0f, 0f, 0.40f),
-            ShadowSize = 4,
+            ShadowColor = new Color(0f, 0f, 0f, 0.50f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
     }
 
@@ -1300,40 +1303,46 @@ internal static class CareerUiTheme
     public static StyleBoxFlat SwotStrengthPanel() =>
         new()
         {
-            BgColor = new Color(0.015f, 0.090f, 0.095f, 0.82f),
-            BorderColor = new Color(Action.R, Action.G, Action.B, 0.35f),
-            BorderWidthLeft = 3,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
+            BorderWidthLeft = 2,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 12,
             ContentMarginRight = 12,
             ContentMarginTop = 10,
             ContentMarginBottom = 10,
+            ShadowColor = new Color(0f, 0f, 0f, 0.50f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
 
     /// <summary>Kadro SWOT analizinde zayıf yönler ve riskler paneli (Kehribar/Kırmızı vurgulu).</summary>
     public static StyleBoxFlat SwotWeaknessPanel() =>
         new()
         {
-            BgColor = new Color(0.09f, 0.04f, 0.04f, 0.75f),
-            BorderColor = new Color(DangerSoft.R, DangerSoft.G, DangerSoft.B, 0.35f),
-            BorderWidthLeft = 3,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
+            BorderWidthLeft = 2,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 12,
             ContentMarginRight = 12,
             ContentMarginTop = 10,
             ContentMarginBottom = 10,
+            ShadowColor = new Color(0f, 0f, 0f, 0.50f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
 
     /// <summary>Maça özel antrenman öncelik kartı paneli (FM26 tarzı).</summary>
@@ -1343,60 +1352,60 @@ internal static class CareerUiTheme
             ? ActionBright
             : recommended
                 ? Accent
-                : Stroke;
+                : SpecularBorder;
         var bgColor = selected
-            ? new Color(Action.R, Action.G, Action.B, 0.22f)
-            : recommended
-                ? new Color(Accent.R, Accent.G, Accent.B, 0.10f)
-                : new Color(0.022f, 0.072f, 0.106f, 0.90f);
+            ? new Color(0.075f, 0.165f, 0.215f, 0.90f)
+            : Surface;
 
         return new StyleBoxFlat
         {
             BgColor = bgColor,
             BorderColor = borderColor,
-            BorderWidthLeft = selected || recommended ? 2 : 1,
+            BorderWidthLeft = selected || recommended ? 2 : 0,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = selected || recommended ? 2 : 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 10,
             ContentMarginRight = 10,
             ContentMarginTop = 8,
             ContentMarginBottom = 8,
-            ShadowColor = new Color(0f, 0f, 0f, 0.35f),
-            ShadowSize = selected ? 4 : 2,
+            ShadowColor = new Color(0f, 0f, 0f, 0.52f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
     }
 
     /// <summary>Taktik senaryo oyun planı kartı paneli (FM26 tarzı).</summary>
     public static StyleBoxFlat ScenarioCardPanel(bool active = false)
     {
-        var borderColor = active ? ActionBright : Stroke;
+        var borderColor = active ? ActionBright : SpecularBorder;
         var bgColor = active
-            ? new Color(Action.R, Action.G, Action.B, 0.20f)
-            : new Color(0.022f, 0.069f, 0.101f, 0.90f);
+            ? new Color(0.075f, 0.165f, 0.215f, 0.90f)
+            : Surface;
 
         return new StyleBoxFlat
         {
             BgColor = bgColor,
             BorderColor = borderColor,
-            BorderWidthLeft = active ? 2 : 1,
+            BorderWidthLeft = active ? 2 : 0,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = active ? 2 : 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 10,
             ContentMarginRight = 10,
             ContentMarginTop = 8,
             ContentMarginBottom = 8,
-            ShadowColor = new Color(0f, 0f, 0f, 0.30f),
-            ShadowSize = active ? 4 : 0,
+            ShadowColor = new Color(0f, 0f, 0f, 0.52f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
     }
 
@@ -1405,53 +1414,48 @@ internal static class CareerUiTheme
     {
         return new StyleBoxFlat
         {
-            BgColor = new Color(0.024f, 0.078f, 0.112f, 0.94f),
-            BorderColor = new Color(statusColor.R, statusColor.G, statusColor.B, 0.40f),
-            BorderWidthLeft = 3,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
+            BorderWidthLeft = 2,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 12,
             ContentMarginRight = 12,
             ContentMarginTop = 10,
             ContentMarginBottom = 10,
-            ShadowColor = new Color(0f, 0f, 0f, 0.30f),
-            ShadowSize = 2,
+            ShadowColor = new Color(0f, 0f, 0f, 0.52f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
     }
 
     /// <summary>Kulüp muhasebe ve finans sütun kartı paneli.</summary>
     public static StyleBoxFlat FinanceLedgerCardPanel(bool positive = true)
     {
-        var borderColor = positive
-            ? new Color(Action.R, Action.G, Action.B, 0.25f)
-            : new Color(DangerSoft.R, DangerSoft.G, DangerSoft.B, 0.25f);
-        var bgColor = positive
-            ? new Color(0.018f, 0.084f, 0.092f, 0.94f)
-            : new Color(0.08f, 0.04f, 0.04f, 0.92f);
-
         return new StyleBoxFlat
         {
-            BgColor = bgColor,
-            BorderColor = borderColor,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
             BorderWidthLeft = 2,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 12,
             ContentMarginRight = 12,
             ContentMarginTop = 10,
             ContentMarginBottom = 10,
-            ShadowColor = new Color(0f, 0f, 0f, 0.35f),
-            ShadowSize = 3,
+            ShadowColor = new Color(0f, 0f, 0f, 0.52f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
     }
 
@@ -1460,22 +1464,23 @@ internal static class CareerUiTheme
     {
         return new StyleBoxFlat
         {
-            BgColor = new Color(0.022f, 0.071f, 0.108f, 0.94f),
-            BorderColor = new Color(accentColor.R, accentColor.G, accentColor.B, 0.35f),
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
             BorderWidthLeft = 2,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 10,
             ContentMarginRight = 10,
             ContentMarginTop = 8,
             ContentMarginBottom = 8,
-            ShadowColor = new Color(0f, 0f, 0f, 0.25f),
-            ShadowSize = 2,
+            ShadowColor = new Color(0f, 0f, 0f, 0.52f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
     }
 
@@ -1490,10 +1495,7 @@ internal static class CareerUiTheme
         PanelStyle(Colors.Transparent, Stroke, radius: RadiusMedium, contentMargin: SpaceS, shadowSize: 0);
 
     public static StyleBoxFlat GlassPanel() =>
-        PanelStyle(
-            new Color(Surface.R, Surface.G, Surface.B, 0.62f),
-            new Color(Data.R, Data.G, Data.B, 0.22f),
-            radius: RadiusLarge, contentMargin: SpaceM, shadowSize: 8);
+        NeonGlowPanel(strongGlow: false);
 
     // Legacy style aliases
     public static void StyleHeaderLabel(Label label) => StyleHeadline(label);
@@ -1534,18 +1536,18 @@ internal static class CareerUiTheme
         new()
         {
             BgColor = color,
-            BorderColor = new Color(1f, 1f, 1f, 0.18f),
+            BorderColor = new Color(1f, 1f, 1f, 0.22f),
             BorderWidthTop = 1,
-            CornerRadiusTopLeft = 7,
-            CornerRadiusTopRight = 7,
-            CornerRadiusBottomRight = 7,
-            CornerRadiusBottomLeft = 7,
+            CornerRadiusTopLeft = 10,
+            CornerRadiusTopRight = 10,
+            CornerRadiusBottomRight = 10,
+            CornerRadiusBottomLeft = 10,
             ContentMarginLeft = 10,
             ContentMarginRight = 10,
             ContentMarginTop = 5,
             ContentMarginBottom = 5,
-            ShadowColor = new Color(0f, 0f, 0f, 0.30f),
-            ShadowSize = 3,
+            ShadowColor = new Color(0f, 0f, 0f, 0.40f),
+            ShadowSize = 6,
             ShadowOffset = new Vector2(0, 2),
         };
 
@@ -1576,20 +1578,23 @@ internal static class CareerUiTheme
     private static StyleBoxFlat OutlineButton(Color border) =>
         new()
         {
-            BgColor = new Color(Surface.R, Surface.G, Surface.B, 0.85f),
-            BorderColor = border,
-            BorderWidthLeft = 1,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
+            BorderWidthLeft = 0,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 7,
-            CornerRadiusTopRight = 7,
-            CornerRadiusBottomRight = 7,
-            CornerRadiusBottomLeft = 7,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
+            CornerRadiusTopLeft = 10,
+            CornerRadiusTopRight = 10,
+            CornerRadiusBottomRight = 10,
+            CornerRadiusBottomLeft = 10,
             ContentMarginLeft = 10,
             ContentMarginRight = 10,
             ContentMarginTop = 5,
             ContentMarginBottom = 5,
+            ShadowColor = new Color(0f, 0f, 0f, 0.42f),
+            ShadowSize = 8,
+            ShadowOffset = new Vector2(0, 2),
         };
 
     private static StyleBoxFlat InputField(Color border) =>
@@ -1601,10 +1606,10 @@ internal static class CareerUiTheme
             BorderWidthTop = 1,
             BorderWidthRight = 1,
             BorderWidthBottom = 1,
-            CornerRadiusTopLeft = 7,
-            CornerRadiusTopRight = 7,
-            CornerRadiusBottomRight = 7,
-            CornerRadiusBottomLeft = 7,
+            CornerRadiusTopLeft = 10,
+            CornerRadiusTopRight = 10,
+            CornerRadiusBottomRight = 10,
+            CornerRadiusBottomLeft = 10,
             ContentMarginLeft = 10,
             ContentMarginTop = 4,
             ContentMarginRight = 10,
@@ -1615,43 +1620,44 @@ internal static class CareerUiTheme
     {
         var bg = selected
             ? new Color(0.018f, 0.145f, 0.132f, 0.98f)
-            : new Color(0.020f, 0.075f, 0.108f, 0.96f);
-        var borderColor = border ?? (selected ? ActionBright : new Color(Stroke.R, Stroke.G, Stroke.B, 0.78f));
+            : Surface;
+        var borderColor = border ?? (selected ? ActionBright : SpecularBorder);
         var borderWidth = selected ? 2 : 1;
 
         return new StyleBoxFlat
         {
             BgColor = bg,
             BorderColor = borderColor,
-            BorderWidthLeft = borderWidth,
+            BorderWidthLeft = selected ? borderWidth : 0,
             BorderWidthTop = borderWidth,
-            BorderWidthRight = borderWidth,
-            BorderWidthBottom = borderWidth,
-            CornerRadiusTopLeft = 8,
-            CornerRadiusTopRight = 8,
-            CornerRadiusBottomRight = 8,
-            CornerRadiusBottomLeft = 8,
+            BorderWidthRight = selected ? borderWidth : 0,
+            BorderWidthBottom = selected ? borderWidth : 0,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 4,
             ContentMarginRight = 4,
             ContentMarginTop = 4,
             ContentMarginBottom = 4,
-            ShadowColor = selected ? new Color(Action.R, Action.G, Action.B, 0.52f) : new Color(0f, 0f, 0f, 0.48f),
-            ShadowSize = selected ? 8 : 4,
-            ShadowOffset = new Vector2(0, 2),
+            ShadowColor = selected ? new Color(Action.R, Action.G, Action.B, 0.52f) : new Color(0f, 0f, 0f, 0.52f),
+            ShadowSize = 12,
+            ShadowOffset = new Vector2(0, 4),
         };
     }
 
     private static StyleBoxFlat PitchChipSurface(Color? border = null) => PitchCardSurface(false, border);
 
-
     private static StyleBoxFlat NavButtonSurface() =>
         new()
         {
-            BgColor = new Color(Surface.R, Surface.G, Surface.B, 0.74f),
-            CornerRadiusTopLeft = 10,
-            CornerRadiusTopRight = 10,
-            CornerRadiusBottomRight = 10,
-            CornerRadiusBottomLeft = 10,
+            BgColor = Surface,
+            BorderColor = SpecularBorder,
+            BorderWidthTop = 1,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ContentMarginLeft = 12,
             ContentMarginRight = 12,
             ContentMarginTop = 10,
@@ -1667,10 +1673,10 @@ internal static class CareerUiTheme
             BorderWidthTop = 2,
             BorderWidthRight = 2,
             BorderWidthBottom = 2,
-            CornerRadiusTopLeft = 13,
-            CornerRadiusTopRight = 13,
-            CornerRadiusBottomRight = 13,
-            CornerRadiusBottomLeft = 13,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
             ExpandMarginLeft = 2,
             ExpandMarginTop = 2,
             ExpandMarginRight = 2,
@@ -1688,10 +1694,10 @@ internal static class CareerUiTheme
         {
             BgColor = background,
             BorderColor = border,
-            BorderWidthLeft = 1,
+            BorderWidthLeft = 0,
             BorderWidthTop = 1,
-            BorderWidthRight = 1,
-            BorderWidthBottom = 1,
+            BorderWidthRight = 0,
+            BorderWidthBottom = 0,
             CornerRadiusTopLeft = radius,
             CornerRadiusTopRight = radius,
             CornerRadiusBottomRight = radius,
@@ -1700,7 +1706,7 @@ internal static class CareerUiTheme
             ContentMarginRight = contentMargin,
             ContentMarginTop = contentMargin,
             ContentMarginBottom = contentMargin,
-            ShadowColor = new Color(0f, 0f, 0f, shadowSize > 0 ? 0.46f : 0f),
+            ShadowColor = new Color(0f, 0f, 0f, shadowSize > 0 ? 0.52f : 0f),
             ShadowSize = shadowSize,
             ShadowOffset = new Vector2(0, shadowSize > 0 ? 4 : 0),
         };

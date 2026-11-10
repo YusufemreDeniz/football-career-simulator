@@ -23,49 +23,49 @@ internal sealed partial class FmPediaModal : ColorRect
     [
         new(
             "GAMEPLAY",
-            "🃏",
+            "cards",
             "Dokunsal Menajer Kart Ekonomisi",
             "Kulüp tesislerin ve teknik ekibin her hafta Enerji Paketi, Motivasyon Konuşması, Fizyoterapi ve Özel Gözlemci kartları üretir.",
             "Maç öncesi yorgun yıldızına Enerji Kartı basarak kondisyonunu +%12 artırabilir, soyunma odası krizlerini Motivasyon Kartı ile çözebilirsin."),
         new(
             "GAMEPLAY",
-            "🎯",
+            "target",
             "Günlük Hedefler (5 Dakikalık Oturum Döngüsü)",
             "Portal ekranındaki 3 günlük hedefi tamamlamak (idman drili, taktik odak ayarı, kadro/kart hamlesi) anında Menajer XP ve takım morali kazandırır.",
             "Her gün kısa bir oturumda 3 görevi tamamlayarak menajer seviyeni hızla yükselt ve yeni kart hakları aç."),
         new(
             "TACTICS",
-            "🟩",
+            "pitch",
             "Topla (IP) / Topsuz (OOP) Çift Fazlı Diziliş",
             "Takımın topa sahipken (Hücum Fazı) ve top rakipteyken (Savunma Fazı) sahada farklı diziliş şekilleri alır.",
             "Taktik ekranında 'Topla / Topsuz' anahtarına dokunarak oyuncularının hücumda nasıl yayıldığını ve savunmada nasıl kapandığını canlı gör."),
         new(
             "TACTICS",
-            "🎚️",
-            "Taktik Odak Kaydırıcıları (Focus Sliders)",
-            "Hücum Odağı, Pres Şiddeti ve Savunma Hattı kaydırıcıları saha içi boşlukları ve kondisyon tüketimini doğrudan belirler.",
-            "Deplasmanda güçlü rakiplere karşı Savunma Hattını 35'e çekip Hızlı Kontra presetini seçmek arkada boşluk bırakmanı önler."),
+            "sliders",
+            "Taktik Seviye Blokları (Segmented Pills)",
+            "Hücum Odağı, Pres Şiddeti ve Savunma Hattı 5 kademeli blokları saha içi boşlukları ve kondisyon tüketimini doğrudan belirler.",
+            "Deplasmanda güçlü rakiplere karşı Savunma Hattını düşük kademeye çekip Hızlı Kontra presetini seçmek arkada boşluk bırakmanı önler."),
         new(
             "MATCH",
-            "🔥",
-            "Canlı Maç Aura Barı & Kritik Pozisyon Kararı",
-            "Maç akarken takımının mücadelesi Kenar Momentum/Aura Barını doldurur. Kritik ataklarda oyun duraksar ve sana 3 dokunsal seçim sunar.",
+            "flame",
+            "Canlı Maç Aura Barı & Saha Üstü Kritik Karar",
+            "Maç akarken takımının mücadelesi Kenar Momentum/Aura Barını doldurur. Kritik ataklarda saha kararır ve hedef noktalarında 3 dokunsal seçim belirir.",
             "Aura %40'ı geçtiğinde kenardan 'Şok Pres' veya 'Kanat Bindirmesi' tetikleyerek maçın kaderini değiştirebilirsin."),
         new(
             "SOCIAL",
-            "🤝",
+            "handshake",
             "Forma Sözü Zinciri & Telafi Hafızası (Redemption)",
             "Bir oyuncuya verdiğin İlk 11 veya Süre sözünü tutarsan güveni fırlar; söz bozulursa soyunma odasında kulis söylentisi yayılır.",
             "Kırgın bir oyuncuyu üst üste maçlarda oynatarak 'Telafi Hafızası'nı tetikleyebilir ve güvenini yeniden kazanabilirsin."),
         new(
             "CLUB",
-            "🏟️",
+            "campus",
             "Görsel Kulüp Kampüsü & Kulüp DNA'sı",
             "Stadyum, Antrenman Merkezi, Akademi ve Sağlık Spa tesislerin hem gelir/gelişim çarpanı sağlar hem de dokunsal kart üretimini hızlandırır.",
             "Tribünlere kendi istediğin ismi verebilir, tesis seviyesini yükselterek sakatlık riskini kalıcı olarak düşürebilirsin."),
         new(
             "TRANSFER",
-            "🔭",
+            "radar",
             "Gözlem Güveni & Satıcı Pazarlık Hafızası",
             "Scout raporları yaşlandıkça bilgi güven kademesi düşer. Satıcı kulüpler ise önceki tekliflerini ve masadan kalkmalarını hatırlar.",
             "Kısa listedeki 3 adayı yan yana karşılaştırırken 'Tam Rapor' rozetli ve düşük riskli adaylara öncelik ver."),
@@ -118,14 +118,14 @@ internal sealed partial class FmPediaModal : ColorRect
         var headerRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         headerRow.AddThemeConstantOverride("separation", 8);
         root.AddChild(headerRow);
-        headerRow.AddChild(UiComponents.PageHeader("📖", "FMPEDIA — HIZLI OYUN REHBERİ & SÖZLÜK"));
+        headerRow.AddChild(UiComponents.PageHeader("book", "FMPEDIA — HIZLI OYUN REHBERİ & SÖZLÜK"));
 
         var spacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         headerRow.AddChild(spacer);
 
         var closeBtn = new Button
         {
-            Text = "✕ KAPAT",
+            Text = "KAPAT",
             CustomMinimumSize = new Vector2(96, 36),
         };
         CareerUiTheme.StyleDangerButton(closeBtn);
@@ -139,18 +139,18 @@ internal sealed partial class FmPediaModal : ColorRect
 
         _searchInput = new LineEdit
         {
-            PlaceholderText = "🔍 Mekanik, taktik, kart veya kural ara (ör. Aura, Söz, Kampüs, IP/OOP)...",
+            PlaceholderText = "Mekanik, taktik, kart veya kural ara (ör. Aura, Söz, Kampüs, IP/OOP)...",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(260, 36),
         };
         _searchInput.TextChanged += _ => RefreshEntries();
         filterRow.AddChild(_searchInput);
 
-        AddCategoryButton(filterRow, "🌍 Tümü", "ALL");
-        AddCategoryButton(filterRow, "🃏 Kart & Görev", "GAMEPLAY");
-        AddCategoryButton(filterRow, "🟩 Taktik", "TACTICS");
-        AddCategoryButton(filterRow, "🔥 Canlı Maç", "MATCH");
-        AddCategoryButton(filterRow, "🏛️ Kulüp & Sosyal", "SOCIAL");
+        AddCategoryButton(filterRow, "Tümü", "ALL");
+        AddCategoryButton(filterRow, "Kart & Görev", "GAMEPLAY");
+        AddCategoryButton(filterRow, "Taktik", "TACTICS");
+        AddCategoryButton(filterRow, "Canlı Maç", "MATCH");
+        AddCategoryButton(filterRow, "Kulüp & Sosyal", "SOCIAL");
 
         var scroll = new MobileScrollContainer
         {
@@ -217,11 +217,15 @@ internal sealed partial class FmPediaModal : ColorRect
             box.AddThemeConstantOverride("separation", 4);
             panel.AddChild(box);
 
-            var title = new Label { Text = $"{entry.Icon}  {entry.Title}" };
+            var titleRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            titleRow.AddThemeConstantOverride("separation", 8);
+            titleRow.AddChild(new BroadcastVectorIcon(entry.Icon, CareerUiTheme.Accent, 16f));
+            var title = new Label { Text = entry.Title };
             CareerUiTheme.StyleHeadline(title);
             title.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
             title.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(14));
-            box.AddChild(title);
+            titleRow.AddChild(title);
+            box.AddChild(titleRow);
 
             var summary = new Label
             {
@@ -234,7 +238,7 @@ internal sealed partial class FmPediaModal : ColorRect
 
             var tip = new Label
             {
-                Text = $"💡 İpucu: {entry.TacticalTip}",
+                Text = $"İpucu: {entry.TacticalTip}",
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
             };
             CareerUiTheme.StyleBody(tip, muted: true);

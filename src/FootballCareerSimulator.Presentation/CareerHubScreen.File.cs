@@ -70,9 +70,9 @@ public partial class CareerHubScreen
         tabBtnRow.AddThemeConstantOverride("separation", 6);
         topSubNavRow.AddChild(tabBtnRow);
 
-        var tabObjectivesBtn = TabButton("🎯 HEDEFLER & FİNANS", selected: true);
-        var tabCareerBtn = TabButton("🎖️ MENAJER KARİYERİ & BECERİLER", selected: false);
-        var tabSaveSettingsBtn = TabButton("💾 KAYIT & AYARLAR", selected: false);
+        var tabObjectivesBtn = TabButton("HEDEFLER & FİNANS", selected: true);
+        var tabCareerBtn = TabButton("MENAJER KARİYERİ & BECERİLER", selected: false);
+        var tabSaveSettingsBtn = TabButton("KAYIT & AYARLAR", selected: false);
         tabBtnRow.AddChild(tabObjectivesBtn);
         tabBtnRow.AddChild(tabCareerBtn);
         tabBtnRow.AddChild(tabSaveSettingsBtn);
@@ -87,7 +87,7 @@ public partial class CareerHubScreen
 
         _boardConfidenceBadgePanel = new PanelContainer();
         _boardConfidenceBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
-        _boardConfidenceBadgeLabel = new Label { Text = "🏛️ Güven %—" };
+        _boardConfidenceBadgeLabel = new Label { Text = "Güven %—" };
         CareerUiTheme.StyleTableText(_boardConfidenceBadgeLabel);
         _boardConfidenceBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _boardConfidenceBadgePanel.AddChild(_boardConfidenceBadgeLabel);
@@ -95,7 +95,7 @@ public partial class CareerHubScreen
 
         _operatingBalanceBadgePanel = new PanelContainer();
         _operatingBalanceBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.16f));
-        _operatingBalanceBadgeLabel = new Label { Text = "💰 Net —" };
+        _operatingBalanceBadgeLabel = new Label { Text = "Net —" };
         CareerUiTheme.StyleTableText(_operatingBalanceBadgeLabel);
         _operatingBalanceBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         _operatingBalanceBadgePanel.AddChild(_operatingBalanceBadgeLabel);
@@ -103,7 +103,7 @@ public partial class CareerHubScreen
 
         _stadiumAttendanceBadgePanel = new PanelContainer();
         _stadiumAttendanceBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data, 0.16f));
-        _stadiumAttendanceBadgeLabel = new Label { Text = "🏟️ %—" };
+        _stadiumAttendanceBadgeLabel = new Label { Text = "Doluluk %—" };
         CareerUiTheme.StyleTableText(_stadiumAttendanceBadgeLabel);
         _stadiumAttendanceBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Data);
         _stadiumAttendanceBadgePanel.AddChild(_stadiumAttendanceBadgeLabel);
@@ -111,7 +111,7 @@ public partial class CareerHubScreen
 
         _wageUtilizationBadgePanel = new PanelContainer();
         _wageUtilizationBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Stroke, 0.20f));
-        _wageUtilizationBadgeLabel = new Label { Text = "💼 Maaş %—" };
+        _wageUtilizationBadgeLabel = new Label { Text = "Maaş %—" };
         CareerUiTheme.StyleTableText(_wageUtilizationBadgeLabel);
         _wageUtilizationBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.TextPrimary);
         _wageUtilizationBadgePanel.AddChild(_wageUtilizationBadgeLabel);
@@ -139,7 +139,7 @@ public partial class CareerHubScreen
         _fileTopGrid.AddThemeConstantOverride("v_separation", 8);
         tab0Split.AddChild(_fileTopGrid);
 
-        var objectivesCard = AddCard(_fileTopGrid, "🎯 YÖNETİM HEDEFLERİ", emphasized: true, expandVertical: true);
+        var objectivesCard = AddCard(_fileTopGrid, "YÖNETİM HEDEFLERİ", emphasized: true, expandVertical: true);
         _boardObjectivesContainer = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _boardObjectivesContainer.AddThemeConstantOverride("separation", 6);
         objectivesCard.AddChild(_boardObjectivesContainer);
@@ -153,7 +153,7 @@ public partial class CareerHubScreen
         rightFinanceCol.AddThemeConstantOverride("separation", 8);
         tab0Split.AddChild(rightFinanceCol);
 
-        var financeCard = AddCard(rightFinanceCol, "💰 KULÜP FİNANSI & KASASI", emphasized: true, expandVertical: true);
+        var financeCard = AddCard(rightFinanceCol, "KULÜP FİNANSI & KASASI", emphasized: true, expandVertical: true);
         _fileFinanceGrid = new GridContainer
         {
             Columns = 2,
@@ -209,7 +209,7 @@ public partial class CareerHubScreen
         _clubEconomyLabel.Visible = false;
         financeCard.AddChild(_clubEconomyLabel);
 
-        var careerJobCard = AddCard(rightFinanceCol, "💼 KARİYER & İŞ TEKLİFLERİ", emphasized: false);
+        var careerJobCard = AddCard(rightFinanceCol, "KARİYER & İŞ TEKLİFLERİ", emphasized: false);
         var careerJobRow = ActionFlow();
         careerJobCard.AddChild(careerJobRow);
         _generateOfferButton = PrimaryButton("İş Teklifi Ara");
@@ -245,7 +245,7 @@ public partial class CareerHubScreen
         _fileBottomGrid.AddThemeConstantOverride("v_separation", 8);
         tab1Split.AddChild(_fileBottomGrid);
 
-        var legacyCard = AddCard(_fileBottomGrid, "🎖️ MENAJER PROFİLİ & BECERİLER", emphasized: true, expandVertical: true);
+        var legacyCard = AddCard(_fileBottomGrid, "MENAJER PROFİLİ & BECERİLER", emphasized: true, expandVertical: true);
         var legacyHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         legacyHeaderRow.AddThemeConstantOverride("separation", 8);
         legacyCard.AddChild(legacyHeaderRow);
@@ -263,7 +263,7 @@ public partial class CareerHubScreen
 
         _legacyReputationBadgePanel = new PanelContainer();
         _legacyReputationBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.25f));
-        _legacyReputationBadgeLabel = new Label { Text = "⭐ İtibar: —" };
+        _legacyReputationBadgeLabel = new Label { Text = "İtibar: —" };
         CareerUiTheme.StyleHeadline(_legacyReputationBadgeLabel);
         _legacyReputationBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         _legacyReputationBadgeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
@@ -272,7 +272,7 @@ public partial class CareerHubScreen
 
         _fileManagerLevelBadgePanel = new PanelContainer();
         _fileManagerLevelBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.25f));
-        _fileManagerLevelBadgeLabel = new Label { Text = "🎖️ Seviye 1 (0 XP)" };
+        _fileManagerLevelBadgeLabel = new Label { Text = "Seviye 1 (0 XP)" };
         CareerUiTheme.StyleHeadline(_fileManagerLevelBadgeLabel);
         _fileManagerLevelBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _fileManagerLevelBadgeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
@@ -288,10 +288,10 @@ public partial class CareerHubScreen
         _managerSkillsGrid.AddThemeConstantOverride("v_separation", 8);
         legacyCard.AddChild(_managerSkillsGrid);
 
-        _managerSkillTacticalLabel = CreateLegacyStatCard(_managerSkillsGrid, "🧠 TAKTİKSEL ZEKA", "—", CareerUiTheme.ActionBright);
-        _managerSkillYouthLabel = CreateLegacyStatCard(_managerSkillsGrid, "🌱 GENÇ GELİŞTİRME", "—", CareerUiTheme.Accent);
-        _managerSkillManMgmtLabel = CreateLegacyStatCard(_managerSkillsGrid, "🤝 İNSAN YÖNETİMİ", "—", CareerUiTheme.Data);
-        _managerSkillNegotiationLabel = CreateLegacyStatCard(_managerSkillsGrid, "💼 TRANSFER PAZARLIĞI", "—", CareerUiTheme.ColorWarning);
+        _managerSkillTacticalLabel = CreateLegacyStatCard(_managerSkillsGrid, "TAKTİKSEL ZEKA", "—", CareerUiTheme.ActionBright);
+        _managerSkillYouthLabel = CreateLegacyStatCard(_managerSkillsGrid, "GENÇ GELİŞTİRME", "—", CareerUiTheme.Accent);
+        _managerSkillManMgmtLabel = CreateLegacyStatCard(_managerSkillsGrid, "İNSAN YÖNETİMİ", "—", CareerUiTheme.Data);
+        _managerSkillNegotiationLabel = CreateLegacyStatCard(_managerSkillsGrid, "TRANSFER PAZARLIĞI", "—", CareerUiTheme.ColorWarning);
 
         _fileLegacyStatsGrid = new GridContainer
         {
@@ -302,10 +302,10 @@ public partial class CareerHubScreen
         _fileLegacyStatsGrid.AddThemeConstantOverride("v_separation", 8);
         legacyCard.AddChild(_fileLegacyStatsGrid);
 
-        _legacyStatMatchesLabel = CreateLegacyStatCard(_fileLegacyStatsGrid, "⚽ MAÇLAR", "—", CareerUiTheme.Data);
-        _legacyStatWinRateLabel = CreateLegacyStatCard(_fileLegacyStatsGrid, "🏆 PERFORMANS", "—", CareerUiTheme.ActionBright);
-        _legacyStatYouthLabel = CreateLegacyStatCard(_fileLegacyStatsGrid, "🌱 MİRAS", "—", CareerUiTheme.Accent);
-        _legacyStatMilestoneLabel = CreateLegacyStatCard(_fileLegacyStatsGrid, "🎯 HEDEF", "—", CareerUiTheme.TextPrimary);
+        _legacyStatMatchesLabel = CreateLegacyStatCard(_fileLegacyStatsGrid, "MAÇLAR", "—", CareerUiTheme.Data);
+        _legacyStatWinRateLabel = CreateLegacyStatCard(_fileLegacyStatsGrid, "PERFORMANS", "—", CareerUiTheme.ActionBright);
+        _legacyStatYouthLabel = CreateLegacyStatCard(_fileLegacyStatsGrid, "MİRAS", "—", CareerUiTheme.Accent);
+        _legacyStatMilestoneLabel = CreateLegacyStatCard(_fileLegacyStatsGrid, "HEDEF", "—", CareerUiTheme.TextPrimary);
 
         _careerLegacyRecordLabel = BodyLabel("CareerLegacyRecordLabel", autowrap: true);
         _careerLegacyRecordLabel.Visible = false;
@@ -314,7 +314,7 @@ public partial class CareerHubScreen
         _careerLegacyDevelopmentLabel.Visible = false;
         legacyCard.AddChild(_careerLegacyDevelopmentLabel);
 
-        var historyCard = AddCard(tab1Split, "📜 KARİYER GEÇMİŞİ & SEZON ARŞİVİ", emphasized: false, expandVertical: true);
+        var historyCard = AddCard(tab1Split, "KARİYER GEÇMİŞİ & SEZON ARŞİVİ", emphasized: false, expandVertical: true);
         historyCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 0.85f;
         _careerSeasonList = new ItemList
         {
@@ -339,7 +339,7 @@ public partial class CareerHubScreen
         tab2Split.AddThemeConstantOverride("separation", 10);
         page.AddChild(tab2Split);
 
-        var saveCard = AddCard(tab2Split, "💾 KAYIT & OYUN DOSYASI", emphasized: true, expandVertical: true);
+        var saveCard = AddCard(tab2Split, "KAYIT & OYUN DOSYASI", emphasized: true, expandVertical: true);
         saveCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 0.95f;
         var saveTelemetryGrid = new GridContainer
         {
@@ -349,10 +349,10 @@ public partial class CareerHubScreen
         saveTelemetryGrid.AddThemeConstantOverride("h_separation", 7);
         saveTelemetryGrid.AddThemeConstantOverride("v_separation", 7);
         saveCard.AddChild(saveTelemetryGrid);
-        _saveLastWriteBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "🕒 Son Kayıt: —", CareerUiTheme.ActionBright);
-        _saveActiveSlotBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "📁 Aktif Slot: —", CareerUiTheme.Data);
-        _saveWorldSeedBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "🌍 Dünya Seed: —", CareerUiTheme.Accent);
-        _saveFileSizeBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "💽 Dosya Boyutu: —", CareerUiTheme.ColorWarning);
+        _saveLastWriteBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "Son Kayıt: —", CareerUiTheme.ActionBright);
+        _saveActiveSlotBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "Aktif Slot: —", CareerUiTheme.Data);
+        _saveWorldSeedBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "Dünya Seed: —", CareerUiTheme.Accent);
+        _saveFileSizeBadgeLabel = CreateSaveTelemetryBadge(saveTelemetryGrid, "Dosya Boyutu: —", CareerUiTheme.ColorWarning);
         _saveDeskLabel = BodyLabel("SaveDeskLabel", autowrap: true);
         _saveDeskLabel.Visible = false;
         saveCard.AddChild(_saveDeskLabel);
@@ -360,19 +360,19 @@ public partial class CareerHubScreen
         var saveLoadRow = ActionFlow();
         saveCard.AddChild(saveLoadRow);
 
-        _saveGameButton = AccentButton("⚡ Hızlı Kaydet");
+        _saveGameButton = AccentButton("Hızlı Kaydet");
         _saveGameButton.Pressed += OnSaveGamePressed;
         saveLoadRow.AddChild(_saveGameButton);
 
-        _loadGameButton = PrimaryButton("↻ Yeniden Yükle");
+        _loadGameButton = PrimaryButton("Yeniden Yükle");
         _loadGameButton.Pressed += OnLoadGamePressed;
         saveLoadRow.AddChild(_loadGameButton);
 
-        var menuButton = DangerButton("⏏ Ana Menüye Dön");
+        var menuButton = DangerButton("Ana Menüye Dön");
         menuButton.Pressed += () => BackToMenuRequested?.Invoke();
         saveLoadRow.AddChild(menuButton);
 
-        var experienceCard = AddCard(tab2Split, "⚙️ DENEYİM & ERİŞİLEBİLİRLİK AYARLARI", emphasized: false, expandVertical: true);
+        var experienceCard = AddCard(tab2Split, "DENEYİM & ERİŞİLEBİLİRLİK AYARLARI", emphasized: false, expandVertical: true);
         experienceCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 1.05f;
         _deviceAcceptanceLabel = BodyLabel("DeviceAcceptanceLabel", autowrap: true);
         _deviceAcceptanceLabel.Visible = false;

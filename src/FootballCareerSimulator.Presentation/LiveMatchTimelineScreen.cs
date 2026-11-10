@@ -167,7 +167,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         // Minute Pill
         var minutePanel = new PanelContainer();
         minutePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.18f));
-        _minuteLabel = new Label { Text = "⏱ 0'" };
+        _minuteLabel = new Label { Text = "0'" };
         CareerUiTheme.ApplyDisplayFont(_minuteLabel);
         _minuteLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
         _minuteLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
@@ -315,7 +315,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         auraRow.AddThemeConstantOverride("separation", 8);
         touchlineVBox.AddChild(auraRow);
 
-        _momentumAuraLabel = new Label { Text = "🔥 KENAR MOMENTUM AURA: %62" };
+        _momentumAuraLabel = new Label { Text = "KENAR MOMENTUM AURA: %62" };
         CareerUiTheme.StyleTableText(_momentumAuraLabel);
         _momentumAuraLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
         _momentumAuraLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
@@ -339,10 +339,10 @@ public sealed partial class LiveMatchTimelineScreen : Control
         shoutsRow.AddThemeConstantOverride("separation", 4);
         touchlineVBox.AddChild(shoutsRow);
 
-        AddTouchlineShoutButton(shoutsRow, "🔥 Şok Pres", "+14% Aura", new Color(1f, 0.45f, 0.22f), 14);
-        AddTouchlineShoutButton(shoutsRow, "⚡ Kanat Yükle", "+12% Aura", CareerUiTheme.ActionBright, 12);
-        AddTouchlineShoutButton(shoutsRow, "🛡️ Kilit Blok", "+10% Aura", CareerUiTheme.Data, 10);
-        AddTouchlineShoutButton(shoutsRow, "🗣️ Moral Ateşi", "+16% Aura", CareerUiTheme.Accent, 16);
+        AddTouchlineShoutButton(shoutsRow, "Şok Pres", "+14% Aura", new Color(1f, 0.45f, 0.22f), 14);
+        AddTouchlineShoutButton(shoutsRow, "Kanat Yükle", "+12% Aura", CareerUiTheme.ActionBright, 12);
+        AddTouchlineShoutButton(shoutsRow, "Kilit Blok", "+10% Aura", CareerUiTheme.Data, 10);
+        AddTouchlineShoutButton(shoutsRow, "Moral Ateşi", "+16% Aura", CareerUiTheme.Accent, 16);
 
         // Playback & Timing Controls Bar
         var controlsBar = new HBoxContainer
@@ -353,7 +353,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         controlsBar.AddThemeConstantOverride("separation", 6);
         stack.AddChild(controlsBar);
 
-        _previousButton = AddControlButton(controlsBar, "⏮ Önceki", () =>
+        _previousButton = AddControlButton(controlsBar, "Önceki", () =>
         {
             _pitch.Pause();
             _pitch.Retreat();
@@ -361,9 +361,9 @@ public sealed partial class LiveMatchTimelineScreen : Control
             RefreshControls();
         }, minWidth: 72);
 
-        _playPauseButton = AddControlButton(controlsBar, "⏸ Duraklat", TogglePlayback, minWidth: 88);
+        _playPauseButton = AddControlButton(controlsBar, "Duraklat", TogglePlayback, minWidth: 88);
 
-        _nextButton = AddControlButton(controlsBar, "Sonraki ⏭", () =>
+        _nextButton = AddControlButton(controlsBar, "Sonraki", () =>
         {
             _pitch.Pause();
             if (!_hasHalfTimeEnded && _pitch.CurrentFrameIndex + 1 < _pitch.Storyboard.Frames.Count)
@@ -395,7 +395,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _speed2xButton = AddControlButton(controlsBar, "2.0x", () => SetSpeed(2f), minWidth: 44);
 
         // Fast forward / Skip to end
-        _fastForwardButton = AddControlButton(controlsBar, "⏩ Hızlı Bitir", FastForwardToEnd, minWidth: 92);
+        _fastForwardButton = AddControlButton(controlsBar, "Hızlı Bitir", FastForwardToEnd, minWidth: 92);
         CareerUiTheme.StyleAccentButton(_fastForwardButton);
 
         return pitchCard;
@@ -412,7 +412,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         deskCard.AddChild(stack);
 
         // 1. Live Commentary Feed
-        var feedHeader = new Label { Text = "📻 CANLI MAÇ ANLATIMI" };
+        var feedHeader = new Label { Text = "CANLI MAÇ ANLATIMI" };
         CareerUiTheme.StyleEyebrow(feedHeader, CareerUiTheme.ActionBright);
         stack.AddChild(feedHeader);
 
@@ -429,7 +429,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         kickoffChip.AddThemeStyleboxOverride("panel", CareerUiTheme.EventFeedCardPanel("Kickoff"));
         var kickoffLabel = new Label
         {
-            Text = "0' ⚽ Karşılaşma hakemin düdüğüyle başladı.",
+            Text = "0' Karşılaşma hakemin düdüğüyle başladı.",
         };
         CareerUiTheme.StyleBody(kickoffLabel, muted: true);
         kickoffLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
@@ -437,7 +437,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _eventFeedContainer.AddChild(kickoffChip);
 
         // 2. In-Match Telemetry
-        var statsHeader = new Label { Text = "📊 ANLIK MAÇ İSTATİSTİKLERİ" };
+        var statsHeader = new Label { Text = "ANLIK MAÇ İSTATİSTİKLERİ" };
         CareerUiTheme.StyleEyebrow(statsHeader, CareerUiTheme.Data);
         stack.AddChild(statsHeader);
 
@@ -466,59 +466,10 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _statsShotsLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
         statsStack.AddChild(_statsShotsLabel);
 
-        // 2.5. New Star Manager tarzı Kritik Pozisyon Kararı Kartı (Saha İçi Dondurma)
-        _keyDecisionCard = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        _keyDecisionCard.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePanel(CareerUiTheme.ActionBright));
-        _keyDecisionCard.Visible = false;
-        stack.AddChild(_keyDecisionCard);
-
-        var kdStack = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        kdStack.AddThemeConstantOverride("separation", 5);
-        _keyDecisionCard.AddChild(kdStack);
-
-        var kdTitle = new Label { Text = "🎯 KRİTİK POZİSYON KARARI! (TOP AYAKTA)" };
-        CareerUiTheme.StyleEyebrow(kdTitle, CareerUiTheme.ActionBright);
-        kdStack.AddChild(kdTitle);
-
-        _keyDecisionPromptLabel = MatchScreenUi.BodyLine(
-            "Ceza sahası yayında boşluk yakaladık! Oyuncunun yapacağı hamleyi seç:",
-            muted: false);
-        _keyDecisionPromptLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        kdStack.AddChild(_keyDecisionPromptLabel);
-
-        var kdChoicesCol = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        kdChoicesCol.AddThemeConstantOverride("separation", 4);
-        kdStack.AddChild(kdChoicesCol);
-
-        var shotChoiceBtn = new Button
-        {
-            Text = "🎯 Köşeye Plase Şut Çek",
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 30),
-        };
-        CareerUiTheme.StylePrimaryButton(shotChoiceBtn);
-        shotChoiceBtn.Pressed += () => ResolveKeyMomentDecision("🎯 Uzak köşeye sert plase şut denemesi! Tribünler ayakta!");
-        kdChoicesCol.AddChild(shotChoiceBtn);
-
-        var passChoiceBtn = new Button
-        {
-            Text = "⚡ Arka Direğe Kesme Pas Çiz",
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 30),
-        };
-        CareerUiTheme.StyleAccentButton(passChoiceBtn);
-        passChoiceBtn.Pressed += () => ResolveKeyMomentDecision("⚡ Savunma arkasına jilet gibi kesme pas! Tehlike büyüdü!");
-        kdChoicesCol.AddChild(passChoiceBtn);
-
-        var dribbleChoiceBtn = new Button
-        {
-            Text = "🔥 Çalımla Ceza Sahasına Dal",
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 30),
-        };
-        CareerUiTheme.StyleSecondaryButton(dribbleChoiceBtn);
-        dribbleChoiceBtn.Pressed += () => ResolveKeyMomentDecision("🔥 Bire birde şık çalımla ceza sahasına dalış! Savunma dengesini kaybetti!");
-        kdChoicesCol.AddChild(dribbleChoiceBtn);
+        // 2.5. Kritik Pozisyon Kararı doğrudan sahanın üzerinde (MatchMomentPitchView) yüzen hedef ikonlarıyla çözülür (Rule 5).
+        // Sağ paneldeki metin butonları devre dışı bırakıldı.
+        _keyDecisionCard = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, Visible = false };
+        _keyDecisionPromptLabel = new Label { Visible = false };
 
         // 3. Half-Time Intermission Card
         _halfTimeCard = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -530,7 +481,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         htStack.AddThemeConstantOverride("separation", 6);
         _halfTimeCard.AddChild(htStack);
 
-        var htTitle = new Label { Text = "⏸ DEVRE ARASI  •  İLK YARI SONUCU" };
+        var htTitle = new Label { Text = "DEVRE ARASI  ·  İLK YARI SONUCU" };
         CareerUiTheme.StyleEyebrow(htTitle, CareerUiTheme.Accent);
         htStack.AddChild(htTitle);
 
@@ -558,19 +509,19 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _planSameButton.Pressed += () => SetHalfTimeDirective(0);
         plansBox.AddChild(_planSameButton);
 
-        _planAttackButton = new Button { Text = "⚡ Hücum", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _planAttackButton = new Button { Text = "Hücum", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         CareerUiTheme.StyleSecondaryButton(_planAttackButton);
         _planAttackButton.Pressed += () => SetHalfTimeDirective(1);
         plansBox.AddChild(_planAttackButton);
 
-        _planDefendButton = new Button { Text = "🛡️ Savunma", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _planDefendButton = new Button { Text = "Savunma", SizeFlagsHorizontal = SizeFlags.ExpandFill };
         CareerUiTheme.StyleSecondaryButton(_planDefendButton);
         _planDefendButton.Pressed += () => SetHalfTimeDirective(2);
         plansBox.AddChild(_planDefendButton);
 
         _resumeSecondHalfButton = new Button
         {
-            Text = "▶ 2. Yarıyı Başlat",
+            Text = "2. Yarıyı Başlat",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             CustomMinimumSize = new Vector2(0, _layout.ActionButtonHeight),
         };
@@ -626,7 +577,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         {
             _momentumValue = Math.Clamp(_momentumValue + momentumDelta, 0, 100);
             _momentumAuraBar.Value = _momentumValue;
-            _momentumAuraLabel.Text = $"🔥 KENAR MOMENTUM AURA: %{_momentumValue}";
+            _momentumAuraLabel.Text = $"KENAR MOMENTUM AURA: %{_momentumValue}";
             _pitch.TriggerTouchlineShoutEffect(label, color);
             _audio?.TryPlayCue(MatchAudioCue.Button);
 
@@ -637,7 +588,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
             }
 
             var curMin = _pitch.CurrentFrame?.Minute ?? 15;
-            AppendCustomFeedLine($"{curMin}' 🗣️ Kenar Talimatı: {label} uygulandı! (Takım Momentum Aurası: %{_momentumValue})", color);
+            AppendCustomFeedLine($"{curMin}' Kenar Talimatı: {label} uygulandı! (Takım Momentum Aurası: %{_momentumValue})", color);
         };
         parent.AddChild(btn);
     }
@@ -671,7 +622,10 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _hasKeyDecisionTriggered = true;
         _pitch.Pause();
         _pitch.ShowFrame(nextIndex);
-        _pitch.SetKeyDecisionHighlight(true, $"🎯 {nextFrame.Minute}' KRİTİK POZİSYON — HAMLENİ SEÇ!");
+        _pitch.ActivateOnPitchKeyDecision(
+            nextFrame,
+            ResolveKeyMomentDecision,
+            $"{nextFrame.Minute}' KRİTİK POZİSYON — SAHA ÜSTÜ HEDEF SEÇ");
         _audio?.TryPlayCue(MatchAudioCue.Whistle);
 
         var haptics = GameExperienceSettingsStore.Current.EffectiveHapticsStrengthPercent;
@@ -680,11 +634,9 @@ public sealed partial class LiveMatchTimelineScreen : Control
             Input.VibrateHandheld(Math.Max(1, 32 * haptics / 100));
         }
 
-        _phaseLabel.Text = "🎯 KARAR ANI";
-        _minuteLabel.Text = $"⏱ {nextFrame.Minute}'";
-        _keyDecisionPromptLabel.Text =
-            $"{nextFrame.Minute}'. dakikada {nextFrame.PrimaryPlayerName} topla tehlikeli bölgede buluştu! Kararını ver:";
-        _keyDecisionCard.Visible = true;
+        _phaseLabel.Text = "KARAR ANI";
+        _minuteLabel.Text = $"{nextFrame.Minute}'";
+        _keyDecisionCard.Visible = false;
         RefreshControls();
     }
 
@@ -698,7 +650,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
 
         _momentumValue = Math.Clamp(_momentumValue + 22, 0, 100);
         _momentumAuraBar.Value = _momentumValue;
-        _momentumAuraLabel.Text = $"🔥 KENAR MOMENTUM AURA: %{_momentumValue}";
+        _momentumAuraLabel.Text = $"KENAR MOMENTUM AURA: %{_momentumValue}";
 
         var curMin = _pitch.CurrentFrame?.Minute ?? 25;
         AppendCustomFeedLine($"{curMin}' {outcomeNarrative}", CareerUiTheme.ActionBright);
@@ -709,9 +661,9 @@ public sealed partial class LiveMatchTimelineScreen : Control
 
     private void TogglePlayback()
     {
-        if (_hasKeyDecisionTriggered && !_hasKeyDecisionResolved && _keyDecisionCard.Visible)
+        if (_hasKeyDecisionTriggered && !_hasKeyDecisionResolved)
         {
-            ResolveKeyMomentDecision("⚡ Hızlı pas kombinasyonuyla pozisyon tamamlandı!");
+            ResolveKeyMomentDecision("Hızlı pas kombinasyonuyla pozisyon tamamlandı!");
             return;
         }
 
@@ -817,7 +769,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
 
     private void OnMomentChanged(int index, MatchMomentStoryboardFrame frame)
     {
-        _minuteLabel.Text = $"⏱ {frame.Minute}'";
+        _minuteLabel.Text = $"{frame.Minute}'";
         _phaseLabel.Text = frame.Minute < 45 ? "1. YARI" : frame.Minute == 45 ? "DEVRE" : "2. YARI";
 
         RecalculateLiveScore(index);
@@ -829,14 +781,14 @@ public sealed partial class LiveMatchTimelineScreen : Control
 
     private void AddEventChip(MatchMomentStoryboardFrame frame)
     {
-        var icon = frame.Kind switch
+        var (iconKey, iconColor) = frame.Kind switch
         {
-            "Goal" => "⚽",
-            "YellowCard" => "🟨",
-            "RedCard" => "🟥",
-            "Injury" => "🩹",
-            "Save" => "🧤",
-            _ => "⚡",
+            "Goal" => ("ball", CareerUiTheme.ActionBright),
+            "YellowCard" => ("cards", CareerUiTheme.Accent),
+            "RedCard" => ("cards", CareerUiTheme.DangerSoft),
+            "Injury" => ("medical", CareerUiTheme.DangerSoft),
+            "Save" => ("shield", CareerUiTheme.Data),
+            _ => ("bolt", CareerUiTheme.InkMuted),
         };
 
         var key = $"{frame.Minute}_{frame.PrimaryPlayerName}_{frame.Kind}";
@@ -859,8 +811,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         minuteLabel.AddThemeColorOverride("font_color", frame.Kind == "Goal" ? CareerUiTheme.ActionBright : CareerUiTheme.InkMuted);
         row.AddChild(minuteLabel);
 
-        var iconLabel = new Label { Text = icon };
-        row.AddChild(iconLabel);
+        row.AddChild(new BroadcastVectorIcon(iconKey, iconColor, 14f));
 
         var text = frame.AssistPlayerName is { Length: > 0 } assist
             ? $"{frame.PrimaryPlayerName} (Asist: {assist})"
@@ -943,7 +894,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _phaseLabel.Text = "MAÇ SONU";
         _minuteLabel.Text = "90+'";
         _resultsButton.Disabled = false;
-        _resultsButton.Text = "🏆 Maç Raporunu Aç";
+        _resultsButton.Text = "Maç Raporunu Aç";
         CareerUiTheme.StylePrimaryButton(_resultsButton);
         _resultsButton.GrabFocus();
         RefreshControls();
@@ -958,13 +909,13 @@ public sealed partial class LiveMatchTimelineScreen : Control
 
         if (_hasHalfTimeTriggered && !_hasHalfTimeEnded)
         {
-            _playPauseButton.Text = "▶ 2. Yarı";
-            _phaseLabel.Text = "⏸️ DEVRE ARASI";
-            _minuteLabel.Text = "⏱ 45'";
+            _playPauseButton.Text = "2. Yarı";
+            _phaseLabel.Text = "DEVRE ARASI";
+            _minuteLabel.Text = "45'";
         }
         else
         {
-            _playPauseButton.Text = _pitch.IsPlaying ? "⏸ Duraklat" : "▶ Devam Et";
+            _playPauseButton.Text = _pitch.IsPlaying ? "Duraklat" : "Devam Et";
             if (!_resultsButton.Disabled)
             {
                 _phaseLabel.Text = "MAÇ SONU";
@@ -989,23 +940,23 @@ public sealed partial class LiveMatchTimelineScreen : Control
         {
             case 1:
                 CareerUiTheme.StylePrimaryButton(_planAttackButton);
-                _planAttackButton.Text = "✓ ⚡ Hücum";
+                _planAttackButton.Text = "Hücum (Aktif)";
                 _planSameButton.Text = "Aynı Plan";
-                _planDefendButton.Text = "🛡️ Savunma";
+                _planDefendButton.Text = "Savunma";
                 _halfTimeAdviceLabel.Text = "Taktik direktif: İkinci yarıda tüm hatlarla hücuma çıkılacak!";
                 break;
             case 2:
                 CareerUiTheme.StylePrimaryButton(_planDefendButton);
-                _planDefendButton.Text = "✓ 🛡️ Savunma";
+                _planDefendButton.Text = "Savunma (Aktif)";
                 _planSameButton.Text = "Aynı Plan";
-                _planAttackButton.Text = "⚡ Hücum";
+                _planAttackButton.Text = "Hücum";
                 _halfTimeAdviceLabel.Text = "Taktik direktif: İkinci yarıda savunma bloğu kurulacak!";
                 break;
             default:
                 CareerUiTheme.StylePrimaryButton(_planSameButton);
-                _planSameButton.Text = "✓ Aynı Plan";
-                _planAttackButton.Text = "⚡ Hücum";
-                _planDefendButton.Text = "🛡️ Savunma";
+                _planSameButton.Text = "Aynı Plan (Aktif)";
+                _planAttackButton.Text = "Hücum";
+                _planDefendButton.Text = "Savunma";
                 _halfTimeAdviceLabel.Text = "Taktik direktif: İlk yarıdaki plan korunuyor.";
                 break;
         }
@@ -1020,8 +971,8 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _hasHalfTimeTriggered = true;
         _pitch.Pause();
         _audio?.TryPlayCue(MatchAudioCue.Whistle);
-        _phaseLabel.Text = "⏸️ DEVRE ARASI";
-        _minuteLabel.Text = "⏱ 45'";
+        _phaseLabel.Text = "DEVRE ARASI";
+        _minuteLabel.Text = "45'";
 
         _halfTimeScoreLabel.Text = $"{_homeClubName} {_liveHomeGoals} - {_liveAwayGoals} {_awayClubName}";
 
@@ -1044,7 +995,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         htChip.AddThemeStyleboxOverride("panel", CareerUiTheme.EventFeedCardPanel("Kickoff"));
         var htLabel = new Label
         {
-            Text = $"45' ⏸️ İlk yarı sona erdi ({_liveHomeGoals} - {_liveAwayGoals}).",
+            Text = $"45' İlk yarı sona erdi ({_liveHomeGoals} - {_liveAwayGoals}).",
         };
         CareerUiTheme.StyleBody(htLabel, muted: true);
         htLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
@@ -1073,7 +1024,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         resumeChip.AddThemeStyleboxOverride("panel", CareerUiTheme.EventFeedCardPanel("Kickoff"));
         var resumeLabel = new Label
         {
-            Text = "45' ⏱️ İkinci yarı hakemin düdüğüyle başladı.",
+            Text = "45' İkinci yarı hakemin düdüğüyle başladı.",
         };
         CareerUiTheme.StyleBody(resumeLabel, muted: true);
         resumeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
@@ -1089,7 +1040,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         }).CallDeferred();
 
         _phaseLabel.Text = "2. YARI · CANLI";
-        _minuteLabel.Text = "⏱ 46'";
+        _minuteLabel.Text = "46'";
 
         if (_pitch.CurrentFrameIndex + 1 < _pitch.Storyboard.Frames.Count)
         {

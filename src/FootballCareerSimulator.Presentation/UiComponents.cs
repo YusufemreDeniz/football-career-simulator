@@ -180,23 +180,23 @@ internal static class UiComponents
     // ── Empty State ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Boş durum göstergesi: sembol, başlık ve açıklama.
+    /// Boş durum göstergesi: vektörel ikon, başlık ve açıklama.
     /// ItemList veya kart içeriği yokken gösterilir.
     /// </summary>
     public static VBoxContainer EmptyState(
         string title,
         string description = "",
-        string symbol = "○")
+        string symbol = "radar")
     {
         var container = new VBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         container.AddThemeConstantOverride("separation", CareerUiTheme.SpaceS);
 
-        var symbolLabel = new Label { Text = symbol, HorizontalAlignment = HorizontalAlignment.Center };
-        CareerUiTheme.StyleBrand(symbolLabel);
-        symbolLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(32));
-        symbolLabel.AddThemeColorOverride("font_color",
-            new Color(CareerUiTheme.InkMuted.R, CareerUiTheme.InkMuted.G, CareerUiTheme.InkMuted.B, 0.38f));
-        container.AddChild(symbolLabel);
+        var iconWrap = new CenterContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
+        iconWrap.AddChild(new BroadcastVectorIcon(
+            symbol,
+            new Color(CareerUiTheme.InkMuted.R, CareerUiTheme.InkMuted.G, CareerUiTheme.InkMuted.B, 0.45f),
+            28f));
+        container.AddChild(iconWrap);
 
         var titleLabel = new Label { Text = title, HorizontalAlignment = HorizontalAlignment.Center };
         CareerUiTheme.StyleTableText(titleLabel, muted: true);
@@ -475,27 +475,22 @@ internal static class UiComponents
     // ── Page Header ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Referans tasarımdaki sayfa başlığı: yeşil ikon kutusu + büyük beyaz başlık.
-    /// icon parametresi unicode sembol (örn. "⚽", "★", "⚙") veya kısa metin olabilir.
+    /// Broadcast Stadium Noir sayfa başlığı: özel _Draw() vektörel ikon kutusu + büyük beyaz başlık.
     /// </summary>
     public static HBoxContainer PageHeader(string icon, string title, Control? rightWidget = null)
     {
         var row = new HBoxContainer { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         row.AddThemeConstantOverride("separation", CareerUiTheme.SpaceS);
 
-        // Kompakt ikon rozeti
+        // Kompakt vektörel ikon rozeti
         var iconBox = new PanelContainer { SizeFlagsVertical = Control.SizeFlags.ShrinkCenter };
         iconBox.AddThemeStyleboxOverride("panel", CareerUiTheme.PageIconBoxPanel());
-        var iconLabel = new Label
+        var iconCenter = new CenterContainer
         {
-            Text = icon,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
+            CustomMinimumSize = new Vector2(18, 18),
         };
-        CareerUiTheme.StyleHeadline(iconLabel);
-        iconLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
-        iconLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
-        iconBox.AddChild(iconLabel);
+        iconCenter.AddChild(new BroadcastVectorIcon(icon, CareerUiTheme.ActionBright, 16f));
+        iconBox.AddChild(iconCenter);
         row.AddChild(iconBox);
 
         // Başlık metni
@@ -547,7 +542,7 @@ internal static class UiComponents
     // ── Mini Stat Card ───────────────────────────────────────────────────────
 
     /// <summary>
-    /// Ana sayfadaki 6'lı stat kutusu: ikon + başlık + değer.
+    /// Ana sayfadaki stat kutusu: _Draw() vektör ikon + başlık + değer.
     /// </summary>
     public static PanelContainer MiniStatCard(
         string icon,
@@ -572,9 +567,11 @@ internal static class UiComponents
         topRow.AddThemeConstantOverride("separation", CareerUiTheme.SpaceXs);
         col.AddChild(topRow);
 
-        var iconLabel = new Label { Text = icon };
-        iconLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(16));
-        topRow.AddChild(iconLabel);
+        var iconNode = new BroadcastVectorIcon(icon, valueColor ?? CareerUiTheme.Accent, 14f)
+        {
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+        };
+        topRow.AddChild(iconNode);
 
         var titleLabel = new Label
         {
@@ -857,4 +854,332 @@ internal enum AlertKind
     Positive,
     Negative,
     Warning,
+}
+
+/// <summary>
+/// Broadcast Stadium Noir tasarım sistemi için sıfır-emoji özel vektörel ikon/rozet çizici (_Draw()).
+/// </summary>
+internal sealed partial class BroadcastVectorIcon : Control
+{
+    private readonly string _kind;
+    private readonly Color _color;
+    private readonly float _size;
+
+    public BroadcastVectorIcon(string? iconOrKey, Color color, float size = 18f)
+    {
+        _kind = ResolveKind(iconOrKey);
+        _color = color;
+        _size = size;
+        CustomMinimumSize = new Vector2(size, size);
+        MouseFilter = MouseFilterEnum.Ignore;
+    }
+
+    private static string ResolveKind(string? raw)
+    {
+        var key = (raw ?? string.Empty).Trim().ToLowerInvariant();
+        return key switch
+        {
+            "home" or "portal" or "today" or "bugun" => "home",
+            "campus" or "club" or "kulup" or "pillars" or "building" => "campus",
+            "pitch" or "prep" or "tactic" or "saha" or "field" => "pitch",
+            "radar" or "scout" or "transfer" or "globe" => "radar",
+            "trophy" or "cup" or "world" or "lig" or "award" => "trophy",
+            "user" or "player" or "dossier" or "manager" or "profile" => "user",
+            "bolt" or "energy" or "shock" or "flash" or "training" => "bolt",
+            "flame" or "fire" or "hot" or "form" or "morale" => "flame",
+            "medical" or "health" or "injury" or "rehab" or "cross" => "medical",
+            "search" or "find" or "inspect" or "lens" => "search",
+            "handshake" or "promise" or "deal" or "contract" or "talk" => "handshake",
+            "ball" or "goal" or "match" or "football" => "ball",
+            "star" or "elite" or "rating" or "wonderkid" => "star",
+            "coin" or "money" or "budget" or "finance" or "wage" => "coin",
+            "target" or "reticle" or "focus" or "shot" => "target",
+            "cards" or "deck" or "hand" => "cards",
+            "sliders" or "settings" or "file" or "tune" => "sliders",
+            "book" or "pedia" or "guide" or "rules" => "book",
+            "calendar" or "date" or "schedule" => "calendar",
+            "shield" or "defense" or "crest" or "lock" => "shield",
+            "warning" or "alert" or "risk" => "warning",
+            "check" or "ok" or "done" or "approved" => "check",
+            _ => "shield",
+        };
+    }
+
+    public override void _Draw()
+    {
+        var s = Size;
+        if (s.X <= 2f || s.Y <= 2f)
+        {
+            s = new Vector2(_size, _size);
+        }
+
+        var c = s * 0.5f;
+        var r = Mathf.Min(s.X, s.Y) * 0.42f;
+        var stroke = Mathf.Max(1.6f, r * 0.22f);
+        var softFill = new Color(_color.R, _color.G, _color.B, 0.20f);
+
+        switch (_kind)
+        {
+            case "home":
+            {
+                var roof = new Vector2[]
+                {
+                    new(c.X, c.Y - r * 0.95f),
+                    new(c.X + r * 0.95f, c.Y - r * 0.10f),
+                    new(c.X - r * 0.95f, c.Y - r * 0.10f),
+                };
+                DrawColoredPolygon(roof, softFill);
+                DrawPolyline(new Vector2[] { roof[2], roof[0], roof[1] }, _color, stroke, true);
+                var body = new Rect2(c.X - r * 0.65f, c.Y - r * 0.10f, r * 1.30f, r * 0.95f);
+                DrawRect(body, softFill, true);
+                DrawRect(body, _color, false, stroke);
+                break;
+            }
+            case "campus":
+            {
+                var pediment = new Vector2[]
+                {
+                    new(c.X, c.Y - r * 0.95f),
+                    new(c.X + r * 0.95f, c.Y - r * 0.35f),
+                    new(c.X - r * 0.95f, c.Y - r * 0.35f),
+                };
+                DrawColoredPolygon(pediment, softFill);
+                DrawPolyline(new Vector2[] { pediment[2], pediment[0], pediment[1], pediment[2] }, _color, stroke, true);
+                for (var i = -1; i <= 1; i++)
+                {
+                    var px = c.X + i * r * 0.52f;
+                    DrawLine(new Vector2(px, c.Y - r * 0.30f), new Vector2(px, c.Y + r * 0.65f), _color, stroke, true);
+                }
+                DrawLine(new Vector2(c.X - r * 0.95f, c.Y + r * 0.75f), new Vector2(c.X + r * 0.95f, c.Y + r * 0.75f), _color, stroke * 1.2f, true);
+                break;
+            }
+            case "pitch":
+            {
+                var poly = new Vector2[]
+                {
+                    new(c.X - r * 0.70f, c.Y - r * 0.80f),
+                    new(c.X + r * 0.70f, c.Y - r * 0.80f),
+                    new(c.X + r * 0.95f, c.Y + r * 0.80f),
+                    new(c.X - r * 0.95f, c.Y + r * 0.80f),
+                };
+                DrawColoredPolygon(poly, softFill);
+                DrawPolyline(new Vector2[] { poly[0], poly[1], poly[2], poly[3], poly[0] }, _color, stroke, true);
+                DrawLine(new Vector2(c.X - r * 0.82f, c.Y), new Vector2(c.X + r * 0.82f, c.Y), _color, stroke * 0.8f, true);
+                DrawArc(c, r * 0.28f, 0f, Mathf.Tau, 16, _color, stroke * 0.8f, true);
+                break;
+            }
+            case "radar":
+            {
+                DrawCircle(c, r * 0.90f, softFill);
+                DrawArc(c, r * 0.90f, 0f, Mathf.Tau, 24, _color, stroke, true);
+                DrawArc(c, r * 0.48f, 0f, Mathf.Tau, 20, new Color(_color.R, _color.G, _color.B, 0.65f), stroke * 0.8f, true);
+                DrawLine(c, new Vector2(c.X + r * 0.65f, c.Y - r * 0.60f), _color, stroke, true);
+                DrawCircle(new Vector2(c.X + r * 0.38f, c.Y - r * 0.34f), stroke * 1.1f, _color);
+                break;
+            }
+            case "trophy":
+            {
+                var cup = new Vector2[]
+                {
+                    new(c.X - r * 0.65f, c.Y - r * 0.85f),
+                    new(c.X + r * 0.65f, c.Y - r * 0.85f),
+                    new(c.X + r * 0.42f, c.Y + r * 0.05f),
+                    new(c.X - r * 0.42f, c.Y + r * 0.05f),
+                };
+                DrawColoredPolygon(cup, softFill);
+                DrawPolyline(new Vector2[] { cup[0], cup[1], cup[2], cup[3], cup[0] }, _color, stroke, true);
+                DrawLine(new Vector2(c.X, c.Y + r * 0.05f), new Vector2(c.X, c.Y + r * 0.65f), _color, stroke, true);
+                DrawLine(new Vector2(c.X - r * 0.50f, c.Y + r * 0.70f), new Vector2(c.X + r * 0.50f, c.Y + r * 0.70f), _color, stroke * 1.2f, true);
+                break;
+            }
+            case "user":
+            {
+                DrawCircle(new Vector2(c.X, c.Y - r * 0.35f), r * 0.36f, softFill);
+                DrawArc(new Vector2(c.X, c.Y - r * 0.35f), r * 0.36f, 0f, Mathf.Tau, 18, _color, stroke, true);
+                DrawArc(new Vector2(c.X, c.Y + r * 0.85f), r * 0.72f, Mathf.Pi * 1.12f, Mathf.Pi * 1.88f, 18, _color, stroke, true);
+                break;
+            }
+            case "bolt":
+            {
+                var bolt = new Vector2[]
+                {
+                    new(c.X + r * 0.15f, c.Y - r * 0.95f),
+                    new(c.X - r * 0.55f, c.Y + r * 0.08f),
+                    new(c.X + r * 0.05f, c.Y + r * 0.08f),
+                    new(c.X - r * 0.18f, c.Y + r * 0.95f),
+                    new(c.X + r * 0.58f, c.Y - r * 0.10f),
+                    new(c.X - r * 0.02f, c.Y - r * 0.10f),
+                };
+                DrawColoredPolygon(bolt, _color);
+                break;
+            }
+            case "flame":
+            {
+                var flame = new Vector2[]
+                {
+                    new(c.X, c.Y - r * 0.95f),
+                    new(c.X + r * 0.65f, c.Y - r * 0.10f),
+                    new(c.X + r * 0.48f, c.Y + r * 0.70f),
+                    new(c.X, c.Y + r * 0.92f),
+                    new(c.X - r * 0.48f, c.Y + r * 0.70f),
+                    new(c.X - r * 0.65f, c.Y - r * 0.10f),
+                };
+                DrawColoredPolygon(flame, softFill);
+                DrawPolyline(new Vector2[] { flame[0], flame[1], flame[2], flame[3], flame[4], flame[5], flame[0] }, _color, stroke, true);
+                DrawCircle(new Vector2(c.X, c.Y + r * 0.32f), r * 0.26f, _color);
+                break;
+            }
+            case "medical":
+            {
+                var w = r * 0.36f;
+                var l = r * 0.85f;
+                DrawRect(new Rect2(c.X - w, c.Y - l, w * 2f, l * 2f), _color, true);
+                DrawRect(new Rect2(c.X - l, c.Y - w, l * 2f, w * 2f), _color, true);
+                break;
+            }
+            case "search":
+            {
+                var sc = c - new Vector2(r * 0.16f, r * 0.16f);
+                DrawCircle(sc, r * 0.55f, softFill);
+                DrawArc(sc, r * 0.55f, 0f, Mathf.Tau, 20, _color, stroke, true);
+                DrawLine(sc + new Vector2(r * 0.40f, r * 0.40f), c + new Vector2(r * 0.82f, r * 0.82f), _color, stroke * 1.25f, true);
+                break;
+            }
+            case "handshake":
+            {
+                var leftLink = new Rect2(c.X - r * 0.85f, c.Y - r * 0.38f, r * 1.05f, r * 0.76f);
+                var rightLink = new Rect2(c.X - r * 0.20f, c.Y - r * 0.38f, r * 1.05f, r * 0.76f);
+                DrawRect(leftLink, softFill, true);
+                DrawRect(leftLink, _color, false, stroke);
+                DrawRect(rightLink, _color, false, stroke);
+                break;
+            }
+            case "ball":
+            {
+                DrawCircle(c, r * 0.88f, softFill);
+                DrawArc(c, r * 0.88f, 0f, Mathf.Tau, 24, _color, stroke, true);
+                var pent = new Vector2[5];
+                for (var i = 0; i < 5; i++)
+                {
+                    var a = -Mathf.Pi * 0.5f + i * Mathf.Tau / 5f;
+                    pent[i] = c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * (r * 0.42f);
+                }
+                DrawColoredPolygon(pent, _color);
+                break;
+            }
+            case "star":
+            {
+                var pts = new Vector2[10];
+                for (var i = 0; i < 10; i++)
+                {
+                    var rad = i % 2 == 0 ? r * 0.92f : r * 0.40f;
+                    var a = -Mathf.Pi * 0.5f + i * Mathf.Tau / 10f;
+                    pts[i] = c + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * rad;
+                }
+                DrawColoredPolygon(pts, _color);
+                break;
+            }
+            case "coin":
+            {
+                var diamond = new Vector2[]
+                {
+                    new(c.X, c.Y - r * 0.90f),
+                    new(c.X + r * 0.90f, c.Y),
+                    new(c.X, c.Y + r * 0.90f),
+                    new(c.X - r * 0.90f, c.Y),
+                };
+                DrawColoredPolygon(diamond, softFill);
+                DrawPolyline(new Vector2[] { diamond[0], diamond[1], diamond[2], diamond[3], diamond[0] }, _color, stroke, true);
+                DrawCircle(c, r * 0.28f, _color);
+                break;
+            }
+            case "target":
+            {
+                DrawArc(c, r * 0.85f, 0f, Mathf.Tau, 24, _color, stroke, true);
+                DrawCircle(c, r * 0.30f, _color);
+                DrawLine(new Vector2(c.X - r, c.Y), new Vector2(c.X - r * 0.45f, c.Y), _color, stroke, true);
+                DrawLine(new Vector2(c.X + r * 0.45f, c.Y), new Vector2(c.X + r, c.Y), _color, stroke, true);
+                DrawLine(new Vector2(c.X, c.Y - r), new Vector2(c.X, c.Y - r * 0.45f), _color, stroke, true);
+                DrawLine(new Vector2(c.X, c.Y + r * 0.45f), new Vector2(c.X, c.Y + r), _color, stroke, true);
+                break;
+            }
+            case "cards":
+            {
+                var cardBack = new Rect2(c.X - r * 0.72f, c.Y - r * 0.82f, r * 0.95f, r * 1.35f);
+                var cardFront = new Rect2(c.X - r * 0.22f, c.Y - r * 0.55f, r * 0.95f, r * 1.35f);
+                DrawRect(cardBack, softFill, true);
+                DrawRect(cardBack, new Color(_color.R, _color.G, _color.B, 0.55f), false, stroke * 0.85f);
+                DrawRect(cardFront, CareerUiTheme.BackgroundDeep, true);
+                DrawRect(cardFront, _color, false, stroke);
+                break;
+            }
+            case "sliders":
+            {
+                for (var i = -1; i <= 1; i++)
+                {
+                    var y = c.Y + i * r * 0.55f;
+                    DrawLine(new Vector2(c.X - r * 0.85f, y), new Vector2(c.X + r * 0.85f, y), new Color(_color.R, _color.G, _color.B, 0.55f), stroke * 0.8f, true);
+                    var kx = c.X + (i == 0 ? r * 0.35f : -r * 0.30f);
+                    DrawCircle(new Vector2(kx, y), stroke * 1.35f, _color);
+                }
+                break;
+            }
+            case "book":
+            {
+                var rect = new Rect2(c.X - r * 0.82f, c.Y - r * 0.72f, r * 1.64f, r * 1.44f);
+                DrawRect(rect, softFill, true);
+                DrawRect(rect, _color, false, stroke);
+                DrawLine(new Vector2(c.X, rect.Position.Y), new Vector2(c.X, rect.End.Y), _color, stroke, true);
+                break;
+            }
+            case "calendar":
+            {
+                var rect = new Rect2(c.X - r * 0.82f, c.Y - r * 0.68f, r * 1.64f, r * 1.48f);
+                DrawRect(rect, softFill, true);
+                DrawRect(rect, _color, false, stroke);
+                DrawLine(new Vector2(rect.Position.X, c.Y - r * 0.22f), new Vector2(rect.End.X, c.Y - r * 0.22f), _color, stroke, true);
+                break;
+            }
+            case "warning":
+            {
+                var tri = new Vector2[]
+                {
+                    new(c.X, c.Y - r * 0.90f),
+                    new(c.X + r * 0.90f, c.Y + r * 0.82f),
+                    new(c.X - r * 0.90f, c.Y + r * 0.82f),
+                };
+                DrawColoredPolygon(tri, softFill);
+                DrawPolyline(new Vector2[] { tri[0], tri[1], tri[2], tri[0] }, _color, stroke, true);
+                DrawLine(new Vector2(c.X, c.Y - r * 0.30f), new Vector2(c.X, c.Y + r * 0.25f), _color, stroke * 1.2f, true);
+                DrawCircle(new Vector2(c.X, c.Y + r * 0.52f), stroke * 0.8f, _color);
+                break;
+            }
+            case "check":
+            {
+                var pts = new Vector2[]
+                {
+                    new(c.X - r * 0.68f, c.Y + r * 0.05f),
+                    new(c.X - r * 0.15f, c.Y + r * 0.58f),
+                    new(c.X + r * 0.75f, c.Y - r * 0.52f),
+                };
+                DrawPolyline(pts, _color, stroke * 1.35f, true);
+                break;
+            }
+            default: // shield / crest
+            {
+                var shield = new Vector2[]
+                {
+                    new(c.X, c.Y - r * 0.92f),
+                    new(c.X + r * 0.80f, c.Y - r * 0.55f),
+                    new(c.X + r * 0.65f, c.Y + r * 0.30f),
+                    new(c.X, c.Y + r * 0.92f),
+                    new(c.X - r * 0.65f, c.Y + r * 0.30f),
+                    new(c.X - r * 0.80f, c.Y - r * 0.55f),
+                };
+                DrawColoredPolygon(shield, softFill);
+                DrawPolyline(new Vector2[] { shield[0], shield[1], shield[2], shield[3], shield[4], shield[5], shield[0] }, _color, stroke, true);
+                break;
+            }
+        }
+    }
 }

@@ -29,17 +29,17 @@ public partial class CareerHubScreen
         tabRow.AddThemeConstantOverride("separation", 4);
         topControlRow.AddChild(tabRow);
 
-        _transferTabDealBtn = new Button { Text = "🤝 PAZARLIK & SÖZLEŞME MASASI" };
+        _transferTabDealBtn = new Button { Text = "PAZARLIK & SÖZLEŞME MASASI" };
         _transferTabDealBtn.Pressed += () => ShowTransferSubTab(0);
         CareerUiTheme.StyleTabButton(_transferTabDealBtn, selected: true);
         tabRow.AddChild(_transferTabDealBtn);
 
-        _transferTabNeedsBtn = new Button { Text = "🎯 KADRO İHTİYACI & GİDENLER" };
+        _transferTabNeedsBtn = new Button { Text = "KADRO İHTİYACI & GİDENLER" };
         _transferTabNeedsBtn.Pressed += () => ShowTransferSubTab(1);
         CareerUiTheme.StyleTabButton(_transferTabNeedsBtn, selected: false);
         tabRow.AddChild(_transferTabNeedsBtn);
 
-        _transferNextStepButton = AccentButton("⚡ Önerilen Adım");
+        _transferNextStepButton = AccentButton("Önerilen Adım");
         _transferNextStepButton.Visible = false;
         _transferNextStepButton.Pressed += OnTransferNextStepPressed;
         tabRow.AddChild(_transferNextStepButton);
@@ -53,7 +53,7 @@ public partial class CareerHubScreen
 
         _transferBudgetBadgePanel = new PanelContainer();
         _transferBudgetBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.24f));
-        _transferBudgetBadgeLabel = new Label { Text = "💰 Bütçe —" };
+        _transferBudgetBadgeLabel = new Label { Text = "Bütçe —" };
         CareerUiTheme.StyleTableText(_transferBudgetBadgeLabel);
         _transferBudgetBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
         _transferBudgetBadgePanel.AddChild(_transferBudgetBadgeLabel);
@@ -61,7 +61,7 @@ public partial class CareerHubScreen
 
         _wageBudgetBadgePanel = new PanelContainer();
         _wageBudgetBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data, 0.24f));
-        _wageBudgetBadgeLabel = new Label { Text = "💵 Maaş: —" };
+        _wageBudgetBadgeLabel = new Label { Text = "Maaş: —" };
         CareerUiTheme.StyleTableText(_wageBudgetBadgeLabel);
         _wageBudgetBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.Data);
         _wageBudgetBadgePanel.AddChild(_wageBudgetBadgeLabel);
@@ -69,7 +69,7 @@ public partial class CareerHubScreen
 
         _transferWindowBadgePanel = new PanelContainer();
         _transferWindowBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.24f));
-        _transferWindowBadgeLabel = new Label { Text = "🟢 Pencere Açık" };
+        _transferWindowBadgeLabel = new Label { Text = "Pencere Açık" };
         CareerUiTheme.StyleTableText(_transferWindowBadgeLabel);
         _transferWindowBadgeLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _transferWindowBadgePanel.AddChild(_transferWindowBadgeLabel);
@@ -86,7 +86,7 @@ public partial class CareerHubScreen
             CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.24f));
         var welcomeCard = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         welcomeCard.AddThemeConstantOverride("separation", 8);
-        _transferWelcomeHeadlineLabel = new Label { Text = "✍ YENİ TRANSFER" };
+        _transferWelcomeHeadlineLabel = new Label { Text = "YENİ TRANSFER" };
         CareerUiTheme.StyleHeadline(_transferWelcomeHeadlineLabel);
         _transferWelcomeHeadlineLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         _transferWelcomeHeadlineLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(14));
@@ -135,24 +135,24 @@ public partial class CareerHubScreen
         var scoutHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         scoutHeaderRow.AddThemeConstantOverride("separation", 6);
         scoutCard.AddChild(scoutHeaderRow);
-        scoutHeaderRow.AddChild(UiComponents.PageHeader("🔭", "GÖZLEMCİ HAVUZU & TRANSFER PAZARI"));
+        scoutHeaderRow.AddChild(UiComponents.PageHeader("radar", "GÖZLEMCİ HAVUZU & TRANSFER PAZARI"));
 
         var scopeRow = ActionFlow();
         scoutCard.AddChild(scopeRow);
 
-        _scopeAllButton = SecondaryButton("🌍 Tüm Dünya");
+        _scopeAllButton = SecondaryButton("Tüm Dünya");
         _scopeAllButton.Pressed += () => SetScoutScope(TransferMarketScope.All);
         scopeRow.AddChild(_scopeAllButton);
 
-        _scopeDomesticButton = SecondaryButton("🇹🇷 Süper Lig");
+        _scopeDomesticButton = SecondaryButton("Süper Lig");
         _scopeDomesticButton.Pressed += () => SetScoutScope(TransferMarketScope.Domestic);
         scopeRow.AddChild(_scopeDomesticButton);
 
-        _scopeEuroButton = SecondaryButton("⭐ Avrupa Eliti");
+        _scopeEuroButton = SecondaryButton("Avrupa Eliti");
         _scopeEuroButton.Pressed += () => SetScoutScope(TransferMarketScope.EuropeanElite);
         scopeRow.AddChild(_scopeEuroButton);
 
-        _scopeFreeButton = SecondaryButton("🆓 Serbestler");
+        _scopeFreeButton = SecondaryButton("Serbestler");
         _scopeFreeButton.Pressed += () => SetScoutScope(TransferMarketScope.FreeAgents);
         scopeRow.AddChild(_scopeFreeButton);
 
@@ -172,9 +172,9 @@ public partial class CareerHubScreen
         var candidateSummary = new HFlowContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         candidateSummary.AddThemeConstantOverride("h_separation", 6);
         candidateSummary.AddThemeConstantOverride("v_separation", 4);
-        _scoutMarketValueBadgeLabel = CreateTransferSummaryBadge(candidateSummary, "💎 Değer: —", CareerUiTheme.Accent);
-        _scoutWageExpectationBadgeLabel = CreateTransferSummaryBadge(candidateSummary, "💵 Maaş: —", CareerUiTheme.Data);
-        _scoutTransferChanceBadgeLabel = CreateTransferSummaryBadge(candidateSummary, "🎯 İhtimal: —", CareerUiTheme.ActionBright);
+        _scoutMarketValueBadgeLabel = CreateTransferSummaryBadge(candidateSummary, "Değer: —", CareerUiTheme.Accent);
+        _scoutWageExpectationBadgeLabel = CreateTransferSummaryBadge(candidateSummary, "Maaş: —", CareerUiTheme.Data);
+        _scoutTransferChanceBadgeLabel = CreateTransferSummaryBadge(candidateSummary, "İhtimal: —", CareerUiTheme.ActionBright);
         _scoutCandidateSummaryPanel.AddChild(candidateSummary);
         scoutCard.AddChild(_scoutCandidateSummaryPanel);
 
@@ -185,7 +185,7 @@ public partial class CareerHubScreen
         _scoutComparisonPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         _scoutComparisonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
         _scoutComparisonLabel = BodyLabel("ScoutComparisonLabel", muted: true, autowrap: true);
-        _scoutComparisonLabel.Text = "📊 3 Aday Kıyaslaması yükleniyor...";
+        _scoutComparisonLabel.Text = "3 Aday Kıyaslaması yükleniyor...";
         _scoutComparisonPanel.AddChild(_scoutComparisonLabel);
         scoutCard.AddChild(_scoutComparisonPanel);
 
@@ -194,20 +194,20 @@ public partial class CareerHubScreen
 
         var targetRow = ActionFlow();
         scoutCard.AddChild(targetRow);
-        _suggestTargetButton = PrimaryButton("⭐ İzlemeye Al");
+        _suggestTargetButton = PrimaryButton("İzlemeye Al");
         _suggestTargetButton.Pressed += AddSelectedScoutCandidate;
         targetRow.AddChild(_suggestTargetButton);
-        _openProcessButton = AccentButton("🤝 Görüşme Başlat");
+        _openProcessButton = AccentButton("Görüşme Başlat");
         _openProcessButton.Pressed += () =>
         {
             Apply(_controller.OpenTransferProcessFromOldestTarget());
             ShowTransferSubTab(0);
         };
         targetRow.AddChild(_openProcessButton);
-        _openDossierFromScoutButton = SecondaryButton("🔍 Oyuncu Profili");
+        _openDossierFromScoutButton = SecondaryButton("Oyuncu Profili");
         _openDossierFromScoutButton.Pressed += OnInspectCandidateDossierPressed;
         targetRow.AddChild(_openDossierFromScoutButton);
-        _dropTargetButton = SecondaryButton("✕ Listeden Çıkar");
+        _dropTargetButton = SecondaryButton("Listeden Çıkar");
         _dropTargetButton.Pressed += () => Apply(_controller.DropOldestListedTransferTarget());
         targetRow.AddChild(_dropTargetButton);
 
@@ -231,7 +231,7 @@ public partial class CareerHubScreen
         rightCol.AddChild(dealHost);
         _transferDealHost = dealHost;
 
-        var dealCard = AddCard(dealHost, "🤝 AKTİF TRANSFER GÖRÜŞMESİ", emphasized: true);
+        var dealCard = AddCard(dealHost, "AKTİF TRANSFER GÖRÜŞMESİ", emphasized: true);
         _transferDeskLabel = BodyLabel("TransferDeskLabel", muted: true, autowrap: true);
         dealCard.AddChild(_transferDeskLabel);
 
@@ -240,17 +240,17 @@ public partial class CareerHubScreen
 
         var dealRow = ActionFlow();
         dealCard.AddChild(dealRow);
-        _advanceDealButton = PrimaryButton("▶ Süreci İlerlet");
+        _advanceDealButton = PrimaryButton("Süreci İlerlet");
         _advanceDealButton.Pressed += () => Apply(_controller.AdvanceOldestTransferStep());
         dealRow.AddChild(_advanceDealButton);
-        _completeTransferButton = AccentButton("✍ Transferi İmzala");
+        _completeTransferButton = AccentButton("Transferi İmzala");
         _completeTransferButton.Pressed += () =>
             CompleteTransferAndCelebrate(_controller.CompleteOldestFinanciallyApprovedProcess);
         dealRow.AddChild(_completeTransferButton);
-        _withdrawProcessButton = DangerButton("✕ Görüşmeden Çekil");
+        _withdrawProcessButton = DangerButton("Görüşmeden Çekil");
         _withdrawProcessButton.Pressed += () => Apply(_controller.WithdrawOldestActiveTransferProcess());
         dealRow.AddChild(_withdrawProcessButton);
-        _transferNegotiationToggle = SecondaryButton("📝 Teklif & Sözleşme Şartları");
+        _transferNegotiationToggle = SecondaryButton("Teklif & Sözleşme Şartları");
         dealRow.AddChild(_transferNegotiationToggle);
 
         var sportingRow = ActionFlow();
@@ -269,7 +269,7 @@ public partial class CareerHubScreen
             Apply(_controller.RejectSportingApprovalForOldestPendingProcess());
         sportingRow.AddChild(_rejectSportingApprovalButton);
 
-        var offerCard = AddCard(dealHost, "💼 KULÜP BONSERVİS TEKLİFİ");
+        var offerCard = AddCard(dealHost, "KULÜP BONSERVİS TEKLİFİ");
         _clubOfferLabel = BodyLabel("ClubOfferLabel", autowrap: true);
         offerCard.AddChild(_clubOfferLabel);
         var feeRow = ActionFlow();
@@ -304,7 +304,7 @@ public partial class CareerHubScreen
         _rejectClubOfferButton.Pressed += () => Apply(_controller.RejectPendingClubOffer());
         offerRow.AddChild(_rejectClubOfferButton);
 
-        var contractCard = AddCard(dealHost, "✍️ OYUNCU SÖZLEŞME TEKLİFİ");
+        var contractCard = AddCard(dealHost, "OYUNCU SÖZLEŞME TEKLİFİ");
         _contractProposalLabel = BodyLabel("ContractProposalLabel", autowrap: true);
         contractCard.AddChild(_contractProposalLabel);
         var contractTermsRow = ActionFlow();
@@ -358,7 +358,7 @@ public partial class CareerHubScreen
             Apply(_controller.RejectPendingContractProposal());
         proposalRow.AddChild(_rejectContractProposalButton);
 
-        var financeCard = AddCard(dealHost, "🏛️ YÖNETİM & MALİ ONAY");
+        var financeCard = AddCard(dealHost, "YÖNETİM & MALİ ONAY");
         var financialRow = ActionFlow();
         financeCard.AddChild(financialRow);
         _requestFinancialApprovalButton = SecondaryButton("Mali Onay İste");
@@ -402,37 +402,37 @@ public partial class CareerHubScreen
         rightCol.AddChild(needsHost);
         _transferNeedsHost = needsHost;
 
-        var needsCard = AddCard(needsHost, "🎯 KADRO İHTİYAÇ ANALİZİ", emphasized: true);
+        var needsCard = AddCard(needsHost, "KADRO İHTİYAÇ ANALİZİ", emphasized: true);
         _scoutReportLabel = BodyLabel("ScoutReportLabel", autowrap: true);
         needsCard.AddChild(_scoutReportLabel);
         _transferNeedLabel = BodyLabel("TransferNeedLabel", autowrap: true);
         needsCard.AddChild(_transferNeedLabel);
         var needRow = ActionFlow();
         needsCard.AddChild(needRow);
-        _refreshTransferNeedsButton = PrimaryButton("🔍 İhtiyaçları Tara");
+        _refreshTransferNeedsButton = PrimaryButton("İhtiyaçları Tara");
         _refreshTransferNeedsButton.Pressed += () => Apply(_controller.RefreshTransferNeedSuggestions());
         needRow.AddChild(_refreshTransferNeedsButton);
-        _declareTransferNeedButton = AccentButton("➕ Mevki İhtiyacı Ekle");
+        _declareTransferNeedButton = AccentButton("Mevki İhtiyacı Ekle");
         _declareTransferNeedButton.Pressed += () => Apply(_controller.DeclarePositionGapNeed());
         needRow.AddChild(_declareTransferNeedButton);
-        _closeTransferNeedButton = SecondaryButton("✕ İhtiyacı Kapat");
+        _closeTransferNeedButton = SecondaryButton("İhtiyacı Kapat");
         _closeTransferNeedButton.Pressed += () => Apply(_controller.CloseOldestOpenTransferNeed());
         needRow.AddChild(_closeTransferNeedButton);
 
-        var outgoingCard = AddCard(needsHost, "📤 GİDENLER & KADRO KAPASİTESİ");
+        var outgoingCard = AddCard(needsHost, "GİDENLER & KADRO KAPASİTESİ");
         _outgoingSaleLabel = BodyLabel("OutgoingSaleLabel", autowrap: true);
         outgoingCard.AddChild(_outgoingSaleLabel);
         var outgoingRow = ActionFlow();
         outgoingCard.AddChild(outgoingRow);
-        var outgoingSell = PrimaryButton("🏷 Kenar Oyuncuyu Satışa Çıkar");
+        var outgoingSell = PrimaryButton("Kenar Oyuncuyu Satışa Çıkar");
         outgoingSell.Pressed += () => Apply(_controller.SellFringePlayerFromManagedClub());
         outgoingRow.AddChild(outgoingSell);
-        var outgoingRelease = SecondaryButton("✂ Yer Aç (Serbest Bırak)");
+        var outgoingRelease = SecondaryButton("Yer Aç (Serbest Bırak)");
         outgoingRelease.Pressed += () => Apply(_controller.ReleaseToFreeSquadCapacity());
         outgoingRow.AddChild(outgoingRelease);
 
-        var budgetDetailCard = AddCard(needsHost, "💰 BÜTÇE & PENCERE DETAYI");
-        _transferScoutToggle = SecondaryButton("📊 Raporu Göster / Gizle");
+        var budgetDetailCard = AddCard(needsHost, "BÜTÇE & PENCERE DETAYI");
+        _transferScoutToggle = SecondaryButton("Raporu Göster / Gizle");
         _transferScoutToggle.Pressed += ToggleTransferScoutDetails;
         budgetDetailCard.AddChild(_transferScoutToggle);
 
@@ -529,7 +529,7 @@ public partial class CareerHubScreen
         _transferNegotiationCards[2].Visible = false;
 
         _transferNegotiationToggle.Text = expanded
-            ? "📝 Teklif Şartlarını Gizle"
-            : "📝 Teklif & Sözleşme Şartları";
+            ? "Teklif Şartlarını Gizle"
+            : "Teklif & Sözleşme Şartları";
     }
 }
