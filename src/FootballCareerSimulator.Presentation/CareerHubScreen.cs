@@ -2299,7 +2299,11 @@ public partial class CareerHubScreen : Control
 
         if (_legacyTenureLabel is not null)
         {
-            _legacyTenureLabel.Text = $"{legacy.RecordLine}";
+            var behavior = _controller.BuildManagerBehavioralDigest();
+            var badgesText = behavior.StyleBadges.Count > 0
+                ? string.Join(" · ", behavior.StyleBadges)
+                : "Dengeli / Gözlemleniyor";
+            _legacyTenureLabel.Text = $"{legacy.RecordLine}\n🧬 Menajer Kimliği: {badgesText} (Söz %{behavior.PromiseReliability} · Genç %{behavior.YouthOpportunity})";
         }
 
         if (_legacyReputationBadgeLabel is not null)
@@ -2361,6 +2365,12 @@ public partial class CareerHubScreen : Control
         foreach (var employment in legacy.Employments)
         {
             _careerSeasonList.AddItem(employment.ToDisplayText());
+        }
+
+        var currentChronicle = _controller.BuildCurrentSeasonChronicle();
+        if (currentChronicle is not null)
+        {
+            _careerSeasonList.AddItem($"📖 {currentChronicle.SeasonTitle} — {currentChronicle.SeasonVerdict}");
         }
 
         foreach (var season in legacy.Seasons)
@@ -3635,8 +3645,14 @@ public partial class CareerHubScreen : Control
             _prepMatchupSignalBadgePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(signalColor, 0.20f));
         }
 
-        _prepMatchupLabel.Text = CompactSummary(matchup.BrandTitle, matchup.VerdictLine);
-        _prepMatchupLabel.TooltipText = $"{signalPrefix} {matchup.SelectionLine}";
+        var checklist = _controller.BuildPreMatchReadinessChecklist();
+        var meta = _controller.BuildLeagueTacticalIntelligence();
+        var metaLine = $"\n📊 Lig Trendi: {meta.PrevailingMetaName} (Önerilen Antitez: {meta.RecommendedCounterFormation} / {meta.RecommendedCounterApproach})";
+        var checkLine = checklist.HasUpcomingMatch
+            ? $"\n📋 Maç Öncesi Kontrol: {checklist.SummaryBadgeText} — {checklist.Headline}"
+            : string.Empty;
+        _prepMatchupLabel.Text = CompactSummary(matchup.BrandTitle, matchup.VerdictLine) + metaLine + checkLine;
+        _prepMatchupLabel.TooltipText = $"{signalPrefix} {matchup.SelectionLine}\n\n{checklist.ToCompactText()}";
     }
 
     private void RefreshPrepBoard()
@@ -4684,9 +4700,22 @@ public partial class CareerHubScreen : Control
             if (_clubCultureLabel is not null)
             {
                 var culture = _controller.GetClubCulture();
-                _clubCultureLabel.Text = culture is null
-                    ? string.Empty
-                    : $"🏛️ Kulüp Kimliği: {culture.PhilosophySummary}";
+                var climate = _controller.BuildDressingRoomSocialClimate();
+                var rumors = _controller.BuildActiveLockerRoomRumors();
+                var lines = new List<string>();
+                if (culture is not null)
+                {
+                    lines.Add($"🏛️ Kulüp Kimliği: {culture.PhilosophySummary}");
+                }
+                if (climate is not null)
+                {
+                    lines.Add($"🤝 Soyunma Odası İklimi: {climate.ClimateStateTurkish} (Uyum %{climate.HarmonyScore} · Gerilim %{climate.FrictionScore})");
+                }
+                if (rumors.TotalActiveCount > 0)
+                {
+                    lines.Add($"🗣️ Kulis ({rumors.TotalActiveCount}): {rumors.ActiveRumors[0].NarrativeText}");
+                }
+                _clubCultureLabel.Text = string.Join("\n", lines);
             }
             if (club.FacilityLevel >= 5)
             {

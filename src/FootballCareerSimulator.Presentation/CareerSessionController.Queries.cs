@@ -452,4 +452,272 @@ public sealed partial class CareerSessionController
             scheduledDays,
             states);
     }
+
+    public PreMatchReadinessChecklistDigest BuildPreMatchReadinessChecklist()
+    {
+        var clubId = GetEmployedClubId();
+        if (!clubId.HasValue)
+        {
+            return PreMatchReadinessChecklistDigest.NoMatch();
+        }
+
+        var board = BuildSquadSelectionBoard();
+        if (!board.HasMatch)
+        {
+            return PreMatchReadinessChecklistDigest.NoMatch();
+        }
+
+        var cid = new ClubId(clubId.Value);
+        var tactic = GetManagedClubTacticPlan();
+        var hasTactic = tactic is not null && !string.Equals(tactic.FormationName, "yok", StringComparison.OrdinalIgnoreCase);
+        var training = GetTrainingSummary();
+        var hasTraining = training.HasPlan;
+
+        var unavailableInXi = board.StartingXi.Count(p => !p.IsAvailable);
+        var fatiguedInXi = board.StartingXi.Count(p => p.Fitness < 70 || p.Fatigue >= 65);
+
+        var activePromises = Host.SocialContinuityModule.PromiseStore.GetActiveByManagerAndClub(GetManagerCareer().ManagerId, cid);
+        var promisedPlayerIds = activePromises
+            .Where(pr => pr.Promisee.Kind == ActorKind.Player)
+            .Select(pr => pr.Promisee.Id)
+            .ToHashSet();
+
+        var starterSlotSet = board.StartingXi.Select(p => p.SlotIndex).ToHashSet();
+        var promisedStarters = 0;
+        var promisedBenched = 0;
+
+        var management = BuildPlayerManagementDigest();
+        foreach (var player in management.Players)
+        {
+            if (promisedPlayerIds.Contains(player.PlayerId))
+            {
+                if (starterSlotSet.Contains(player.SlotIndex))
+                {
+                    promisedStarters++;
+                }
+                else
+                {
+                    promisedBenched++;
+                }
+            }
+        }
+
+        return PreMatchReadinessChecklistDigest.Compose(
+            hasUpcomingMatch: true,
+            isSelectionApproved: board.IsApproved,
+            startingXiCount: board.StartingXi.Count,
+            unavailableInXiCount: unavailableInXi,
+            fatiguedInXiCount: fatiguedInXi,
+            hasTacticPlan: hasTactic,
+            hasTrainingPlan: hasTraining,
+            activePromiseStarterCount: promisedStarters,
+            activePromiseBenchedCount: promisedBenched);
+    }
+
+    public TacticalIntelligenceDigest BuildLeagueTacticalIntelligence()
+    {
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        var seasonYear = 2025 + (int)(season?.SeasonId ?? 1);
+        var service = new Application.TeamPreparation.Services.TacticalEcosystemService();
+
+        foreach (var club in Host.ClubModule.Queries.GetAllClubs())
+        {
+            var cid = new ClubId(club.ClubId);
+            var plan = Host.TeamPreparationModule.TacticPlanStore.Get(cid);
+            var form = plan?.Formation ?? Formation.F442;
+            var app = plan?.Approach ?? TacticalApproach.Balanced;
+            service.RecordMatchTactics("TR-SL", seasonYear, form, app, form, app);
+        }
+
+        return service.BuildDigest("TR-SL", seasonYear);
+    }
+
+    public ManagerBehavioralProfileReadModel BuildManagerBehavioralDigest()
+    {
+        var manager = GetManagerCareer();
+        var clubId = manager.EmployedClubId;
+        var youthScore = Math.Clamp(manager.YouthDevelopment, 20, 95);
+        var promiseScore = 55;
+        var supportScore = Math.Clamp(manager.ManManagement, 20, 95);
+        var negotiationScore = Math.Clamp(manager.NegotiationSkill, 20, 95);
+        var rotationScore = Math.Clamp(manager.TacticalAcumen, 20, 95);
+        var deadlineScore = 50;
+        var observations = new List<Domain.ManagerCareer.BehavioralObservation>();
+
+        if (clubId.HasValue)
+        {
+            var cid = new ClubId(clubId.Value);
+            var promises = Host.SocialContinuityModule.PromiseStore.Promises
+                .Where(pr => pr.ClubId == cid)
+                .ToList();
+            var fulfilled = promises.Count(pr => pr.Status == PromiseStatus.Fulfilled);
+            var broken = promises.Count(pr => pr.Status == PromiseStatus.Broken);
+            promiseScore = Math.Clamp(60 + (fulfilled * 8) - (broken * 14), 10, 98);
+
+            if (fulfilled > 0)
+            {
+                observations.Add(new Domain.ManagerCareer.BehavioralObservation(
+                    "PROMISE_KEPT",
+                    Domain.ManagerCareer.BehavioralEvidenceCategory.PromiseReliability,
+                    fulfilled * 5,
+                    GetCurrentGameDate().DayNumber,
+                    "Verilen forma sözleri tutuldu"));
+            }
+            if (broken > 0)
+            {
+                observations.Add(new Domain.ManagerCareer.BehavioralObservation(
+                    "PROMISE_BROKEN",
+                    Domain.ManagerCareer.BehavioralEvidenceCategory.PromiseReliability,
+                    -broken * 10,
+                    GetCurrentGameDate().DayNumber,
+                    "Bozulan söz kaydı"));
+            }
+
+            var management = BuildPlayerManagementDigest();
+            var u21Count = management.Players.Count(pl => pl.Age <= 21);
+            if (u21Count >= 4)
+            {
+                youthScore = Math.Clamp(youthScore + 12, 0, 100);
+                observations.Add(new Domain.ManagerCareer.BehavioralObservation(
+                    "YOUTH_TRUST",
+                    Domain.ManagerCareer.BehavioralEvidenceCategory.YouthOpportunity,
+                    10,
+                    GetCurrentGameDate().DayNumber,
+                    "A takımda U21 rotasyonu aktif"));
+            }
+        }
+
+        var profile = new Domain.ManagerCareer.ManagerBehavioralProfile(
+            youthOpportunity: youthScore,
+            promiseReliability: promiseScore,
+            publicSupport: supportScore,
+            negotiationPersistence: negotiationScore,
+            rotationConsistency: rotationScore,
+            deadlineAggression: deadlineScore,
+            observations: observations);
+
+        return new Application.ManagerCareer.Services.ManagerBehavioralQueryService().GetProfile(profile);
+    }
+
+    public DressingRoomClimateDigest? BuildDressingRoomSocialClimate()
+    {
+        var clubId = GetEmployedClubId();
+        if (!clubId.HasValue)
+        {
+            return null;
+        }
+
+        var cid = new ClubId(clubId.Value);
+        var service = new Application.SocialContinuity.Services.SocialContagionService();
+        var climate = service.GetOrCreateClimate(cid);
+
+        var rels = Host.SocialContinuityModule.RelationshipStore.GetByManagerSubject(GetManagerCareer().ManagerId);
+        var lowTrustCount = rels.Count(r => r.Trust < 40);
+        var highTrustCount = rels.Count(r => r.Trust >= 70);
+
+        if (lowTrustCount > 0)
+        {
+            climate.ApplyCrisis(lowTrustCount * 8);
+        }
+        else if (highTrustCount >= 3)
+        {
+            climate.ApplyHarmonyBoost(highTrustCount * 3);
+        }
+
+        return service.BuildDigest(cid);
+    }
+
+    public LockerRoomRumorDigest BuildActiveLockerRoomRumors()
+    {
+        var day = GetTimeline().CurrentDate;
+        var service = new Application.Interaction.Services.EpistemicKnowledgeService();
+        var clubId = GetEmployedClubId();
+        if (clubId.HasValue)
+        {
+            var cid = new ClubId(clubId.Value);
+            var brokenPromises = Host.SocialContinuityModule.PromiseStore.Promises
+                .Where(pr => pr.ClubId == cid && pr.Status == PromiseStatus.Broken)
+                .Take(2)
+                .ToList();
+            foreach (var broken in brokenPromises)
+            {
+                var pName = GetPlayerDisplayName(broken.Promisee.Id);
+                service.SpreadRumor(new RumorRecord(
+                    $"RUMOR_PROMISE_{broken.PromiseId.Value}",
+                    "LockerRoom",
+                    "PromiseFallout",
+                    $"Kulis: {pName} verilen sözün tutulmaması nedeniyle ayrılık düşünüyor.",
+                    1,
+                    day));
+            }
+
+            var activeProcesses = GetManagedClubProcesses().ActiveProcesses;
+            foreach (var proc in activeProcesses.Take(1))
+            {
+                var pName = GetPlayerDisplayName(proc.PlayerId);
+                service.SpreadRumor(new RumorRecord(
+                    $"RUMOR_TRANSFER_{proc.ProcessId}",
+                    "Media",
+                    "TransferTarget",
+                    $"Basın İddiası: Kulüp {pName} transferinde sona yaklaştı.",
+                    2,
+                    day));
+            }
+        }
+
+        return service.BuildLockerRoomRumorDigest(day);
+    }
+
+    public SeasonChronicleDigest? BuildCurrentSeasonChronicle()
+    {
+        var clubId = GetEmployedClubId();
+        var season = Host.CompetitionModule.Queries.GetCurrentSeason();
+        if (!clubId.HasValue || season is null)
+        {
+            return null;
+        }
+
+        var clubName = GetClubDisplayName(clubId.Value);
+        var seasonYear = 2025 + (int)season.SeasonId;
+        var standings = GetStandings(season.SeasonId);
+        var myStanding = standings.FirstOrDefault(s => s.ClubId == clubId.Value);
+        var pos = myStanding is not null ? standings.ToList().IndexOf(myStanding) + 1 : 1;
+        var wonTitle = pos == 1 && (myStanding?.Played ?? 0) >= 10;
+
+        var compiler = new Application.Interaction.Services.CareerChronicleCompiler();
+        var day = GetTimeline().CurrentDate;
+
+        if (myStanding is not null && myStanding.Played > 0)
+        {
+            compiler.RecordFact(
+                seasonYear,
+                new NarrativeFactRecord(
+                    $"FACT_FORM_{season.SeasonId}",
+                    "LeagueCampaign",
+                    80,
+                    [clubName],
+                    day,
+                    $"{clubName} ligde {myStanding.Played} maçta {myStanding.Points} puan topladı ({myStanding.Won}G {myStanding.Drawn}B {myStanding.Lost}M)."));
+        }
+
+        var completedTransfers = Host.TransferModule.ProcessStore.GetForBuyingClub(new ClubId(clubId.Value))
+            .Where(p => p.IsCompleted)
+            .Take(2)
+            .ToList();
+        foreach (var tr in completedTransfers)
+        {
+            var pName = GetPlayerDisplayName(tr.PlayerId.Value);
+            compiler.RecordFact(
+                seasonYear,
+                new NarrativeFactRecord(
+                    $"FACT_SIGN_{tr.ProcessId.Value}",
+                    "KeySigning",
+                    75,
+                    [pName, clubName],
+                    tr.TerminalOn ?? day,
+                    $"{pName} transferi tamamlanarak kadro güçlendirildi."));
+        }
+
+        return compiler.CompileSeasonChronicle(seasonYear, clubName, pos, wonTitle);
+    }
 }
