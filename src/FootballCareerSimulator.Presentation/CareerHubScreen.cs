@@ -1927,7 +1927,8 @@ public partial class CareerHubScreen : Control
     {
         _scoutCandidateDetailLabel.Text =
             $"{candidate.DisplayName} · {candidate.PositionCode} · {candidate.ClubName}\n"
-            + $"Güç {candidate.EstimatedAbilityLow}-{candidate.EstimatedAbilityHigh} · Potansiyel {candidate.PotentialAbility} · {candidate.InterestLabel}";
+            + $"Güç {candidate.EstimatedAbilityLow}-{candidate.EstimatedAbilityHigh} (Pot {candidate.PotentialAbility}) · Rol: {candidate.RecommendedSquadRole}\n"
+            + $"Güven: %{candidate.KnowledgePercent} ({candidate.ConfidenceTierLabel}) · Risk: {candidate.RiskLabel} · İlgi: {candidate.InterestLabel}";
         _scoutCandidateDetailLabel.TooltipText = candidate.ToDetailText();
         _scoutMarketValueBadgeLabel.Text = candidate.MarketValue == 0
             ? "💎 SERBEST"
@@ -2993,7 +2994,11 @@ public partial class CareerHubScreen : Control
                     hasPendingProposal)
                     + $"\n{TensionBar(tension)}";
             }));
-        _transferProcessLabel.Text = $"{view.ActiveCount} aktif görüşme\n\n{preview}";
+        var intel = _controller.BuildActiveSellerNegotiationIntel();
+        var intelLine = intel is not null
+            ? $"\n🧠 Karşı Kulüp Hafızası: {intel.MarketReputationSummary} (Agresiflik %{intel.OpeningBidAggressionScore} · İnatçılık %{intel.PersistenceIndexScore})"
+            : string.Empty;
+        _transferProcessLabel.Text = $"{view.ActiveCount} aktif görüşme\n\n{preview}{intelLine}";
         _advanceDealButton.Disabled = false;
     }
 
@@ -3093,6 +3098,10 @@ public partial class CareerHubScreen : Control
         _scoutReportLabel.Text = scout.HasClub
             ? $"{scout.Headline}\n{scout.NeedLine}"
             : scout.Headline;
+        if (_scoutComparisonLabel is not null)
+        {
+            _scoutComparisonLabel.Text = scout.Comparison?.ToDisplayText() ?? "Karşılaştırma verisi yok.";
+        }
         _scoutCandidateList.Clear();
         foreach (var candidate in scout.Candidates)
         {

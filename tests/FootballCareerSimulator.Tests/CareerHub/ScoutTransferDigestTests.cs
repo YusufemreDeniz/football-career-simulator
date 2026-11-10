@@ -115,4 +115,36 @@ public sealed class ScoutTransferDigestTests
         Assert.Contains("Açılış teklifi", candidate.ToDetailText(), StringComparison.Ordinal);
         Assert.Contains("Neden önerildi?", candidate.ToDetailText(), StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Compose_BuildsThreeCandidateComparisonWithConfidenceAndRiskTiers()
+    {
+        var profiles = Enumerable.Range(0, 25)
+            .Select(slot => new MvpSquadPlayerProfile(
+                $"Oyuncu {slot}",
+                slot < 2
+                    ? MvpSquadPositionGroup.Goalkeeper
+                    : slot < 10
+                        ? MvpSquadPositionGroup.Defender
+                        : slot < 18
+                            ? MvpSquadPositionGroup.Midfielder
+                            : MvpSquadPositionGroup.Forward))
+            .ToArray();
+        var ratings = Enumerable.Range(0, 25).ToDictionary(slot => slot, _ => 74);
+        var candidates = new[]
+        {
+            new ScoutCandidateSource(2001, 0, "Serbest", "Guvenli Kaleci", MvpSquadPositionGroup.Goalkeeper, "KL", 80, 26, 84, 78, 70, 80, true, "Serbest"),
+            new ScoutCandidateSource(2002, 2, "Rakip A", "Genç Potansiyel", MvpSquadPositionGroup.Goalkeeper, "KL", 76, 19, 91, 78, 72, 95, false),
+            new ScoutCandidateSource(2003, 3, "Rakip B", "Pahali Kaleci", MvpSquadPositionGroup.Goalkeeper, "KL", 83, 28, 85, 78, 82, null, false),
+        };
+
+        var digest = ScoutTransferDigest.Compose("Kulüp", 100, profiles, ratings, candidates, transferBudgetAvailable: 15_000_000);
+
+        Assert.NotNull(digest.Comparison);
+        Assert.Equal(3, digest.Comparison!.Candidates.Count);
+        Assert.Equal(2002, digest.Comparison.HighestCeilingPlayerId);
+        Assert.Equal(2001, digest.Comparison.LowestRiskPlayerId);
+        Assert.Contains("3 Aday Kıyaslaması", digest.Comparison.ToDisplayText(), StringComparison.Ordinal);
+        Assert.Equal("Tam Rapor", digest.Candidates.First(c => c.PlayerId == 2001).ConfidenceTierLabel);
+    }
 }

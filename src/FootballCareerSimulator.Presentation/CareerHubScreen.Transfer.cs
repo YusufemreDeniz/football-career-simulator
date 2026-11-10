@@ -10,6 +10,8 @@ public partial class CareerHubScreen
     private Button _transferTabNeedsBtn = null!;
     private Control _transferDealHost = null!;
     private Control _transferNeedsHost = null!;
+    private PanelContainer _scoutComparisonPanel = null!;
+    private Label _scoutComparisonLabel = null!;
 
     private Control BuildTransferPage()
     {
@@ -179,6 +181,13 @@ public partial class CareerHubScreen
         _scoutCandidateDetailLabel = BodyLabel("ScoutCandidateDetailLabel", muted: true, autowrap: true);
         _scoutCandidateDetailLabel.Text = "Aday seç — gözlemci raporu ve tahmini maliyet burada gösterilir.";
         scoutCard.AddChild(_scoutCandidateDetailLabel);
+
+        _scoutComparisonPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        _scoutComparisonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
+        _scoutComparisonLabel = BodyLabel("ScoutComparisonLabel", muted: true, autowrap: true);
+        _scoutComparisonLabel.Text = "📊 3 Aday Kıyaslaması yükleniyor...";
+        _scoutComparisonPanel.AddChild(_scoutComparisonLabel);
+        scoutCard.AddChild(_scoutComparisonPanel);
 
         _shortlistTargetLabel = BodyLabel("ShortlistTargetLabel", autowrap: true);
         scoutCard.AddChild(_shortlistTargetLabel);

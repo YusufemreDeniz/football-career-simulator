@@ -61,6 +61,7 @@ public sealed partial class CareerSessionController
     private readonly YouthAcademyLifecycleService _youthAcademyLifecycle;
     private readonly ClubEconomyQueryService _clubEconomy;
     private readonly ClubFinanceLedgerService _clubFinanceLedger;
+    private readonly Application.Transfer.Services.TransferNegotiationMemoryService _negotiationMemory = new();
 
     public CareerSessionController(CareerPresentationHost host)
     {
@@ -2723,6 +2724,10 @@ public sealed partial class CareerSessionController
             }
 
             var process = Host.TransferModule.Processes.OpenOldestListedTargetForClub(id, day);
+            if (process.SellingClubId is { } sellerOnOpen)
+            {
+                _negotiationMemory.RecordRepeatedInquiry(sellerOnOpen, clubId);
+            }
             return UiActionResult.Ok(
                 $"Süreç açıldı: {GetPlayerDisplayName(process.PlayerId.Value)} (değerlendirmede).");
         }
@@ -2745,7 +2750,12 @@ public sealed partial class CareerSessionController
                 .FirstOrDefault()
                 ?? throw new InvalidOperationException("Geri çekilecek aktif süreç yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            var domainProc = Host.TransferModule.ProcessStore.Get(new TransferProcessId(active.ProcessId));
             Host.TransferModule.Processes.Withdraw(new TransferProcessId(active.ProcessId), day);
+            if (domainProc?.SellingClubId is { } sellerOnWithdraw)
+            {
+                _negotiationMemory.RecordWalkaway(sellerOnWithdraw, domainProc.BuyingClubId.Value);
+            }
             return UiActionResult.Ok("Süreç geri çekildi.");
         }
         catch (TransferInvariantViolationException ex)
@@ -3057,6 +3067,7 @@ public sealed partial class CareerSessionController
                 new TransferProcessId(process.ProcessId),
                 offeredFee,
                 day);
+            RecordOfferInNegotiationMemory(process.ProcessId, process.PlayerId, offeredFee);
             return UiActionResult.Ok(
                 $"Kulüp teklifi gönderildi: {GetPlayerDisplayName(process.PlayerId)}"
                 + $" · {offer.OfferedFee:N0} · tur {offer.Round}. Kulübün yanıtı bekleniyor.");
@@ -3136,6 +3147,7 @@ public sealed partial class CareerSessionController
                 new TransferProcessId(process.ProcessId),
                 offeredFee,
                 day);
+            RecordOfferInNegotiationMemory(process.ProcessId, process.PlayerId, offeredFee);
             return UiActionResult.Ok(
                 $"Revize teklif gönderildi: {offer.OfferedFee:N0} · tur {offer.Round}.");
         }
@@ -3147,6 +3159,46 @@ public sealed partial class CareerSessionController
         {
             return UiActionResult.Fail($"Karşı teklif hatası: {ex.Message}");
         }
+    }
+
+    private void RecordOfferInNegotiationMemory(long processId, long playerId, int offeredFee)
+    {
+        var domainProc = Host.TransferModule.ProcessStore.Get(new TransferProcessId(processId));
+        if (domainProc?.SellingClubId is not { } sellerClub)
+        {
+            return;
+        }
+
+        var terms = ResolveScoutTerms(playerId);
+        var marketValue = Math.Max(100_000, terms?.MarketValue ?? offeredFee);
+        var window = GetTransferWindow();
+        var today = Host.WorldModule.TimelineStore.Timeline.CurrentDate.DayNumber;
+        var isDeadline = window.IsOpen && window.ClosesOnDayNumber is int closeDay && (closeDay - today) <= 3;
+        _negotiationMemory.RecordOfferObservation(
+            sellerClub,
+            domainProc.BuyingClubId.Value,
+            offeredFee,
+            marketValue,
+            isDeadline);
+    }
+
+    public NegotiationIntelDigest? BuildActiveSellerNegotiationIntel()
+    {
+        var active = Host.TransferModule.Queries.GetManagedClubProcesses().ActiveProcesses
+            .OrderBy(p => p.ProcessId)
+            .FirstOrDefault();
+        if (active is null)
+        {
+            return null;
+        }
+
+        var domainProc = Host.TransferModule.ProcessStore.Get(new TransferProcessId(active.ProcessId));
+        if (domainProc?.SellingClubId is not { } sellerClub)
+        {
+            return null;
+        }
+
+        return _negotiationMemory.BuildDigest(sellerClub, domainProc.BuyingClubId.Value);
     }
 
     private Application.Transfer.Queries.TransferProcessLineReadModel ResolveProcessForClubOffer(
@@ -3377,9 +3429,18 @@ public sealed partial class CareerSessionController
                     + $" {pending.OfferedFee:N0} teklifi yetersiz buldu.");
             }
 
+            var domainProc = Host.TransferModule.ProcessStore.Get(processId);
+            var markupFactor = 1.0;
+            if (domainProc?.SellingClubId is { } sellerClub)
+            {
+                var intel = _negotiationMemory.BuildDigest(sellerClub, domainProc.BuyingClubId.Value);
+                if (intel.OpeningBidAggressionScore >= 65) markupFactor += 0.08;
+                if (intel.DeadlineDesperationScore >= 65) markupFactor += 0.10;
+            }
+            var baseTarget = (int)Math.Round(terms.MarketValue * markupFactor);
             var sellerDemand = Math.Min(
                 Domain.Transfer.ClubOffer.MaxFee,
-                Math.Max(terms.MarketValue, pending.OfferedFee + Math.Max(250_000, pending.OfferedFee / 10)));
+                Math.Max(baseTarget, pending.OfferedFee + Math.Max(250_000, pending.OfferedFee / 10)));
             var counter = Host.TransferModule.ClubOffers.CounterPendingOffer(
                 processId,
                 sellerDemand,

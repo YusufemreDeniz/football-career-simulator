@@ -29,6 +29,93 @@ public sealed record ScoutCandidateSource(
     // Gerçek sözleşmeden kalan yıl; bilinmiyorsa değerleme modeli 2 yıl varsayar.
     double? ContractYearsRemaining = null);
 
+public sealed record ScoutCandidateComparisonDigest(
+    IReadOnlyList<ScoutCandidateLine> Candidates,
+    long? BestValuePlayerId,
+    long? HighestCeilingPlayerId,
+    long? LowestRiskPlayerId,
+    string SummaryLine,
+    IReadOnlyList<string> ComparisonRows)
+{
+    public static ScoutCandidateComparisonDigest Empty() =>
+        new(
+            Array.Empty<ScoutCandidateLine>(),
+            null,
+            null,
+            null,
+            "Karşılaştırma için havuzda aday bulunamadı.",
+            Array.Empty<string>());
+
+    public static ScoutCandidateComparisonDigest Compose(IReadOnlyList<ScoutCandidateLine> pool)
+    {
+        ArgumentNullException.ThrowIfNull(pool);
+
+        var top = pool
+            .OrderByDescending(c => c.IsListedTarget)
+            .ThenByDescending(c => c.IsShortlisted)
+            .ThenByDescending(c => c.IsAffordable)
+            .ThenByDescending(c => (c.EstimatedAbilityLow + c.EstimatedAbilityHigh) / 2 + (c.PotentialAbility / 3))
+            .Take(3)
+            .ToArray();
+
+        if (top.Length == 0)
+        {
+            return Empty();
+        }
+
+        var bestValue = top
+            .OrderByDescending(c => c.IsAffordable)
+            .ThenByDescending(c =>
+            {
+                var avgAbility = (c.EstimatedAbilityLow + c.EstimatedAbilityHigh) / 2.0;
+                var costMillion = Math.Max(0.5, (c.SuggestedOpeningFee + (c.SuggestedWeeklyWage * 52)) / 1_000_000.0);
+                return avgAbility / costMillion;
+            })
+            .First();
+
+        var highestCeiling = top
+            .OrderByDescending(c => c.PotentialAbility)
+            .ThenBy(c => c.Age)
+            .First();
+
+        var lowestRisk = top
+            .OrderByDescending(c => c.KnowledgePercent + c.InterestPercent)
+            .ThenBy(c => c.EstimatedAbilityHigh - c.EstimatedAbilityLow)
+            .First();
+
+        var rows = top.Select((c, idx) =>
+        {
+            var feeText = c.MarketValue == 0
+                ? "Bonservis: SERBEST"
+                : $"Açılış: {c.SuggestedOpeningFee:N0} TRY";
+            var tags = new List<string>();
+            if (c.PlayerId == bestValue.PlayerId) tags.Add("F/P Lideri");
+            if (c.PlayerId == highestCeiling.PlayerId) tags.Add("Tavan Potansiyel");
+            if (c.PlayerId == lowestRisk.PlayerId) tags.Add("Düşük Risk");
+            var badge = tags.Count > 0 ? $" [{string.Join(" · ", tags)}]" : string.Empty;
+
+            return $"{idx + 1}. {c.DisplayName} ({c.PositionCode}, {c.Age}y){badge}\n"
+                   + $"   Güç {c.EstimatedAbilityLow}-{c.EstimatedAbilityHigh} (Pot {c.PotentialAbility}) · Rol: {c.RecommendedSquadRole}\n"
+                   + $"   {feeText} · Maaş: {c.SuggestedWeeklyWage:N0}/hf · Güven %{c.KnowledgePercent} ({c.ConfidenceTierLabel}) · Risk: {c.RiskLabel}";
+        }).ToArray();
+
+        var summary = $"3 Aday Kıyaslaması: F/P {bestValue.DisplayName} · Tavan {highestCeiling.DisplayName} · Güvenli {lowestRisk.DisplayName}";
+
+        return new ScoutCandidateComparisonDigest(
+            top,
+            bestValue.PlayerId,
+            highestCeiling.PlayerId,
+            lowestRisk.PlayerId,
+            summary,
+            rows);
+    }
+
+    public string ToDisplayText() =>
+        Candidates.Count == 0
+            ? SummaryLine
+            : $"{SummaryLine}\n" + string.Join("\n", ComparisonRows);
+}
+
 public sealed record ScoutCandidateLine(
     long PlayerId,
     string DisplayName,
@@ -51,8 +138,29 @@ public sealed record ScoutCandidateLine(
     bool IsShortlisted,
     bool IsListedTarget,
     string OriginLeague = "Trendyol Süper Lig",
-    bool IsInternational = false)
+    bool IsInternational = false,
+    long SourceClubId = 0)
 {
+    public string ConfidenceTierLabel => KnowledgePercent switch
+    {
+        >= 85 => "Tam Rapor",
+        >= 65 => "Güvenilir Gözlem",
+        >= 50 => "Ön Gözlem",
+        _ => "Kısıtlı İstihbarat",
+    };
+
+    public string RiskLabel
+    {
+        get
+        {
+            var spread = EstimatedAbilityHigh - EstimatedAbilityLow;
+            if (!IsAffordable) return "Yüksek (Bütçe Aşımı)";
+            if (InterestPercent < 40) return "Yüksek (Düşük İlgi)";
+            if (spread >= 10 || KnowledgePercent < 50) return "Orta (Gözlem Eksik)";
+            return "Düşük";
+        }
+    }
+
     public string ToListLabel() =>
         $"[{PositionCode,-3}] {DisplayName} · GÜÇ {EstimatedAbilityLow}-{EstimatedAbilityHigh} · {Age} yaş\n"
         + $"       {ClubName} {(IsInternational ? $"[{OriginLeague}] " : string.Empty)}· İlgi {InterestLabel} · Değer {(MarketValue == 0 ? "SERBEST" : $"{MarketValue:N0} TRY")}"
@@ -61,8 +169,8 @@ public sealed record ScoutCandidateLine(
 
     public string ToDetailText() =>
         $"{DisplayName} · {PositionCode} · {ClubName}" + (IsInternational ? $" ({OriginLeague})" : string.Empty) + "\n"
-        + $"Neden önerildi? {RecommendedSquadRole} ihtiyacına uyuyor · ilgi {InterestLabel}\n"
-        + $"Scout bilgisi %{KnowledgePercent} · güç {EstimatedAbilityLow}-{EstimatedAbilityHigh} · potansiyel {PotentialAbility}\n"
+        + $"Neden önerildi? {RecommendedSquadRole} ihtiyacına uyuyor · ilgi {InterestLabel} · Risk: {RiskLabel}\n"
+        + $"Scout bilgisi %{KnowledgePercent} ({ConfidenceTierLabel}) · güç {EstimatedAbilityLow}-{EstimatedAbilityHigh} · potansiyel {PotentialAbility}\n"
         + (MarketValue == 0
             ? "Transfer durumu: SERBEST OYUNCU (Bonservis bedeli yok)\n"
             : $"Piyasa değeri {MarketValue:N0} · beklenen aralık {EstimatedFeeLow:N0}-{EstimatedFeeHigh:N0}\n"
@@ -78,7 +186,8 @@ public sealed record ScoutTransferDigest(
     string NeedLine,
     bool HasDepthGap,
     IReadOnlyList<ScoutCandidateLine> Candidates,
-    TransferMarketScope Scope = TransferMarketScope.All)
+    TransferMarketScope Scope = TransferMarketScope.All,
+    ScoutCandidateComparisonDigest? Comparison = null)
 {
     private static readonly IReadOnlyDictionary<MvpSquadPositionGroup, int> IdealDepth =
         new Dictionary<MvpSquadPositionGroup, int>
@@ -90,7 +199,15 @@ public sealed record ScoutTransferDigest(
         };
 
     public static ScoutTransferDigest Clear() =>
-        new(false, "—", "Scout merkezi: kulüp görevi yok.", "İhtiyaç hesaplanamadı.", false, Array.Empty<ScoutCandidateLine>());
+        new(
+            false,
+            "—",
+            "Scout merkezi: kulüp görevi yok.",
+            "İhtiyaç hesaplanamadı.",
+            false,
+            Array.Empty<ScoutCandidateLine>(),
+            TransferMarketScope.All,
+            ScoutCandidateComparisonDigest.Empty());
 
     public static ScoutTransferDigest Compose(
         string managedClubName,
@@ -160,6 +277,8 @@ public sealed record ScoutTransferDigest(
             _ => "Tüm Dünya",
         };
 
+        var comparison = ScoutCandidateComparisonDigest.Compose(lines);
+
         return new ScoutTransferDigest(
             true,
             positionCode,
@@ -169,7 +288,8 @@ public sealed record ScoutTransferDigest(
             + $" · ortalama güç {needGroup.Average}",
             hasDepthGap,
             lines,
-            scope);
+            scope,
+            comparison);
     }
 
     private static ScoutCandidateLine ToLine(
@@ -223,7 +343,8 @@ public sealed record ScoutTransferDigest(
             candidate.ShortlistedOnDayNumber is not null,
             candidate.IsListedTarget,
             candidate.OriginLeague,
-            candidate.IsInternational);
+            candidate.IsInternational,
+            candidate.ClubId);
     }
 
     private static string GroupCode(MvpSquadPositionGroup group) => group switch
