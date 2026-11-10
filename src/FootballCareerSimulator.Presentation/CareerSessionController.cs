@@ -55,6 +55,7 @@ public sealed partial class CareerSessionController
     private IReadOnlyList<string>? _pendingCleanXiBridgeNames;
     private string? _pendingWeekStoryClosure;
     private bool _weekStoryClosureDismissOnNextAdvance;
+    private bool _lastLoadRecoveredFromBackup;
     private readonly List<MatchupPlanNotebookEntry> _matchupPlanHistory = [];
     private readonly YouthAcademyIntakeService _youthAcademy;
     private readonly YouthAcademyLifecycleService _youthAcademyLifecycle;
@@ -84,7 +85,30 @@ public sealed partial class CareerSessionController
     /// <summary>Son başarılı LoadGame sonrası nabız doğrulama özeti (menü/Dosya).</summary>
     public CareerResumeDigest? LastCareerResume { get; private set; }
 
-    public bool SaveFileExists() => File.Exists(Host.DefaultSavePath);
+    public bool SaveFileExists() =>
+        File.Exists(Host.DefaultSavePath)
+        || Application.Career.Services.CareerGameSessionService.CountAvailableAutosaves(Host.DefaultSavePath) > 0;
+
+    public bool AutoSaveBeforeCriticalTransition { get; set; } = false;
+
+    public void TryWriteRollingAutosaveIfConfigured()
+    {
+        if (!AutoSaveBeforeCriticalTransition)
+        {
+            return;
+        }
+
+        try
+        {
+            Host.GameSession.SaveRollingAutosave(
+                Host.DefaultSavePath,
+                CaptureHubNarrativeUiState());
+        }
+        catch
+        {
+            // Otomatik yedek hatasi kritik oyun akisini durdurmaz.
+        }
+    }
 
     public UiActionResult EnsureLeagueReady()
     {
@@ -2809,6 +2833,7 @@ public sealed partial class CareerSessionController
                 .FirstOrDefault()
                 ?? throw new InvalidOperationException("Tamamlanacak mali onaylı süreç yok.");
             var day = Host.WorldModule.TimelineStore.Timeline.CurrentDate;
+            TryWriteRollingAutosaveIfConfigured();
             var updated = Host.TransferModule.Completion.Complete(
                 new TransferProcessId(process.ProcessId),
                 day);
@@ -3684,6 +3709,8 @@ public sealed partial class CareerSessionController
                     Narrative: MatchNightNarrative.Failure(
                         "Bu gece sahada maç yok — tarihi ilerlet."));
             }
+
+            TryWriteRollingAutosaveIfConfigured();
 
             var lines = new List<string>(dueFixtures.Length);
             var consequenceLines = new List<string>();
@@ -4942,6 +4969,7 @@ public sealed partial class CareerSessionController
                 ?? throw new InvalidOperationException("Sezon ilerlemesi okunamadı.");
 
             var previousSeasonId = season.SeasonId;
+            TryWriteRollingAutosaveIfConfigured();
 
             if (progress.CanComplete)
             {
@@ -5022,10 +5050,12 @@ public sealed partial class CareerSessionController
             total = progress?.TotalFixtureCount ?? season.FixtureCount;
         }
 
+        var autosaveCount = Application.Career.Services.CareerGameSessionService.CountAvailableAutosaves(path);
+        var latestAutosaveStamp = Application.Career.Services.CareerGameSessionService.GetLatestAutosaveWriteUtc(path);
         return SaveDeskDigest.Compose(
             path,
-            exists,
-            stamp,
+            exists || autosaveCount > 0,
+            stamp ?? latestAutosaveStamp,
             day.DayNumber,
             day.IsoDate,
             manager.DisplayName,
@@ -5036,13 +5066,17 @@ public sealed partial class CareerSessionController
             total,
             sizeBytes,
             Path.GetFileNameWithoutExtension(path),
-            Host.WorldModule.TimelineStore.Timeline.RootSeed);
+            Host.WorldModule.TimelineStore.Timeline.RootSeed,
+            autosaveCount,
+            latestAutosaveStamp,
+            _lastLoadRecoveredFromBackup);
     }
 
     public UiActionResult SaveGame()
     {
         try
         {
+            _lastLoadRecoveredFromBackup = false;
             var result = Host.GameSession.Save(
                 Host.DefaultSavePath,
                 CaptureHubNarrativeUiState());
@@ -5062,7 +5096,7 @@ public sealed partial class CareerSessionController
     {
         try
         {
-            if (!File.Exists(Host.DefaultSavePath))
+            if (!SaveFileExists())
             {
                 LastCareerResume = null;
                 return UiActionResult.Fail(
@@ -5070,11 +5104,15 @@ public sealed partial class CareerSessionController
             }
 
             var result = Host.GameSession.Load(Host.DefaultSavePath);
+            _lastLoadRecoveredFromBackup = result.RecoveredFromBackup;
             // Kıtasal motor yüklenen kayıttaki sonuçlardan yeniden kurulur; eski oturumun motoru taşınmaz.
             _continentalTournament = null;
             ApplyHubNarrativeUiState(result.HubNarrativeUiState);
             LastCareerResume = BuildCareerResumeDigest(result.WasMigrated);
-            return UiActionResult.Ok(LastCareerResume.ToStatusMessage());
+            var statusMsg = result.RecoveredFromBackup
+                ? "[KURTARILDI] Ana kayıt bozuk olduğu için son sağlam yedekten geri yüklendi.\n" + LastCareerResume.ToStatusMessage()
+                : LastCareerResume.ToStatusMessage();
+            return UiActionResult.Ok(statusMsg);
         }
         catch (Exception ex)
         {

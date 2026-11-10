@@ -20,6 +20,12 @@ public sealed record SaveDeskDigest(
 
     public int WorldSeed { get; init; }
 
+    public int RollingAutosaveCount { get; init; }
+
+    public DateTimeOffset? LatestAutosaveWriteUtc { get; init; }
+
+    public bool LastLoadRecoveredFromBackup { get; init; }
+
     public const string Brand = "Kayıt Masası";
 
     public static SaveDeskDigest Compose(
@@ -36,7 +42,10 @@ public sealed record SaveDeskDigest(
         int totalFixtureCount,
         long saveSizeBytes = 0,
         string activeSlot = "career_save",
-        int worldSeed = 0)
+        int worldSeed = 0,
+        int rollingAutosaveCount = 0,
+        DateTimeOffset? latestAutosaveWriteUtc = null,
+        bool lastLoadRecoveredFromBackup = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(savePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(currentIsoDate);
@@ -71,9 +80,25 @@ public sealed record SaveDeskDigest(
             beats.Add($"Hedef: {savePath}");
         }
 
-        var headline = saveExists
-            ? "Kayıt mevcut — üzerine yazabilir veya yükleyebilirsin."
-            : "Henüz kayıt yok — kariyeri diske bırak.";
+        var safeAutosaveCount = Math.Max(0, rollingAutosaveCount);
+        if (safeAutosaveCount > 0)
+        {
+            var autoStamp = latestAutosaveWriteUtc is DateTimeOffset a
+                ? $" ({a.ToLocalTime():g})"
+                : string.Empty;
+            beats.Add($"Atomik otomatik yedek: {safeAutosaveCount}/3 slot hazır{autoStamp}");
+        }
+
+        if (lastLoadRecoveredFromBackup)
+        {
+            beats.Add("Kurtarma: Ana kayıt bozuk olduğu için son sağlam yedekten geri yüklendi.");
+        }
+
+        var headline = lastLoadRecoveredFromBackup
+            ? "Yedekten kurtarıldı — sağlam kayıt oturuma ve ana dosyaya geri yazıldı."
+            : saveExists
+                ? "Kayıt mevcut — üzerine yazabilir veya yükleyebilirsin."
+                : "Henüz kayıt yok — kariyeri diske bırak.";
 
         var advice = saveExists
             ? "Önemli maç/ilerleme öncesi Kaydet; Yükle mevcut oturumu değiştirir."
@@ -85,6 +110,9 @@ public sealed record SaveDeskDigest(
             SaveSizeBytes = Math.Max(0, saveSizeBytes),
             ActiveSlot = string.IsNullOrWhiteSpace(activeSlot) ? "career_save" : activeSlot.Trim(),
             WorldSeed = worldSeed,
+            RollingAutosaveCount = safeAutosaveCount,
+            LatestAutosaveWriteUtc = latestAutosaveWriteUtc,
+            LastLoadRecoveredFromBackup = lastLoadRecoveredFromBackup,
         };
     }
 

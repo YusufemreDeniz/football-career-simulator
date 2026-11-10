@@ -2372,7 +2372,10 @@ public partial class CareerHubScreen : Control
         _saveLastWriteBadgeLabel.Text = desk.SaveLastWriteUtc is DateTimeOffset stamp
             ? $"🕒 Son Kayıt: {stamp.ToLocalTime():g}"
             : "🕒 Son Kayıt: Henüz yok";
-        _saveActiveSlotBadgeLabel.Text = $"📁 Aktif Slot: {desk.ActiveSlot}";
+        var autosaveNote = desk.RollingAutosaveCount > 0
+            ? $" · Yedek {desk.RollingAutosaveCount}/3"
+            : string.Empty;
+        _saveActiveSlotBadgeLabel.Text = $"📁 Aktif Slot: {desk.ActiveSlot}{autosaveNote}";
         _saveWorldSeedBadgeLabel.Text = $"🌍 Dünya Seed: {desk.WorldSeed}";
         _saveFileSizeBadgeLabel.Text = $"💽 Dosya Boyutu: {FormatFileSize(desk.SaveSizeBytes)}";
         UpdateSaveDeskButtons();

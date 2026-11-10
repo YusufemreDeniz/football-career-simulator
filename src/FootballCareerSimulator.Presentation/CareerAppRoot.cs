@@ -356,7 +356,10 @@ public partial class CareerAppRoot : Control
         }
 
         var host = CareerPresentationHost.CreateNewCareer(configuration);
-        var controller = new CareerSessionController(host);
+        var controller = new CareerSessionController(host)
+        {
+            AutoSaveBeforeCriticalTransition = true,
+        };
         var setup = controller.EnsureLeagueReady();
         ShowHub(controller, setup.Message);
     }
@@ -364,7 +367,9 @@ public partial class CareerAppRoot : Control
     private static void ClearPreviousCareerSave()
     {
         var savePath = Path.Combine(OS.GetUserDataDir(), "career_save.db");
-        foreach (var path in new[] { savePath, savePath + ".bak", savePath + ".migrating.tmp" })
+        var paths = new List<string> { savePath, savePath + ".bak", savePath + ".migrating.tmp", savePath + ".restore.tmp" };
+        paths.AddRange(Application.Career.Services.CareerGameSessionService.GetRollingAutosavePaths(savePath));
+        foreach (var path in paths)
         {
             if (File.Exists(path))
             {
@@ -376,7 +381,10 @@ public partial class CareerAppRoot : Control
     private void OnContinueCareer()
     {
         var host = CareerPresentationHost.CreateDefault();
-        var controller = new CareerSessionController(host);
+        var controller = new CareerSessionController(host)
+        {
+            AutoSaveBeforeCriticalTransition = true,
+        };
         var load = controller.LoadGame();
         if (!load.Succeeded)
         {

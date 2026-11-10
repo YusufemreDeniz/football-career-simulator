@@ -20,6 +20,8 @@ using FootballCareerSimulator.Domain.EventRuleEvaluation;
 
 public sealed class CareerGameSessionService
 {
+    public const int MaxRollingAutosaveCount = 3;
+
     private readonly IWorldTimelineStore _timelineStore;
     private readonly ILeagueCompetitionStore _competitionStore;
     private readonly IClubRegistryStore _clubRegistryStore;
@@ -120,11 +122,59 @@ public sealed class CareerGameSessionService
         _continentalStore = continentalStore;
     }
 
+    public static IReadOnlyList<string> GetRollingAutosavePaths(string primaryFilePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(primaryFilePath);
+        var directory = Path.GetDirectoryName(primaryFilePath) ?? string.Empty;
+        var stem = Path.GetFileNameWithoutExtension(primaryFilePath);
+        var extension = Path.GetExtension(primaryFilePath);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            extension = ".db";
+        }
+
+        var paths = new string[MaxRollingAutosaveCount];
+        for (var i = 0; i < MaxRollingAutosaveCount; i++)
+        {
+            var fileName = $"{stem}.autosave{i + 1}{extension}";
+            paths[i] = string.IsNullOrWhiteSpace(directory)
+                ? fileName
+                : Path.Combine(directory, fileName);
+        }
+
+        return paths;
+    }
+
+    public static int CountAvailableAutosaves(string primaryFilePath) =>
+        GetRollingAutosavePaths(primaryFilePath).Count(File.Exists);
+
+    public static DateTimeOffset? GetLatestAutosaveWriteUtc(string primaryFilePath)
+    {
+        DateTimeOffset? latest = null;
+        foreach (var path in GetRollingAutosavePaths(primaryFilePath))
+        {
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            var writeUtc = new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero);
+            if (latest is null || writeUtc > latest.Value)
+            {
+                latest = writeUtc;
+            }
+        }
+
+        return latest;
+    }
+
     public SaveCareerGameResult Save(
         string filePath,
         HubNarrativeUiState? hubNarrativeUiState = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        RotatePreviousSaveToRollingAutosaves(filePath);
 
         var timeline = _timelineStore.Timeline;
         var league = _competitionStore.League;
@@ -165,20 +215,159 @@ public sealed class CareerGameSessionService
             _matchSelectionStore.LineupTemplates,
             _continentalStore?.Record);
 
+        SyncPrimaryToLatestRollingAutosaveIfMissing(filePath);
+
         var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
 
         return new SaveCareerGameResult(
             Succeeded: true,
             SavePath: filePath,
             SavedDayNumber: timeline.CurrentDate.DayNumber,
-            SavedFixtureCount: fixtureCount);
+            SavedFixtureCount: fixtureCount,
+            RollingAutosaveCount: CountAvailableAutosaves(filePath));
+    }
+
+    public SaveCareerGameResult SaveRollingAutosave(
+        string primaryFilePath,
+        HubNarrativeUiState? hubNarrativeUiState = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(primaryFilePath);
+        var slots = GetRollingAutosavePaths(primaryFilePath);
+        RotateSlotFiles(slots);
+
+        var targetSlot = slots[0];
+        var directory = Path.GetDirectoryName(targetSlot);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        var timeline = _timelineStore.Timeline;
+        var league = _competitionStore.League;
+        var clubRegistry = _clubRegistryStore.Registry;
+        var managerCareer = _managerCareerStore.Career;
+        var matchSelections = _matchSelectionStore.Selections;
+        _persistence.Save(
+            targetSlot,
+            timeline,
+            league,
+            clubRegistry,
+            managerCareer,
+            matchSelections,
+            _trainingStore.Plans,
+            _trainingStore.PhysicalStates,
+            _playerCareerStore.Careers,
+            _contractStore.Contracts,
+            _clubSquadStore.Squads,
+            _freeAgentStore.FreeAgents,
+            _tacticPlanStore.Plans,
+            _transferNeedStore.Needs,
+            _shortlistStore.Entries,
+            _transferTargetStore.Targets,
+            _transferProcessStore.Processes,
+            _clubOfferStore.Offers,
+            _playerContractProposalStore.Proposals,
+            _promiseStore.Promises,
+            _memoryStore.Memories,
+            _relationshipStore.Relationships,
+            _decisionRequestStore.Requests,
+            _dialogueSessionStore.Sessions,
+            _disciplinaryActionStore.Actions,
+            _eventEffectRegistry?.SnapshotKeys(),
+            _scheduledEvaluationStore?.Items,
+            hubNarrativeUiState,
+            _clubFinanceLedgerStore?.Ledgers,
+            _dualPhaseTacticPlanStore?.Plans,
+            _matchSelectionStore.LineupTemplates,
+            _continentalStore?.Record);
+
+        var fixtureCount = league.Seasons.Sum(season => season.Fixtures.Count);
+
+        return new SaveCareerGameResult(
+            Succeeded: true,
+            SavePath: targetSlot,
+            SavedDayNumber: timeline.CurrentDate.DayNumber,
+            SavedFixtureCount: fixtureCount,
+            RollingAutosaveCount: CountAvailableAutosaves(primaryFilePath));
     }
 
     public LoadCareerGameResult Load(string filePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 
-        var loaded = _persistence.Load(filePath);
+        Exception? primaryException = null;
+        if (File.Exists(filePath))
+        {
+            try
+            {
+                var loaded = _persistence.Load(filePath);
+                ApplyLoadedState(loaded);
+                var fixtureCount = loaded.League.Seasons.Sum(season => season.Fixtures.Count);
+
+                return new LoadCareerGameResult(
+                    Succeeded: true,
+                    SavePath: filePath,
+                    LoadedDayNumber: loaded.Timeline.CurrentDate.DayNumber,
+                    LoadedFixtureCount: fixtureCount,
+                    WasMigrated: loaded.WasMigrated,
+                    HubNarrativeUiState: loaded.HubNarrativeUiState,
+                    RecoveredFromBackup: false,
+                    RecoverySourcePath: null);
+            }
+            catch (Exception ex)
+            {
+                primaryException = ex;
+            }
+        }
+
+        foreach (var backupPath in GetRollingAutosavePaths(filePath))
+        {
+            if (!File.Exists(backupPath))
+            {
+                continue;
+            }
+
+            try
+            {
+                var recovered = _persistence.Load(backupPath);
+                ApplyLoadedState(recovered);
+                TryRestorePrimaryFileFromBackup(backupPath, filePath);
+                var fixtureCount = recovered.League.Seasons.Sum(season => season.Fixtures.Count);
+
+                return new LoadCareerGameResult(
+                    Succeeded: true,
+                    SavePath: filePath,
+                    LoadedDayNumber: recovered.Timeline.CurrentDate.DayNumber,
+                    LoadedFixtureCount: fixtureCount,
+                    WasMigrated: recovered.WasMigrated,
+                    HubNarrativeUiState: recovered.HubNarrativeUiState,
+                    RecoveredFromBackup: true,
+                    RecoverySourcePath: backupPath);
+            }
+            catch
+            {
+                // Sonraki sağlam yedeği dene.
+            }
+        }
+
+        if (primaryException is not null)
+        {
+            throw primaryException;
+        }
+
+        var directLoad = _persistence.Load(filePath);
+        ApplyLoadedState(directLoad);
+        return new LoadCareerGameResult(
+            Succeeded: true,
+            SavePath: filePath,
+            LoadedDayNumber: directLoad.Timeline.CurrentDate.DayNumber,
+            LoadedFixtureCount: directLoad.League.Seasons.Sum(season => season.Fixtures.Count),
+            WasMigrated: directLoad.WasMigrated,
+            HubNarrativeUiState: directLoad.HubNarrativeUiState);
+    }
+
+    private void ApplyLoadedState(CareerLoadResult loaded)
+    {
         _timelineStore.Replace(loaded.Timeline);
         _competitionStore.Replace(loaded.League);
         _clubRegistryStore.Replace(loaded.ClubRegistry);
@@ -219,15 +408,72 @@ public sealed class CareerGameSessionService
         _eventEffectRegistry?.ReplaceAll(loaded.EventEffectProcessingKeys ?? Array.Empty<string>());
         _scheduledEvaluationStore?.ReplaceAll(loaded.ScheduledEvaluations ?? Array.Empty<ScheduledEvaluation>());
         _continentalStore?.Replace(loaded.ContinentalTournament);
+    }
 
-        var fixtureCount = loaded.League.Seasons.Sum(season => season.Fixtures.Count);
+    private static void RotatePreviousSaveToRollingAutosaves(string primaryFilePath)
+    {
+        if (!File.Exists(primaryFilePath))
+        {
+            return;
+        }
 
-        return new LoadCareerGameResult(
-            Succeeded: true,
-            SavePath: filePath,
-            LoadedDayNumber: loaded.Timeline.CurrentDate.DayNumber,
-            LoadedFixtureCount: fixtureCount,
-            WasMigrated: loaded.WasMigrated,
-            HubNarrativeUiState: loaded.HubNarrativeUiState);
+        try
+        {
+            var slots = GetRollingAutosavePaths(primaryFilePath);
+            RotateSlotFiles(slots);
+            File.Copy(primaryFilePath, slots[0], overwrite: true);
+        }
+        catch
+        {
+            // Yedekleme hatası ana kaydı engellemez.
+        }
+    }
+
+    private static void SyncPrimaryToLatestRollingAutosaveIfMissing(string primaryFilePath)
+    {
+        if (!File.Exists(primaryFilePath))
+        {
+            return;
+        }
+
+        try
+        {
+            var slots = GetRollingAutosavePaths(primaryFilePath);
+            if (!File.Exists(slots[0]))
+            {
+                File.Copy(primaryFilePath, slots[0], overwrite: true);
+            }
+        }
+        catch
+        {
+            // Yedek senkronu sessizce geçilir.
+        }
+    }
+
+    private static void RotateSlotFiles(IReadOnlyList<string> slots)
+    {
+        for (var i = slots.Count - 1; i >= 1; i--)
+        {
+            var source = slots[i - 1];
+            var destination = slots[i];
+            if (File.Exists(source))
+            {
+                File.Copy(source, destination, overwrite: true);
+            }
+        }
+    }
+
+    private static void TryRestorePrimaryFileFromBackup(string backupPath, string primaryFilePath)
+    {
+        try
+        {
+            var tempRestore = primaryFilePath + ".restore.tmp";
+            File.Copy(backupPath, tempRestore, overwrite: true);
+            File.Move(tempRestore, primaryFilePath, overwrite: true);
+        }
+        catch
+        {
+            // Kurtarma bellekte tamamlandı; disk geri yazımı en iyi çaba olarak kalır.
+        }
     }
 }
