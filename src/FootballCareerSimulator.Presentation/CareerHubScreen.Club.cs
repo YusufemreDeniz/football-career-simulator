@@ -606,8 +606,19 @@ public partial class CareerHubScreen
         page.AddChild(_clubPlanPanel);
 
         var planCard = AddCard(_clubPlanPanel, "📋 İLK 11 YERLEŞİMİ & MEVKİ DERİNLİĞİ", emphasized: true, expandVertical: true);
+        var planActionRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        planActionRow.AddThemeConstantOverride("separation", 8);
+        planCard.AddChild(planActionRow);
         _clubPlanCaptionLabel = BodyLabel("ClubPlanCaption", muted: true, autowrap: true);
-        planCard.AddChild(_clubPlanCaptionLabel);
+        _clubPlanCaptionLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        planActionRow.AddChild(_clubPlanCaptionLabel);
+        var clubSmartRotBtn = PrimaryButton("🎯 Akıllı Rotasyon 11'i Uygula");
+        clubSmartRotBtn.Pressed += () =>
+        {
+            Apply(_controller.ApplySmartRotationForNextMatch());
+            RefreshClubPlanBoard();
+        };
+        planActionRow.AddChild(clubSmartRotBtn);
 
         var planSplitRow = new HBoxContainer
         {

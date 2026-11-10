@@ -88,6 +88,21 @@ public sealed class MatchSelectionEditingService
         return Save(current, newStartingOrder, current.BenchSlotIndices);
     }
 
+    /// <summary>
+    /// Akıllı rotasyon veya şablon sonucunda önerilen ilk 11 ve yedek kulübesini doğrular ve kaydeder.
+    /// </summary>
+    public MatchSelection ApplyPlannedSelection(
+        FixtureId fixtureId,
+        ClubId clubId,
+        IReadOnlyList<int> startingSlots,
+        IReadOnlyList<int> benchSlots)
+    {
+        ArgumentNullException.ThrowIfNull(startingSlots);
+        ArgumentNullException.ThrowIfNull(benchSlots);
+        var current = GetOrDefault(fixtureId, clubId);
+        return Save(current, startingSlots, benchSlots);
+    }
+
     /// <summary>Sezon geçişinde fikstür kimlikleri yeniden kullanıldığı için eski onaylar temizlenir.</summary>
     public void ClearAll() => _selections.ReplaceAll(Array.Empty<MatchSelection>());
 

@@ -131,6 +131,11 @@ public partial class CareerHubScreen
         _prepSwapSelectionButton.Pressed += () => Apply(_controller.SwapLastStarterWithFirstBenchForNextDueMatch());
         pitchHeaderRow.AddChild(_prepSwapSelectionButton);
 
+        var smartRotBtn = PrimaryButton("🎯 Akıllı Rotasyon 11'i");
+        smartRotBtn.TooltipText = "Yorgunluğu, rol uyumunu ve aktif forma sözlerini gözeterek optimal İlk 11 ve yedek kulübesi kurar.";
+        smartRotBtn.Pressed += () => Apply(_controller.ApplySmartRotationForNextMatch());
+        pitchHeaderRow.AddChild(smartRotBtn);
+
         _prepPitchCaptionLabel = BodyLabel("PrepPitchCaption", muted: true, autowrap: true);
         _prepPitchCaptionLabel.Visible = false;
         pitchCard.AddChild(_prepPitchCaptionLabel);

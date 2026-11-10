@@ -431,6 +431,87 @@ public sealed partial class CareerSessionController
         }
     }
 
+    public Application.TeamPreparation.Queries.SmartRotationPlanDigest BuildSmartRotationPlan()
+    {
+        var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId;
+        if (!clubId.HasValue)
+        {
+            return Application.TeamPreparation.Queries.SmartRotationPlanDigest.Invalid(
+                Formation.F442,
+                "Menajer bir kulüpte görev almıyor.");
+        }
+
+        var cid = new Domain.Shared.ClubId(clubId.Value);
+        var formation = Host.TeamPreparationModule.TacticPlanStore.Get(cid)?.Formation ?? Formation.F442;
+        var profiles = GetSquadProfiles(cid);
+        var management = BuildPlayerManagementDigest();
+
+        var candidates = management.Players
+            .Select(p =>
+            {
+                var profile = p.SlotIndex >= 0 && p.SlotIndex < profiles.Count
+                    ? profiles[p.SlotIndex]
+                    : new Simulation.TeamPreparation.MvpSquadPlayerProfile(p.DisplayName, Simulation.TeamPreparation.MvpSquadPositionGroup.Midfielder);
+                var hasPromise = p.HasPromiseRisk || (!string.IsNullOrWhiteSpace(p.PromiseSummary) && !p.PromiseSummary.Contains("yok", StringComparison.OrdinalIgnoreCase));
+                return new Application.TeamPreparation.Queries.SmartRotationCandidate(
+                    p.SlotIndex,
+                    p.DisplayName,
+                    p.PositionCode,
+                    profile.PositionGroup,
+                    profile.PositionRole,
+                    p.Rating,
+                    p.Fitness,
+                    p.Fatigue,
+                    IsAvailable: !p.IsInjured && string.Equals(p.Availability, "Hazır", StringComparison.Ordinal),
+                    HasActivePromise: hasPromise);
+            })
+            .ToArray();
+
+        var board = BuildSquadSelectionBoard();
+        var currentStarters = board.StartingXi.Select(s => s.SlotIndex).ToArray();
+        return Application.TeamPreparation.Queries.SmartRotationPlanDigest.Compose(
+            formation,
+            candidates,
+            currentStarters);
+    }
+
+    public UiActionResult ApplySmartRotationForNextMatch()
+    {
+        try
+        {
+            var currentDay = Host.WorldModule.Queries.GetCurrentGameDate().DayNumber;
+            var targetFixture = Host.TeamPreparationModule.SelectionQueries.GetNextDueManagedFixture(currentDay)
+                ?? Host.TeamPreparationModule.SelectionQueries.GetNextPlannedManagedFixture(currentDay)
+                ?? throw new InvalidOperationException("Planlanmış veya vadesi gelmiş maç yok.");
+
+            var clubId = Host.ManagerModule.Queries.GetCareer().EmployedClubId
+                ?? throw new InvalidOperationException("Menajer kulübü yok.");
+
+            var plan = BuildSmartRotationPlan();
+            if (!plan.IsValid)
+            {
+                return UiActionResult.Fail(plan.SummaryLine);
+            }
+
+            var fixtureId = new Domain.Competition.FixtureId(targetFixture.FixtureId);
+            var cid = new Domain.Shared.ClubId(clubId);
+            Host.TeamPreparationModule.SelectionEditing.ApplyPlannedSelection(
+                fixtureId,
+                cid,
+                plan.StartingSlotIndices,
+                plan.BenchSlotIndices);
+
+            var details = plan.SwapExplanationLines.Count > 0
+                ? "\n· " + string.Join("\n· ", plan.SwapExplanationLines.Take(3))
+                : string.Empty;
+            return UiActionResult.Ok($"🎯 {plan.SummaryLine}{details}");
+        }
+        catch (Exception ex)
+        {
+            return UiActionResult.Fail($"Akıllı rotasyon uygulanamadı: {FormatLineupFailure(ex)}");
+        }
+    }
+
     private static string FormatLineupFailure(Exception ex)
     {
         var message = ex.Message;
