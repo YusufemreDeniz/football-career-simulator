@@ -6,6 +6,7 @@ namespace FootballCareerSimulator.Application.SocialContinuity.Infrastructure;
 public sealed class InMemoryMemoryStore : IMemoryStore
 {
     private readonly Dictionary<long, MemoryRecord> _byId = new();
+    private readonly Dictionary<ActorRef, HashSet<long>> _idsByActor = new();
     private readonly Dictionary<ActorRuleKey, HashSet<long>> _idsByActorRule = new();
     private readonly HashSet<SourceRuleKey> _sourceEvents = new();
     private readonly HashSet<ActorSourceKey> _reinforcementEvents = new();
@@ -65,6 +66,23 @@ public sealed class InMemoryMemoryStore : IMemoryStore
         return latest;
     }
 
+    public IReadOnlyList<MemoryRecord> GetByRememberingActor(ActorRef rememberingActor)
+    {
+        if (!_idsByActor.TryGetValue(rememberingActor, out var ids) || ids.Count == 0)
+        {
+            return Array.Empty<MemoryRecord>();
+        }
+
+        var result = new MemoryRecord[ids.Count];
+        var index = 0;
+        foreach (var id in ids)
+        {
+            result[index++] = _byId[id];
+        }
+
+        return result;
+    }
+
     public void Upsert(MemoryRecord memory)
     {
         ArgumentNullException.ThrowIfNull(memory);
@@ -83,6 +101,7 @@ public sealed class InMemoryMemoryStore : IMemoryStore
     {
         ArgumentNullException.ThrowIfNull(memories);
         _byId.Clear();
+        _idsByActor.Clear();
         _idsByActorRule.Clear();
         _sourceEvents.Clear();
         _reinforcementEvents.Clear();
@@ -97,6 +116,14 @@ public sealed class InMemoryMemoryStore : IMemoryStore
 
     private void AddIndexes(MemoryRecord memory)
     {
+        if (!_idsByActor.TryGetValue(memory.RememberingActor, out var actorIds))
+        {
+            actorIds = new HashSet<long>();
+            _idsByActor[memory.RememberingActor] = actorIds;
+        }
+
+        actorIds.Add(memory.MemoryId.Value);
+
         var actorRule = new ActorRuleKey(memory.RememberingActor, memory.RuleId, memory.RuleVersion);
         if (!_idsByActorRule.TryGetValue(actorRule, out var ids))
         {
@@ -118,6 +145,15 @@ public sealed class InMemoryMemoryStore : IMemoryStore
 
     private void RemoveIndexes(MemoryRecord memory)
     {
+        if (_idsByActor.TryGetValue(memory.RememberingActor, out var actorIds))
+        {
+            actorIds.Remove(memory.MemoryId.Value);
+            if (actorIds.Count == 0)
+            {
+                _idsByActor.Remove(memory.RememberingActor);
+            }
+        }
+
         var actorRule = new ActorRuleKey(memory.RememberingActor, memory.RuleId, memory.RuleVersion);
         if (_idsByActorRule.TryGetValue(actorRule, out var ids))
         {

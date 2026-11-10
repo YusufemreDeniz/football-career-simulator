@@ -21,6 +21,8 @@ public interface IMemoryStore
         string ruleId,
         int ruleVersion);
 
+    IReadOnlyList<MemoryRecord> GetByRememberingActor(ActorRef rememberingActor);
+
     void Upsert(MemoryRecord memory);
 
     void ReplaceAll(IEnumerable<MemoryRecord> memories);

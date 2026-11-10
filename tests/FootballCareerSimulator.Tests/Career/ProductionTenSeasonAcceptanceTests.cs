@@ -328,7 +328,7 @@ public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
         Assert.True(finalBytes < 20 * 1024 * 1024, $"Final save too large: {finalBytes} bytes.");
         Assert.True(finalBytes < Math.Max(midSaveBytes * 3, 1),
             $"Save growth is uncontrolled: mid={midSaveBytes}, final={finalBytes}.");
-        Assert.True(stopwatch.Elapsed < TimeSpan.FromMinutes(12),
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromMinutes(2),
             $"Ten-season production acceptance took {stopwatch.Elapsed}.");
     }
 

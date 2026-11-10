@@ -101,9 +101,8 @@ public sealed class SelectionMemoryService
         foreach (var playerId in startedPlayerIds.Distinct())
         {
             var remembering = new ActorRef(ActorKind.Player, playerId.Value);
-            var candidates = _store.Memories
-                .Where(memory => memory.RememberingActor == remembering
-                                 && memory.Status == MemoryStatus.Active
+            var candidates = _store.GetByRememberingActor(remembering)
+                .Where(memory => memory.Status == MemoryStatus.Active
                                  && memory.Valence == MemoryValence.Negative
                                  && memory.Category is MemoryCategory.Selection
                                      or MemoryCategory.Promise
