@@ -68,4 +68,36 @@ public sealed class PromiseQueryTests
         Assert.Equal(1, promiseeView.ActiveCount);
         Assert.Equal(1002, promiseeView.RecentActive[0].PromiseeId);
     }
+
+    [Fact]
+    public void ReplaceAll_RebuildsPromiseIndexesAndNextId()
+    {
+        var source = SocialContinuityModule.Create();
+        var active = source.PlayingTime.Create(
+            new ManagerId(1),
+            new PlayerId(1001),
+            new ClubId(1),
+            targetAppearances: 2,
+            deadlineOn: Day.AddDays(14),
+            createdOn: Day);
+        source.StartingOpportunity.Create(
+            new ManagerId(1),
+            new PlayerId(1002),
+            new ClubId(1),
+            targetStarts: 1,
+            deadlineOn: Day.AddDays(3),
+            createdOn: Day);
+        source.StartingOpportunity.EvaluateDeadlines(Day.AddDays(3));
+
+        var rehydrated = SocialContinuityModule.Create();
+        rehydrated.PromiseStore.ReplaceAll(source.PromiseStore.Promises);
+
+        Assert.Equal(3L, rehydrated.PromiseStore.NextPromiseId);
+        Assert.Single(rehydrated.PromiseStore.ActivePromises);
+        Assert.Equal(
+            active.PromiseId,
+            rehydrated.PromiseStore.FindActivePlayerPromise(1001, new ClubId(1), PromiseKind.PlayingTime)?.PromiseId);
+        Assert.Null(
+            rehydrated.PromiseStore.FindActivePlayerPromise(1002, new ClubId(1), PromiseKind.StartingOpportunity));
+    }
 }

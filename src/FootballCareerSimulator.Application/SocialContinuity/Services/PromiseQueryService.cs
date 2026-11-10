@@ -28,8 +28,8 @@ public sealed class PromiseQueryService
         }
 
         var promisor = new ActorRef(actorKind, actorId);
-        var active = _store.Promises
-            .Where(p => p.IsActive && p.Promisor == promisor)
+        var active = _store.ActivePromises
+            .Where(p => p.Promisor == promisor)
             .OrderBy(p => p.DeadlineOn.DayNumber)
             .ThenBy(p => p.PromiseId.Value)
             .ToArray();
@@ -53,8 +53,10 @@ public sealed class PromiseQueryService
         }
 
         var promisee = new ActorRef(actorKind, actorId);
-        var active = _store.Promises
-            .Where(p => p.IsActive && p.Promisee == promisee)
+        var source = actorKind == ActorKind.Player
+            ? _store.GetActiveByPlayer(actorId)
+            : _store.ActivePromises.Where(p => p.Promisee == promisee);
+        var active = source
             .OrderBy(p => p.DeadlineOn.DayNumber)
             .ThenBy(p => p.PromiseId.Value)
             .ToArray();
@@ -74,8 +76,8 @@ public sealed class PromiseQueryService
             throw new ArgumentOutOfRangeException(nameof(take), take, "Take must be positive.");
         }
 
-        var active = _store.Promises
-            .Where(p => p.IsActive && p.ClubId == clubId)
+        var active = _store.ActivePromises
+            .Where(p => p.ClubId == clubId)
             .OrderBy(p => p.DeadlineOn.DayNumber)
             .ThenBy(p => p.PromiseId.Value)
             .ToArray();

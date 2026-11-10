@@ -168,12 +168,8 @@ public sealed class RelationshipEvaluationService
     public int MarkDormantForPlayerLeaving(PlayerId playerId, GameDate day)
     {
         var updated = 0;
-        foreach (var relationship in _store.Relationships
-                     .Where(r =>
-                         r.Status == RelationshipStatus.Active
-                         && r.Observer.Kind == ActorKind.Player
-                         && r.Observer.Id == playerId.Value)
-                     .ToArray())
+        foreach (var relationship in _store.GetByPlayerObserver(playerId.Value)
+                     .Where(r => r.Status == RelationshipStatus.Active))
         {
             var effectKey =
                 $"Rel:{PlayerLeftDormantRuleId}:v{RuleVersion}:{relationship.RelationshipId.Value}:{playerId.Value}";
@@ -191,12 +187,8 @@ public sealed class RelationshipEvaluationService
     public int MarkDormantForManagerLeaving(ManagerId managerId, GameDate day)
     {
         var updated = 0;
-        foreach (var relationship in _store.Relationships
-                     .Where(r =>
-                         r.Status == RelationshipStatus.Active
-                         && r.Subject.Kind == ActorKind.Manager
-                         && r.Subject.Id == managerId.Value)
-                     .ToArray())
+        foreach (var relationship in _store.GetByManagerSubject(managerId.Value)
+                     .Where(r => r.Status == RelationshipStatus.Active))
         {
             var effectKey =
                 $"Rel:{ManagerLeftDormantRuleId}:v{RuleVersion}:{relationship.RelationshipId.Value}:{managerId.Value}";
@@ -214,12 +206,8 @@ public sealed class RelationshipEvaluationService
     public int ReactivateForManager(ManagerId managerId, GameDate day)
     {
         var updated = 0;
-        foreach (var relationship in _store.Relationships
-                     .Where(r =>
-                         r.Status == RelationshipStatus.Dormant
-                         && r.Subject.Kind == ActorKind.Manager
-                         && r.Subject.Id == managerId.Value)
-                     .ToArray())
+        foreach (var relationship in _store.GetByManagerSubject(managerId.Value)
+                     .Where(r => r.Status == RelationshipStatus.Dormant))
         {
             var next = relationship.Reactivate(ManagerHiredReactivateRuleId, day);
             if (!ReferenceEquals(next, relationship))
@@ -240,14 +228,12 @@ public sealed class RelationshipEvaluationService
         ArgumentNullException.ThrowIfNull(opponentPlayerIds);
         var opponentIds = opponentPlayerIds.Select(playerId => playerId.Value).ToHashSet();
         var reactivated = new List<PlayerId>();
-        foreach (var relationship in _store.Relationships
+        foreach (var relationship in _store.GetByManagerSubject(managerId.Value)
                      .Where(record =>
                          record.Status == RelationshipStatus.Dormant
-                         && record.Subject == new ActorRef(ActorKind.Manager, managerId.Value)
                          && record.Observer.Kind == ActorKind.Player
                          && opponentIds.Contains(record.Observer.Id))
-                     .OrderBy(record => record.Observer.Id)
-                     .ToArray())
+                     .OrderBy(record => record.Observer.Id))
         {
             _store.Upsert(relationship.Reactivate(FormerPlayerEncounterReactivateRuleId, day));
             reactivated.Add(new PlayerId(relationship.Observer.Id));
@@ -507,9 +493,7 @@ public sealed class RelationshipEvaluationService
             return existing;
         }
 
-        var nextId = _store.Relationships.Count == 0
-            ? 1L
-            : _store.Relationships.Max(r => r.RelationshipId.Value) + 1;
+        var nextId = _store.NextRelationshipId;
         var created = RelationshipRecord.CreatePlayerToManager(
             new RelationshipId(nextId),
             playerId,

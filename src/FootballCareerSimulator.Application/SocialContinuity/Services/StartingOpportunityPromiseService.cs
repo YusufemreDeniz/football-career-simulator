@@ -32,22 +32,13 @@ public sealed class StartingOpportunityPromiseService
         GameDate deadlineOn,
         GameDate createdOn)
     {
-        var hasActive = _store.Promises.Any(p =>
-            p.IsActive
-            && p.Kind == PromiseKind.StartingOpportunity
-            && p.Promisee.Kind == ActorKind.Player
-            && p.Promisee.Id == playerId.Value
-            && p.ClubId == clubId);
-
-        if (hasActive)
+        if (_store.FindActivePlayerPromise(playerId.Value, clubId, PromiseKind.StartingOpportunity) is not null)
         {
             throw new SocialContinuityInvariantViolationException(
                 $"Player {playerId.Value} already has an active starting opportunity promise at club {clubId.Value}.");
         }
 
-        var nextId = _store.Promises.Count == 0
-            ? 1L
-            : _store.Promises.Max(p => p.PromiseId.Value) + 1;
+        var nextId = _store.NextPromiseId;
 
         var promise = Promise.CreateStartingOpportunity(
             new PromiseId(nextId),
@@ -72,13 +63,7 @@ public sealed class StartingOpportunityPromiseService
         var updated = 0;
         foreach (var playerId in startingPlayerIds.Distinct())
         {
-            var active = _store.Promises.FirstOrDefault(p =>
-                p.IsActive
-                && p.Kind == PromiseKind.StartingOpportunity
-                && p.ClubId == clubId
-                && p.Promisee.Kind == ActorKind.Player
-                && p.Promisee.Id == playerId.Value);
-
+            var active = _store.FindActivePlayerPromise(playerId.Value, clubId, PromiseKind.StartingOpportunity);
             if (active is null)
             {
                 continue;
@@ -99,7 +84,7 @@ public sealed class StartingOpportunityPromiseService
     public int EvaluateDeadlines(GameDate day, Action<Promise>? onResolved = null)
     {
         var resolved = 0;
-        foreach (var promise in _store.Promises.Where(p => p.IsActive).ToArray())
+        foreach (var promise in _store.ActivePromises.ToArray())
         {
             var next = promise.EvaluateDeadline(day);
             if (next.Status != promise.Status)

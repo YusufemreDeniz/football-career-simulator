@@ -23,11 +23,8 @@ public sealed class RelationshipQueryService
             throw new ArgumentOutOfRangeException(nameof(take), take, "Take must be positive.");
         }
 
-        var active = _store.Relationships
-            .Where(r =>
-                r.Status == RelationshipStatus.Active
-                && r.Subject.Kind == ActorKind.Manager
-                && r.Subject.Id == managerId)
+        var active = _store.GetByManagerSubject(managerId)
+            .Where(r => r.Status == RelationshipStatus.Active)
             .OrderByDescending(r => Math.Abs(r.Trust - RelationshipRecord.NeutralStart)
                 + Math.Abs(r.Respect - RelationshipRecord.NeutralStart)
                 + Math.Abs(r.ProfessionalCompatibility - RelationshipRecord.NeutralStart))

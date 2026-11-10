@@ -32,22 +32,13 @@ public sealed class PlayingTimePromiseService
         GameDate deadlineOn,
         GameDate createdOn)
     {
-        var hasActive = _store.Promises.Any(p =>
-            p.IsActive
-            && p.Kind == PromiseKind.PlayingTime
-            && p.Promisee.Kind == ActorKind.Player
-            && p.Promisee.Id == playerId.Value
-            && p.ClubId == clubId);
-
-        if (hasActive)
+        if (_store.FindActivePlayerPromise(playerId.Value, clubId, PromiseKind.PlayingTime) is not null)
         {
             throw new SocialContinuityInvariantViolationException(
                 $"Player {playerId.Value} already has an active playing time promise at club {clubId.Value}.");
         }
 
-        var nextId = _store.Promises.Count == 0
-            ? 1L
-            : _store.Promises.Max(p => p.PromiseId.Value) + 1;
+        var nextId = _store.NextPromiseId;
 
         var promise = Promise.CreatePlayingTime(
             new PromiseId(nextId),
@@ -72,13 +63,7 @@ public sealed class PlayingTimePromiseService
         var updated = 0;
         foreach (var playerId in participantPlayerIds.Distinct())
         {
-            var active = _store.Promises.FirstOrDefault(p =>
-                p.IsActive
-                && p.Kind == PromiseKind.PlayingTime
-                && p.ClubId == clubId
-                && p.Promisee.Kind == ActorKind.Player
-                && p.Promisee.Id == playerId.Value);
-
+            var active = _store.FindActivePlayerPromise(playerId.Value, clubId, PromiseKind.PlayingTime);
             if (active is null)
             {
                 continue;

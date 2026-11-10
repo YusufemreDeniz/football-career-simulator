@@ -281,4 +281,28 @@ public sealed class RelationshipEvaluationTests : IDisposable
         Assert.Single(loaded.Relationships);
         Assert.Equal(52, loaded.Relationships[0].Respect);
     }
+
+    [Fact]
+    public void ReplaceAll_RebuildsRelationshipIndexesAndNextId()
+    {
+        var source = SocialContinuityModule.Create();
+        source.RelationshipEvaluation.ApplySelectionStarted(
+            new FixtureId(1),
+            new PlayerId(10),
+            new ManagerId(7),
+            Day);
+        source.RelationshipEvaluation.ApplySelectionOmitted(
+            new FixtureId(1),
+            new PlayerId(11),
+            new ManagerId(7),
+            Day);
+
+        var rehydrated = SocialContinuityModule.Create();
+        rehydrated.RelationshipStore.ReplaceAll(source.RelationshipStore.Relationships);
+
+        Assert.Equal(3L, rehydrated.RelationshipStore.NextRelationshipId);
+        Assert.Equal(52, rehydrated.RelationshipStore.FindPlayerToManager(10, 7)?.Respect);
+        Assert.Equal(2, rehydrated.RelationshipStore.GetByManagerSubject(7).Count);
+        Assert.Single(rehydrated.RelationshipStore.GetByPlayerObserver(10));
+    }
 }

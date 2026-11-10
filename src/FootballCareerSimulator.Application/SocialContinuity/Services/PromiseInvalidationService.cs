@@ -26,10 +26,7 @@ public sealed class PromiseInvalidationService
     public int InvalidateForPlayerLeaving(PlayerId playerId, GameDate day)
     {
         var count = 0;
-        foreach (var promise in _store.Promises.Where(p =>
-                     p.IsActive
-                     && p.Promisee.Kind == ActorKind.Player
-                     && p.Promisee.Id == playerId.Value).ToArray())
+        foreach (var promise in _store.GetActiveByPlayer(playerId.Value))
         {
             var next = promise.Invalidate(day);
             _store.Upsert(next);
@@ -43,11 +40,7 @@ public sealed class PromiseInvalidationService
     public int InvalidateForManagerLeavingClub(ManagerId managerId, ClubId clubId, GameDate day)
     {
         var count = 0;
-        foreach (var promise in _store.Promises.Where(p =>
-                     p.IsActive
-                     && p.Promisor.Kind == ActorKind.Manager
-                     && p.Promisor.Id == managerId.Value
-                     && p.ClubId == clubId).ToArray())
+        foreach (var promise in _store.GetActiveByManagerAndClub(managerId.Value, clubId))
         {
             var next = promise.Invalidate(day);
             _store.Upsert(next);
