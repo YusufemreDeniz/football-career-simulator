@@ -68,6 +68,10 @@ public sealed partial class LiveMatchTimelineScreen : Control
     {
         _results = results ?? throw new ArgumentNullException(nameof(results));
         _audio = audio;
+        if (results.KeyMoments is { Count: > 0 } km && km[0].Minute > 45)
+        {
+            _hasHalfTimeEnded = true;
+        }
     }
 
     public override void _Ready()
@@ -304,7 +308,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _pitch.SequenceFinished += OnSequenceFinished;
         _pitch.ShouldPauseBeforeMoment = (nextIndex, nextFrame) =>
         {
-            if (!_hasKeyDecisionTriggered && nextFrame.Minute >= 20 && nextFrame.Minute <= 42)
+            if (!_hasKeyDecisionTriggered && ((nextFrame.Minute >= 20 && nextFrame.Minute <= 42) || (nextFrame.Minute >= 87 && nextFrame.Minute <= 89)))
             {
                 TriggerKeyMomentDecision(nextIndex, nextFrame);
                 return true;

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace FootballCareerSimulator.Simulation.TeamPreparation;
 
 public enum MvpSquadPositionGroup
@@ -24,6 +26,7 @@ public enum MvpSquadPositionRole
     Striker = 12,
 }
 
+[method: JsonConstructor]
 public sealed record MvpSquadPlayerProfile(
     string DisplayName,
     MvpSquadPositionGroup PositionGroup,

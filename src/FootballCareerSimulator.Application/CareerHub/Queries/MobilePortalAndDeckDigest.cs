@@ -176,6 +176,26 @@ public sealed record MobilePortalAndDeckDigest(
 
         var completedCount = objectives.Count(o => o.IsCompleted);
 
+        // Kural 3: Kart Seviye Atlama (Günlük hedefler tamamlandıkça Bronz -> Gümüş -> Altın)
+        var cardTier = completedCount switch
+        {
+            0 => "BRONZ KART (Sv.1)",
+            1 or 2 => "GÜMÜŞ KART (Sv.2)",
+            _ => "ALTIN KART (Sv.3)",
+        };
+        var energyValue = completedCount switch
+        {
+            0 => 8,
+            1 or 2 => 12,
+            _ => 16,
+        };
+        var moraleValue = completedCount switch
+        {
+            0 => 6,
+            1 or 2 => 10,
+            _ => 15,
+        };
+
         // 3. Tactile Manager Action Deck (New Star Manager / Top Drives Style)
         var baseCharges = Math.Max(1, Math.Min(4, 1 + (facilityLevel / 2)));
         var remainingEnergy = Math.Max(1, baseCharges - (cardsUsedTodayCount / 2));
@@ -185,8 +205,8 @@ public sealed record MobilePortalAndDeckDigest(
                 CardEnergyPack,
                 "bolt",
                 "ENERJİ PAKETİ",
-                "EPİK KART",
-                "Yorgun oyunculara +12 Kondisyon & -15 Yorgunluk",
+                cardTier,
+                $"Yorgun oyunculara +{energyValue} Kondisyon & -15 Yorgunluk",
                 $"Antrenman Tesisi (Sv.{facilityLevel})",
                 remainingEnergy,
                 "Enerji Bas"),
@@ -194,8 +214,8 @@ public sealed record MobilePortalAndDeckDigest(
                 CardPepTalk,
                 "flame",
                 "MOTİVASYON KONUŞMASI",
-                "ALTIN KART",
-                "Soyunma odası güveni +8 & İlk 11 odak patlaması",
+                cardTier,
+                $"Soyunma odası güveni +{moraleValue} & İlk 11 odak patlaması",
                 "Teknik Ekip & Kaptan",
                 Math.Max(1, baseCharges),
                 "Konuşma Yap"),
@@ -203,7 +223,7 @@ public sealed record MobilePortalAndDeckDigest(
                 CardPhysioSpa,
                 "medical",
                 "FİZYO & SPA BAKIMI",
-                "NADİR KART",
+                cardTier,
                 "Tüm kadroda sakatlık riski -%35 & hızlı toparlanma",
                 $"Sağlık Merkezi (Sv.{facilityLevel})",
                 remainingEnergy,
@@ -212,7 +232,7 @@ public sealed record MobilePortalAndDeckDigest(
                 CardScoutPack,
                 "radar",
                 "ELİT SCOUT DOSYASI",
-                "ÖZEL KART",
+                cardTier,
                 "Eksik mevkiye anında 3 karşılaştırmalı transfer adayı",
                 "Baş Gözlemci Ağı",
                 Math.Max(1, baseCharges),

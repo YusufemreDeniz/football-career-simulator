@@ -16,6 +16,8 @@ public partial class MainMenuScreen : Control
 
     public event Action? ContinueRequested;
 
+    public event Action? FtueChampionshipRequested;
+
     public override void _Ready()
     {
         CareerUiTheme.EnsureLoaded();
@@ -272,10 +274,21 @@ public partial class MainMenuScreen : Control
         subtitle.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
         actions.AddChild(subtitle);
 
+        var ftueButton = new Button
+        {
+            Name = "FtueButton",
+            Text = "85' ŞAMPİYONLUK FİNALİ (CANLI BAŞLANGIÇ)",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            TooltipText = "Şampiyonluk maçının 85. dakikasından başla, kritik golü at ve kulübünü seç!",
+        };
+        CareerUiTheme.StyleAccentButton(ftueButton);
+        ftueButton.Pressed += () => FtueChampionshipRequested?.Invoke();
+        actions.AddChild(ftueButton);
+
         var continueButton = new Button
         {
             Name = "ContinueButton",
-            Text = "▶   Kariyere Devam Et",
+            Text = "Kariyere Devam Et",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             TooltipText = "Son yerel kariyer kaydını yükle",
         };
@@ -288,7 +301,7 @@ public partial class MainMenuScreen : Control
         var newButton = new Button
         {
             Name = "NewCareerButton",
-            Text = "◎   Yeni Menajer Kariyeri",
+            Text = "Yeni Menajer Kariyeri",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             TooltipText = "Yeni bir teknik direktör kariyeri başlat",
         };

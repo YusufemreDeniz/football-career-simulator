@@ -165,7 +165,25 @@ public partial class CareerAppRoot : Control
         var menu = new MainMenuScreen();
         menu.NewCareerRequested += OnNewCareer;
         menu.ContinueRequested += OnContinueCareer;
+        menu.FtueChampionshipRequested += StartFtueCinematicFinal;
         ReplaceScreen(menu);
+    }
+
+    private void StartFtueCinematicFinal()
+    {
+        _audioDirector.StartAtmosphere(2026);
+        var results = FtueChampionshipMatchDirector.CreateChampionshipFinalResult();
+        var panel = new LiveMatchTimelineScreen(results, _audioDirector);
+        panel.ResultsRequested += () => ShowFtueClubSelection();
+        ReplaceScreen(panel);
+    }
+
+    private void ShowFtueClubSelection()
+    {
+        var selection = new FtueClubSelectionScreen();
+        selection.CancelRequested += ShowMainMenu;
+        selection.CareerConfirmed += StartNewCareer;
+        ReplaceScreen(selection);
     }
 
     private void ShowNewCareerSetup()

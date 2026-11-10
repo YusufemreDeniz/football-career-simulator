@@ -158,8 +158,8 @@ public partial class MatchKickoffScreen : Control
 
         var readiness = MatchScreenUi.BodyLine(
             _moment.IsReadyToKickOff
-                ? "✓ 11 KİLİTLENDİ • TRİBÜNLER HAZIR • MAÇ BAŞLIYOR"
-                : "⚠️ BAŞLAMA DÜDÜĞÜ İÇİN MAÇ HAZIRLIĞI EKSİK",
+                ? "11 KİLİTLENDİ • TRİBÜNLER HAZIR • MAÇ BAŞLIYOR"
+                : "BAŞLAMA DÜDÜĞÜ İÇİN MAÇ HAZIRLIĞI EKSİK",
             alignment: HorizontalAlignment.Center);
         readiness.AddThemeColorOverride(
             "font_color",
@@ -175,12 +175,12 @@ public partial class MatchKickoffScreen : Control
         proceedButton.CustomMinimumSize = new Vector2(0, 48);
         proceedButton.Disabled = !_moment.IsReadyToKickOff;
         proceedButton.Text = _moment.IsReadyToKickOff
-            ? "⚽ DÜDÜKLE SAHAYA ÇIK (CANLI MAÇ)"
+            ? "DÜDÜKLE SAHAYA ÇIK (CANLI MAÇ)"
             : "Maçı Başlat (düdük kapalı)";
         proceedButton.Pressed += () => Callable.From(() => ProceedRequested?.Invoke()).CallDeferred();
         footer.AddChild(proceedButton);
 
-        var backButton = SecondaryButton("← Kadro & Taktik Masasına Dön");
+        var backButton = SecondaryButton("Kadro & Taktik Masasına Dön");
         backButton.SizeFlagsStretchRatio = 1f;
         backButton.CustomMinimumSize = new Vector2(0, 48);
         backButton.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();

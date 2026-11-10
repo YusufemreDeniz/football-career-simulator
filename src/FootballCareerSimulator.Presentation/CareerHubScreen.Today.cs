@@ -18,6 +18,7 @@ public partial class CareerHubScreen
     private Label _matchHeroCountdownLabel = null!;
     private BroadcastCrestBadge _matchHeroHomeCrest = null!;
     private BroadcastCrestBadge _matchHeroAwayCrest = null!;
+    private PanelContainer _matchHeroPanel = null!;
     private string _activePortalFilter = MobilePortalAndDeckDigest.FilterAll;
     private Button _portalFilterAllBtn = null!;
     private Button _portalFilterUrgentBtn = null!;
@@ -54,6 +55,7 @@ public partial class CareerHubScreen
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
+        _matchHeroPanel = matchNeonPanel;
         matchNeonPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.NeonGlowPanel(strongGlow: true));
         page.AddChild(matchNeonPanel);
 
@@ -763,6 +765,12 @@ public partial class CareerHubScreen
             };
             _tactileDeckHandRow.AddChild(handSlot);
 
+            var tierColor = card.RarityTier.Contains("ALTIN")
+                ? CareerUiTheme.ActionBright
+                : card.RarityTier.Contains("GÜMÜŞ")
+                    ? new Color(0.84f, 0.90f, 0.98f)
+                    : new Color(0.85f, 0.55f, 0.34f);
+
             var cardPanel = new PanelContainer
             {
                 CustomMinimumSize = new Vector2(210, 138),
@@ -771,7 +779,7 @@ public partial class CareerHubScreen
                 RotationDegrees = 0f,
                 Modulate = CareerUiTheme.ReducedMotion ? Colors.White : new Color(1f, 1f, 1f, 0.25f),
             };
-            cardPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(cardColor, 0.22f));
+            cardPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.CardPanel(emphasized: card.RarityTier.Contains("ALTIN")));
             handSlot.AddChild(cardPanel);
 
             if (!CareerUiTheme.ReducedMotion)
@@ -904,6 +912,10 @@ public partial class CareerHubScreen
             _matchHeroHomeCrest.SetClub(homeId, homeName, KitVariantType.Home);
             _matchHeroAwayCrest.SetClub(awayId, awayName, KitVariantType.Away);
             _matchHeroCountdownLabel.Text = "BUGÜN MAÇ GÜNÜ  ·  CANLI YAYIN HAZIR";
+
+            var homeIdent = ClubBrandingVisuals.ResolveClubIdentity(homeId, homeName);
+            var awayIdent = ClubBrandingVisuals.ResolveClubIdentity(awayId, awayName);
+            _matchHeroPanel?.AddThemeStyleboxOverride("panel", CareerUiTheme.HeroShowdownPanel(homeIdent.PrimaryColor, awayIdent.PrimaryColor));
         }
         else if (matchTile is not null)
         {
@@ -915,6 +927,10 @@ public partial class CareerHubScreen
             _matchHeroCountdownLabel.Text = matchTile.DayOffset == 0
                 ? "BUGÜN MAÇ GÜNÜ"
                 : $"GERİ SAYIM: MAÇA {matchTile.DayOffset} GÜN";
+
+            var homeIdent = ClubBrandingVisuals.ResolveClubIdentity(managedClubId, clubName);
+            var awayIdent = ClubBrandingVisuals.ResolveClubIdentity(null, oppRaw);
+            _matchHeroPanel?.AddThemeStyleboxOverride("panel", CareerUiTheme.HeroShowdownPanel(homeIdent.PrimaryColor, awayIdent.PrimaryColor));
         }
         else
         {
@@ -923,6 +939,9 @@ public partial class CareerHubScreen
             _matchHeroHomeCrest.SetClub(managedClubId, clubName, KitVariantType.Home);
             _matchHeroAwayCrest.SetBadgeText("SL");
             _matchHeroCountdownLabel.Text = "FİKSTÜR TAKİBİ";
+
+            var homeIdent = ClubBrandingVisuals.ResolveClubIdentity(managedClubId, clubName);
+            _matchHeroPanel?.AddThemeStyleboxOverride("panel", CareerUiTheme.HeroShowdownPanel(homeIdent.PrimaryColor, null));
         }
     }
 

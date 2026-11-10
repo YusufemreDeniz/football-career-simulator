@@ -232,9 +232,7 @@ internal sealed partial class FormationPickerModal : PanelContainer
         titleBox.AddThemeConstantOverride("separation", 10);
         header.AddChild(titleBox);
 
-        var iconLabel = new Label { Text = "📋" };
-        iconLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(20));
-        titleBox.AddChild(iconLabel);
+        titleBox.AddChild(new BroadcastVectorIcon("tactics", CareerUiTheme.Accent, 18f));
 
         var titleLabel = new Label { Text = "DİZİLİŞLER" };
         CareerUiTheme.ApplyDisplayFont(titleLabel);
@@ -251,8 +249,8 @@ internal sealed partial class FormationPickerModal : PanelContainer
 
         var closeButton = new Button
         {
-            Text = "✕",
-            CustomMinimumSize = new Vector2(36, 36),
+            Text = "Kapat",
+            CustomMinimumSize = new Vector2(56, 36),
             MouseDefaultCursorShape = CursorShape.PointingHand,
         };
         CareerUiTheme.StyleSecondaryButton(closeButton);

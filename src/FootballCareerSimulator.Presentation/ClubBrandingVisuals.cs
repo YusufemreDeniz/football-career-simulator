@@ -486,11 +486,32 @@ public sealed partial class ClubKitControl : Control
         };
         DrawColoredPolygon(torso, bodyColor);
 
-        // Desen Uygulaması (Stripes, Halves, Hoops, Sash, Sleeves)
+        // Desen Uygulaması (Stripes, Pinstripes, ChestBand, Quarters, Halves, Hoops, Sash, Sleeves)
         if (string.Equals(pattern, "Stripes", StringComparison.OrdinalIgnoreCase))
         {
             DrawRect(new Rect2(center.X - 7.5f * scale, center.Y - 14f * scale, 3.8f * scale, 31f * scale), accentColor, true);
             DrawRect(new Rect2(center.X + 3.7f * scale, center.Y - 14f * scale, 3.8f * scale, 31f * scale), accentColor, true);
+        }
+        else if (string.Equals(pattern, "Pinstripes", StringComparison.OrdinalIgnoreCase))
+        {
+            for (var p = -8; p <= 8; p += 4)
+            {
+                DrawLine(
+                    new Vector2(center.X + p * scale, center.Y - 14f * scale),
+                    new Vector2(center.X + p * scale, center.Y + 16f * scale),
+                    accentColor,
+                    1.4f * scale,
+                    true);
+            }
+        }
+        else if (string.Equals(pattern, "ChestBand", StringComparison.OrdinalIgnoreCase))
+        {
+            DrawRect(new Rect2(center.X - 10.5f * scale, center.Y - 4f * scale, 21f * scale, 7.5f * scale), accentColor, true);
+        }
+        else if (string.Equals(pattern, "Quarters", StringComparison.OrdinalIgnoreCase))
+        {
+            DrawRect(new Rect2(center.X, center.Y - 15f * scale, 11f * scale, 16f * scale), accentColor, true);
+            DrawRect(new Rect2(center.X - 11f * scale, center.Y + 1f * scale, 11f * scale, 16f * scale), accentColor, true);
         }
         else if (string.Equals(pattern, "Halves", StringComparison.OrdinalIgnoreCase))
         {

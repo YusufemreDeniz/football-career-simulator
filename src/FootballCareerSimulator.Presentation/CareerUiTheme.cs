@@ -1198,24 +1198,74 @@ internal static class CareerUiTheme
             new Color(signalColor.R, signalColor.G, signalColor.B, 0.55f),
             radius: RadiusMedium, contentMargin: SpaceM, shadowSize: 0);
 
-    /// <summary>Top context bar panel — koyu lacivert spor yayını üst barı.</summary>
-    public static StyleBoxFlat TopBarPanel() =>
-        new()
+    /// <summary>Top context bar panel — koyu lacivert spor yayını üst barı. Kulüp renklerine dinamik uyum (Chameleon).</summary>
+    public static StyleBoxFlat TopBarPanel(Color? clubPrimary = null, Color? clubSecondary = null)
+    {
+        var primary = clubPrimary ?? ActionBright;
+        return new StyleBoxFlat
         {
-            BgColor = new Color(0.035f, 0.063f, 0.118f, 0.99f),
-            BorderColor = new Color(Stroke.R, Stroke.G, Stroke.B, 0.65f),
+            BgColor = new Color(0.032f, 0.058f, 0.108f, 0.99f),
+            BorderColor = clubPrimary.HasValue ? primary.Lerp(SpecularBorder, 0.35f) : new Color(Stroke.R, Stroke.G, Stroke.B, 0.65f),
             BorderWidthLeft = 0,
-            BorderWidthTop = 0,
+            BorderWidthTop = clubPrimary.HasValue ? 2 : 0,
             BorderWidthRight = 0,
             BorderWidthBottom = 1,
             ContentMarginLeft = 10,
             ContentMarginRight = 10,
             ContentMarginTop = 4,
             ContentMarginBottom = 4,
-            ShadowColor = new Color(0f, 0f, 0f, 0.50f),
-            ShadowSize = 6,
+            ShadowColor = clubPrimary.HasValue ? new Color(primary.R, primary.G, primary.B, 0.32f) : new Color(0f, 0f, 0f, 0.50f),
+            ShadowSize = clubPrimary.HasValue ? 9 : 6,
             ShadowOffset = new Vector2(0, 2),
         };
+    }
+
+    /// <summary>Maç Günü Hero Kartı için ev sahibi vs deplasman renklerini birleştiren Broadcast Showdown paneli.</summary>
+    public static StyleBoxFlat HeroShowdownPanel(Color? homePrimary = null, Color? awayPrimary = null)
+    {
+        var home = homePrimary ?? ActionBright;
+        var away = awayPrimary ?? Data;
+        return new StyleBoxFlat
+        {
+            BgColor = Surface,
+            BorderColor = home.Lerp(away, 0.5f),
+            BorderWidthLeft = 2,
+            BorderWidthTop = 2,
+            BorderWidthRight = 2,
+            BorderWidthBottom = 1,
+            CornerRadiusTopLeft = 14,
+            CornerRadiusTopRight = 14,
+            CornerRadiusBottomRight = 14,
+            CornerRadiusBottomLeft = 14,
+            ContentMarginLeft = 12,
+            ContentMarginRight = 12,
+            ContentMarginTop = 10,
+            ContentMarginBottom = 10,
+            ShadowColor = new Color(home.R, home.G, home.B, 0.38f),
+            ShadowSize = 14,
+            ShadowOffset = new Vector2(0, 4),
+        };
+    }
+
+    public static void ApplyChameleonAtmosphere(Control? atmosphereRoot, PanelContainer? topBarPanel, Color primary, Color secondary)
+    {
+        if (topBarPanel is not null && GodotObject.IsInstanceValid(topBarPanel))
+        {
+            topBarPanel.AddThemeStyleboxOverride("panel", TopBarPanel(primary, secondary));
+        }
+
+        if (atmosphereRoot is not null && GodotObject.IsInstanceValid(atmosphereRoot))
+        {
+            if (atmosphereRoot.GetNodeOrNull<ColorRect>("PitchHaze") is { } pitchHaze)
+            {
+                pitchHaze.Color = new Color(primary.R, primary.G, primary.B, 0.042f);
+            }
+            if (atmosphereRoot.GetNodeOrNull<ColorRect>("PrestigeLine") is { } prestigeLine)
+            {
+                prestigeLine.Color = primary.Lerp(secondary, 0.45f);
+            }
+        }
+    }
 
     /// <summary>Yayıncı kuruluşu tarzı canlı maç üst skorbord paneli.</summary>
     public static StyleBoxFlat ScoreboardPanel() =>

@@ -140,4 +140,46 @@ public sealed class EuropeanEliteDataPackTests
         var all = ScoutTransferDigest.Compose("Kulübüm", 1, profiles, ratings, candidates, scope: TransferMarketScope.All);
         Assert.Equal(3, all.Candidates.Count);
     }
+
+    [Fact]
+    public void StoreSafeMode_ReplacesClubNamesWithSafeAliases()
+    {
+        try
+        {
+            EuropeanElite202627DataPack.StoreSafeMode = true;
+            Assert.True(EuropeanElite202627DataPack.TryGetClub(101, out var safeMadrid));
+            Assert.Equal("CHAMARTIN BLANCO", safeMadrid.OfficialName);
+
+            Assert.True(EuropeanElite202627DataPack.TryGetClub(103, out var safeBayern));
+            Assert.Equal("BAVARIA ROT", safeBayern.OfficialName);
+
+            Assert.True(EuropeanElite202627DataPack.TryGetClub(104, out var safeArsenal));
+            Assert.Equal("NORTH LONDON CANNON", safeArsenal.OfficialName);
+
+            Assert.True(EuropeanElite202627DataPack.TryGetClub(106, out var safeLiverpool));
+            Assert.Equal("MERSEYSIDE RED", safeLiverpool.OfficialName);
+
+            EuropeanElite202627DataPack.StoreSafeMode = false;
+            Assert.True(EuropeanElite202627DataPack.TryGetClub(101, out var officialMadrid));
+            Assert.Equal("REAL MADRID CF", officialMadrid.OfficialName);
+        }
+        finally
+        {
+            EuropeanElite202627DataPack.StoreSafeMode = false;
+        }
+    }
+
+    [Fact]
+    public void JsonExportAndImport_RoundTripsAccurately()
+    {
+        var exported = EuropeanElite202627DataPack.ExportToJson();
+        Assert.NotNull(exported);
+        Assert.Contains("REAL MADRID CF", exported);
+        Assert.Contains("FC BARCELONA", exported);
+
+        var imported = EuropeanElite202627DataPack.ImportFromJson(exported);
+        Assert.True(imported);
+        Assert.True(EuropeanElite202627DataPack.TryGetClub(101, out var reloadedMadrid));
+        Assert.Equal("REAL MADRID CF", reloadedMadrid.OfficialName);
+    }
 }

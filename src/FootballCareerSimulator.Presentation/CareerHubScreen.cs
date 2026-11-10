@@ -134,6 +134,10 @@ public partial class CareerHubScreen : Control
     private Button _transferNextStepButton = null!;
     private Button _transferNegotiationToggle = null!;
     private Control[] _transferNegotiationCards = [];
+    private int _transferPatience = 100;
+    private ProgressBar _transferPatienceBar = null!;
+    private Label _transferPatienceLabel = null!;
+    private Label _transferAgentDialogueLabel = null!;
     private string _transferNextStepAction = Application.CareerHub.Queries.OfficeNextStepGuide.ActionNavigate;
     private string _transferNextStepTarget = Application.Transfer.Queries.TransferNextStep.TargetTransfer;
     private Label _transferNeedLabel = null!;
@@ -438,6 +442,7 @@ public partial class CareerHubScreen : Control
     private Button[] _navButtons = null!;
     private HubPage _currentPage = HubPage.Today;
     private MarginContainer _shellMargin = null!;
+    private PanelContainer _topBarPanel = null!;
     private HBoxContainer _topBar = null!;
     private HBoxContainer _workspace = null!;
     private GridContainer _navGrid = null!;
@@ -735,12 +740,12 @@ public partial class CareerHubScreen : Control
         _shellMargin.AddChild(shell);
 
         // Sabit kariyer kabuğu: broadcast tarzı top bar paneli + kulüp/menajer kimliği + sonraki maç + devam CTA'sı.
-        var topBarPanel = new PanelContainer
+        _topBarPanel = new PanelContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
-        topBarPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.TopBarPanel());
-        shell.AddChild(topBarPanel);
+        _topBarPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.TopBarPanel());
+        shell.AddChild(_topBarPanel);
 
         _topBar = new HBoxContainer
         {
@@ -748,7 +753,7 @@ public partial class CareerHubScreen : Control
             Alignment = BoxContainer.AlignmentMode.Center,
         };
         _topBar.AddThemeConstantOverride("separation", CareerUiTheme.SpaceM);
-        topBarPanel.AddChild(_topBar);
+        _topBarPanel.AddChild(_topBar);
 
         _clubCrest = new TextureRect
         {
@@ -2380,6 +2385,11 @@ public partial class CareerHubScreen : Control
             SetClubTexture(_homeKit, null);
             SetClubTexture(_awayKit, null);
             SetClubTexture(_thirdKit, null);
+            CareerUiTheme.ApplyChameleonAtmosphere(
+                GetNodeOrNull<Control>("Atmosphere"),
+                _topBarPanel,
+                CareerUiTheme.Accent,
+                CareerUiTheme.ActionBright);
             return;
         }
 
@@ -2387,6 +2397,13 @@ public partial class CareerHubScreen : Control
         SetClubTexture(_homeKit, club.HomeKitResourcePath);
         SetClubTexture(_awayKit, club.AwayKitResourcePath);
         SetClubTexture(_thirdKit, club.ThirdKitResourcePath);
+
+        var identity = ClubBrandingVisuals.ResolveClubIdentity(club.ClubId, club.DisplayName);
+        CareerUiTheme.ApplyChameleonAtmosphere(
+            GetNodeOrNull<Control>("Atmosphere"),
+            _topBarPanel,
+            identity.PrimaryColor,
+            identity.SecondaryColor);
     }
 
     private static void SetClubTexture(TextureRect target, string? resourcePath)

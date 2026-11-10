@@ -40,7 +40,7 @@ public static class EuropeanElite202627DataPack
         "Bundesliga",
     ];
 
-    private static readonly IReadOnlyDictionary<long, EuropeanEliteClubData> Clubs =
+    private static readonly Dictionary<long, EuropeanEliteClubData> Clubs =
         new Dictionary<long, EuropeanEliteClubData>
         {
             // =========================================================================
@@ -1653,19 +1653,115 @@ public static class EuropeanElite202627DataPack
         new(9008, "Miralem Pjanić", MvpSquadPositionRole.CentralMidfielder, 77, 77, 36, "Bosna-Hersek"),
     ];
 
-    public static IReadOnlyCollection<EuropeanEliteClubData> AllClubs => Clubs.Values.ToArray();
+    public static bool StoreSafeMode { get; set; } = false;
+
+    private static readonly Dictionary<string, string> StoreSafeClubAliases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["REAL MADRID CF"] = "CHAMARTIN BLANCO",
+        ["FC BARCELONA"] = "CATALONIA BLAUGRANA",
+        ["ATLÉTICO DE MADRID"] = "MADRID ROJIBLANCO",
+        ["ATHLETIC CLUB BILBAO"] = "BILBAO ROJIBLANCO",
+        ["REAL SOCIEDAD"] = "DONOSTIA TXURI-URDIN",
+        ["VILLARREAL CF"] = "VILLARREAL SUBMARINO",
+        ["REAL BETIS BALOMPIÉ"] = "SEVILLA VERDIBLANCO",
+        ["SEVILLA FC"] = "SEVILLA ROJIBLANCO",
+        ["VALENCIA CF"] = "VALENCIA BLANQUINEGRO",
+        ["Girona FC"] = "GIRONA BLANQUIBERMELL",
+        ["MANCHESTER CITY FC"] = "MANCHESTER SKY BLUE",
+        ["LIVERPOOL FC"] = "MERSEYSIDE RED",
+        ["ARSENAL FC"] = "NORTH LONDON CANNON",
+        ["CHELSEA FC"] = "WEST LONDON BLUE",
+        ["MANCHESTER UNITED FC"] = "MANCHESTER RED DEVILS",
+        ["TOTTENHAM HOTSPUR FC"] = "NORTH LONDON LILYWHITES",
+        ["NEWCASTLE UNITED FC"] = "TYNESIDE MAGPIES",
+        ["ASTON VILLA FC"] = "BIRMINGHAM CLARET-BLUE",
+        ["FC BAYERN MÜNCHEN"] = "BAVARIA ROT",
+        ["BORUSSIA DORTMUND"] = "RUHR SCHWARZGELB",
+        ["BAYER 04 LEVERKUSEN"] = "LEVERKUSEN WERKSELF",
+        ["RB LEIPZIG"] = "LEIPZIG RASENBALL",
+        ["EINTRACHT FRANKFURT"] = "FRANKFURT ADLER",
+        ["PARIS SAINT-GERMAIN"] = "PARIS CAPITALE",
+        ["FC INTERNAZIONALE MILANO"] = "MILANO NERAZZURRO",
+        ["JUVENTUS FC"] = "PIEMONTE BIANCONERO",
+        ["AC MILAN"] = "MILANO ROSSONERO",
+        ["GALATASARAY AŞ"] = "ISTANBUL RED-YELLOW",
+        ["FENERBAHÇE AŞ"] = "ISTANBUL NAVY-YELLOW",
+        ["BEŞİKTAŞ JK"] = "ISTANBUL BLACK-WHITE",
+        ["TRABZONSPOR"] = "BLACK SEA CLARET-BLUE",
+    };
+
+    private static EuropeanEliteClubData MapStoreSafe(EuropeanEliteClubData club)
+    {
+        if (StoreSafeMode && StoreSafeClubAliases.TryGetValue(club.OfficialName, out var safeName))
+        {
+            return club with { OfficialName = safeName };
+        }
+        return club;
+    }
+
+    public static string ExportToJson()
+    {
+        return System.Text.Json.JsonSerializer.Serialize(Clubs.Values, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+    }
+
+    public static bool ImportFromJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return false;
+        }
+
+        try
+        {
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                IncludeFields = true,
+            };
+            var parsed = System.Text.Json.JsonSerializer.Deserialize<List<EuropeanEliteClubData>>(json, options);
+            if (parsed is { Count: > 0 })
+            {
+                foreach (var c in parsed)
+                {
+                    Clubs[c.ClubId] = c;
+                }
+                return true;
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ImportFromJson] Error: {ex}");
+            throw;
+        }
+    }
+
+    public static IReadOnlyCollection<EuropeanEliteClubData> AllClubs =>
+        StoreSafeMode
+            ? Clubs.Values.Select(MapStoreSafe).ToArray()
+            : Clubs.Values.ToArray();
 
     public static IReadOnlyList<EuropeanEliteClubData> GetClubsByLeague(string leagueName) =>
         Clubs.Values
             .Where(c => string.Equals(c.LeagueName, leagueName, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(c => c.SportiveStrength)
             .ThenBy(c => c.OfficialName, StringComparer.OrdinalIgnoreCase)
+            .Select(MapStoreSafe)
             .ToArray();
 
-    public static EuropeanEliteClubData GetClub(long clubId) => Clubs[clubId];
+    public static EuropeanEliteClubData GetClub(long clubId) => MapStoreSafe(Clubs[clubId]);
 
-    public static bool TryGetClub(long clubId, out EuropeanEliteClubData club) =>
-        Clubs.TryGetValue(clubId, out club!);
+    public static bool TryGetClub(long clubId, out EuropeanEliteClubData club)
+    {
+        if (Clubs.TryGetValue(clubId, out var found))
+        {
+            club = MapStoreSafe(found);
+            return true;
+        }
+
+        club = null!;
+        return false;
+    }
 
     public static bool TryFindByName(string clubName, out EuropeanEliteClubData club)
     {
@@ -1678,6 +1774,7 @@ public static class EuropeanElite202627DataPack
         var normalized = clubName.Trim();
         var match = Clubs.Values.FirstOrDefault(c =>
             string.Equals(c.OfficialName, normalized, StringComparison.OrdinalIgnoreCase)
+            || (StoreSafeClubAliases.TryGetValue(c.OfficialName, out var safe) && string.Equals(safe, normalized, StringComparison.OrdinalIgnoreCase))
             || c.OfficialName.Contains(normalized, StringComparison.OrdinalIgnoreCase)
             || normalized.Contains(c.OfficialName, StringComparison.OrdinalIgnoreCase));
         if (match is null)
@@ -1685,7 +1782,7 @@ public static class EuropeanElite202627DataPack
             return false;
         }
 
-        club = match;
+        club = MapStoreSafe(match);
         return true;
     }
 

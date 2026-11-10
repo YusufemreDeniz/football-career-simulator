@@ -66,7 +66,7 @@ public partial class LandscapeMatchDayScreen : Control
 
         var heading = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         header.AddChild(heading);
-        var stage = new Label { Text = "🏆 MAÇ GÜNÜ  •  TAKTİK & KADRO BRİFİNGİ" };
+        var stage = new Label { Text = "MAÇ GÜNÜ  •  TAKTİK & KADRO BRİFİNGİ" };
         CareerUiTheme.StyleEyebrow(stage, CareerUiTheme.Accent);
         heading.AddChild(stage);
         _fixtureLabel = new Label();
@@ -76,7 +76,7 @@ public partial class LandscapeMatchDayScreen : Control
 
         _readinessBadge = new PanelContainer();
         _readinessBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
-        _readinessLabel = new Label { Text = "✓ Kadro Onaylandı" };
+        _readinessLabel = new Label { Text = "Kadro Onaylandı" };
         CareerUiTheme.StyleEyebrow(_readinessLabel, CareerUiTheme.ActionBright);
         _readinessBadge.AddChild(_readinessLabel);
         header.AddChild(_readinessBadge);
@@ -100,7 +100,7 @@ public partial class LandscapeMatchDayScreen : Control
         pitchHeader.AddThemeConstantOverride("separation", 8);
         var pitchIconBadge = new PanelContainer();
         pitchIconBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.22f));
-        var pitchIconLabel = new Label { Text = "🏟️ SAHA DİZİLİŞİ" };
+        var pitchIconLabel = new Label { Text = "SAHA DİZİLİŞİ" };
         CareerUiTheme.StyleEyebrow(pitchIconLabel, CareerUiTheme.ActionBright);
         pitchIconBadge.AddChild(pitchIconLabel);
         pitchHeader.AddChild(pitchIconBadge);
@@ -110,7 +110,7 @@ public partial class LandscapeMatchDayScreen : Control
         pitchTitle.AddThemeColorOverride("font_color", CareerUiTheme.TextPrimary);
         pitchHeader.AddChild(pitchTitle);
 
-        var autoAlignButton = SecondaryButton("⚡ Mevkilere Göre Diz");
+        var autoAlignButton = SecondaryButton("Mevkilere Göre Diz");
         autoAlignButton.CustomMinimumSize = new Vector2(170, 32);
         autoAlignButton.TooltipText = "Sahadaki oyuncuları mevkilerine (GK, DEF, MID, FWD) en uygun diziliş konumlarına otomatik yerleştirir.";
         autoAlignButton.Pressed += () => Apply(_controller.AutoAlignStartingXiByFormationForNextDueMatch());
@@ -144,14 +144,14 @@ public partial class LandscapeMatchDayScreen : Control
         commandStack.AddChild(benchCard);
         var benchStack = MatchScreenUi.VerticalStack(6);
         benchCard.AddChild(benchStack);
-        var benchTitle = new Label { Text = "💺 YEDEK KULÜBESİ" };
+        var benchTitle = new Label { Text = "YEDEK KULÜBESİ" };
         CareerUiTheme.StyleEyebrow(benchTitle, CareerUiTheme.Data);
         benchStack.AddChild(benchTitle);
 
         _benchHost = MatchScreenUi.VerticalStack(0);
         benchStack.AddChild(_benchHost);
 
-        var tacticsTitle = new Label { Text = "🎯 MAÇ PLANI" };
+        var tacticsTitle = new Label { Text = "MAÇ PLANI" };
         CareerUiTheme.StyleEyebrow(tacticsTitle, CareerUiTheme.Data);
         commandStack.AddChild(tacticsTitle);
         _tacticHost = MatchScreenUi.VerticalStack(6);
@@ -161,7 +161,7 @@ public partial class LandscapeMatchDayScreen : Control
         commandStack.AddChild(opponentCard);
         var opponentStack = MatchScreenUi.VerticalStack(6);
         opponentCard.AddChild(opponentStack);
-        var opponentTitle = new Label { Text = "🔍 RAKİP ANALİZİ & TEHLİKELER" };
+        var opponentTitle = new Label { Text = "RAKİP ANALİZİ & TEHLİKELER" };
         CareerUiTheme.StyleEyebrow(opponentTitle, CareerUiTheme.Accent);
         opponentStack.AddChild(opponentTitle);
         var dossier = _controller.BuildOpponentDossier();
@@ -232,7 +232,7 @@ public partial class LandscapeMatchDayScreen : Control
         _fixtureLabel.Text = briefing.HasMatch ? briefing.FixtureLine : "Mac bekleniyor";
         _headlineLabel.Text = briefing.Headline;
         _approveButton.Disabled = !briefing.HasMatch || briefing.IsReadyToKickOff;
-        _approveButton.Text = briefing.IsReadyToKickOff ? "✓ Kadro Onaylandı" : "✓ Kadro Onayla";
+        _approveButton.Text = briefing.IsReadyToKickOff ? "Kadro Onaylandı" : "Kadroyu Onayla";
         if (briefing.IsReadyToKickOff)
         {
             CareerUiTheme.StyleSecondaryButton(_approveButton);
@@ -243,7 +243,7 @@ public partial class LandscapeMatchDayScreen : Control
         }
 
         _kickoffButton.Disabled = !briefing.IsReadyToKickOff;
-        _kickoffButton.Text = briefing.IsReadyToKickOff ? "⚽ Düdüğü Çal" : "Önce kadroyu onayla";
+        _kickoffButton.Text = briefing.IsReadyToKickOff ? "Düdüğü Çal (Maça Başla)" : "Önce kadroyu onayla";
         if (briefing.IsReadyToKickOff)
         {
             CareerUiTheme.StylePrimaryButton(_kickoffButton);
@@ -257,13 +257,13 @@ public partial class LandscapeMatchDayScreen : Control
         if (briefing.IsReadyToKickOff)
         {
             _readinessBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
-            _readinessLabel.Text = "✓ Kadro Onaylandı";
+            _readinessLabel.Text = "Kadro Onaylandı";
             _readinessLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         }
         else
         {
             _readinessBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ColorWarning, 0.20f));
-            _readinessLabel.Text = "⚠️ Onay Bekliyor";
+            _readinessLabel.Text = "Onay Bekliyor";
             _readinessLabel.AddThemeColorOverride("font_color", CareerUiTheme.ColorWarning);
         }
 
@@ -327,7 +327,7 @@ public partial class LandscapeMatchDayScreen : Control
         formationRow.AddThemeConstantOverride("separation", 5);
         formationBlock.AddChild(formationRow);
 
-        var changeFormationBtn = PrimaryButton($"📋 {FormationPickerModal.FormatLabel(plan.Formation)} (14 Diziliş)");
+        var changeFormationBtn = PrimaryButton($"{FormationPickerModal.FormatLabel(plan.Formation)} (14 Diziliş)");
         changeFormationBtn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         changeFormationBtn.CustomMinimumSize = new Vector2(0, 38);
         changeFormationBtn.Pressed += () =>

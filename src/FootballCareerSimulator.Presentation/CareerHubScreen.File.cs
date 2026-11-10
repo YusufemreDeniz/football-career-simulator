@@ -1,5 +1,6 @@
 using FootballCareerSimulator.Application.CareerHub.Queries;
 using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Simulation.DataPacks;
 using Godot;
 
 namespace FootballCareerSimulator.Presentation;
@@ -436,6 +437,83 @@ public partial class CareerHubScreen
                 GamepadNavigationHintsEnabled = !current.GamepadNavigationHintsEnabled,
             });
         accessibilityRow.AddChild(_gamepadSettingButton);
+
+        // Kural 1: Mağaza Telif Kalkanı ve Harici JSON Veri Paketi İçe/Dışa Aktarımı
+        var dataPackCard = AddCard(tab2Split, "VERİ PAKETİ & TELİF AYARLARI", emphasized: false, expandVertical: true);
+        dataPackCard.GetParent<PanelContainer>().SizeFlagsStretchRatio = 0.95f;
+
+        var dataPackInfo = BodyLabel("DataPackInfoLabel", muted: true, autowrap: true);
+        dataPackInfo.Text = "Google Play / App Store lisans uyumluluğu için Mağaza Telif Kalkanı modunu açabilir veya topluluk .json veri paketini dışa/içe aktarabilirsiniz.";
+        dataPackCard.AddChild(dataPackInfo);
+
+        var dataPackStatusLabel = BodyLabel("DataPackStatusLabel");
+        dataPackStatusLabel.Text = EuropeanElite202627DataPack.StoreSafeMode
+            ? "LİSANS MODU: GÜVENLİ TAKMA ADLAR (Store-Safe)"
+            : "LİSANS MODU: RESMİ 2026/27 AVRUPA VERİ PAKETİ";
+        dataPackStatusLabel.AddThemeColorOverride("font_color", EuropeanElite202627DataPack.StoreSafeMode ? CareerUiTheme.ActionBright : CareerUiTheme.Accent);
+        dataPackCard.AddChild(dataPackStatusLabel);
+
+        var dataPackActionRow = ActionFlow();
+        dataPackCard.AddChild(dataPackActionRow);
+
+        var toggleStoreSafeBtn = SecondaryButton(EuropeanElite202627DataPack.StoreSafeMode ? "Telif Kalkanı: Açık" : "Telif Kalkanı: Kapalı");
+        toggleStoreSafeBtn.Pressed += () =>
+        {
+            EuropeanElite202627DataPack.StoreSafeMode = !EuropeanElite202627DataPack.StoreSafeMode;
+            toggleStoreSafeBtn.Text = EuropeanElite202627DataPack.StoreSafeMode ? "Telif Kalkanı: Açık" : "Telif Kalkanı: Kapalı";
+            dataPackStatusLabel.Text = EuropeanElite202627DataPack.StoreSafeMode
+                ? "LİSANS MODU: GÜVENLİ TAKMA ADLAR (Store-Safe)"
+                : "LİSANS MODU: RESMİ 2026/27 AVRUPA VERİ PAKETİ";
+            dataPackStatusLabel.AddThemeColorOverride("font_color", EuropeanElite202627DataPack.StoreSafeMode ? CareerUiTheme.ActionBright : CareerUiTheme.Accent);
+        };
+        dataPackActionRow.AddChild(toggleStoreSafeBtn);
+
+        var exportDataPackBtn = SecondaryButton("JSON Paketi Dışa Aktar");
+        exportDataPackBtn.Pressed += () =>
+        {
+            try
+            {
+                var json = EuropeanElite202627DataPack.ExportToJson();
+                using var file = Godot.FileAccess.Open("user://custom_datapack.json", Godot.FileAccess.ModeFlags.Write);
+                if (file is not null)
+                {
+                    file.StoreString(json);
+                    dataPackInfo.Text = "Topluluk veri paketi 'user://custom_datapack.json' dosyasına başarıyla kaydedildi.";
+                }
+            }
+            catch (Exception ex)
+            {
+                dataPackInfo.Text = $"Dışa aktarma hatası: {ex.Message}";
+            }
+        };
+        dataPackActionRow.AddChild(exportDataPackBtn);
+
+        var importDataPackBtn = SecondaryButton("JSON Paketi İçe Aktar");
+        importDataPackBtn.Pressed += () =>
+        {
+            try
+            {
+                if (Godot.FileAccess.FileExists("user://custom_datapack.json"))
+                {
+                    using var file = Godot.FileAccess.Open("user://custom_datapack.json", Godot.FileAccess.ModeFlags.Read);
+                    if (file is not null)
+                    {
+                        var json = file.GetAsText();
+                        var count = EuropeanElite202627DataPack.ImportFromJson(json);
+                        dataPackInfo.Text = $"Topluluk paketinden {count} kulüp ve güncel kadroları başarıyla yüklendi!";
+                    }
+                }
+                else
+                {
+                    dataPackInfo.Text = "'user://custom_datapack.json' dosyası bulunamadı. Lütfen önce bir paket dışa aktarın veya bu konuma dosya yerleştirin.";
+                }
+            }
+            catch (Exception ex)
+            {
+                dataPackInfo.Text = $"İçe aktarma hatası: {ex.Message}";
+            }
+        };
+        dataPackActionRow.AddChild(importDataPackBtn);
 
         void SelectFileTab(int index)
         {

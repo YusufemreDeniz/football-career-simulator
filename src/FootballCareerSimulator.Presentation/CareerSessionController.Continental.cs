@@ -184,27 +184,27 @@ public sealed partial class CareerSessionController
         var scoreLine = $"{fixture.HomeClubName} {homeGoals} - {awayGoals} {fixture.AwayClubName}"
             + (decidedOnPenalties ? " (pen.)" : string.Empty);
         var prizeLine = prizeDelta > 0
-            ? $"\n⭐ Avrupa Primi: +{prizeDelta:N0} TRY transfer bütçesine eklendi!"
+            ? $"\nAvrupa Primi: +{prizeDelta:N0} TRY transfer bütçesine eklendi!"
             : string.Empty;
 
-        // 🎖️ Avrupa maçı menajer XP'si Application servisi üzerinden verilir (lig maçlarında yönetim değerlendirmesi verir).
+        // Avrupa maçı menajer XP'si Application servisi üzerinden verilir (lig maçlarında yönetim değerlendirmesi verir).
         var award = Host.ManagerModule.Experience.AwardContinentalMatch(managedGoals, opponentGoals);
 
         var matchLines = new List<string>
         {
-            $"⭐ {fixture.StageName}: {scoreLine}{prizeLine}",
+            $"{fixture.StageName}: {scoreLine}{prizeLine}",
             award.LeveledUp
-                ? $"🎖️ TEBRİKLER! Menajer Seviye {award.Level}'e yükseldi! (+{award.ExperienceEarned} XP · Becerileriniz gelişti)"
-                : $"🎖️ Menajer Deneyimi: +{award.ExperienceEarned} XP (Seviye {award.Level} · Toplam {award.TotalExperiencePoints} XP)"
+                ? $"TEBRİKLER! Menajer Seviye {award.Level}'e yükseldi! (+{award.ExperienceEarned} XP · Becerileriniz gelişti)"
+                : $"Menajer Deneyimi: +{award.ExperienceEarned} XP (Seviye {award.Level} · Toplam {award.TotalExperiencePoints} XP)"
         };
 
         var beats = new List<string>
         {
             managedGoals > opponentGoals
-                ? $"⭐ Avrupa'da Tarihi Zafer! {managedClub?.DisplayName ?? "Kulübümüz"}, {opponentName} karşısında sahadan 3 puanla ayrıldı."
+                ? $"Avrupa'da Tarihi Zafer! {managedClub?.DisplayName ?? "Kulübümüz"}, {opponentName} karşısında sahadan 3 puanla ayrıldı."
                 : managedGoals == opponentGoals
-                    ? $"⭐ Avrupa'da Kritik Puan! {managedClub?.DisplayName ?? "Kulübümüz"}, {opponentName} ile berabere kaldı."
-                    : $"⭐ Avrupa'da Zorlu Gece: {opponentName} sahadan galip ayrıldı."
+                    ? $"Avrupa'da Kritik Puan! {managedClub?.DisplayName ?? "Kulübümüz"}, {opponentName} ile berabere kaldı."
+                    : $"Avrupa'da Zorlu Gece: {opponentName} sahadan galip ayrıldı."
         };
 
         var narrative = MatchNightNarrative.Compose(
@@ -213,7 +213,7 @@ public sealed partial class CareerSessionController
             awayGoals: awayGoals,
             managedIsHome: isHome,
             hasManagedMatch: true,
-            tacticNote: $"⭐ {fixture.StageName}",
+            tacticNote: $"{fixture.StageName}",
             dayNumber: currentDay,
             beatLines: beats,
             afterWhistleLines: matchLines,

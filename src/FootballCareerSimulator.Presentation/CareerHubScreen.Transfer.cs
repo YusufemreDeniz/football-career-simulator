@@ -284,6 +284,69 @@ public partial class CareerHubScreen
             Apply(_controller.RejectSportingApprovalForOldestPendingProcess());
         sportingRow.AddChild(_rejectSportingApprovalButton);
 
+        // Kural 5: Pazarlık Odası & Sabır Barı (Interactive Negotiation Tension Room)
+        var patienceCard = AddCard(dealHost, "PAZARLIK ODASI & SABIR TANSİYONU", emphasized: true);
+        var patienceHeaderRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        patienceHeaderRow.AddThemeConstantOverride("separation", 8);
+        patienceCard.AddChild(patienceHeaderRow);
+
+        _transferPatienceLabel = BodyLabel("TransferPatienceLabel");
+        _transferPatienceLabel.Text = "KARŞI TARAF SABRI: %100 (Sıcak & İstekli)";
+        _transferPatienceLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        CareerUiTheme.ApplyDisplayFont(_transferPatienceLabel);
+        patienceHeaderRow.AddChild(_transferPatienceLabel);
+
+        _transferPatienceBar = new ProgressBar
+        {
+            MinValue = 0,
+            MaxValue = 100,
+            Value = _transferPatience,
+            ShowPercentage = false,
+            CustomMinimumSize = new Vector2(0, 10),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        _transferPatienceBar.AddThemeStyleboxOverride("background", CareerUiTheme.ProgressBarBackground());
+        _transferPatienceBar.AddThemeStyleboxOverride("fill", CareerUiTheme.ProgressBarFill(CareerUiTheme.Accent));
+        patienceCard.AddChild(_transferPatienceBar);
+
+        _transferAgentDialogueLabel = BodyLabel("TransferAgentDialogueLabel", autowrap: true);
+        _transferAgentDialogueLabel.Text = "Menajer: 'Teklifinizi dinliyoruz, oyuncumuz için vizyonunuzu ve projenizi görmek istiyoruz.'";
+        patienceCard.AddChild(_transferAgentDialogueLabel);
+
+        var bargainChipsRow = ActionFlow();
+        patienceCard.AddChild(bargainChipsRow);
+
+        var bonusFeeBtn = SecondaryButton("+%10 Bonservis Artır");
+        bonusFeeBtn.Pressed += () =>
+        {
+            _transferFeeInput.Value = Math.Min(Domain.Transfer.ClubOffer.MaxFee, _transferFeeInput.Value * 1.10);
+            UpdateNegotiationPatience(12, "Menajer: 'Bonservis jestiniz kulüp yönetimini oldukça memnun etti.'");
+        };
+        bargainChipsRow.AddChild(bonusFeeBtn);
+
+        var bonusWageBtn = SecondaryButton("+%15 Maaş Artır");
+        bonusWageBtn.Pressed += () =>
+        {
+            _transferWageInput.Value = Math.Min(Domain.Transfer.PlayerContractProposal.MaxWeeklyWage, _transferWageInput.Value * 1.15);
+            UpdateNegotiationPatience(15, "Menajer: 'Cömert maaş teklifiniz oyuncumuzu çok heyecanlandırdı!'");
+        };
+        bargainChipsRow.AddChild(bonusWageBtn);
+
+        var discountBtn = SecondaryButton("-%10 İndirim İste");
+        discountBtn.Pressed += () =>
+        {
+            _transferFeeInput.Value = Math.Max(100_000, _transferFeeInput.Value * 0.90);
+            UpdateNegotiationPatience(-18, "Menajer: 'Rakamı aşağı çekmeniz pazarlığı zora sokuyor, oyuncumuzun piyasası var!'");
+        };
+        bargainChipsRow.AddChild(discountBtn);
+
+        var startingPromiseBtn = SecondaryButton("İlk 11 Garantisi Ver");
+        startingPromiseBtn.Pressed += () =>
+        {
+            UpdateNegotiationPatience(20, "Menajer: 'Düzenli ilk 11 garantisi bizim için en önemli kriterdi, el sıkışmaya yakınız!'");
+        };
+        bargainChipsRow.AddChild(startingPromiseBtn);
+
         var offerCard = AddCard(dealHost, "KULÜP BONSERVİS TEKLİFİ");
         _clubOfferLabel = BodyLabel("ClubOfferLabel", autowrap: true);
         offerCard.AddChild(_clubOfferLabel);
@@ -546,5 +609,48 @@ public partial class CareerHubScreen
         _transferNegotiationToggle.Text = expanded
             ? "Teklif Şartlarını Gizle"
             : "Teklif & Sözleşme Şartları";
+    }
+
+    private void UpdateNegotiationPatience(int delta, string dialogue)
+    {
+        _transferPatience = Mathf.Clamp(_transferPatience + delta, 0, 100);
+        if (_transferPatienceBar is not null)
+        {
+            _transferPatienceBar.Value = _transferPatience;
+            var fillCol = _transferPatience >= 65
+                ? CareerUiTheme.Accent
+                : _transferPatience >= 35
+                    ? CareerUiTheme.ActionBright
+                    : CareerUiTheme.DangerSoft;
+            _transferPatienceBar.AddThemeStyleboxOverride("fill", CareerUiTheme.ProgressBarFill(fillCol));
+        }
+
+        if (_transferPatienceLabel is not null)
+        {
+            var moodText = _transferPatience >= 65
+                ? "Sıcak & İstekli"
+                : _transferPatience >= 35
+                    ? "Gergin Bekleyiş"
+                    : "Sabır Tükeniyor!";
+            _transferPatienceLabel.Text = $"KARŞI TARAF SABRI: %{_transferPatience} ({moodText})";
+            _transferPatienceLabel.AddThemeColorOverride("font_color", _transferPatience >= 65
+                ? CareerUiTheme.Accent
+                : _transferPatience >= 35
+                    ? CareerUiTheme.ActionBright
+                    : CareerUiTheme.DangerSoft);
+        }
+
+        if (_transferAgentDialogueLabel is not null)
+        {
+            _transferAgentDialogueLabel.Text = dialogue;
+        }
+
+        if (_transferPatience <= 0)
+        {
+            if (_submitClubOfferButton is not null) _submitClubOfferButton.Disabled = true;
+            if (_submitContractProposalButton is not null) _submitContractProposalButton.Disabled = true;
+            if (_counterClubOfferButton is not null) _counterClubOfferButton.Disabled = true;
+            if (_counterContractProposalButton is not null) _counterContractProposalButton.Disabled = true;
+        }
     }
 }

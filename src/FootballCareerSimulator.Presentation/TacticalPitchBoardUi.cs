@@ -629,24 +629,68 @@ internal sealed partial class TacticalPitchBoard : Control
             DrawPolyline(new Vector2[] { b0, b1, b2, b3, b0 }, new Color(0.22f, 0.74f, 0.97f, 0.65f), 2f, true);
         }
 
-        // Taktiksel Pas & Uyum Bağlantı Çizgileri
+        // Kural 3: Saha Üstü "Kimya / Sinerji Çizgileri" (EA FC / SM27 Chemistry Links)
         var linkColor = _phaseMode == 1
             ? new Color(1.0f, 0.72f, 0.0f, 0.34f)
             : _phaseMode == 2
                 ? new Color(0.22f, 0.74f, 0.97f, 0.34f)
                 : new Color(0.0f, 0.96f, 0.61f, 0.26f);
 
+        var goodLinks = 0;
+        var totalLinks = 0;
+
         for (var i = 1; i < _buttons.Count; i++)
         {
             var p1 = ComputePhasePosition(_buttons[i].BasePosition, i, _phaseMode);
+            var pl1 = i < _players.Count ? _players[i] : null;
             for (var j = i + 1; j < _buttons.Count; j++)
             {
                 var p2 = ComputePhasePosition(_buttons[j].BasePosition, j, _phaseMode);
                 if (p1.DistanceTo(p2) <= 0.34f)
                 {
-                    DrawLine(ProjectToTrapezoid(p1), ProjectToTrapezoid(p2), linkColor, 1.8f, true);
+                    totalLinks++;
+                    var pl2 = j < _players.Count ? _players[j] : null;
+                    var pt1 = ProjectToTrapezoid(p1);
+                    var pt2 = ProjectToTrapezoid(p2);
+
+                    if (pl1 is not null && pl2 is not null)
+                    {
+                        if (!pl1.IsAvailable || !pl2.IsAvailable || pl1.Fitness < 55 || pl2.Fitness < 55)
+                        {
+                            // Uyumsuz / Sakat / Düşük Kondisyon: Kesikli Kırmızı (#FF2E54)
+                            DrawDashedLine(pt1, pt2, new Color(1.0f, 0.18f, 0.33f, 0.78f), 2.0f, 5.0f);
+                        }
+                        else if (pl1.Fitness >= 70 && pl2.Fitness >= 70 && pl1.Fatigue <= 35 && pl2.Fatigue <= 35)
+                        {
+                            // Kusursuz EA FC Kimya Bağı: Parlak Neon Yeşili (#00F59B)
+                            goodLinks++;
+                            DrawLine(pt1, pt2, new Color(0.0f, 0.96f, 0.61f, 0.85f), 2.2f, true);
+                        }
+                        else
+                        {
+                            // Orta Uyum: Yayın Altını (#FFB800)
+                            goodLinks++;
+                            DrawLine(pt1, pt2, new Color(1.0f, 0.72f, 0.0f, 0.75f), 1.8f, true);
+                        }
+                    }
+                    else
+                    {
+                        DrawLine(pt1, pt2, linkColor, 1.8f, true);
+                    }
                 }
             }
+        }
+
+        // Sağ Üstte Floating "TAKIM KİMYASI: %88" Rozeti
+        var chemPercent = totalLinks > 0 ? Mathf.Clamp(Mathf.RoundToInt(60 + (goodLinks * 40f / totalLinks)), 60, 100) : 88;
+        var chemPillRect = new Rect2(Size.X - 160f, 10f, 150f, 26f);
+        DrawRect(chemPillRect, new Color(0.04f, 0.07f, 0.12f, 0.88f), true);
+        DrawRect(chemPillRect, CareerUiTheme.Accent, false, 1.4f);
+        var chemFont = ThemeDB.FallbackFont;
+        if (chemFont is not null)
+        {
+            DrawString(chemFont, new Vector2(chemPillRect.Position.X, chemPillRect.Position.Y + 18f),
+                $"TAKIM KİMYASI: %{chemPercent}", HorizontalAlignment.Center, chemPillRect.Size.X, 11, CareerUiTheme.Accent);
         }
 
         // Perspektif (Trapezoid) Beyaz-Neon Saha Çizgileri

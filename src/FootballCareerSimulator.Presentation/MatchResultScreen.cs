@@ -203,6 +203,173 @@ public partial class MatchResultScreen : Control
             verdict.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
             formPanel.AddChild(verdict);
         }
+
+        BuildBroadcastStudioWrapUp(content, animateHero);
+    }
+
+    private void BuildBroadcastStudioWrapUp(VBoxContainer content, bool animateHero)
+    {
+        content.AddChild(MatchScreenUi.SectionTitle("MAÇ SONU STÜDYO YAYINI", "Broadcast Wrap-Up · MOTM · Puan Kayması"));
+
+        var bentoRow = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        bentoRow.AddThemeConstantOverride("separation", 10);
+        content.AddChild(bentoRow);
+
+        // ==========================================
+        // 1. MOTM (Maçın Adamı) Vitrin Kartı
+        // ==========================================
+        var motmCard = MatchScreenUi.Card(emphasized: true);
+        motmCard.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        motmCard.SizeFlagsStretchRatio = 0.95f;
+        bentoRow.AddChild(motmCard);
+
+        var motmStack = MatchScreenUi.VerticalStack(6);
+        motmCard.AddChild(motmStack);
+
+        var motmEyebrow = new Label { Text = "MAÇIN ADAMI (MOTM)" };
+        CareerUiTheme.StyleEyebrow(motmEyebrow, CareerUiTheme.ActionBright);
+        motmStack.AddChild(motmEyebrow);
+
+        var motmName = _results.KeyMoments?.LastOrDefault(m => m.Kind == "Goal")?.PrimaryPlayerName
+            ?? "Kaptan";
+        var motmPlayer = new Label { Text = motmName.ToUpperInvariant() };
+        CareerUiTheme.StyleHeadline(motmPlayer);
+        motmPlayer.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(17));
+        motmPlayer.AddThemeColorOverride("font_color", Colors.White);
+        motmStack.AddChild(motmPlayer);
+
+        var ratingRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        ratingRow.AddThemeConstantOverride("separation", 6);
+        motmStack.AddChild(ratingRow);
+
+        var ratingBadge = new PanelContainer();
+        ratingBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.25f));
+        var ratingLabel = new Label { Text = "REYTING: 8.9" };
+        CareerUiTheme.StyleTableText(ratingLabel);
+        ratingLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        ratingBadge.AddChild(ratingLabel);
+        ratingRow.AddChild(ratingBadge);
+
+        var motmDesc = MatchScreenUi.BodyLine(
+            _results.Report?.StandoutLine ?? "Sahadaki liderliği ve kritik golüyle maçın kaderini belirledi.",
+            muted: true);
+        motmStack.AddChild(motmDesc);
+
+        // ==========================================
+        // 2. Canlı Puan Durumu Kayması (Standings Delta)
+        // ==========================================
+        var standingsCard = MatchScreenUi.Card(emphasized: false);
+        standingsCard.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        standingsCard.SizeFlagsStretchRatio = 1.05f;
+        bentoRow.AddChild(standingsCard);
+
+        var standingsStack = MatchScreenUi.VerticalStack(6);
+        standingsCard.AddChild(standingsStack);
+
+        var standingsEyebrow = new Label { Text = "CANLI PUAN DURUMU HAREKETİ" };
+        CareerUiTheme.StyleEyebrow(standingsEyebrow, CareerUiTheme.Accent);
+        standingsStack.AddChild(standingsEyebrow);
+
+        var deltaRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        deltaRow.AddThemeConstantOverride("separation", 8);
+        standingsStack.AddChild(deltaRow);
+
+        var wonMatch = _results.ManagedGoals > _results.OpponentGoals;
+        var drawMatch = _results.ManagedGoals == _results.OpponentGoals;
+        var ptsText = wonMatch ? "+3 PUAN (KAZANILDI)" : (drawMatch ? "+1 PUAN (BERABERLİK)" : "+0 PUAN");
+        var ptsBadge = new PanelContainer();
+        ptsBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(wonMatch ? CareerUiTheme.Accent : CareerUiTheme.Data, 0.22f));
+        var ptsLabel = new Label { Text = ptsText };
+        CareerUiTheme.StyleTableText(ptsLabel);
+        ptsLabel.AddThemeColorOverride("font_color", wonMatch ? CareerUiTheme.Accent : CareerUiTheme.Data);
+        ptsBadge.AddChild(ptsLabel);
+        deltaRow.AddChild(ptsBadge);
+
+        var posMovementLabel = new Label
+        {
+            Text = wonMatch ? "LİGDE YÜKSELİŞ · +2 SIRA" : "LİGDE KONUM KORUNDU",
+            SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        };
+        CareerUiTheme.StyleTableText(posMovementLabel);
+        deltaRow.AddChild(posMovementLabel);
+
+        var miniTable = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        miniTable.AddThemeConstantOverride("separation", 3);
+        standingsStack.AddChild(miniTable);
+
+        var rows = new[]
+        {
+            ("1. Galatasaray", "19 P", false),
+            ("2. Fenerbahçe", "18 P", false),
+            ("3. Kulübümüz", wonMatch ? "17 P" : "15 P", true),
+            ("4. Beşiktaş", "16 P", false),
+        };
+        foreach (var (team, pts, isManaged) in rows)
+        {
+            var rowPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            rowPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.MiniStandingsRowPanel(isManaged));
+            var rowHBox = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            rowHBox.AddThemeConstantOverride("separation", 8);
+            rowPanel.AddChild(rowHBox);
+
+            var tLbl = new Label { Text = team, SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            CareerUiTheme.StyleTableText(tLbl);
+            if (isManaged) tLbl.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+            rowHBox.AddChild(tLbl);
+
+            var pLbl = new Label { Text = pts };
+            CareerUiTheme.StyleTableText(pLbl);
+            if (isManaged) pLbl.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+            rowHBox.AddChild(pLbl);
+
+            miniTable.AddChild(rowPanel);
+        }
+
+        // ==========================================
+        // 3. Sosyal Medya / Taraftar & Yorumcu Akışı
+        // ==========================================
+        var socialCard = MatchScreenUi.Card(emphasized: false);
+        socialCard.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        socialCard.SizeFlagsStretchRatio = 1.10f;
+        bentoRow.AddChild(socialCard);
+
+        var socialStack = MatchScreenUi.VerticalStack(6);
+        socialCard.AddChild(socialStack);
+
+        var socialEyebrow = new Label { Text = "TARAFTAR & MEDYA NABZI" };
+        CareerUiTheme.StyleEyebrow(socialEyebrow, CareerUiTheme.Data);
+        socialStack.AddChild(socialEyebrow);
+
+        var feedItems = new[]
+        {
+            ("@TaraftarSesi", "80' sonrası kenardan gelen şok pres hamlesi maçı kopardı! Harika bir galibiyet!", CareerUiTheme.Accent),
+            ("@SporYorumcusu", "Dondurulan kritik anda verilen soğukkanlı karar modern futbol dersi niteliğinde.", CareerUiTheme.ActionBright),
+            ("@SoyunmaOdasıMuhabiri", "Takımda moraller zirvede, kaptan ve teknik heyet taraftarla galibiyeti kutluyor.", CareerUiTheme.Data),
+        };
+
+        foreach (var (author, text, col) in feedItems)
+        {
+            var itemPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            itemPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.SoftPanel());
+            var itemVBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            itemVBox.AddThemeConstantOverride("separation", 2);
+            itemPanel.AddChild(itemVBox);
+
+            var aLbl = new Label { Text = author };
+            CareerUiTheme.StyleEyebrow(aLbl, col);
+            aLbl.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
+            itemVBox.AddChild(aLbl);
+
+            var tLbl = new Label { Text = text, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+            CareerUiTheme.StyleBody(tLbl);
+            tLbl.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+            itemVBox.AddChild(tLbl);
+
+            socialStack.AddChild(itemPanel);
+        }
     }
 
     private void BuildMatchPage(VBoxContainer content)
@@ -397,7 +564,7 @@ public partial class MatchResultScreen : Control
 
             var standoutHeader = new Label
             {
-                Text = "⭐ MAÇIN OYUNCUSU & KRİTİK KATKI",
+                Text = "MAÇIN OYUNCUSU & KRİTİK KATKI",
                 HorizontalAlignment = HorizontalAlignment.Center,
             };
             CareerUiTheme.StyleEyebrow(standoutHeader, CareerUiTheme.ActionBright);

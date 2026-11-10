@@ -759,6 +759,22 @@ public static partial class ClubCampusVisualUi
                     11,
                     CareerUiTheme.BackgroundDeep);
 
+                // Kural 3: "FORMDA / ON FIRE" Rozeti (Top-Right)
+                if (_player.Rating >= 78 || (_player.Fitness >= 85 && _player.Fatigue <= 15))
+                {
+                    var formPillRect = new Rect2(rect.Size.X - 58f, 8f, 50f, 18f);
+                    DrawRect(formPillRect, new Color(0.28f, 0.12f, 0.02f, 0.94f), true);
+                    DrawRect(formPillRect, CareerUiTheme.ActionBright, false, 1.2f);
+                    DrawString(
+                        font,
+                        new Vector2(formPillRect.Position.X, formPillRect.Position.Y + 13f),
+                        "FORMDA",
+                        HorizontalAlignment.Center,
+                        formPillRect.Size.X,
+                        9,
+                        CareerUiTheme.ActionBright);
+                }
+
                 // 5. Alt İsim Plakası ve Değer Özeti
                 var plateRect = new Rect2(6f, rect.Size.Y - 56f, rect.Size.X - 12f, 42f);
                 DrawRect(plateRect, new Color(0.04f, 0.07f, 0.12f, 0.92f), true);
