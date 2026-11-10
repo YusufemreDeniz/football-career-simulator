@@ -623,23 +623,22 @@ public sealed class PlayFixtureMatchHandler : ICommandIdempotencyReset
             return null;
         }
 
-        var activeCareers = _playerCareerStore.Careers
-            .Where(career => !career.IsRetired)
-            .ToArray();
         var squad = _clubSquadStore?.Get(clubId);
         if (squad is not null)
         {
-            var careerByPlayer = activeCareers.ToDictionary(career => career.Id);
-            var squadMap = squad.Members
-                .Where(member => careerByPlayer.ContainsKey(member.PlayerId))
-                .ToDictionary(
-                    member => (clubId.Value, member.SlotIndex),
-                    member => careerByPlayer[member.PlayerId].CurrentAbility);
+            var squadMap = new Dictionary<(long ClubId, int SlotIndex), int>(squad.Members.Count);
+            foreach (var member in squad.Members)
+            {
+                if (_playerCareerStore.GetById(member.PlayerId) is { IsRetired: false } career)
+                {
+                    squadMap[(clubId.Value, member.SlotIndex)] = career.CurrentAbility;
+                }
+            }
+
             return squadMap.Count == 0 ? null : squadMap;
         }
 
-        var map = activeCareers
-            .Where(career => career.OriginClubId == clubId)
+        var map = _playerCareerStore.GetActiveByOriginClub(clubId)
             .GroupBy(career => career.SlotIndex)
             .ToDictionary(
                 group => (clubId.Value, group.Key),

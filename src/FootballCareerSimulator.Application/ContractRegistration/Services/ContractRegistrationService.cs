@@ -48,9 +48,7 @@ public sealed class ContractRegistrationService
 
     public void EnsureClubContracts(ClubId clubId, GameDate day)
     {
-        var careers = _playerCareerStore.Careers
-            .Where(c => c.OriginClubId == clubId && !c.IsRetired)
-            .ToArray();
+        var careers = _playerCareerStore.GetActiveByOriginClub(clubId);
 
         foreach (var career in careers)
         {
@@ -233,7 +231,7 @@ public sealed class ContractRegistrationService
                 $"Player {playerId.Value} already has an active club.");
         }
 
-        var career = _playerCareerStore.Careers.FirstOrDefault(c => c.Id == playerId)
+        var career = _playerCareerStore.GetById(playerId)
             ?? throw new ContractRegistrationInvariantViolationException(
                 $"Player career {playerId.Value} was not found.");
         if (career.IsRetired)
@@ -283,8 +281,7 @@ public sealed class ContractRegistrationService
             var activeFreeAgents = clubGroup
                 .Select(freeAgent => (
                     FreeAgent: freeAgent,
-                    Career: _playerCareerStore.Careers.FirstOrDefault(
-                        career => career.Id == freeAgent.PlayerId)))
+                    Career: _playerCareerStore.GetById(freeAgent.PlayerId)))
                 .Where(item => item.Career is { IsRetired: false })
                 .OrderByDescending(item => item.Career!.SlotIndex)
                 .ThenBy(item => item.FreeAgent.PlayerId.Value)
@@ -330,8 +327,7 @@ public sealed class ContractRegistrationService
             var pool = _freeAgentStore.FreeAgents
                 .Select(freeAgent => (
                     FreeAgent: freeAgent,
-                    Career: _playerCareerStore.Careers.FirstOrDefault(
-                        career => career.Id == freeAgent.PlayerId)))
+                    Career: _playerCareerStore.GetById(freeAgent.PlayerId)))
                 .Where(item => item.Career is { IsRetired: false })
                 .OrderBy(item => item.FreeAgent.LastClubId.Value == clubId.Value ? 0 : 1)
                 .ThenBy(item => item.FreeAgent.PlayerId.Value)

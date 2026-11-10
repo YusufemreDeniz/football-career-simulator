@@ -1,3 +1,4 @@
+using FootballCareerSimulator.Domain.PlayerCareer;
 using FootballCareerSimulator.Domain.Shared;
 using PlayerCareerAggregate = FootballCareerSimulator.Domain.PlayerCareer.PlayerCareer;
 
@@ -9,7 +10,17 @@ public interface IPlayerCareerStore
 
     IReadOnlyDictionary<(long ClubId, int SlotIndex), PlayerCareerAggregate> ByClubSlot { get; }
 
+    PlayerCareerAggregate? GetById(PlayerId playerId) =>
+        Careers.FirstOrDefault(c => c.Id == playerId);
+
     PlayerCareerAggregate? Get(ClubId clubId, int slotIndex);
+
+    IReadOnlyList<PlayerCareerAggregate> GetActiveByOriginClub(ClubId clubId) =>
+        Careers
+            .Where(c => c.OriginClubId == clubId && !c.IsRetired)
+            .OrderBy(c => c.SlotIndex)
+            .ThenBy(c => c.Id.Value)
+            .ToArray();
 
     void Upsert(PlayerCareerAggregate career);
 

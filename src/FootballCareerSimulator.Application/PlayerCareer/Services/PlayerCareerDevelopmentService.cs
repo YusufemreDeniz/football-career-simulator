@@ -48,26 +48,63 @@ public sealed class PlayerCareerDevelopmentService
 
     public void EnsureClub(ClubId clubId, int rootSeed, GameDate day)
     {
-        var squad = MvpPlayerDevelopmentApplier.EnsureClubSquad(
-            clubId,
-            rootSeed,
-            day,
-            _store.ByClubSlot);
-        _store.ReplaceClub(clubId, squad);
+        var existingClubCareers = _store.GetActiveByOriginClub(clubId);
+        if (existingClubCareers.Count < 25)
+        {
+            var squad = MvpPlayerDevelopmentApplier.EnsureClubSquad(
+                clubId,
+                rootSeed,
+                day,
+                _store.ByClubSlot);
+            _store.ReplaceClub(clubId, squad);
+        }
+
         _contracts?.EnsureClubContracts(clubId, day);
     }
 
     public int ApplyDueAging(GameDate day)
     {
-        if (_store.Careers.Count == 0)
+        var careers = _store.Careers;
+        if (careers.Count == 0)
         {
             return 0;
         }
 
-        var before = _store.Careers.ToDictionary(c => c.Id.Value, c => c.CurrentAbility);
-        var aged = MvpAgingApplier.ApplyDueAging(_store.Careers, day);
-        _store.ReplaceAll(aged);
-        return aged.Count(c => before.TryGetValue(c.Id.Value, out var prior) && prior != c.CurrentAbility);
+        var anyDue = false;
+        for (var i = 0; i < careers.Count; i++)
+        {
+            var c = careers[i];
+            if (!c.IsRetired && day.Year > c.LastAgedCalendarYear)
+            {
+                anyDue = true;
+                break;
+            }
+        }
+
+        if (!anyDue)
+        {
+            return 0;
+        }
+
+        var changedCount = 0;
+        for (var i = 0; i < careers.Count; i++)
+        {
+            var current = careers[i];
+            if (current.IsRetired || day.Year <= current.LastAgedCalendarYear)
+            {
+                continue;
+            }
+
+            var aged = current.ApplyAnnualAging(day);
+            if (aged.CurrentAbility != current.CurrentAbility)
+            {
+                changedCount++;
+            }
+
+            _store.Upsert(aged);
+        }
+
+        return changedCount;
     }
 
     public void EnsureAndApplyWeeklyTraining(
