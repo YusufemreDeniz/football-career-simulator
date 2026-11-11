@@ -50,3 +50,11 @@ public sealed class UnsupportedSaveSchemaVersionException : SaveIntegrityExcepti
         FoundVersion = foundVersion;
     }
 }
+
+public sealed class UnsupportedLegacySpikeSaveException : SaveIntegrityException
+{
+    public UnsupportedLegacySpikeSaveException()
+        : base("Spike placeholder save format is not supported by the production save loader.")
+    {
+    }
+}

@@ -751,7 +751,7 @@ Minimum kapsam:
 Ertelenen ayrıntılar:
 
 * stadyum geliştirme,
-* tesis yatırımları,
+* tesis yatırımları (2026-11 notu: tek tesis seviyesi ve antrenman çarpanı sınırlı biçimde açıldı, D-416/D-418),
 * ayrıntılı borç yapısı,
 * başkanlık seçimleri,
 * sahip değişimleri,

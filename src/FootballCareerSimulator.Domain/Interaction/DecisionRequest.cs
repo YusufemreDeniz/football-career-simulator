@@ -1,0 +1,447 @@
+using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.PlayerCareer;
+using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.WorldCalendar;
+
+namespace FootballCareerSimulator.Domain.Interaction;
+
+/// <summary>
+/// Interaction & Narrative: bekleyen zorunlu/kritik karar isteği
+/// (forma süresi, ilk 11, transfer, disiplin, yönetim, basın, genç akademisi).
+/// </summary>
+public sealed class DecisionRequest
+{
+    /// <summary>
+    /// BoardDemand için kalıcılık/DialogueParticipant sentinel'i (gerçek kadro oyuncusu değildir).
+    /// </summary>
+    public static readonly PlayerId BoardDemandParticipantPlayerId = new(9_000_000_001L);
+
+    public const string OptionGrantPlayingTimePromise = "GrantPlayingTimePromise";
+    public const string OptionGrantStartingOpportunityPromise = "GrantStartingOpportunityPromise";
+    public const string OptionAcknowledgeTransferRequest = "AcknowledgeTransferRequest";
+    public const string OptionIssueWarning = "IssueWarning";
+    public const string OptionIssueFine = "IssueFine";
+    public const string OptionOfferSupport = "OfferSupport";
+    public const string OptionAcceptBoardDemand = "AcceptBoardDemand";
+    public const string OptionCounterBoardDemand = "CounterBoardDemand";
+    public const string OptionPubliclyDefend = "PubliclyDefend";
+    public const string OptionPubliclyCriticize = "PubliclyCriticize";
+    public const string OptionAcceptYouthAcademyCandidate = "AcceptYouthAcademyCandidate";
+    public const string OptionRejectYouthAcademyCandidate = "RejectYouthAcademyCandidate";
+    public const string OptionRefuse = "Refuse";
+
+    private DecisionRequest(
+        DecisionRequestId decisionRequestId,
+        DecisionRequestKind kind,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        DecisionRequestStatus status,
+        bool isHardBlocker,
+        string? selectedOptionCode,
+        GameDate? resolvedOn)
+    {
+        DecisionRequestId = decisionRequestId;
+        Kind = kind;
+        ManagerId = managerId;
+        SubjectPlayerId = subjectPlayerId;
+        ClubId = clubId;
+        OpenedOn = openedOn;
+        DeadlineOn = deadlineOn;
+        Status = status;
+        IsHardBlocker = isHardBlocker;
+        SelectedOptionCode = selectedOptionCode;
+        ResolvedOn = resolvedOn;
+    }
+
+    public DecisionRequestId DecisionRequestId { get; }
+
+    public DecisionRequestKind Kind { get; }
+
+    public ManagerId ManagerId { get; }
+
+    public PlayerId SubjectPlayerId { get; }
+
+    public ClubId ClubId { get; }
+
+    public GameDate OpenedOn { get; }
+
+    public GameDate DeadlineOn { get; }
+
+    public DecisionRequestStatus Status { get; }
+
+    public bool IsHardBlocker { get; }
+
+    public string? SelectedOptionCode { get; }
+
+    public GameDate? ResolvedOn { get; }
+
+    public bool IsOpen => Status == DecisionRequestStatus.Open;
+
+    public static DecisionRequest OpenPlayingTimeRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.PlayingTimeRequest,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
+    public static DecisionRequest OpenStartingOpportunityRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.StartingOpportunityRequest,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
+    public static DecisionRequest OpenTransferRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.TransferRequest,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
+    public static DecisionRequest OpenDisciplineRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.DisciplineRequest,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
+    public static DecisionRequest OpenBoardDemandRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.BoardDemandRequest,
+            managerId,
+            BoardDemandParticipantPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
+    public static DecisionRequest OpenPressQuestionRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = true)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.PressQuestionRequest,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
+    public static DecisionRequest OpenYouthAcademyCandidateRequest(
+        DecisionRequestId decisionRequestId,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        bool isHardBlocker = false)
+    {
+        if (deadlineOn.DayNumber < openedOn.DayNumber)
+        {
+            throw new InteractionInvariantViolationException(
+                "Decision deadline cannot be before opened date.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            DecisionRequestKind.YouthAcademyCandidate,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            DecisionRequestStatus.Open,
+            isHardBlocker,
+            selectedOptionCode: null,
+            resolvedOn: null);
+    }
+
+    public DecisionRequest Answer(string optionCode, GameDate day)
+    {
+        EnsureOpen();
+        if (string.IsNullOrWhiteSpace(optionCode))
+        {
+            throw new InteractionInvariantViolationException("Option code is required.");
+        }
+
+        var trimmed = optionCode.Trim();
+        var supported = Kind switch
+        {
+            DecisionRequestKind.PlayingTimeRequest =>
+                trimmed is OptionGrantPlayingTimePromise or OptionRefuse,
+            DecisionRequestKind.StartingOpportunityRequest =>
+                trimmed is OptionGrantStartingOpportunityPromise or OptionRefuse,
+            DecisionRequestKind.TransferRequest =>
+                trimmed is OptionAcknowledgeTransferRequest or OptionRefuse,
+            DecisionRequestKind.DisciplineRequest =>
+                trimmed is OptionIssueWarning or OptionIssueFine or OptionOfferSupport,
+            DecisionRequestKind.BoardDemandRequest =>
+                trimmed is OptionAcceptBoardDemand or OptionCounterBoardDemand or OptionRefuse,
+            DecisionRequestKind.PressQuestionRequest =>
+                trimmed is OptionPubliclyDefend or OptionPubliclyCriticize,
+            DecisionRequestKind.YouthAcademyCandidate =>
+                trimmed is OptionAcceptYouthAcademyCandidate or OptionRejectYouthAcademyCandidate,
+            _ => false,
+        };
+        if (!supported)
+        {
+            throw new InteractionInvariantViolationException(
+                $"Unsupported option for {Kind}: {trimmed}.");
+        }
+
+        return new DecisionRequest(
+            DecisionRequestId,
+            Kind,
+            ManagerId,
+            SubjectPlayerId,
+            ClubId,
+            OpenedOn,
+            DeadlineOn,
+            DecisionRequestStatus.Answered,
+            IsHardBlocker,
+            trimmed,
+            day);
+    }
+
+    public DecisionRequest ExpireIfDue(GameDate day)
+    {
+        if (Status != DecisionRequestStatus.Open)
+        {
+            return this;
+        }
+
+        if (day.DayNumber < DeadlineOn.DayNumber)
+        {
+            return this;
+        }
+
+        return new DecisionRequest(
+            DecisionRequestId,
+            Kind,
+            ManagerId,
+            SubjectPlayerId,
+            ClubId,
+            OpenedOn,
+            DeadlineOn,
+            DecisionRequestStatus.Expired,
+            IsHardBlocker,
+            selectedOptionCode: null,
+            day);
+    }
+
+    public DecisionRequest Cancel(GameDate day)
+    {
+        EnsureOpen();
+        return new DecisionRequest(
+            DecisionRequestId,
+            Kind,
+            ManagerId,
+            SubjectPlayerId,
+            ClubId,
+            OpenedOn,
+            DeadlineOn,
+            DecisionRequestStatus.Cancelled,
+            IsHardBlocker,
+            selectedOptionCode: null,
+            day);
+    }
+
+    public DecisionRequest Archive()
+    {
+        if (Status is DecisionRequestStatus.Open)
+        {
+            throw new InteractionInvariantViolationException(
+                "Open decision requests cannot be archived.");
+        }
+
+        if (Status == DecisionRequestStatus.Archived)
+        {
+            return this;
+        }
+
+        return new DecisionRequest(
+            DecisionRequestId,
+            Kind,
+            ManagerId,
+            SubjectPlayerId,
+            ClubId,
+            OpenedOn,
+            DeadlineOn,
+            DecisionRequestStatus.Archived,
+            IsHardBlocker,
+            SelectedOptionCode,
+            ResolvedOn);
+    }
+
+    public static DecisionRequest Rehydrate(
+        DecisionRequestId decisionRequestId,
+        DecisionRequestKind kind,
+        ManagerId managerId,
+        PlayerId subjectPlayerId,
+        ClubId clubId,
+        GameDate openedOn,
+        GameDate deadlineOn,
+        DecisionRequestStatus status,
+        bool isHardBlocker,
+        string? selectedOptionCode,
+        GameDate? resolvedOn)
+    {
+        if (!Enum.IsDefined(kind))
+        {
+            throw new InteractionInvariantViolationException($"Unknown decision kind: {kind}.");
+        }
+
+        if (!Enum.IsDefined(status))
+        {
+            throw new InteractionInvariantViolationException($"Unknown decision status: {status}.");
+        }
+
+        return new DecisionRequest(
+            decisionRequestId,
+            kind,
+            managerId,
+            subjectPlayerId,
+            clubId,
+            openedOn,
+            deadlineOn,
+            status,
+            isHardBlocker,
+            selectedOptionCode,
+            resolvedOn);
+    }
+
+    private void EnsureOpen()
+    {
+        if (Status != DecisionRequestStatus.Open)
+        {
+            throw new InteractionInvariantViolationException(
+                "Only open decision requests can be answered or cancelled.");
+        }
+    }
+}

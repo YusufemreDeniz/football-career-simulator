@@ -1,0 +1,696 @@
+using System.Diagnostics;
+using FootballCareerSimulator.Application.Career.Services;
+using FootballCareerSimulator.Application.ClubGovernance.Composition;
+using FootballCareerSimulator.Application.Competition.Commands;
+using FootballCareerSimulator.Application.Competition.Composition;
+using FootballCareerSimulator.Application.Competition.Services;
+using FootballCareerSimulator.Application.ContractRegistration.Composition;
+using FootballCareerSimulator.Application.Interaction.Composition;
+using FootballCareerSimulator.Application.ManagerCareer.Commands;
+using FootballCareerSimulator.Application.ManagerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Composition;
+using FootballCareerSimulator.Application.PlayerCareer.Infrastructure;
+using FootballCareerSimulator.Application.PlayerCareer.Services;
+using FootballCareerSimulator.Application.SocialContinuity.Composition;
+using FootballCareerSimulator.Application.TeamPreparation.Commands;
+using FootballCareerSimulator.Application.TeamPreparation.Composition;
+using FootballCareerSimulator.Application.TeamPreparation.Infrastructure;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Commands;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Composition;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Infrastructure;
+using FootballCareerSimulator.Application.Transfer.Composition;
+using FootballCareerSimulator.Application.WorldCalendar.Commands;
+using FootballCareerSimulator.Application.WorldCalendar.Composition;
+using FootballCareerSimulator.Domain.Competition;
+using FootballCareerSimulator.Domain.ContractRegistration;
+using FootballCareerSimulator.Domain.ManagerCareer;
+using FootballCareerSimulator.Domain.Shared;
+using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Domain.TrainingPhysicalState;
+using FootballCareerSimulator.Domain.WorldCalendar;
+using FootballCareerSimulator.Infrastructure.Career;
+using FootballCareerSimulator.Simulation.TrainingPhysicalState;
+using Microsoft.Data.Sqlite;
+using Xunit.Abstractions;
+
+namespace FootballCareerSimulator.Tests.Career;
+
+public sealed class ProductionTenSeasonAcceptanceTests : IDisposable
+{
+    private static readonly GameDate StartDay = GameDate.FromCalendarDate(2026, 7, 1);
+    private const int FixtureCheckpointInterval = 34;
+
+    private readonly string _tempDirectory = Path.Combine(
+        Path.GetTempPath(),
+        "fcs-production-ten-season",
+        Guid.NewGuid().ToString("N"));
+    private readonly ITestOutputHelper _output;
+    private readonly AcceptanceProgressLog _progress;
+    private readonly MatchPhaseAccumulator _matchPhases;
+
+    public ProductionTenSeasonAcceptanceTests(ITestOutputHelper output)
+    {
+        _output = output;
+        Directory.CreateDirectory(_tempDirectory);
+        _progress = new AcceptanceProgressLog(CreateProgressLogPath(), _output);
+        _matchPhases = new MatchPhaseAccumulator();
+    }
+
+    public void Dispose()
+    {
+        _matchPhases.Dispose();
+        _progress.Dispose();
+        SqliteConnection.ClearAllPools();
+        if (Directory.Exists(_tempDirectory))
+        {
+            Directory.Delete(_tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "LongRunning")]
+    public void ProductionCareer_TenSeasons_AllContextsRemainLoadableAndReferentiallyValid()
+    {
+        var host = CreateHost();
+        var stopwatch = Stopwatch.StartNew();
+        var transferCompletions = 0;
+        var dismissalCount = 0;
+        var midSaveBytes = 0L;
+        var processedFixtures = 0;
+
+        _progress.Mark("bootstrap.started");
+
+        try
+        {
+            for (var clubId = 1L; clubId <= CompetitionMvpConstraints.LeagueTeamCount; clubId++)
+            {
+                var id = new ClubId(clubId);
+                host.Players.Development.EnsureClub(id, host.World.TimelineStore.Timeline.RootSeed, StartDay);
+                host.Team.ClubSquad!.SyncFromActiveContracts(id, StartDay);
+            }
+
+            _progress.Mark("bootstrap.completed");
+
+            for (var seasonNumber = 1; seasonNumber <= 10; seasonNumber++)
+            {
+                _progress.Mark("season.started", seasonNumber, processedFixtures);
+                var preseason = seasonNumber == 1
+                    ? StartDay
+                    : host.World.TimelineStore.Timeline.CurrentDate.AddDays(60);
+                AdvanceTo(host.World, preseason);
+
+                host.Competition.CreateSeason.Handle(
+                    new CreateSeasonCommand(Guid.NewGuid(), seasonNumber, preseason.DayNumber));
+                for (var clubId = 1L; clubId <= CompetitionMvpConstraints.LeagueTeamCount; clubId++)
+                {
+                    host.Competition.RegisterSeasonParticipant.Handle(
+                        new RegisterSeasonParticipantCommand(Guid.NewGuid(), seasonNumber, clubId));
+                }
+
+                host.Competition.StartSeason.Handle(
+                    new StartSeasonCommand(Guid.NewGuid(), seasonNumber, preseason.DayNumber));
+                var firstMatchday = preseason.AddDays(31);
+                host.Competition.PlanLeagueFixtures.Handle(
+                    new PlanLeagueFixturesCommand(
+                        Guid.NewGuid(),
+                        seasonNumber,
+                        firstMatchday.DayNumber,
+                        StartingFixtureId: ((seasonNumber - 1L) * CompetitionMvpConstraints.TotalLeagueFixtures) + 1));
+                var fixtures = host.Competition.Queries.GetSeasonFixtures(seasonNumber)
+                    .OrderBy(item => item.ScheduledDayNumber)
+                    .ThenBy(item => item.FixtureId)
+                    .ToArray();
+                _progress.Mark("fixtures.planned", seasonNumber, processedFixtures, fixtures.Length);
+
+                host.World.OpenTransferWindow.Handle(
+                    new OpenTransferWindowCommand(Guid.NewGuid(), preseason.AddDays(20).DayNumber));
+                for (var tick = 0; tick < 3; tick++)
+                {
+                    transferCompletions += host.Transfer.AiSimulation
+                        .RunWindowTick(preseason, host.World.TimelineStore.Timeline.RootSeed + seasonNumber + tick)
+                        .CompletedCount;
+                }
+
+                host.World.CloseTransferWindow.Handle(new CloseTransferWindowCommand(Guid.NewGuid()));
+                ApplyManagedTraining(host);
+                _progress.Mark(
+                    "transfers.completed",
+                    seasonNumber,
+                    processedFixtures,
+                    fixtures.Length,
+                    $"completed={transferCompletions}");
+
+                var seasonProcessedFixtures = 0;
+                var advanceElapsed = TimeSpan.Zero;
+                var selectionElapsed = TimeSpan.Zero;
+                var matchElapsed = TimeSpan.Zero;
+                var reemploymentElapsed = TimeSpan.Zero;
+                foreach (var fixture in fixtures)
+                {
+                    var fixtureDay = GameDate.FromDayNumber(fixture.ScheduledDayNumber);
+                    var phaseStarted = Stopwatch.GetTimestamp();
+                    AdvanceTo(host.World, fixtureDay);
+                    advanceElapsed += Stopwatch.GetElapsedTime(phaseStarted);
+
+                    phaseStarted = Stopwatch.GetTimestamp();
+                    var employment = host.Manager.Store.Career.ActiveEmployment;
+                    if (employment is { } active
+                        && (fixture.HomeClubId == active.ClubId.Value || fixture.AwayClubId == active.ClubId.Value))
+                    {
+                        ApplyManagedTraining(host);
+                        var squad = host.Team.ClubSquad!.SyncFromActiveContracts(active.ClubId, fixtureDay);
+                        if (squad.Members.Count < 18)
+                        {
+                            host.Contracts.Registration.RestorePopulationContinuity(fixtureDay);
+                            squad = host.Team.ClubSquad.SyncFromActiveContracts(active.ClubId, fixtureDay);
+                        }
+
+                        if (squad.Members.Count < MatchSelection.StartingXiSize)
+                        {
+                            throw new InvalidOperationException(
+                                $"Managed club {active.ClubId.Value} still below XI after continuity restore "
+                                + $"({squad.Members.Count}/{MatchSelection.StartingXiSize} on day {fixtureDay.DayNumber}).");
+                        }
+
+                        host.Team.SelectionStore.Upsert(MvpAvailabilityAwareSelection.ApproveDefaultPreferringAvailable(
+                            new FixtureId(fixture.FixtureId),
+                            active.ClubId,
+                            fixtureDay,
+                            host.Training.Store.PhysicalBySlot,
+                            squad));
+                    }
+                    selectionElapsed += Stopwatch.GetElapsedTime(phaseStarted);
+
+                    phaseStarted = Stopwatch.GetTimestamp();
+                    var played = host.Competition.PlayFixtureMatch!.Handle(
+                        new PlayFixtureMatchCommand(
+                            Guid.NewGuid(),
+                            seasonNumber,
+                            fixture.FixtureId,
+                            fixture.ScheduledDayNumber));
+                    if (played.Consequences?.ManagerDismissed == true)
+                    {
+                        dismissalCount++;
+                    }
+                    matchElapsed += Stopwatch.GetElapsedTime(phaseStarted);
+
+                    phaseStarted = Stopwatch.GetTimestamp();
+                    if (!host.Manager.Store.Career.IsEmployed)
+                    {
+                        host.Manager.GenerateJobOffer!.Handle(
+                            new GenerateUnemployedJobOfferCommand(Guid.NewGuid()));
+                        host.Manager.AcceptJobOffer!.Handle(
+                            new AcceptPendingJobOfferCommand(Guid.NewGuid()));
+                        ApplyManagedTraining(host);
+                    }
+                    reemploymentElapsed += Stopwatch.GetElapsedTime(phaseStarted);
+
+                    seasonProcessedFixtures++;
+                    processedFixtures++;
+                    if (seasonProcessedFixtures % FixtureCheckpointInterval == 0
+                        || seasonProcessedFixtures == fixtures.Length)
+                    {
+                        _progress.Mark(
+                            "fixtures.progress",
+                            seasonNumber,
+                            processedFixtures,
+                            fixtures.Length,
+                            $"seasonFixtures={seasonProcessedFixtures}");
+                    }
+                }
+
+                var closeDay = host.World.TimelineStore.Timeline.CurrentDate;
+                var completed = host.Competition.CompleteSeason.Handle(
+                    new CompleteSeasonCommand(Guid.NewGuid(), seasonNumber, closeDay.DayNumber));
+                Assert.Equal(completed.RetiredPlayerCount, completed.GeneratedPlayerCount);
+                host.Competition.ArchiveSeason.Handle(
+                    new ArchiveSeasonCommand(Guid.NewGuid(), seasonNumber, closeDay.DayNumber));
+                var matchPhaseSummary = _matchPhases.SnapshotAndReset();
+                _progress.Mark(
+                    "season.archived",
+                    seasonNumber,
+                    processedFixtures,
+                    fixtures.Length,
+                    FormattableString.Invariant($"retired={completed.RetiredPlayerCount}; advanceMs={advanceElapsed.TotalMilliseconds:F0}; selectionMs={selectionElapsed.TotalMilliseconds:F0}; matchMs={matchElapsed.TotalMilliseconds:F0}; reemploymentMs={reemploymentElapsed.TotalMilliseconds:F0}; phases=[{matchPhaseSummary}]"));
+
+                AssertPopulationIntegrity(host, closeDay);
+                _progress.Mark("population.verified", seasonNumber, processedFixtures, fixtures.Length);
+
+                if (seasonNumber == 5)
+                {
+                    _progress.Mark("mid-save.started", seasonNumber, processedFixtures, fixtures.Length);
+                    var midPath = Path.Combine(_tempDirectory, "season-5.db");
+                    host.Session.Save(midPath);
+                    midSaveBytes = new FileInfo(midPath).Length;
+                    var loaded = host.Session.Load(midPath);
+                    Assert.True(loaded.Succeeded);
+                    Assert.True(loaded.WasMigrated is false);
+                    Assert.Equal(5 * CompetitionMvpConstraints.TotalLeagueFixtures, loaded.LoadedFixtureCount);
+                    _progress.Mark(
+                        "mid-save.completed",
+                        seasonNumber,
+                        processedFixtures,
+                        fixtures.Length,
+                        $"bytes={midSaveBytes}");
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            _progress.Mark(
+                "run.failed",
+                totalProcessedFixtures: processedFixtures,
+                detail: $"{exception.GetType().Name}: {exception.Message}");
+            throw;
+        }
+
+        stopwatch.Stop();
+        _progress.Mark("final-save.started", totalProcessedFixtures: processedFixtures);
+        var finalPath = Path.Combine(_tempDirectory, "season-10.db");
+        var saved = host.Session.Save(finalPath);
+        var finalBytes = new FileInfo(finalPath).Length;
+        var final = new CareerSqlitePersistence().Load(finalPath);
+        _progress.Mark(
+            "run.completed",
+            seasonNumber: 10,
+            totalProcessedFixtures: processedFixtures,
+            detail: $"bytes={finalBytes}; path={_progress.Path}");
+
+        _output.WriteLine(
+            "10-season acceptance: {0} fixtures, {1} active/{2} retired players, "
+            + "{3} transfers, {4} dismissals, save {5:N0}->{6:N0} bytes, elapsed {7}.",
+            final.League.Seasons.Sum(season => season.Fixtures.Count),
+            final.PlayerCareers.Count(player => !player.IsRetired),
+            final.PlayerCareers.Count(player => player.IsRetired),
+            transferCompletions,
+            dismissalCount,
+            midSaveBytes,
+            finalBytes,
+            stopwatch.Elapsed);
+        _output.WriteLine("Progress telemetry: {0}", _progress.Path);
+
+        Assert.True(saved.Succeeded);
+        Assert.Equal(51, final.SchemaVersion);
+
+        // Nüfus sağlığı: emekli olmayan her oyuncu ya aktif sözleşmeli ya serbest oyuncudur (sızıntı yok).
+        var finalDay = final.Timeline.CurrentDate;
+        var freeAgentIds = final.FreeAgents.Select(agent => agent.PlayerId).ToHashSet();
+        var activeContractIds = final.Contracts
+            .Where(contract => contract.IsActiveOn(finalDay))
+            .Select(contract => contract.PlayerId)
+            .ToHashSet();
+        var limbo = final.PlayerCareers
+            .Where(player => !player.IsRetired
+                             && !activeContractIds.Contains(player.Id)
+                             && !freeAgentIds.Contains(player.Id))
+            .Select(player => player.Id.Value)
+            .ToArray();
+        Assert.True(limbo.Length == 0, $"Sözleşmesiz ve serbest olmayan oyuncu kaldı: {limbo.Length}");
+        Assert.Equal(10, final.League.Seasons.Count);
+        Assert.All(final.League.Seasons, season => Assert.Equal(SeasonStatus.Archived, season.Status));
+        Assert.Equal(
+            10 * CompetitionMvpConstraints.TotalLeagueFixtures,
+            final.League.Seasons.Sum(season => season.Fixtures.Count));
+        Assert.All(
+            final.League.Seasons.SelectMany(season => season.Fixtures),
+            fixture => Assert.Equal(FixtureStatus.ResultAccepted, fixture.Status));
+        Assert.Equal(450, final.PlayerCareers.Count(player => !player.IsRetired));
+        Assert.Contains(final.PlayerCareers, player => player.IsRetired);
+        Assert.Equal(
+            final.PlayerCareers.Count,
+            final.PlayerCareers.Select(player => player.Id).Distinct().Count());
+        Assert.True(dismissalCount > 0);
+        Assert.True(final.ManagerCareer.EmploymentHistory.Count > 0);
+        Assert.True(transferCompletions > 0);
+        Assert.True(final.Memories.Count > 0);
+        Assert.True(final.Relationships.Count > 0);
+        Assert.InRange(final.FreeAgents.Count, 1, 60);
+        Assert.True(finalBytes < 20 * 1024 * 1024, $"Final save too large: {finalBytes} bytes.");
+        Assert.True(finalBytes < Math.Max(midSaveBytes * 3, 1),
+            $"Save growth is uncontrolled: mid={midSaveBytes}, final={finalBytes}.");
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromMinutes(2),
+            $"Ten-season production acceptance took {stopwatch.Elapsed}.");
+    }
+
+    private static string CreateProgressLogPath()
+    {
+        var configuredDirectory = Environment.GetEnvironmentVariable("FCS_LONG_RUNNING_LOG_DIRECTORY");
+        var directory = string.IsNullOrWhiteSpace(configuredDirectory)
+            ? Path.Combine(FindRepositoryRoot(), "TestResults", "production-ten-season")
+            : Path.GetFullPath(configuredDirectory);
+        Directory.CreateDirectory(directory);
+        return Path.Combine(
+            directory,
+            $"progress-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Environment.ProcessId}.log");
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory);
+             directory is not null;
+             directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "FootballCareerSimulator.slnx")))
+            {
+                return directory.FullName;
+            }
+        }
+
+        return Environment.CurrentDirectory;
+    }
+
+    private static AcceptanceHost CreateHost()
+    {
+        var world = WorldCalendarModule.Create(StartDay, rootSeed: 42);
+        var clubs = ClubGovernanceModule.CreateMvpLeague();
+        var manager = ManagerCareerModule.CreateForCareer(
+            StartDay,
+            clubs.Store,
+            world.TimelineStore,
+            startingClubId: 1);
+        manager.Store.Replace(ManagerCareer.StartNewCareer(
+            new ManagerId(1),
+            "10 Sezon Menajeri",
+            new ClubId(1),
+            StartDay,
+            SeasonExpectationTier.MidTable,
+            initialBoardConfidence: 20));
+
+        var trainingStore = new InMemoryTrainingPhysicalStateStore();
+        var playerStore = new InMemoryPlayerCareerStore();
+        var contracts = ContractRegistrationModule.Create(
+            playerStore,
+            manager.Store,
+            world.TimelineStore,
+            trainingStore: trainingStore);
+        var players = PlayerCareerModule.Create(
+            manager.Store,
+            world.TimelineStore,
+            trainingStore,
+            playerStore,
+            contracts.Registration);
+        var competitionStore = new FootballCareerSimulator.Application.Competition.Infrastructure.InMemoryLeagueCompetitionStore(
+            new LeagueCompetition(new CompetitionId(1)));
+        var selectionStore = new InMemoryMatchSelectionStore();
+        var team = TeamPreparationModule.Create(
+            competitionStore,
+            manager.Store,
+            selectionStore,
+            trainingStore,
+            world.TimelineStore,
+            contracts.Store,
+            playerStore);
+        var training = TrainingPhysicalStateModule.Create(
+            manager.Store,
+            world.TimelineStore,
+            trainingStore,
+            players.Development,
+            team.ClubSquad,
+            selectionStore);
+        var social = SocialContinuityModule.Create();
+        team.BindPromiseStore(social.PromiseStore);
+        contracts.Registration.BindPromiseInvalidation(social.Invalidation);
+        contracts.Registration.BindRelationships(social.RelationshipEvaluation);
+        manager.AcceptJobOffer!.BindCareerMemory(social.CareerMemory);
+        manager.AcceptJobOffer.BindClubHistoryMemory(social.ClubHistoryMemory);
+        clubs.BindWageBudget(contracts.Store);
+
+        var transfer = TransferModule.Create(
+            contracts.Store,
+            team.SquadStore,
+            manager.Store,
+            contracts.Registration,
+            team.ClubSquad!,
+            transferWindow: world.TransferWindowQuery,
+            transferBudget: clubs.TransferBudget,
+            wageBudget: clubs.WageBudget,
+            clubRegistry: clubs.Store,
+            freeAgentStore: contracts.FreeAgentStore,
+            promiseInvalidation: social.Invalidation,
+            transferMemory: social.TransferMemory,
+            clubHistoryMemory: social.ClubHistoryMemory,
+            relationships: social.RelationshipEvaluation);
+        var interaction = InteractionModule.Create(
+            manager.Store,
+            social.PlayingTime,
+            relationships: social.RelationshipEvaluation,
+            decisionMemory: social.DecisionMemory,
+            promiseStore: social.PromiseStore,
+            startingOpportunity: social.StartingOpportunity,
+            transferNeeds: transfer.Needs,
+            relationshipStore: social.RelationshipStore,
+            memoryStore: social.MemoryStore);
+        var lifecycle = new SeasonPlayerLifecycleService(
+            playerStore,
+            players.Development,
+            contracts.Registration,
+            team.ClubSquad!,
+            trainingStore,
+            world.TimelineStore);
+        var competition = CompetitionModule.CreateForCareerFromStore(
+            competitionStore,
+            world.TimelineStore,
+            clubs.Store,
+            manager.Store,
+            selectionStore,
+            trainingStore,
+            playerStore,
+            players.Development,
+            team.TacticPlanStore,
+            team.SquadStore,
+            social.StartingOpportunity,
+            social.SelectionMemory,
+            social.PlayingTime,
+            social.Invalidation,
+            social.CareerMemory,
+            social.ClubHistoryMemory,
+            social.MatchPerformanceMemory,
+            social.RelationshipEvaluation,
+            interaction.PostMatchPress,
+            interaction.PostMatchPlayingTimeDemand,
+            interaction.PostMatchBoardDemand,
+            interaction.PostMatchDiscipline,
+            lifecycle);
+
+        var eventRule = world.EventRuleEvaluation!;
+        // Üretim host'u ile aynı: gün geçişinde vadesi gelen sözleşmeler işlenir (CareerPresentationHost).
+        world.AdvanceSimulationTime.BindContractExpiryConsequences(
+            new FootballCareerSimulator.Application.ContractRegistration.Services.ContractExpiryDayBoundaryApplier(
+                contracts.Registration,
+                eventRule.Gate));
+        var resets = new List<FootballCareerSimulator.Application.WorldCalendar.Ports.ICommandIdempotencyReset>
+        {
+            world.AdvanceSimulationTime,
+            world.OpenPlanningPeriod,
+            world.CompletePlanningPeriod,
+            world.OpenTransferWindow,
+            world.CloseTransferWindow,
+            eventRule,
+            training.IdempotencyReset,
+        };
+        resets.AddRange(competition.IdempotencyResets);
+        resets.AddRange(team.IdempotencyResets);
+        resets.AddRange(manager.IdempotencyResets);
+
+        var session = new CareerGameSessionService(
+            world.TimelineStore,
+            competition.Store,
+            clubs.Store,
+            manager.Store,
+            selectionStore,
+            team.SquadStore,
+            team.TacticPlanStore,
+            transfer.NeedStore,
+            transfer.ShortlistStore,
+            transfer.TargetStore,
+            transfer.ProcessStore,
+            transfer.OfferStore,
+            transfer.ProposalStore,
+            social.PromiseStore,
+            social.MemoryStore,
+            social.RelationshipStore,
+            interaction.DecisionRequestStore,
+            interaction.DialogueSessionStore,
+            interaction.DisciplinaryActionStore,
+            trainingStore,
+            playerStore,
+            contracts.Store,
+            contracts.FreeAgentStore,
+            new CareerSqlitePersistence(),
+            resets,
+            eventRule.Registry,
+            eventRule.ScheduledEvaluationStore);
+
+        return new AcceptanceHost(
+            world,
+            competition,
+            clubs,
+            manager,
+            team,
+            training,
+            players,
+            contracts,
+            transfer,
+            social,
+            interaction,
+            session);
+    }
+
+    private static void ApplyManagedTraining(AcceptanceHost host)
+    {
+        if (!host.Manager.Store.Career.IsEmployed)
+        {
+            return;
+        }
+
+        host.Training.SetWeeklyPlan.Handle(new SetWeeklyTrainingPlanCommand(
+            Guid.NewGuid(),
+            (int)TrainingFocus.Recovery,
+            (int)TrainingIntensity.Low,
+            (int)RestApproach.Heavy));
+    }
+
+    private static void AdvanceTo(WorldCalendarModule world, GameDate day)
+    {
+        if (world.TimelineStore.Timeline.CurrentDate.DayNumber >= day.DayNumber)
+        {
+            return;
+        }
+
+        world.AdvanceSimulationTime.Handle(
+            new AdvanceSimulationTimeCommand(Guid.NewGuid(), day.DayNumber));
+    }
+
+    private static void AssertPopulationIntegrity(AcceptanceHost host, GameDate day)
+    {
+        var activePlayers = host.Players.Store.Careers.Where(player => !player.IsRetired).ToArray();
+        Assert.Equal(450, activePlayers.Length);
+        Assert.Equal(450, activePlayers.Select(player => player.Id).Distinct().Count());
+        var activeContractPlayerIds = host.Contracts.Store.Contracts
+            .Where(contract => contract.IsActiveOn(day))
+            .Select(contract => contract.PlayerId)
+            .ToHashSet();
+        Assert.DoesNotContain(
+            host.Players.Store.Careers.Where(player => player.IsRetired),
+            retired => activeContractPlayerIds.Contains(retired.Id));
+        Assert.All(
+            host.Team.SquadStore.Squads,
+            squad => Assert.DoesNotContain(
+                squad.Members,
+                member => host.Players.Store.Careers.Any(
+                    player => player.Id == member.PlayerId && player.IsRetired)));
+    }
+
+    private sealed record AcceptanceHost(
+        WorldCalendarModule World,
+        CompetitionModule Competition,
+        ClubGovernanceModule Clubs,
+        ManagerCareerModule Manager,
+        TeamPreparationModule Team,
+        TrainingPhysicalStateModule Training,
+        PlayerCareerModule Players,
+        ContractRegistrationModule Contracts,
+        TransferModule Transfer,
+        SocialContinuityModule Social,
+        InteractionModule Interaction,
+        CareerGameSessionService Session);
+
+    private sealed class AcceptanceProgressLog : IDisposable
+    {
+        private readonly ITestOutputHelper _output;
+        private readonly StreamWriter _writer;
+        private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
+        private TimeSpan _lastCheckpoint;
+
+        public AcceptanceProgressLog(string path, ITestOutputHelper output)
+        {
+            Path = path;
+            _output = output;
+            _writer = new StreamWriter(new FileStream(
+                path,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.ReadWrite))
+            {
+                AutoFlush = true,
+            };
+            _writer.WriteLine(
+                $"# Production ten-season progress | UTC {DateTimeOffset.UtcNow:O} | PID {Environment.ProcessId}");
+        }
+
+        public string Path { get; }
+
+        public void Mark(
+            string stage,
+            int seasonNumber = 0,
+            int totalProcessedFixtures = 0,
+            int seasonFixtureCount = 0,
+            string? detail = null)
+        {
+            var elapsed = _stopwatch.Elapsed;
+            var checkpointElapsed = elapsed - _lastCheckpoint;
+            _lastCheckpoint = elapsed;
+            var managedMemoryMb = GC.GetTotalMemory(forceFullCollection: false) / (1024d * 1024d);
+            var workingSetMb = Environment.WorkingSet / (1024d * 1024d);
+            var metrics = FormattableString.Invariant($"{DateTimeOffset.UtcNow:O}\tstage={stage}\tseason={seasonNumber}\tfixtures={totalProcessedFixtures}\tseasonFixtureCount={seasonFixtureCount}\ttotalMs={elapsed.TotalMilliseconds:F0}\tdeltaMs={checkpointElapsed.TotalMilliseconds:F0}\tmanagedMb={managedMemoryMb:F1}\tworkingSetMb={workingSetMb:F1}");
+            var line = string.IsNullOrWhiteSpace(detail)
+                ? metrics
+                : $"{metrics}\tdetail={detail}";
+            _writer.WriteLine(line);
+            _output.WriteLine(line);
+        }
+
+        public void Dispose()
+        {
+            _writer.Dispose();
+        }
+    }
+
+    private sealed class MatchPhaseAccumulator : IDisposable
+    {
+        private readonly object _gate = new();
+        private readonly Dictionary<string, TimeSpan> _durationByPhase = new(StringComparer.Ordinal);
+        private readonly ActivityListener _listener;
+
+        public MatchPhaseAccumulator()
+        {
+            _listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == MatchExecutionDiagnostics.ActivitySourceName,
+                Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                SampleUsingParentId = static (ref ActivityCreationOptions<string> _) => ActivitySamplingResult.AllData,
+                ActivityStopped = RecordStoppedActivity,
+            };
+            ActivitySource.AddActivityListener(_listener);
+        }
+
+        public string SnapshotAndReset()
+        {
+            KeyValuePair<string, TimeSpan>[] snapshot;
+            lock (_gate)
+            {
+                snapshot = _durationByPhase.ToArray();
+                _durationByPhase.Clear();
+            }
+
+            return string.Join(
+                ", ",
+                snapshot
+                    .OrderByDescending(pair => pair.Value)
+                    .ThenBy(pair => pair.Key, StringComparer.Ordinal)
+                    .Select(pair => FormattableString.Invariant(
+                        $"{pair.Key}Ms={pair.Value.TotalMilliseconds:F0}")));
+        }
+
+        public void Dispose() => _listener.Dispose();
+
+        private void RecordStoppedActivity(Activity activity)
+        {
+            lock (_gate)
+            {
+                _durationByPhase[activity.OperationName] =
+                    _durationByPhase.GetValueOrDefault(activity.OperationName) + activity.Duration;
+            }
+        }
+    }
+}

@@ -776,6 +776,10 @@ Bağlayıcı kurallar:
 * Trend ve baseline kaydı tutulmalıdır.
 * Exact süre, memory ve save boyutu eşikleri teknik spike ve ilk ölçümler olmadan belirlenmez.
 
+### 37.1. Güncel production soak uygulaması — 2026-08-19
+
+`ProductionTenSeasonAcceptanceTests` `Category=LongRunning` olarak ayrılmıştır. Hızlı yerel kapı `dotnet test ... --filter "Category!=LongRunning"` ile çalışır; production soak kapısı `--filter "Category=LongRunning"` ile ayrıca çalıştırılır. İlk tam Debug ölçümü 7:11'de 18 kulüp, 450 aktif oyuncu, 10 sezon ve 3.060 kabul edilmiş fikstürü tamamlamıştır. Bu oyuncu-deneyimi + V46 paketindeki Debug ölçüm 10:28'tir; açık bütçe D-397 ile 12 dakikadır. Test; 5. sezon save/load checkpoint'ini, güncel V46 final load'u, lifecycle/population/referential integrity'yi, manager geçmişini, transfer ve sosyal sürekliliği, 20 MiB mutlak save sınırını ve 5→10 sezon arasında 3× büyüme sınırını birlikte doğrular (D-394, D-395, D-397). Bu eşikler yalnız bu tanımlı acceptance scenario'sunun regression bütçesidir; genel benchmark/Release hedefi değildir.
+
 ---
 
 ## 38. Domain Değişmezleriyle Uyumluluk

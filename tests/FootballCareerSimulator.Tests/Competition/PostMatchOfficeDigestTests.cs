@@ -1,0 +1,743 @@
+using FootballCareerSimulator.Application.CareerHub.Queries;
+using FootballCareerSimulator.Application.Competition.Queries;
+using FootballCareerSimulator.Application.Interaction.Queries;
+using FootballCareerSimulator.Application.TeamPreparation.Queries;
+using FootballCareerSimulator.Application.TrainingPhysicalState.Queries;
+using FootballCareerSimulator.Application.Transfer.Queries;
+using FootballCareerSimulator.Domain.TeamPreparation;
+using FootballCareerSimulator.Simulation.TrainingPhysicalState;
+
+namespace FootballCareerSimulator.Tests.Competition;
+
+public sealed class PostMatchOfficeDigestTests
+{
+    [Fact]
+    public void AfterInjuriesCleared_CelebratesPathClosure()
+    {
+        var digest = PostMatchOfficeDigest.AfterInjuriesCleared(["Tolga Kurt"]);
+
+        Assert.Equal(PostMatchOfficeDigest.Brand, digest.BrandTitle);
+        Assert.Contains("İyileşti", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains("Tolga Kurt", digest.Headline, StringComparison.Ordinal);
+        Assert.Equal(TodayPulseDigest.FocusCalm, digest.NextFocusCode);
+        Assert.Contains(digest.BeatLines, b => b == "İyileşme Yolu kapandı");
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("İyileşti:", StringComparison.Ordinal));
+        Assert.Contains("günü ilerlet", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AfterInjuriesCleared_WithDueMatch_HandsOffToKickoff()
+    {
+        var digest = PostMatchOfficeDigest.AfterInjuriesCleared(
+            ["Ali Yılmaz"],
+            hasDuePlayableMatch: true);
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, digest.NextFocusCode);
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Maç Gününe Git");
+    }
+
+    [Fact]
+    public void AfterRecoveryApplied_ConfirmsPlanAndListsInjured()
+    {
+        var digest = PostMatchOfficeDigest.AfterRecoveryApplied(["Tolga Kurt", "Ali Yılmaz"]);
+
+        Assert.Equal(PostMatchOfficeDigest.Brand, digest.BrandTitle);
+        Assert.Equal("Toparlanma işledi — sakatlar listede.", digest.Headline);
+        Assert.Equal(TodayPulseDigest.FocusCalm, digest.NextFocusCode);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Sakat:", StringComparison.Ordinal)
+            && b.Contains("Tolga Kurt", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b.Contains("Toparlanma", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b.Contains("nabız sakin", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("günü ilerlet", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Ofiste", digest.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AfterRecoveryApplied_WithDueUnapprovedMatch_HandsOffToXi()
+    {
+        var digest = PostMatchOfficeDigest.AfterRecoveryApplied(
+            ["Tolga Kurt"],
+            hasDueUnapprovedMatch: true,
+            hasInjuryPressure: true);
+
+        Assert.Equal(TodayPulseDigest.FocusMatch, digest.NextFocusCode);
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Sakatsız Kadro Onayla");
+        Assert.Equal("Hazırlık oturdu — şimdi Sakatsız Kadro Onayla.", digest.AdviceLine);
+    }
+
+    [Fact]
+    public void Quiet_WhenNoManagedNarrative()
+    {
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative: null,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: false);
+
+        Assert.Equal(PostMatchOfficeDigest.Brand, digest.BrandTitle);
+        Assert.Contains("Ofis sakin", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains("Öneri:", digest.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FromTodayPulse_MirrorsPrepFocus()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1, null, null, null, null, null, null, null, null, null,
+                HasPlan: false, 0, 0),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 4);
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk());
+
+        var digest = PostMatchOfficeDigest.FromTodayPulse(pulse);
+
+        Assert.Equal(TodayPulseDigest.FocusPrep, digest.NextFocusCode);
+        Assert.Contains("Nabız konuşuyor", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Sıradaki:", StringComparison.Ordinal));
+        Assert.Contains("birincil düğme", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AfterMoodTempoShift_CalmToDraft_FlashesHavaAndSiradaki()
+    {
+        var next = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Maç kapıda — kadro henüz kilitlenmedi, tempo eksik.",
+            WeekMoodDigest.MoodMatchDraft);
+
+        var digest = PostMatchOfficeDigest.AfterMoodTempoShift(
+            WeekMoodDigest.MoodCalm,
+            next,
+            nextCtaLabel: "Kadro Onayla");
+
+        Assert.NotNull(digest);
+        Assert.Contains("Tempo yükseldi", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Hava:", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Kadro Onayla");
+        Assert.Equal(TodayPulseDigest.FocusMatch, digest.NextFocusCode);
+        Assert.Contains("Kadro Onayla", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AfterMoodTempoShift_NonTransition_ReturnsNull()
+    {
+        var next = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Sakin hafta — plan tutuyor, günü ilerlet.",
+            WeekMoodDigest.MoodCalm);
+
+        Assert.Null(PostMatchOfficeDigest.AfterMoodTempoShift(
+            WeekMoodDigest.MoodCalm,
+            next));
+    }
+
+    [Fact]
+    public void AfterMoodTempoShift_DraftToReady_PointsKickoff()
+    {
+        var next = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Düdük yakın — kadro hazır, haftanın ritmi senin.",
+            WeekMoodDigest.MoodMatchReady);
+
+        var digest = PostMatchOfficeDigest.AfterMoodTempoShift(
+            WeekMoodDigest.MoodMatchDraft,
+            next,
+            nextCtaLabel: "Maç Gününe Git");
+
+        Assert.NotNull(digest);
+        Assert.Contains("oturdu", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Maç Gününe Git");
+        Assert.Equal(TodayPulseDigest.FocusMatch, digest.NextFocusCode);
+        Assert.Contains("Maç Gününe Git", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AfterCalmNoteAdvance_FlashesRenewedNote()
+    {
+        var before = OfficeCalmNote.Resolve(WeekMoodDigest.MoodCalm, 12);
+        var after = OfficeCalmNote.Resolve(WeekMoodDigest.MoodCalm, 13);
+        Assert.NotEqual(before, after);
+
+        var digest = PostMatchOfficeDigest.AfterCalmNoteAdvance(
+            after!,
+            before,
+            nextCtaLabel: "1 Gün İlerlet");
+
+        Assert.Equal(PostMatchOfficeDigest.Brand, digest.BrandTitle);
+        Assert.Contains("yenilendi", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b == $"Not: {after}");
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: 1 Gün İlerlet");
+        Assert.Equal(TodayPulseDigest.FocusCalm, digest.NextFocusCode);
+        Assert.Contains("1 Gün İlerlet", digest.AdviceLine, StringComparison.Ordinal);
+        Assert.Contains("Ofiste", digest.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AfterCalmNoteAdvance_SameNote_KeepsCalmHeadline()
+    {
+        var note = OfficeCalmNote.Resolve(WeekMoodDigest.MoodCalm, 12)!;
+
+        var digest = PostMatchOfficeDigest.AfterCalmNoteAdvance(note, note);
+
+        Assert.Contains("sakin tempo", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b == $"Not: {note}");
+    }
+
+    [Fact]
+    public void FromTodayPulse_CalmWithWeekMood_SurfacesHavaAndSiradaki()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.General,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Medium,
+                (int)Domain.TrainingPhysicalState.RestApproach.Normal,
+                null, null, null, null, null, null,
+                HasPlan: true, 0, 0),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 6);
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk());
+        var mood = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Sakin hafta — plan tutuyor, günü ilerlet.",
+            WeekMoodDigest.MoodCalm);
+
+        var digest = PostMatchOfficeDigest.FromTodayPulse(
+            pulse,
+            mood,
+            nextCtaLabel: "1 Gün İlerlet",
+            dayNumber: 12);
+
+        Assert.Equal(TodayPulseDigest.FocusCalm, digest.NextFocusCode);
+        Assert.Contains("Haftanın havası", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Hava:", StringComparison.Ordinal)
+            && b.Contains("Sakin hafta", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Not:", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: 1 Gün İlerlet");
+        Assert.Contains("birincil düğme", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("1 Gün İlerlet", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void FromTodayPulse_PrepMood_SkipsCalmOfficeNote()
+    {
+        var prep = PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1, null, null, null, null, null, null, null, null, null,
+                HasPlan: false, 0, 0),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 4);
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            prep,
+            LeagueOk());
+        var mood = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Plan boş — haftayı birincil düğmeyle kur.",
+            WeekMoodDigest.MoodPrep);
+
+        var digest = PostMatchOfficeDigest.FromTodayPulse(
+            pulse,
+            mood,
+            nextCtaLabel: "Haftalık Plan Kur",
+            dayNumber: 12);
+
+        Assert.DoesNotContain(digest.BeatLines, b => b.StartsWith("Not:", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Haftalık Plan Kur");
+    }
+
+    [Theory]
+    [InlineData(WeekMoodDigest.MoodFormRise, "seri yükseliyor")]
+    [InlineData(WeekMoodDigest.MoodFormCrisis, "form alarmı")]
+    public void FromTodayPulse_FormMood_UsesSpecificOfficeHeadline(
+        string moodCode,
+        string expectedHeadline)
+    {
+        var mood = new WeekMoodDigest(
+            true,
+            WeekMoodDigest.Brand,
+            "Form serisi haftanın ritmini belirliyor.",
+            moodCode);
+        var pulse = new TodayPulseDigest(
+            TodayPulseDigest.Brand,
+            "Sakin hafta",
+            TodayPulseDigest.FocusCalm,
+            [mood.ToPulseLine()]);
+
+        var digest = PostMatchOfficeDigest.FromTodayPulse(
+            pulse,
+            mood,
+            dayNumber: 12);
+
+        Assert.Contains(expectedHeadline, digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("ofise bak", digest.Headline, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void FromTodayPulse_WeekStory_SurfacesHikayeAndCta()
+    {
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PreparationBriefing.Compose(
+                new ClubTrainingSummaryReadModel(
+                    1, null, null, null, null, null, null, null, null, null,
+                    HasPlan: true, 0, 0),
+                new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+                "±0",
+                daysUntilNextMatch: 3),
+            LeagueOk());
+        var story = new WeekStoryDigest(
+            true,
+            WeekStoryDigest.Brand,
+            "Temiz XI — Tolga Kurt döndü, sakatsız düdük sırada.",
+            WeekStoryDigest.PhaseCleanXi);
+
+        var digest = PostMatchOfficeDigest.FromTodayPulse(
+            pulse,
+            weekMood: WeekMoodDigest.Clear(),
+            weekStory: story,
+            nextCtaLabel: "Maç Gününe Git");
+
+        Assert.Contains("temiz XI", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Hikâye:", StringComparison.Ordinal)
+            && b.Contains("Temiz XI", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Maç Gününe Git");
+        Assert.Contains("Haftanın Hikâyesi", digest.AdviceLine, StringComparison.Ordinal);
+        Assert.Contains("Maç Gününe Git", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PressAndHardDesk_LeadsCrisisHeadline()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 0-2 B",
+            0,
+            2,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 20,
+            beatLines: Array.Empty<string>(),
+            afterWhistleLines: ["Yönetim güveni -5 → 40 (İncelemede)", "Basın sorusu açıldı."],
+            otherScorelines: Array.Empty<string>(),
+            kickoffLines: ["Ev vs B · bugün", "Maça söz riskiyle girdin."],
+            enteredWithPromiseRisk: true);
+
+        var desk = DecisionDeskDigest.Compose(
+            new PendingDecisionsReadModel(
+                1,
+                [
+                    new DecisionRequestLineReadModel(
+                        7,
+                        "Kritik basın sorusu",
+                        42,
+                        1,
+                        "Open",
+                        IsHardBlocker: true,
+                        20,
+                        22,
+                        null),
+                ]),
+            currentDayNumber: 20);
+
+        var digest = PostMatchOfficeDigest.Compose(narrative, desk, hasManagedMatch: true);
+
+        Assert.Equal("Ofiste kriz — cevap vermeden ilerleyemezsin.", digest.Headline);
+        Assert.Contains(digest.BeatLines, b => b.Contains("Basın sorusu", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b.Contains("Masada zorunlu", StringComparison.Ordinal));
+        Assert.Contains(digest.BeatLines, b => b.Contains("söz gerilimi", StringComparison.OrdinalIgnoreCase));
+
+        var text = digest.ToStatusMessage();
+        Assert.Contains("Ofiste", text, StringComparison.Ordinal);
+        Assert.Contains("· ", text, StringComparison.Ordinal);
+        Assert.Contains("Öneri:", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HalfTimeSubstitution_SurfacesNamedBridgeBeat()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 1-0 B",
+            1,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 10,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni +1 → 55 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines:
+            [
+                "Ev vs B · bugün",
+                "Devre arasında hücuma geçtin.",
+                "Devre arasında Ali Yılmaz↔Can Demir.",
+            ]);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Contains(
+            digest.BeatLines,
+            b => b == "Devre arası: Hücuma geçtin · Ali Yılmaz↔Can Demir");
+        Assert.Single(
+            digest.BeatLines,
+            b => b.StartsWith("Devre arası:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Compose_ManagedMatchNight_CarriesMorningHeadlineBeat()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 3-0 B",
+            3,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 10,
+            beatLines: ["12' Ev gol · Kaya"],
+            afterWhistleLines: ["Yönetim güveni +2 → 60 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines: ["Ev vs B · bugün"]);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Equal(
+            "Sabah manşeti: \"Rakibe nefes aldırmadılar — şehir zevk uyandı.\"",
+            digest.BeatLines.First());
+    }
+
+    [Fact]
+    public void LineupBridge_SurfacesBöyleÇıktınBeat()
+    {
+        var names = Enumerable.Range(0, 25).Select(i => $"Ali{i} Demir{i}").ToArray();
+        var strip = MatchDayLineupStrip.Compose(
+            true,
+            true,
+            Enumerable.Range(2, 11).ToArray(),
+            [new MvpAvailabilityAwareSelection.AvailabilityAutoSwap(0, 11)],
+            names);
+
+        var narrative = MatchNightNarrative.Compose(
+            "A 1-0 B",
+            1,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 10,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni +1 → 55 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines: ["Ev vs B · bugün"],
+            lineupBridge: strip);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Böyle çıktın:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ComfortableWin_RelaxesOffice()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 3-0 B",
+            3,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: "taktik +1",
+            dayNumber: 5,
+            beatLines: Array.Empty<string>(),
+            afterWhistleLines: ["Yönetim güveni +3 → 70 (Güvenli)"],
+            otherScorelines: Array.Empty<string>());
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Equal("Ofis rahatladı — gece senindi.", digest.Headline);
+        Assert.Contains(digest.BeatLines, b => b.Contains("Masada yeni zorunlu dosya yok", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WinWithTransferPulse_PointsNextStep()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-0 B",
+            2,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 8,
+            beatLines: Array.Empty<string>(),
+            afterWhistleLines: ["Yönetim güveni +2 → 65 (Güvenli)"],
+            otherScorelines: Array.Empty<string>());
+
+        var squad = SquadCapacityDigest.Compose(
+            ClubSquad.MaxMembers,
+            ClubSquad.MaxMembers,
+            ClubSquad.MaxMembers,
+            Array.Empty<long>());
+        var transfer = TransferDeskBriefing.Compose(
+            windowOpen: true,
+            "Açık",
+            40,
+            openNeedCount: 0,
+            openExitNeedCount: 1,
+            listedTargetCount: 0,
+            activeProcessCount: 0,
+            pendingOfferCount: 0,
+            budgetAvailable: 1_000_000,
+            budgetSpent: 0,
+            squadFull: true,
+            saleCandidatePlayerId: 2001);
+        var pulse = TodayPulseDigest.Compose(
+            DecisionDeskDigest.Clear(),
+            PreMatchBriefing.Clear(),
+            PrepOk(),
+            LeagueOk(),
+            squad,
+            transfer);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true,
+            pulse);
+
+        Assert.Equal(TodayPulseDigest.FocusTransfer, digest.NextFocusCode);
+        Assert.Contains("Transfer Masası", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Sıradaki:", StringComparison.Ordinal));
+        Assert.Contains("birincil düğme", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Öneri:", digest.ToDisplayText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void HalfTimeAttackWithInjury_RemembersNightDecision()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 1-2 B",
+            1,
+            2,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 12,
+            beatLines: ["71' Ev sakatlık · Tolga Kurt"],
+            afterWhistleLines:
+            [
+                "Devre arasında hücuma geçtin.",
+                "Sakatlık: Tolga Kurt",
+                "Yönetim güveni -2 → 48 (Stabil)",
+            ],
+            otherScorelines: Array.Empty<string>(),
+            kickoffLines: ["Devre arası: A 0-1 B", "Devre arasında hücuma geçtin."]);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Equal(TodayPulseDigest.FocusPrep, digest.NextFocusCode);
+        Assert.Contains("Hücum riski", digest.Headline, StringComparison.Ordinal);
+        Assert.Contains(
+            digest.BeatLines,
+            b => b == "Devre arası: Hücuma geçtin");
+        Assert.Contains(
+            digest.BeatLines,
+            b => b == "Sıradaki: Toparlanma Uygula");
+        Assert.Equal(
+            "Hücuma geçtin — şimdi Toparlanma Uygula.",
+            digest.AdviceLine);
+    }
+
+    [Fact]
+    public void InjuryNightWithoutHalfTimeNote_StillOffersRecoveryCta()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 0-1 B",
+            0,
+            1,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 14,
+            beatLines: ["55' Ev sakatlık · Tolga Kurt"],
+            afterWhistleLines: ["Sakatlık: Tolga Kurt", "Yönetim güveni -1 → 50 (Stabil)"],
+            otherScorelines: []);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Equal(TodayPulseDigest.FocusPrep, digest.NextFocusCode);
+        Assert.Equal("Sakatlık var — Toparlanma sırada.", digest.Headline);
+        Assert.Contains(digest.BeatLines, b => b == "Sıradaki: Toparlanma Uygula");
+        Assert.Contains("Toparlanma Uygula", digest.AdviceLine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CleanReturnWin_OfficeSaysPaidOff()
+    {
+        var names = Enumerable.Range(0, 25).Select(i => $"P{i} Kurt{i}").ToArray();
+        names[0] = "Tolga Kurt";
+        var strip = MatchDayLineupStrip.Compose(
+            true,
+            true,
+            Enumerable.Range(0, 11).ToArray(),
+            Array.Empty<MvpAvailabilityAwareSelection.AvailabilityAutoSwap>(),
+            names,
+            cleanReturnNames: ["Tolga Kurt"]);
+
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-0 B",
+            2,
+            0,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 12,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni +2 → 60 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines: ["Ev vs B · bugün", "Temiz XI — Tolga Kurt döndü, sakatsız çıktın."],
+            lineupBridge: strip);
+
+        Assert.Equal(2, narrative.ManagedGoalMargin);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Contains("işe yaradı", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            digest.BeatLines,
+            b => b.StartsWith("Dönenler işe yaradı", StringComparison.Ordinal)
+                && b.Contains("Kurt", StringComparison.Ordinal));
+        Assert.Contains("tuttu", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CleanReturnLoss_OfficeSaysNotEnough()
+    {
+        var names = Enumerable.Range(0, 25).Select(i => $"P{i} N{i}").ToArray();
+        var strip = MatchDayLineupStrip.Compose(
+            true,
+            true,
+            Enumerable.Range(0, 11).ToArray(),
+            Array.Empty<MvpAvailabilityAwareSelection.AvailabilityAutoSwap>(),
+            names,
+            cleanReturnNames: ["Ali Yılmaz"]);
+
+        var narrative = MatchNightNarrative.Compose(
+            "A 0-2 B",
+            0,
+            2,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 13,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni -1 → 52 (Stabil)"],
+            otherScorelines: [],
+            lineupBridge: strip);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true);
+
+        Assert.Contains("yetmedi", digest.Headline, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(digest.BeatLines, b => b.StartsWith("Dönenler yetmedi", StringComparison.Ordinal));
+        Assert.Contains("yumuşat", digest.AdviceLine, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ExplicitHalfTimeNoteLine_PrefersReportWording()
+    {
+        var narrative = MatchNightNarrative.Compose(
+            "A 2-1 B",
+            2,
+            1,
+            managedIsHome: true,
+            hasManagedMatch: true,
+            tacticNote: null,
+            dayNumber: 9,
+            beatLines: [],
+            afterWhistleLines: ["Yönetim güveni +1 → 58 (Stabil)"],
+            otherScorelines: [],
+            kickoffLines: ["Devre arasında hücuma geçtin."]);
+
+        var digest = PostMatchOfficeDigest.Compose(
+            narrative,
+            DecisionDeskDigest.Clear(),
+            hasManagedMatch: true,
+            halfTimeNoteLine: "Devre arası: Savunmaya çektin · Efe↔Mert");
+
+        Assert.Contains(
+            digest.BeatLines,
+            b => b == "Devre arası: Savunmaya çektin · Efe↔Mert");
+        Assert.DoesNotContain(
+            digest.BeatLines,
+            b => b.Contains("Hücuma", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static PreparationBriefing PrepOk() =>
+        PreparationBriefing.Compose(
+            new ClubTrainingSummaryReadModel(
+                1,
+                (int)Domain.TrainingPhysicalState.TrainingFocus.General,
+                (int)Domain.TrainingPhysicalState.TrainingIntensity.Medium,
+                (int)Domain.TrainingPhysicalState.RestApproach.Normal,
+                null, null, null, 1, 30, 70, true, 0, 0),
+            new TacticPlanReadModel(1, "4-4-2", "Dengeli", 1),
+            "±0",
+            daysUntilNextMatch: 4);
+
+    private static LeagueWorldBriefing LeagueOk() =>
+        LeagueWorldBriefing.Compose(
+            "Active",
+            8,
+            30,
+            8,
+            managedRank: 4,
+            managedPoints: 12,
+            managedPlayed: 8,
+            managedGoalDifference: 1,
+            managedClubName: "Home",
+            leaderClubName: "Leaders",
+            leaderPoints: 18,
+            nextMatchLine: null);
+}

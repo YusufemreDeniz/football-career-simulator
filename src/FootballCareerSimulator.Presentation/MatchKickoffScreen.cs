@@ -1,0 +1,225 @@
+using FootballCareerSimulator.Application.Competition.Queries;
+using Godot;
+
+namespace FootballCareerSimulator.Presentation;
+
+/// <summary>
+/// Düdük ile devre arası / sonuç arasındaki maç nabzı anı.
+/// Ofisteki "kadro kilitli, düdük yakın" hissini sahaya girişe bağlar.
+/// </summary>
+public partial class MatchKickoffScreen : Control
+{
+    private readonly MatchKickoffMoment _moment;
+
+    public event Action? BackRequested;
+
+    /// <summary>Nabız anı okundu — devre arasına veya sonuca geç.</summary>
+    public event Action? ProceedRequested;
+
+    public MatchKickoffScreen(MatchKickoffMoment moment)
+    {
+        _moment = moment ?? throw new ArgumentNullException(nameof(moment));
+    }
+
+    public override void _Ready()
+    {
+        CareerUiTheme.EnsureLoaded();
+        var margin = MatchScreenUi.CreateStageRoot(
+            this,
+            new Color(CareerUiTheme.Action.R, CareerUiTheme.Action.G, CareerUiTheme.Action.B, 0.075f));
+
+        var shell = MatchScreenUi.VerticalStack(12);
+        shell.SizeFlagsVertical = SizeFlags.ExpandFill;
+        margin.AddChild(shell);
+
+        shell.AddChild(MatchScreenUi.StageMarker("02  •  SAHAYA ÇIKIŞ & TÜNEL ATMOSFERİ", "CANLI MAÇ", CareerUiTheme.ActionBright));
+
+        var scroll = MatchScreenUi.ScrollArea();
+        shell.AddChild(scroll);
+
+        var content = MatchScreenUi.VerticalStack(16);
+        scroll.AddChild(content);
+
+        var viewport = GetViewportRect().Size;
+        var bodyGrid = new GridContainer
+        {
+            Columns = viewport.X >= 700f && viewport.X > viewport.Y ? 2 : 1,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        bodyGrid.AddThemeConstantOverride("h_separation", CareerUiTheme.SpaceM);
+        bodyGrid.AddThemeConstantOverride("v_separation", CareerUiTheme.SpaceM);
+        content.AddChild(bodyGrid);
+
+        var hero = MatchScreenUi.Card(emphasized: true);
+        hero.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        hero.SizeFlagsVertical = SizeFlags.ExpandFill;
+        bodyGrid.AddChild(hero);
+        var heroContent = MatchScreenUi.VerticalStack(10);
+        hero.AddChild(heroContent);
+
+        var live = new Label
+        {
+            Text = "●  DÜDÜK ÖNCESİ  •  STADYUM TÜNELİ",
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.StyleEyebrow(live, CareerUiTheme.ActionBright);
+        heroContent.AddChild(live);
+
+        var brand = new Label
+        {
+            Text = _moment.BrandTitle.ToUpperInvariant(),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleBrand(brand);
+        brand.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(30));
+        heroContent.AddChild(brand);
+
+        var fixture = new Label
+        {
+            Text = _moment.FixtureLine,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleBody(fixture, muted: true);
+        heroContent.AddChild(fixture);
+
+        var divider = new ColorRect
+        {
+            Color = new Color(CareerUiTheme.ActionBright.R, CareerUiTheme.ActionBright.G, CareerUiTheme.ActionBright.B, 0.75f),
+            CustomMinimumSize = new Vector2(0, 2),
+            MouseFilter = MouseFilterEnum.Ignore,
+        };
+        heroContent.AddChild(divider);
+
+        var headline = new Label
+        {
+            Text = _moment.Headline,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleHeadline(headline);
+        headline.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(24));
+        heroContent.AddChild(headline);
+
+        var tunnelColumn = MatchScreenUi.VerticalStack(8);
+        tunnelColumn.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        tunnelColumn.SizeFlagsVertical = SizeFlags.ExpandFill;
+        bodyGrid.AddChild(tunnelColumn);
+
+        tunnelColumn.AddChild(MatchScreenUi.SectionTitle("TÜNEL BRİFİNGİ", "Son direktifler & stadyum nabzı"));
+        var beatsPanel = MatchScreenUi.Card(emphasized: false);
+        beatsPanel.SizeFlagsVertical = SizeFlags.ExpandFill;
+        tunnelColumn.AddChild(beatsPanel);
+        var beats = MatchScreenUi.VerticalStack(10);
+        beatsPanel.AddChild(beats);
+
+        var beatIndex = 1;
+        foreach (var beat in _moment.BeatLines)
+        {
+            var row = new HBoxContainer
+            {
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            };
+            row.AddThemeConstantOverride("separation", 10);
+            beats.AddChild(row);
+
+            var numBadge = new PanelContainer();
+            numBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.15f));
+            var number = new Label
+            {
+                Text = beatIndex.ToString("00"),
+                CustomMinimumSize = new Vector2(28, 0),
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            CareerUiTheme.StyleEyebrow(number, CareerUiTheme.ActionBright);
+            numBadge.AddChild(number);
+            row.AddChild(numBadge);
+
+            var line = MatchScreenUi.BodyLine(beat);
+            line.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+            row.AddChild(line);
+            beatIndex++;
+        }
+
+        if (_moment.BeatLines.Count == 0)
+        {
+            beats.AddChild(MatchScreenUi.BodyLine("Takımlar sahaya çıkmaya hazır.", muted: true));
+        }
+
+        var readinessPanel = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        readinessPanel.AddThemeStyleboxOverride(
+            "panel",
+            CareerUiTheme.BadgePillPanel(_moment.IsReadyToKickOff ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft, 0.22f));
+        tunnelColumn.AddChild(readinessPanel);
+
+        var readiness = MatchScreenUi.BodyLine(
+            _moment.IsReadyToKickOff
+                ? "11 KİLİTLENDİ • TRİBÜNLER HAZIR • MAÇ BAŞLIYOR"
+                : "BAŞLAMA DÜDÜĞÜ İÇİN MAÇ HAZIRLIĞI EKSİK",
+            alignment: HorizontalAlignment.Center);
+        readiness.AddThemeColorOverride(
+            "font_color",
+            _moment.IsReadyToKickOff ? CareerUiTheme.ActionBright : CareerUiTheme.DangerSoft);
+        readinessPanel.AddChild(readiness);
+
+        var footer = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        footer.AddThemeConstantOverride("separation", CareerUiTheme.SpaceS);
+        shell.AddChild(footer);
+
+        var proceedButton = PrimaryButton("Devam");
+        proceedButton.SizeFlagsStretchRatio = 1.35f;
+        proceedButton.CustomMinimumSize = new Vector2(0, 48);
+        proceedButton.Disabled = !_moment.IsReadyToKickOff;
+        proceedButton.Text = _moment.IsReadyToKickOff
+            ? "DÜDÜKLE SAHAYA ÇIK (CANLI MAÇ)"
+            : "Maçı Başlat (düdük kapalı)";
+        proceedButton.Pressed += () => Callable.From(() => ProceedRequested?.Invoke()).CallDeferred();
+        footer.AddChild(proceedButton);
+
+        var backButton = SecondaryButton("Kadro & Taktik Masasına Dön");
+        backButton.SizeFlagsStretchRatio = 1f;
+        backButton.CustomMinimumSize = new Vector2(0, 48);
+        backButton.Pressed += () => Callable.From(() => BackRequested?.Invoke()).CallDeferred();
+        footer.AddChild(backButton);
+
+        MatchScreenUi.FadeIn(content, this);
+        if (CareerUiTheme.ReducedMotion)
+        {
+            return;
+        }
+
+        var pulseTween = CreateTween().SetLoops();
+        pulseTween.TweenProperty(live, "modulate:a", 0.52f, 0.72f)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.InOut);
+        pulseTween.TweenProperty(live, "modulate:a", 1f, 0.72f)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.InOut);
+    }
+
+    private static Button PrimaryButton(string text)
+    {
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StylePrimaryButton(button);
+        return button;
+    }
+
+    private static Button SecondaryButton(string text)
+    {
+        var button = new Button
+        {
+            Text = text,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StyleSecondaryButton(button);
+        return button;
+    }
+}
