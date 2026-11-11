@@ -81,6 +81,37 @@ public partial class LandscapeMatchDayScreen : Control
         _readinessBadge.AddChild(_readinessLabel);
         header.AddChild(_readinessBadge);
 
+        // FM27 Sub-navigation tabs: Diziliş | Oyun Şekli | Savunma | Hücum | Duran Toplar | Kaptan
+        var subTabsPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        subTabsPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Surface, 0.90f));
+        shell.AddChild(subTabsPanel);
+
+        var subTabsRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        subTabsRow.AddThemeConstantOverride("separation", 6);
+        subTabsPanel.AddChild(subTabsRow);
+
+        string[] tabNames = ["Diziliş", "Oyun Şekli", "Savunma", "Hücum", "Duran Toplar", "Kaptan"];
+        for (var i = 0; i < tabNames.Length; i++)
+        {
+            var tabName = tabNames[i];
+            var isDizilis = i == 0;
+            var tabBtn = new Button
+            {
+                Text = tabName,
+                CustomMinimumSize = new Vector2(0, 30),
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            };
+            if (isDizilis)
+            {
+                CareerUiTheme.StylePrimaryButton(tabBtn);
+            }
+            else
+            {
+                CareerUiTheme.StyleSecondaryButton(tabBtn);
+            }
+            subTabsRow.AddChild(tabBtn);
+        }
+
         var body = new HBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -243,7 +274,7 @@ public partial class LandscapeMatchDayScreen : Control
         }
 
         _kickoffButton.Disabled = !briefing.IsReadyToKickOff;
-        _kickoffButton.Text = briefing.IsReadyToKickOff ? "Düdüğü Çal (Maça Başla)" : "Önce kadroyu onayla";
+        _kickoffButton.Text = briefing.IsReadyToKickOff ? "MAÇA BAŞLA (CANLI YAYIN)" : "Önce kadroyu onayla";
         if (briefing.IsReadyToKickOff)
         {
             CareerUiTheme.StylePrimaryButton(_kickoffButton);

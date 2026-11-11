@@ -5,8 +5,11 @@ using Godot;
 namespace FootballCareerSimulator.Presentation;
 
 /// <summary>
-/// Presents the deterministic match simulation as a spoiler-free, controllable
-/// 2D live broadcast arena before the report and final score pages are revealed.
+/// FM27 Broadcast Live Match Arena.
+/// Delivers an authentic 2D TV broadcast experience matching FM27 Mobile:
+/// Full-stage pitch with stadium rafters, perimeter LED boards, team dugouts,
+/// 22-player tokens with directional movement arrows, live clock (08:02),
+/// top broadcast scoreboard bar, bottom commentary ticker, and slide-in tactical drawer.
 /// </summary>
 public sealed partial class LiveMatchTimelineScreen : Control
 {
@@ -16,35 +19,32 @@ public sealed partial class LiveMatchTimelineScreen : Control
 
     private LandscapeMatchLayoutProfile _layout = null!;
     private MatchMomentPitchView _pitch = null!;
-    private Label _homeClubLabel = null!;
-    private Label _awayClubLabel = null!;
+    private Label _clockLabel = null!;
+    private Label _homeClubCodeLabel = null!;
+    private Label _awayClubCodeLabel = null!;
     private Label _homeScoreLabel = null!;
     private Label _awayScoreLabel = null!;
-    private Label _minuteLabel = null!;
     private Label _phaseLabel = null!;
     private PanelContainer _scoreboardPill = null!;
     private ColorRect _homePossessionRect = null!;
     private ColorRect _awayPossessionRect = null!;
+    private Button _playPauseActionBtn = null!;
+    private Button _speedCycleBtn = null!;
+    private Button _menuToggleBtn = null!;
+
+    // Bottom commentary ticker
+    private Label _tickerMinuteLabel = null!;
+    private Label _tickerCommentaryLabel = null!;
+    private Button _quickTacticsBtn = null!;
+
+    // Slide-in Tactical & Telemetry Drawer
+    private PanelContainer _telemetryDrawer = null!;
     private VBoxContainer _eventFeedContainer = null!;
     private MobileScrollContainer _eventFeedScroll = null!;
-    private Button _playPauseButton = null!;
-    private Button _previousButton = null!;
-    private Button _nextButton = null!;
-    private Button _speedHalfButton = null!;
-    private Button _speed1xButton = null!;
-    private Button _speed2xButton = null!;
-    private Button _fastForwardButton = null!;
-    private Button _resultsButton = null!;
+    private ProgressBar _momentumAuraBar = null!;
+    private Label _momentumAuraLabel = null!;
     private Label _statsPossessionLabel = null!;
     private Label _statsShotsLabel = null!;
-    private float _baseSecondsPerMoment;
-    private float _speed = 1f;
-    private int _liveHomeGoals;
-    private int _liveAwayGoals;
-    private string _homeClubName = "Ev Sahibi";
-    private string _awayClubName = "Deplasman";
-    private bool _hasHalfTimeTriggered;
-    private bool _hasHalfTimeEnded;
     private PanelContainer _halfTimeCard = null!;
     private Label _halfTimeScoreLabel = null!;
     private Label _halfTimeAdviceLabel = null!;
@@ -52,13 +52,20 @@ public sealed partial class LiveMatchTimelineScreen : Control
     private Button _planAttackButton = null!;
     private Button _planDefendButton = null!;
     private Button _resumeSecondHalfButton = null!;
-    private ProgressBar _momentumAuraBar = null!;
-    private Label _momentumAuraLabel = null!;
+    private Button _resultsButton = null!;
+    private Button _fastForwardButton = null!;
+
+    private float _baseSecondsPerMoment;
+    private float _speed = 1f;
+    private int _liveHomeGoals;
+    private int _liveAwayGoals;
+    private string _homeClubName = "Crystal Palace";
+    private string _awayClubName = "Leeds United";
     private int _momentumValue = 62;
+    private bool _hasHalfTimeTriggered;
+    private bool _hasHalfTimeEnded;
     private bool _hasKeyDecisionTriggered;
     private bool _hasKeyDecisionResolved;
-    private PanelContainer _keyDecisionCard = null!;
-    private Label _keyDecisionPromptLabel = null!;
 
     public event Action? ResultsRequested;
 
@@ -92,220 +99,44 @@ public sealed partial class LiveMatchTimelineScreen : Control
             _layout.HorizontalMargin,
             _layout.VerticalMargin);
 
-        var shell = MatchScreenUi.VerticalStack(_layout.SectionSeparation);
-        shell.SizeFlagsVertical = SizeFlags.ExpandFill;
-        margin.AddChild(shell);
-
-        // 1. Top Broadcast Scoreboard Bar
-        shell.AddChild(BuildBroadcastScoreboard());
-
-        // 2. Main 2-Column Split (Landscape Bento)
-        var arenaBody = new HBoxContainer
+        var shell = new VBoxContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
         };
-        arenaBody.AddThemeConstantOverride("separation", _layout.SectionSeparation);
-        shell.AddChild(arenaBody);
+        shell.AddThemeConstantOverride("separation", 4);
+        margin.AddChild(shell);
 
-        // Left Column: 2D Pitch View + Playback Control Strip
-        arenaBody.AddChild(BuildPitchArena());
+        // 1. FM27 Broadcast Scoreboard Bar
+        shell.AddChild(BuildBroadcastScoreboard());
 
-        // Right Column: Live Match Desk & Telemetry
-        arenaBody.AddChild(BuildTelemetryDesk());
-
-        var homeIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _homeClubName);
-        var awayIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _awayClubName);
-        _pitch.HomeTeamColor = homeIdentity.PrimaryColor;
-        _pitch.AwayTeamColor = awayIdentity.PrimaryColor.IsEqualApprox(homeIdentity.PrimaryColor)
-            ? awayIdentity.SecondaryColor
-            : awayIdentity.PrimaryColor;
-
-        _pitch.SetMoments(_results.KeyMoments, _results.MatchSequenceSeed, autoplay: true);
-        PopulateTelemetryStats();
-        RefreshControls();
-        UpdateSpeedButtonHighlights();
-    }
-
-    private Control BuildBroadcastScoreboard()
-    {
-        var boardCard = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        boardCard.AddThemeStyleboxOverride("panel", CareerUiTheme.ScoreboardPanel());
-
-        var stack = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        stack.AddThemeConstantOverride("separation", 4);
-        boardCard.AddChild(stack);
-
-        var row = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        row.AddThemeConstantOverride("separation", 10);
-        stack.AddChild(row);
-
-        // Home Team Section (Right-aligned)
-        var homeIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _homeClubName);
-        var awayIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _awayClubName);
-
-        var homeBox = new HBoxContainer
+        // 2. Full-Stage 2D Pitch Arena (Takes all remaining center space)
+        var arenaLayer = new Control
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.End,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            ClipContents = true,
         };
-        homeBox.AddThemeConstantOverride("separation", 8);
-        row.AddChild(homeBox);
-
-        _homeClubLabel = new Label
-        {
-            Text = _homeClubName.ToUpperInvariant(),
-            HorizontalAlignment = HorizontalAlignment.Right,
-        };
-        CareerUiTheme.ApplyDisplayFont(_homeClubLabel);
-        _homeClubLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(15));
-        _homeClubLabel.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
-        homeBox.AddChild(_homeClubLabel);
-
-        homeBox.AddChild(new ClubCrestControl(homeIdentity, new Vector2(30, 30)));
-        homeBox.AddChild(new ClubKitControl(homeIdentity, KitVariantType.Home, new Vector2(24, 28)));
-
-        var homeBadge = new PanelContainer();
-        homeBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.20f));
-        var homeBadgeText = new Label { Text = "EV" };
-        CareerUiTheme.StyleEyebrow(homeBadgeText, CareerUiTheme.ActionBright);
-        homeBadgeText.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
-        homeBadge.AddChild(homeBadgeText);
-        homeBox.AddChild(homeBadge);
-
-        // Center Scoreboard Core
-        var centerBox = new HBoxContainer
-        {
-            Alignment = BoxContainer.AlignmentMode.Center,
-        };
-        centerBox.AddThemeConstantOverride("separation", 8);
-        row.AddChild(centerBox);
-
-        // Minute Pill
-        var minutePanel = new PanelContainer();
-        minutePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.18f));
-        _minuteLabel = new Label { Text = "0'" };
-        CareerUiTheme.ApplyDisplayFont(_minuteLabel);
-        _minuteLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
-        _minuteLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-        minutePanel.AddChild(_minuteLabel);
-        centerBox.AddChild(minutePanel);
-
-        // High-Contrast Score Pill
-        _scoreboardPill = new PanelContainer();
-        _scoreboardPill.AddThemeStyleboxOverride("panel", CareerUiTheme.ScoreboardPill());
-        var scoreRow = new HBoxContainer();
-        scoreRow.AddThemeConstantOverride("separation", 8);
-        _scoreboardPill.AddChild(scoreRow);
-
-        _homeScoreLabel = new Label { Text = "0" };
-        CareerUiTheme.ApplyDisplayFont(_homeScoreLabel);
-        _homeScoreLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(24));
-        _homeScoreLabel.AddThemeColorOverride("font_color", Colors.White);
-        scoreRow.AddChild(_homeScoreLabel);
-
-        var dash = new Label { Text = " : " };
-        CareerUiTheme.ApplyDisplayFont(dash);
-        dash.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(20));
-        dash.AddThemeColorOverride("font_color", CareerUiTheme.InkMuted);
-        scoreRow.AddChild(dash);
-
-        _awayScoreLabel = new Label { Text = "0" };
-        CareerUiTheme.ApplyDisplayFont(_awayScoreLabel);
-        _awayScoreLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(24));
-        _awayScoreLabel.AddThemeColorOverride("font_color", Colors.White);
-        scoreRow.AddChild(_awayScoreLabel);
-        centerBox.AddChild(_scoreboardPill);
-
-        // Phase Pill (CANLI, DEVRE ARASI vb.)
-        var phasePanel = new PanelContainer();
-        phasePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Stroke, 0.14f));
-        _phaseLabel = new Label { Text = "CANLI · 1.0x" };
-        CareerUiTheme.StyleEyebrow(_phaseLabel, CareerUiTheme.ActionBright);
-        _phaseLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        phasePanel.AddChild(_phaseLabel);
-        centerBox.AddChild(phasePanel);
-
-        // Away Team Section (Left-aligned)
-        var awayBox = new HBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            Alignment = BoxContainer.AlignmentMode.Begin,
-        };
-        awayBox.AddThemeConstantOverride("separation", 8);
-        row.AddChild(awayBox);
-
-        var awayBadge = new PanelContainer();
-        awayBadge.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Data, 0.20f));
-        var awayBadgeText = new Label { Text = "DEP" };
-        CareerUiTheme.StyleEyebrow(awayBadgeText, CareerUiTheme.Data);
-        awayBadgeText.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
-        awayBadge.AddChild(awayBadgeText);
-        awayBox.AddChild(awayBadge);
-
-        awayBox.AddChild(new ClubKitControl(awayIdentity, KitVariantType.Away, new Vector2(24, 28)));
-        awayBox.AddChild(new ClubCrestControl(awayIdentity, new Vector2(30, 30)));
-
-        _awayClubLabel = new Label
-        {
-            Text = _awayClubName.ToUpperInvariant(),
-            HorizontalAlignment = HorizontalAlignment.Left,
-        };
-        CareerUiTheme.ApplyDisplayFont(_awayClubLabel);
-        _awayClubLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(15));
-        _awayClubLabel.AddThemeColorOverride("font_color", CareerUiTheme.Ink);
-        awayBox.AddChild(_awayClubLabel);
-
-        // Momentum / Possession Split Bar
-        var momentumRow = new HBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 3),
-        };
-        momentumRow.AddThemeConstantOverride("separation", 2);
-        stack.AddChild(momentumRow);
-
-        _homePossessionRect = new ColorRect
-        {
-            Color = CareerUiTheme.ActionBright,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsStretchRatio = 50,
-        };
-        momentumRow.AddChild(_homePossessionRect);
-
-        _awayPossessionRect = new ColorRect
-        {
-            Color = CareerUiTheme.Data,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsStretchRatio = 50,
-        };
-        momentumRow.AddChild(_awayPossessionRect);
-
-        return boardCard;
-    }
-
-    private Control BuildPitchArena()
-    {
-        var pitchCard = MatchScreenUi.Card(emphasized: true);
-        pitchCard.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        pitchCard.SizeFlagsStretchRatio = 1.9f;
-        pitchCard.SizeFlagsVertical = SizeFlags.ExpandFill;
-
-        var stack = MatchScreenUi.VerticalStack(6);
-        stack.SizeFlagsVertical = SizeFlags.ExpandFill;
-        pitchCard.AddChild(stack);
+        shell.AddChild(arenaLayer);
 
         _baseSecondsPerMoment = GameExperienceSettingsStore.Current.ReducedMotion ? 2.25f : 1.65f;
         _pitch = new MatchMomentPitchView
         {
             ReducedMotion = GameExperienceSettingsStore.Current.ReducedMotion,
             SecondsPerMoment = _baseSecondsPerMoment,
+            HomeClubName = _homeClubName,
+            AwayClubName = _awayClubName,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(_layout.PitchMinimumWidth, _layout.PitchMinimumHeight),
+            AnchorLeft = 0f,
+            AnchorTop = 0f,
+            AnchorRight = 1f,
+            AnchorBottom = 1f,
         };
         _pitch.MomentChanged += OnMomentChanged;
         _pitch.SequenceFinished += OnSequenceFinished;
+        _pitch.ClockUpdated += OnClockUpdated;
+        _pitch.CommentaryGenerated += OnCommentaryGenerated;
         _pitch.ShouldPauseBeforeMoment = (nextIndex, nextFrame) =>
         {
             if (!_hasKeyDecisionTriggered && ((nextFrame.Minute >= 20 && nextFrame.Minute <= 42) || (nextFrame.Minute >= 87 && nextFrame.Minute <= 89)))
@@ -320,26 +151,319 @@ public sealed partial class LiveMatchTimelineScreen : Control
             }
             return false;
         };
-        stack.AddChild(_pitch);
 
-        // Top Eleven / FM26 tarzı Canlı Kenar Momentum & Aura Barı + Dokunsal Kenar Talimatları (Touchline Shouts)
-        var touchlinePanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        touchlinePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.16f));
-        stack.AddChild(touchlinePanel);
+        var homeIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _homeClubName);
+        var awayIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _awayClubName);
+        _pitch.HomeTeamColor = homeIdentity.PrimaryColor;
+        _pitch.HomeSecondaryColor = homeIdentity.SecondaryColor;
+        _pitch.AwayTeamColor = awayIdentity.PrimaryColor.IsEqualApprox(homeIdentity.PrimaryColor)
+            ? awayIdentity.SecondaryColor
+            : awayIdentity.PrimaryColor;
+        _pitch.AwaySecondaryColor = awayIdentity.SecondaryColor;
 
-        var touchlineVBox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        touchlineVBox.AddThemeConstantOverride("separation", 4);
-        touchlinePanel.AddChild(touchlineVBox);
+        arenaLayer.AddChild(_pitch);
 
-        var auraRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        auraRow.AddThemeConstantOverride("separation", 8);
-        touchlineVBox.AddChild(auraRow);
+        // 3. Slide-in Tactical & Telemetry Drawer (Overlaid on arenaLayer)
+        BuildSlideInTelemetryDrawer(arenaLayer);
 
-        _momentumAuraLabel = new Label { Text = "KENAR MOMENTUM AURA: %62" };
-        CareerUiTheme.StyleTableText(_momentumAuraLabel);
-        _momentumAuraLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
-        _momentumAuraLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
-        auraRow.AddChild(_momentumAuraLabel);
+        // 4. Bottom Commentary Ticker Bar
+        shell.AddChild(BuildBottomCommentaryTicker());
+
+        _pitch.SetMoments(_results.KeyMoments, _results.MatchSequenceSeed, autoplay: true);
+        PopulateTelemetryStats();
+        RefreshControls();
+    }
+
+    private Control BuildBroadcastScoreboard()
+    {
+        var boardCard = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        boardCard.AddThemeStyleboxOverride("panel", CareerUiTheme.ScoreboardPanel());
+
+        var stack = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        stack.AddThemeConstantOverride("separation", 2);
+        boardCard.AddChild(stack);
+
+        var row = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Alignment = BoxContainer.AlignmentMode.Center,
+        };
+        row.AddThemeConstantOverride("separation", 8);
+        stack.AddChild(row);
+
+        // Left 1: [☰] Hamburger Match Menu / Drawer Toggle
+        _menuToggleBtn = new Button
+        {
+            Text = "☰",
+            CustomMinimumSize = new Vector2(38, 32),
+            TooltipText = "Taktik ve Maç İstatistikleri Menüsü",
+        };
+        CareerUiTheme.StyleSecondaryButton(_menuToggleBtn);
+        _menuToggleBtn.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(15));
+        _menuToggleBtn.Pressed += ToggleTelemetryDrawer;
+        row.AddChild(_menuToggleBtn);
+
+        // Left 2: Live Clock Pill (08:02)
+        var clockPill = new PanelContainer();
+        clockPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Accent, 0.20f));
+        clockPill.CustomMinimumSize = new Vector2(58, 28);
+        _clockLabel = new Label
+        {
+            Text = "00:00",
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.ApplyDisplayFont(_clockLabel);
+        _clockLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(13));
+        _clockLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        clockPill.AddChild(_clockLabel);
+        row.AddChild(clockPill);
+
+        // Center Spacer
+        var leftSpacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        row.AddChild(leftSpacer);
+
+        // Center: High-Contrast FM27 Scoreboard Pill [CRY] 0 [LOGO] 0 [LEE]
+        _scoreboardPill = new PanelContainer();
+        _scoreboardPill.AddThemeStyleboxOverride("panel", CareerUiTheme.ScoreboardPill());
+        var scoreRow = new HBoxContainer();
+        scoreRow.AddThemeConstantOverride("separation", 6);
+        _scoreboardPill.AddChild(scoreRow);
+
+        // Home Club Pill [CRY]
+        var homeIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _homeClubName);
+        var homeCodePill = new PanelContainer();
+        homeCodePill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(homeIdentity.PrimaryColor, 0.40f));
+        _homeClubCodeLabel = new Label
+        {
+            Text = ResolveClubAcronym(_homeClubName),
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.ApplyDisplayFont(_homeClubCodeLabel);
+        _homeClubCodeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        _homeClubCodeLabel.AddThemeColorOverride("font_color", Colors.White);
+        homeCodePill.AddChild(_homeClubCodeLabel);
+        scoreRow.AddChild(homeCodePill);
+
+        scoreRow.AddChild(new ClubCrestControl(homeIdentity, new Vector2(24, 24)));
+
+        // Home Score
+        _homeScoreLabel = new Label { Text = "0" };
+        CareerUiTheme.ApplyDisplayFont(_homeScoreLabel);
+        _homeScoreLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(22));
+        _homeScoreLabel.AddThemeColorOverride("font_color", Colors.White);
+        scoreRow.AddChild(_homeScoreLabel);
+
+        // League / Match Crest in center
+        var dash = new Label { Text = " - " };
+        CareerUiTheme.ApplyDisplayFont(dash);
+        dash.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(16));
+        dash.AddThemeColorOverride("font_color", CareerUiTheme.InkMuted);
+        scoreRow.AddChild(dash);
+
+        // Away Score
+        _awayScoreLabel = new Label { Text = "0" };
+        CareerUiTheme.ApplyDisplayFont(_awayScoreLabel);
+        _awayScoreLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(22));
+        _awayScoreLabel.AddThemeColorOverride("font_color", Colors.White);
+        scoreRow.AddChild(_awayScoreLabel);
+
+        var awayIdentity = ClubBrandingVisuals.ResolveClubIdentity(null, _awayClubName);
+        scoreRow.AddChild(new ClubCrestControl(awayIdentity, new Vector2(24, 24)));
+
+        // Away Club Pill [LEE]
+        var awayCodePill = new PanelContainer();
+        awayCodePill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(awayIdentity.PrimaryColor, 0.40f));
+        _awayClubCodeLabel = new Label
+        {
+            Text = ResolveClubAcronym(_awayClubName),
+            HorizontalAlignment = HorizontalAlignment.Center,
+        };
+        CareerUiTheme.ApplyDisplayFont(_awayClubCodeLabel);
+        _awayClubCodeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        _awayClubCodeLabel.AddThemeColorOverride("font_color", Colors.White);
+        awayCodePill.AddChild(_awayClubCodeLabel);
+        scoreRow.AddChild(awayCodePill);
+
+        row.AddChild(_scoreboardPill);
+
+        // Right Spacer
+        var rightSpacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        row.AddChild(rightSpacer);
+
+        // Phase Pill
+        var phasePanel = new PanelContainer();
+        phasePanel.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Stroke, 0.16f));
+        _phaseLabel = new Label { Text = "CANLI" };
+        CareerUiTheme.StyleEyebrow(_phaseLabel, CareerUiTheme.ActionBright);
+        _phaseLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        phasePanel.AddChild(_phaseLabel);
+        row.AddChild(phasePanel);
+
+        // Quick Speed Settings [⚙]
+        _speedCycleBtn = new Button
+        {
+            Text = "1.0x",
+            CustomMinimumSize = new Vector2(46, 32),
+            TooltipText = "Yayın Hızı (0.5x, 1.0x, 2.0x)",
+        };
+        CareerUiTheme.StyleSecondaryButton(_speedCycleBtn);
+        _speedCycleBtn.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        _speedCycleBtn.Pressed += CycleSpeed;
+        row.AddChild(_speedCycleBtn);
+
+        // Far Right: Primary Broadcast Action Button [DURDUR] / [DEVAM] / [SONUÇLAR]
+        _playPauseActionBtn = new Button
+        {
+            Text = "Durdur",
+            CustomMinimumSize = new Vector2(86, 32),
+        };
+        CareerUiTheme.StylePrimaryButton(_playPauseActionBtn);
+        _playPauseActionBtn.AddThemeColorOverride("font_color", Colors.White);
+        _playPauseActionBtn.Pressed += TogglePlayback;
+        row.AddChild(_playPauseActionBtn);
+
+        // Momentum / Possession Split Bar underneath
+        var momentumRow = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 3),
+        };
+        momentumRow.AddThemeConstantOverride("separation", 2);
+        stack.AddChild(momentumRow);
+
+        _homePossessionRect = new ColorRect
+        {
+            Color = homeIdentity.PrimaryColor,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsStretchRatio = 50,
+        };
+        momentumRow.AddChild(_homePossessionRect);
+
+        _awayPossessionRect = new ColorRect
+        {
+            Color = awayIdentity.PrimaryColor,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsStretchRatio = 50,
+        };
+        momentumRow.AddChild(_awayPossessionRect);
+
+        return boardCard;
+    }
+
+    private Control BuildBottomCommentaryTicker()
+    {
+        var tickerCard = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 34),
+        };
+        tickerCard.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.Surface, 0.90f));
+
+        var row = new HBoxContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            Alignment = BoxContainer.AlignmentMode.Center,
+        };
+        row.AddThemeConstantOverride("separation", 8);
+        tickerCard.AddChild(row);
+
+        // Minute pill
+        var minPill = new PanelContainer();
+        minPill.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(CareerUiTheme.ActionBright, 0.25f));
+        _tickerMinuteLabel = new Label { Text = "00'" };
+        CareerUiTheme.ApplyDisplayFont(_tickerMinuteLabel);
+        _tickerMinuteLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        _tickerMinuteLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
+        minPill.AddChild(_tickerMinuteLabel);
+        row.AddChild(minPill);
+
+        // Commentary text
+        _tickerCommentaryLabel = new Label
+        {
+            Text = "Karşılaşma hakemin başlama düdüğüyle başladı. İki takıma da başarılar!",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
+        };
+        CareerUiTheme.StyleBody(_tickerCommentaryLabel);
+        _tickerCommentaryLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        _tickerCommentaryLabel.AddThemeColorOverride("font_color", Colors.White);
+        row.AddChild(_tickerCommentaryLabel);
+
+        // Quick tactics button
+        _quickTacticsBtn = new Button
+        {
+            Text = "Taktikler",
+            CustomMinimumSize = new Vector2(80, 26),
+        };
+        CareerUiTheme.StyleSecondaryButton(_quickTacticsBtn);
+        _quickTacticsBtn.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        _quickTacticsBtn.Pressed += ToggleTelemetryDrawer;
+        row.AddChild(_quickTacticsBtn);
+
+        return tickerCard;
+    }
+
+    private void BuildSlideInTelemetryDrawer(Control parent)
+    {
+        _telemetryDrawer = new PanelContainer
+        {
+            Visible = false,
+            CustomMinimumSize = new Vector2(310, 0),
+        };
+        _telemetryDrawer.SetAnchor(Side.Left, 1f);
+        _telemetryDrawer.SetAnchor(Side.Top, 0f);
+        _telemetryDrawer.SetAnchor(Side.Right, 1f);
+        _telemetryDrawer.SetAnchor(Side.Bottom, 1f);
+        _telemetryDrawer.OffsetLeft = -320;
+        _telemetryDrawer.OffsetTop = 6;
+        _telemetryDrawer.OffsetRight = -6;
+        _telemetryDrawer.OffsetBottom = -6;
+        _telemetryDrawer.AddThemeStyleboxOverride("panel", CareerUiTheme.CardPanel(emphasized: true));
+        parent.AddChild(_telemetryDrawer);
+
+        var stack = MatchScreenUi.VerticalStack(6);
+        stack.SizeFlagsVertical = SizeFlags.ExpandFill;
+        _telemetryDrawer.AddChild(stack);
+
+        // Header + Close button
+        var drawerHeader = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        stack.AddChild(drawerHeader);
+
+        var title = new Label
+        {
+            Text = "MAÇ TAKTİKLERİ & TELEMETRİ",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        CareerUiTheme.StyleEyebrow(title, CareerUiTheme.ActionBright);
+        drawerHeader.AddChild(title);
+
+        var closeBtn = new Button
+        {
+            Text = "Kapat",
+            CustomMinimumSize = new Vector2(60, 26),
+        };
+        CareerUiTheme.StyleSecondaryButton(closeBtn);
+        closeBtn.Pressed += () => _telemetryDrawer.Visible = false;
+        drawerHeader.AddChild(closeBtn);
+
+        // Touchline Shouts (Dokunsal Kenar Talimatları)
+        var shoutsHeader = new Label { Text = "KENAR TALİMATLARI (MOMENTUM AURA)" };
+        CareerUiTheme.StyleEyebrow(shoutsHeader, CareerUiTheme.Accent);
+        stack.AddChild(shoutsHeader);
+
+        var shoutsGrid = new GridContainer
+        {
+            Columns = 2,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        shoutsGrid.AddThemeConstantOverride("h_separation", 4);
+        shoutsGrid.AddThemeConstantOverride("v_separation", 4);
+        stack.AddChild(shoutsGrid);
+
+        AddDrawerShoutButton(shoutsGrid, "Şok Pres", "+14% Aura", new Color(1f, 0.45f, 0.22f), 14);
+        AddDrawerShoutButton(shoutsGrid, "Kanat Yükle", "+12% Aura", CareerUiTheme.ActionBright, 12);
+        AddDrawerShoutButton(shoutsGrid, "Kilit Blok", "+10% Aura", CareerUiTheme.Data, 10);
+        AddDrawerShoutButton(shoutsGrid, "Moral Ateşi", "+16% Aura", CareerUiTheme.Accent, 16);
 
         _momentumAuraBar = new ProgressBar
         {
@@ -347,126 +471,23 @@ public sealed partial class LiveMatchTimelineScreen : Control
             MaxValue = 100,
             Value = _momentumValue,
             ShowPercentage = false,
-            CustomMinimumSize = new Vector2(0, 7),
+            CustomMinimumSize = new Vector2(0, 6),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ShrinkCenter,
         };
         _momentumAuraBar.AddThemeStyleboxOverride("background", CareerUiTheme.ProgressBarBackground());
         _momentumAuraBar.AddThemeStyleboxOverride("fill", CareerUiTheme.ProgressBarFill(CareerUiTheme.Accent));
-        auraRow.AddChild(_momentumAuraBar);
+        stack.AddChild(_momentumAuraBar);
 
-        var shoutsRow = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        shoutsRow.AddThemeConstantOverride("separation", 4);
-        touchlineVBox.AddChild(shoutsRow);
+        _momentumAuraLabel = new Label { Text = $"KENAR MOMENTUM AURA: %{_momentumValue}" };
+        CareerUiTheme.StyleTableText(_momentumAuraLabel);
+        _momentumAuraLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(10));
+        _momentumAuraLabel.AddThemeColorOverride("font_color", CareerUiTheme.Accent);
+        stack.AddChild(_momentumAuraLabel);
 
-        AddTouchlineShoutButton(shoutsRow, "Şok Pres", "+14% Aura", new Color(1f, 0.45f, 0.22f), 14);
-        AddTouchlineShoutButton(shoutsRow, "Kanat Yükle", "+12% Aura", CareerUiTheme.ActionBright, 12);
-        AddTouchlineShoutButton(shoutsRow, "Kilit Blok", "+10% Aura", CareerUiTheme.Data, 10);
-        AddTouchlineShoutButton(shoutsRow, "Moral Ateşi", "+16% Aura", CareerUiTheme.Accent, 16);
-
-        // Playback & Timing Controls Bar
-        var controlsBar = new HBoxContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 38),
-        };
-        controlsBar.AddThemeConstantOverride("separation", 6);
-        stack.AddChild(controlsBar);
-
-        _previousButton = AddControlButton(controlsBar, "Önceki", () =>
-        {
-            _pitch.Pause();
-            _pitch.Retreat();
-            RecalculateLiveScore(_pitch.CurrentFrameIndex);
-            RefreshControls();
-        }, minWidth: 72);
-
-        _playPauseButton = AddControlButton(controlsBar, "Duraklat", TogglePlayback, minWidth: 88);
-
-        _nextButton = AddControlButton(controlsBar, "Sonraki", () =>
-        {
-            _pitch.Pause();
-            if (!_hasHalfTimeEnded && _pitch.CurrentFrameIndex + 1 < _pitch.Storyboard.Frames.Count)
-            {
-                var nextFrame = _pitch.Storyboard.Frames[_pitch.CurrentFrameIndex + 1];
-                if (nextFrame.Minute > 45)
-                {
-                    TriggerHalfTime();
-                    return;
-                }
-            }
-
-            if (!_pitch.Advance()
-                || _pitch.CurrentFrameIndex + 1 >= _pitch.Storyboard.Frames.Count)
-            {
-                OnSequenceFinished();
-            }
-            RecalculateLiveScore(_pitch.CurrentFrameIndex);
-            RefreshControls();
-        }, minWidth: 72);
-
-        // Spacer
-        var spacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        controlsBar.AddChild(spacer);
-
-        // Speed multipliers
-        _speedHalfButton = AddControlButton(controlsBar, "0.5x", () => SetSpeed(0.5f), minWidth: 44);
-        _speed1xButton = AddControlButton(controlsBar, "1.0x", () => SetSpeed(1f), minWidth: 44);
-        _speed2xButton = AddControlButton(controlsBar, "2.0x", () => SetSpeed(2f), minWidth: 44);
-
-        // Fast forward / Skip to end
-        _fastForwardButton = AddControlButton(controlsBar, "Hızlı Bitir", FastForwardToEnd, minWidth: 92);
-        CareerUiTheme.StyleAccentButton(_fastForwardButton);
-
-        return pitchCard;
-    }
-
-    private Control BuildTelemetryDesk()
-    {
-        var deskCard = MatchScreenUi.Card();
-        deskCard.CustomMinimumSize = new Vector2(_layout.CommandPanelWidth, 0);
-        deskCard.SizeFlagsVertical = SizeFlags.ExpandFill;
-
-        var stack = MatchScreenUi.VerticalStack(8);
-        stack.SizeFlagsVertical = SizeFlags.ExpandFill;
-        deskCard.AddChild(stack);
-
-        // 1. Live Commentary Feed
-        var feedHeader = new Label { Text = "CANLI MAÇ ANLATIMI" };
-        CareerUiTheme.StyleEyebrow(feedHeader, CareerUiTheme.ActionBright);
-        stack.AddChild(feedHeader);
-
-        _eventFeedScroll = MatchScreenUi.ScrollArea();
-        _eventFeedScroll.SizeFlagsVertical = SizeFlags.ExpandFill;
-        _eventFeedScroll.SizeFlagsStretchRatio = 1.4f;
-        stack.AddChild(_eventFeedScroll);
-
-        _eventFeedContainer = MatchScreenUi.VerticalStack(4);
-        _eventFeedScroll.AddChild(_eventFeedContainer);
-
-        // Initial welcome event
-        var kickoffChip = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        kickoffChip.AddThemeStyleboxOverride("panel", CareerUiTheme.EventFeedCardPanel("Kickoff"));
-        var kickoffLabel = new Label
-        {
-            Text = "0' Karşılaşma hakemin düdüğüyle başladı.",
-        };
-        CareerUiTheme.StyleBody(kickoffLabel, muted: true);
-        kickoffLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
-        kickoffChip.AddChild(kickoffLabel);
-        _eventFeedContainer.AddChild(kickoffChip);
-
-        // 2. In-Match Telemetry
-        var statsHeader = new Label { Text = "ANLIK MAÇ İSTATİSTİKLERİ" };
+        // Telemetry Stats
+        var statsHeader = new Label { Text = "ANLIK İSTATİSTİKLER" };
         CareerUiTheme.StyleEyebrow(statsHeader, CareerUiTheme.Data);
         stack.AddChild(statsHeader);
-
-        var statsPanel = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        statsPanel.AddThemeStyleboxOverride("panel", CareerUiTheme.CardPanel(emphasized: false));
-        stack.AddChild(statsPanel);
-
-        var statsStack = MatchScreenUi.VerticalStack(4);
-        statsPanel.AddChild(statsStack);
 
         _statsPossessionLabel = new Label
         {
@@ -474,8 +495,8 @@ public sealed partial class LiveMatchTimelineScreen : Control
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleBody(_statsPossessionLabel);
-        _statsPossessionLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
-        statsStack.AddChild(_statsPossessionLabel);
+        _statsPossessionLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        stack.AddChild(_statsPossessionLabel);
 
         _statsShotsLabel = new Label
         {
@@ -483,41 +504,30 @@ public sealed partial class LiveMatchTimelineScreen : Control
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         CareerUiTheme.StyleBody(_statsShotsLabel, muted: true);
-        _statsShotsLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
-        statsStack.AddChild(_statsShotsLabel);
+        _statsShotsLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        stack.AddChild(_statsShotsLabel);
 
-        // 2.5. Kritik Pozisyon Kararı doğrudan sahanın üzerinde (MatchMomentPitchView) yüzen hedef ikonlarıyla çözülür (Rule 5).
-        // Sağ paneldeki metin butonları devre dışı bırakıldı.
-        _keyDecisionCard = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, Visible = false };
-        _keyDecisionPromptLabel = new Label { Visible = false };
-
-        // 3. Half-Time Intermission Card
-        _halfTimeCard = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        // Half-Time Intermission Card
+        _halfTimeCard = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill, Visible = false };
         _halfTimeCard.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePanel(CareerUiTheme.Accent));
-        _halfTimeCard.Visible = false;
         stack.AddChild(_halfTimeCard);
 
         var htStack = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        htStack.AddThemeConstantOverride("separation", 6);
+        htStack.AddThemeConstantOverride("separation", 4);
         _halfTimeCard.AddChild(htStack);
 
-        var htTitle = new Label { Text = "DEVRE ARASI  ·  İLK YARI SONUCU" };
+        var htTitle = new Label { Text = "DEVRE ARASI TAKTİK DİREKTİFİ" };
         CareerUiTheme.StyleEyebrow(htTitle, CareerUiTheme.Accent);
         htStack.AddChild(htTitle);
 
-        _halfTimeScoreLabel = new Label
-        {
-            Text = "0 - 0",
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
+        _halfTimeScoreLabel = new Label { Text = "0 - 0", HorizontalAlignment = HorizontalAlignment.Center };
         CareerUiTheme.ApplyDisplayFont(_halfTimeScoreLabel);
-        _halfTimeScoreLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(18));
+        _halfTimeScoreLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(16));
         _halfTimeScoreLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
         htStack.AddChild(_halfTimeScoreLabel);
 
-        _halfTimeAdviceLabel = MatchScreenUi.BodyLine("İlk yarı tamamlandı. İkinci yarı yaklaşımını seç.", muted: true);
+        _halfTimeAdviceLabel = MatchScreenUi.BodyLine("İkinci yarı yaklaşımını seç.", muted: true);
         _halfTimeAdviceLabel.HorizontalAlignment = HorizontalAlignment.Center;
-        _halfTimeAdviceLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         htStack.AddChild(_halfTimeAdviceLabel);
 
         var plansBox = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
@@ -543,59 +553,65 @@ public sealed partial class LiveMatchTimelineScreen : Control
         {
             Text = "2. Yarıyı Başlat",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, _layout.ActionButtonHeight),
+            CustomMinimumSize = new Vector2(0, 32),
         };
         CareerUiTheme.StylePrimaryButton(_resumeSecondHalfButton);
         _resumeSecondHalfButton.Pressed += ResumeSecondHalf;
         htStack.AddChild(_resumeSecondHalfButton);
 
-        // 4. Action Footer
+        // Scrollable Event Feed
+        var feedHeader = new Label { Text = "MAÇ OLAYLARI AKIŞI" };
+        CareerUiTheme.StyleEyebrow(feedHeader, CareerUiTheme.ActionBright);
+        stack.AddChild(feedHeader);
+
+        _eventFeedScroll = MatchScreenUi.ScrollArea();
+        _eventFeedScroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+        stack.AddChild(_eventFeedScroll);
+
+        _eventFeedContainer = MatchScreenUi.VerticalStack(3);
+        _eventFeedScroll.AddChild(_eventFeedContainer);
+
+        // Footer Actions
+        var drawerFooter = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        drawerFooter.AddThemeConstantOverride("separation", 6);
+        stack.AddChild(drawerFooter);
+
+        _fastForwardButton = new Button
+        {
+            Text = "Hızlı Bitir",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 32),
+        };
+        CareerUiTheme.StyleSecondaryButton(_fastForwardButton);
+        _fastForwardButton.Pressed += FastForwardToEnd;
+        drawerFooter.AddChild(_fastForwardButton);
+
         _resultsButton = new Button
         {
-            Text = "Maç Devam Ediyor…",
+            Text = "Maç Sonu Raporu",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, _layout.ActionButtonHeight),
+            CustomMinimumSize = new Vector2(0, 32),
             Disabled = true,
         };
-        CareerUiTheme.StyleSecondaryButton(_resultsButton);
+        CareerUiTheme.StylePrimaryButton(_resultsButton);
         _resultsButton.Pressed += () => ResultsRequested?.Invoke();
-        stack.AddChild(_resultsButton);
-
-        return deskCard;
+        drawerFooter.AddChild(_resultsButton);
     }
 
-    private Button AddControlButton(Control parent, string text, Action action, int minWidth = 50)
-    {
-        var button = new Button
-        {
-            Text = text,
-            CustomMinimumSize = new Vector2(minWidth, 34),
-        };
-        CareerUiTheme.StyleSecondaryButton(button);
-        button.Pressed += action;
-        parent.AddChild(button);
-        return button;
-    }
-
-    private void AddTouchlineShoutButton(
-        Control parent,
-        string label,
-        string bonusHint,
-        Color color,
-        int momentumDelta)
+    private void AddDrawerShoutButton(Control parent, string label, string hint, Color color, int delta)
     {
         var btn = new Button
         {
             Text = label,
-            TooltipText = $"Kenar talimatı ver ({bonusHint})",
+            TooltipText = $"Kenar talimatı ({hint})",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 30),
+            CustomMinimumSize = new Vector2(0, 28),
         };
         CareerUiTheme.StyleSecondaryButton(btn);
         btn.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         btn.Pressed += () =>
         {
-            _momentumValue = Math.Clamp(_momentumValue + momentumDelta, 0, 100);
+            _momentumValue = Math.Clamp(_momentumValue + delta, 0, 100);
             _momentumAuraBar.Value = _momentumValue;
             _momentumAuraLabel.Text = $"KENAR MOMENTUM AURA: %{_momentumValue}";
             _pitch.TriggerTouchlineShoutEffect(label, color);
@@ -607,191 +623,55 @@ public sealed partial class LiveMatchTimelineScreen : Control
                 Input.VibrateHandheld(Math.Max(1, 24 * haptics / 100));
             }
 
-            var curMin = _pitch.CurrentFrame?.Minute ?? 15;
-            AppendCustomFeedLine($"{curMin}' Kenar Talimatı: {label} uygulandı! (Takım Momentum Aurası: %{_momentumValue})", color);
+            var curMin = _pitch.CurrentFrame?.Minute ?? _pitch.CurrentMatchMinute;
+            AppendCustomFeedLine($"{curMin}' Kenar Talimatı: {label} uygulandı!", color);
         };
         parent.AddChild(btn);
     }
 
-    private void AppendCustomFeedLine(string text, Color accent)
+    private void ToggleTelemetryDrawer()
     {
-        var chip = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        chip.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(accent, 0.22f));
-        var lbl = new Label
-        {
-            Text = text,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-        };
-        CareerUiTheme.StyleBody(lbl);
-        lbl.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
-        lbl.AddThemeColorOverride("font_color", accent);
-        chip.AddChild(lbl);
-        _eventFeedContainer.AddChild(chip);
-
-        Callable.From(() =>
-        {
-            if (IsInstanceValid(_eventFeedScroll))
-            {
-                _eventFeedScroll.ScrollVertical = 99999;
-            }
-        }).CallDeferred();
+        _telemetryDrawer.Visible = !_telemetryDrawer.Visible;
     }
 
-    private void TriggerKeyMomentDecision(int nextIndex, MatchMomentStoryboardFrame nextFrame)
+    private void CycleSpeed()
     {
-        _hasKeyDecisionTriggered = true;
-        _pitch.Pause();
-        _pitch.ShowFrame(nextIndex);
-        _pitch.ActivateOnPitchKeyDecision(
-            nextFrame,
-            ResolveKeyMomentDecision,
-            $"{nextFrame.Minute}' KRİTİK POZİSYON — SAHA ÜSTÜ HEDEF SEÇ");
-        _audio?.TryPlayCue(MatchAudioCue.KeyMomentFreeze);
-
-        var haptics = GameExperienceSettingsStore.Current.EffectiveHapticsStrengthPercent;
-        if (OS.HasFeature("mobile") && haptics > 0)
+        if (Math.Abs(_speed - 1.0f) < 0.05f)
         {
-            Input.VibrateHandheld(Math.Max(1, 32 * haptics / 100));
+            SetSpeed(2.0f);
         }
-
-        _phaseLabel.Text = "KARAR ANI";
-        _minuteLabel.Text = $"{nextFrame.Minute}'";
-        _keyDecisionCard.Visible = false;
-        RefreshControls();
-    }
-
-    private void ResolveKeyMomentDecision(string outcomeNarrative)
-    {
-        _hasKeyDecisionResolved = true;
-        _keyDecisionCard.Visible = false;
-        _pitch.SetKeyDecisionHighlight(false);
-        _pitch.TriggerTouchlineShoutEffect("KRİTİK HAMLE!", CareerUiTheme.ActionBright);
-        _audio?.TryPlayCue(MatchAudioCue.Goal);
-
-        _momentumValue = Math.Clamp(_momentumValue + 22, 0, 100);
-        _momentumAuraBar.Value = _momentumValue;
-        _momentumAuraLabel.Text = $"KENAR MOMENTUM AURA: %{_momentumValue}";
-
-        var curMin = _pitch.CurrentFrame?.Minute ?? 25;
-        AppendCustomFeedLine($"{curMin}' {outcomeNarrative}", CareerUiTheme.ActionBright);
-
-        _pitch.Play();
-        RefreshControls();
-    }
-
-    private void TogglePlayback()
-    {
-        if (_hasKeyDecisionTriggered && !_hasKeyDecisionResolved)
+        else if (Math.Abs(_speed - 2.0f) < 0.05f)
         {
-            ResolveKeyMomentDecision("Hızlı pas kombinasyonuyla pozisyon tamamlandı!");
-            return;
-        }
-
-        if (_hasHalfTimeTriggered && !_hasHalfTimeEnded)
-        {
-            ResumeSecondHalf();
-            return;
-        }
-
-        if (_pitch.IsPlaying)
-        {
-            _pitch.Pause();
-        }
-        else if (_pitch.CurrentFrameIndex + 1 >= _pitch.Storyboard.Frames.Count)
-        {
-            _pitch.Restart(autoplay: true);
-            _eventLines.Clear();
-            _liveHomeGoals = 0;
-            _liveAwayGoals = 0;
-            _homeScoreLabel.Text = "0";
-            _awayScoreLabel.Text = "0";
-            _hasHalfTimeTriggered = false;
-            _hasHalfTimeEnded = false;
-            _hasKeyDecisionTriggered = false;
-            _hasKeyDecisionResolved = false;
-            if (_halfTimeCard is not null)
-            {
-                _halfTimeCard.Visible = false;
-            }
-            if (_keyDecisionCard is not null)
-            {
-                _keyDecisionCard.Visible = false;
-            }
+            SetSpeed(0.5f);
         }
         else
         {
-            _pitch.Play();
+            SetSpeed(1.0f);
         }
-
-        RefreshControls();
     }
 
     private void SetSpeed(float speed)
     {
         _speed = speed;
         _pitch.SecondsPerMoment = _baseSecondsPerMoment / speed;
-        UpdateSpeedButtonHighlights();
+        _speedCycleBtn.Text = $"{_speed:0.0}x";
         RefreshControls();
     }
 
-    private void UpdateSpeedButtonHighlights()
+    private void OnClockUpdated(int minute, int second)
     {
-        ResetButtonStyle(_speedHalfButton, Math.Abs(_speed - 0.5f) < 0.05f);
-        ResetButtonStyle(_speed1xButton, Math.Abs(_speed - 1f) < 0.05f);
-        ResetButtonStyle(_speed2xButton, Math.Abs(_speed - 2f) < 0.05f);
+        _clockLabel.Text = $"{minute:00}:{second:00}";
+        _tickerMinuteLabel.Text = $"{minute:00}'";
     }
 
-    private static void ResetButtonStyle(Button button, bool active)
+    private void OnCommentaryGenerated(string commentaryText)
     {
-        if (active)
-        {
-            CareerUiTheme.StyleAccentButton(button);
-        }
-        else
-        {
-            CareerUiTheme.StyleSecondaryButton(button);
-        }
-    }
-
-    private void FastForwardToEnd()
-    {
-        if (_pitch is null || _pitch.Storyboard.Frames.Count == 0)
-        {
-            return;
-        }
-
-        _hasHalfTimeEnded = true;
-        _hasKeyDecisionTriggered = true;
-        _hasKeyDecisionResolved = true;
-        if (_halfTimeCard is not null)
-        {
-            _halfTimeCard.Visible = false;
-        }
-        if (_keyDecisionCard is not null)
-        {
-            _keyDecisionCard.Visible = false;
-        }
-        _pitch.SetKeyDecisionHighlight(false);
-
-        _pitch.Pause();
-        var last = _pitch.Storyboard.Frames.Count - 1;
-        _pitch.ShowFrame(last);
-
-        // Add all events to feed
-        for (var i = 0; i < _pitch.Storyboard.Frames.Count; i++)
-        {
-            AddEventChip(_pitch.Storyboard.Frames[i]);
-        }
-
-        RecalculateLiveScore(last);
-        OnSequenceFinished();
+        _tickerCommentaryLabel.Text = commentaryText;
     }
 
     private void OnMomentChanged(int index, MatchMomentStoryboardFrame frame)
     {
-        _minuteLabel.Text = $"{frame.Minute}'";
         _phaseLabel.Text = frame.Minute < 45 ? "1. YARI" : frame.Minute == 45 ? "DEVRE" : "2. YARI";
-
         RecalculateLiveScore(index);
         AddEventChip(frame);
 
@@ -850,7 +730,7 @@ public sealed partial class LiveMatchTimelineScreen : Control
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
         };
         CareerUiTheme.StyleBody(descLabel);
-        descLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
+        descLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
         if (frame.Kind == "Goal")
         {
             descLabel.AddThemeColorOverride("font_color", CareerUiTheme.ActionBright);
@@ -866,6 +746,116 @@ public sealed partial class LiveMatchTimelineScreen : Control
                 _eventFeedScroll.ScrollVertical = 99999;
             }
         }).CallDeferred();
+    }
+
+    private void AppendCustomFeedLine(string text, Color accent)
+    {
+        var chip = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        chip.AddThemeStyleboxOverride("panel", CareerUiTheme.BadgePillPanel(accent, 0.22f));
+        var lbl = new Label
+        {
+            Text = text,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
+        CareerUiTheme.StyleBody(lbl);
+        lbl.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(11));
+        lbl.AddThemeColorOverride("font_color", accent);
+        chip.AddChild(lbl);
+        _eventFeedContainer.AddChild(chip);
+
+        Callable.From(() =>
+        {
+            if (IsInstanceValid(_eventFeedScroll))
+            {
+                _eventFeedScroll.ScrollVertical = 99999;
+            }
+        }).CallDeferred();
+    }
+
+    private void TriggerKeyMomentDecision(int nextIndex, MatchMomentStoryboardFrame nextFrame)
+    {
+        _hasKeyDecisionTriggered = true;
+        _pitch.Pause();
+        _pitch.ShowFrame(nextIndex);
+        _pitch.ActivateOnPitchKeyDecision(
+            nextFrame,
+            ResolveKeyMomentDecision,
+            $"{nextFrame.Minute}' KRİTİK POZİSYON — SAHA ÜSTÜ HEDEF SEÇ");
+        _audio?.TryPlayCue(MatchAudioCue.KeyMomentFreeze);
+
+        var haptics = GameExperienceSettingsStore.Current.EffectiveHapticsStrengthPercent;
+        if (OS.HasFeature("mobile") && haptics > 0)
+        {
+            Input.VibrateHandheld(Math.Max(1, 32 * haptics / 100));
+        }
+
+        _phaseLabel.Text = "KARAR ANI";
+        RefreshControls();
+    }
+
+    private void ResolveKeyMomentDecision(string outcomeNarrative)
+    {
+        _hasKeyDecisionResolved = true;
+        _pitch.SetKeyDecisionHighlight(false);
+        _pitch.TriggerTouchlineShoutEffect("KRİTİK HAMLE!", CareerUiTheme.ActionBright);
+        _audio?.TryPlayCue(MatchAudioCue.Goal);
+
+        _momentumValue = Math.Clamp(_momentumValue + 22, 0, 100);
+        _momentumAuraBar.Value = _momentumValue;
+        _momentumAuraLabel.Text = $"KENAR MOMENTUM AURA: %{_momentumValue}";
+
+        var curMin = _pitch.CurrentFrame?.Minute ?? 25;
+        AppendCustomFeedLine($"{curMin}' {outcomeNarrative}", CareerUiTheme.ActionBright);
+
+        _pitch.Play();
+        RefreshControls();
+    }
+
+    private void TogglePlayback()
+    {
+        if (_hasKeyDecisionTriggered && !_hasKeyDecisionResolved)
+        {
+            ResolveKeyMomentDecision("Hızlı pas kombinasyonuyla pozisyon tamamlandı!");
+            return;
+        }
+
+        if (_hasHalfTimeTriggered && !_hasHalfTimeEnded)
+        {
+            ResumeSecondHalf();
+            return;
+        }
+
+        if (_resultsButton.Disabled == false)
+        {
+            ResultsRequested?.Invoke();
+            return;
+        }
+
+        if (_pitch.IsPlaying)
+        {
+            _pitch.Pause();
+        }
+        else if (_pitch.CurrentFrameIndex + 1 >= _pitch.Storyboard.Frames.Count)
+        {
+            _pitch.Restart(autoplay: true);
+            _eventLines.Clear();
+            _liveHomeGoals = 0;
+            _liveAwayGoals = 0;
+            _homeScoreLabel.Text = "0";
+            _awayScoreLabel.Text = "0";
+            _hasHalfTimeTriggered = false;
+            _hasHalfTimeEnded = false;
+            _hasKeyDecisionTriggered = false;
+            _hasKeyDecisionResolved = false;
+            _halfTimeCard.Visible = false;
+            _resultsButton.Disabled = true;
+        }
+        else
+        {
+            _pitch.Play();
+        }
+
+        RefreshControls();
     }
 
     private void RecalculateLiveScore(int currentFrameIndex)
@@ -918,42 +908,35 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _pitch.Pause();
         RecalculateLiveScore(_pitch.Storyboard.Frames.Count - 1);
         _phaseLabel.Text = "MAÇ SONU";
-        _minuteLabel.Text = "90+'";
+        _clockLabel.Text = "90:00";
         _resultsButton.Disabled = false;
-        _resultsButton.Text = "Maç Raporunu Aç";
-        CareerUiTheme.StylePrimaryButton(_resultsButton);
-        _resultsButton.GrabFocus();
+        _playPauseActionBtn.Text = "Maç Raporu";
+        CareerUiTheme.StylePrimaryButton(_playPauseActionBtn);
         RefreshControls();
     }
 
     private void RefreshControls()
     {
-        if (_pitch is null || _pitch.Storyboard.Frames.Count == 0)
+        if (_pitch is null)
         {
             return;
         }
 
-        if (_hasHalfTimeTriggered && !_hasHalfTimeEnded)
+        if (!_resultsButton.Disabled)
         {
-            _playPauseButton.Text = "2. Yarı";
+            _playPauseActionBtn.Text = "Maç Raporu";
+            _phaseLabel.Text = "MAÇ SONU";
+        }
+        else if (_hasHalfTimeTriggered && !_hasHalfTimeEnded)
+        {
+            _playPauseActionBtn.Text = "2. Yarı";
             _phaseLabel.Text = "DEVRE ARASI";
-            _minuteLabel.Text = "45'";
         }
         else
         {
-            _playPauseButton.Text = _pitch.IsPlaying ? "Duraklat" : "Devam Et";
-            if (!_resultsButton.Disabled)
-            {
-                _phaseLabel.Text = "MAÇ SONU";
-            }
-            else
-            {
-                _phaseLabel.Text = $"{(_pitch.IsPlaying ? "CANLI" : "DURAKLATILDI")} · {_speed:0.0}x";
-            }
+            _playPauseActionBtn.Text = _pitch.IsPlaying ? "Durdur" : "Devam";
+            _phaseLabel.Text = _pitch.IsPlaying ? "CANLI" : "DURDURULDU";
         }
-
-        _previousButton.Disabled = _pitch.CurrentFrameIndex <= 0;
-        _nextButton.Disabled = _pitch.CurrentFrameIndex + 1 >= _pitch.Storyboard.Frames.Count;
     }
 
     private void SetHalfTimeDirective(int directive)
@@ -998,45 +981,11 @@ public sealed partial class LiveMatchTimelineScreen : Control
         _pitch.Pause();
         _audio?.TryPlayCue(MatchAudioCue.Whistle);
         _phaseLabel.Text = "DEVRE ARASI";
-        _minuteLabel.Text = "45'";
+        _clockLabel.Text = "45:00";
 
         _halfTimeScoreLabel.Text = $"{_homeClubName} {_liveHomeGoals} - {_liveAwayGoals} {_awayClubName}";
-
-        if (_liveHomeGoals > _liveAwayGoals)
-        {
-            _halfTimeAdviceLabel.Text = $"{_homeClubName} ilk yarıyı önde kapattı. İkinci yarı yaklaşımını seç.";
-        }
-        else if (_liveHomeGoals < _liveAwayGoals)
-        {
-            _halfTimeAdviceLabel.Text = $"{_awayClubName} ilk yarıyı önde kapattı. İkinci yarı yaklaşımını seç.";
-        }
-        else
-        {
-            _halfTimeAdviceLabel.Text = "İlk yarıda eşitlik bozulmadı. İkinci yarı yaklaşımını seç.";
-        }
-
-        SetHalfTimeDirective(0);
-
-        var htChip = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        htChip.AddThemeStyleboxOverride("panel", CareerUiTheme.EventFeedCardPanel("Kickoff"));
-        var htLabel = new Label
-        {
-            Text = $"45' İlk yarı sona erdi ({_liveHomeGoals} - {_liveAwayGoals}).",
-        };
-        CareerUiTheme.StyleBody(htLabel, muted: true);
-        htLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
-        htChip.AddChild(htLabel);
-        _eventFeedContainer.AddChild(htChip);
-
-        Callable.From(() =>
-        {
-            if (IsInstanceValid(_eventFeedScroll))
-            {
-                _eventFeedScroll.ScrollVertical = 99999;
-            }
-        }).CallDeferred();
-
         _halfTimeCard.Visible = true;
+        _telemetryDrawer.Visible = true;
         RefreshControls();
     }
 
@@ -1044,30 +993,10 @@ public sealed partial class LiveMatchTimelineScreen : Control
     {
         _hasHalfTimeEnded = true;
         _halfTimeCard.Visible = false;
+        _telemetryDrawer.Visible = false;
         _audio?.TryPlayCue(MatchAudioCue.Whistle);
 
-        var resumeChip = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        resumeChip.AddThemeStyleboxOverride("panel", CareerUiTheme.EventFeedCardPanel("Kickoff"));
-        var resumeLabel = new Label
-        {
-            Text = "45' İkinci yarı hakemin düdüğüyle başladı.",
-        };
-        CareerUiTheme.StyleBody(resumeLabel, muted: true);
-        resumeLabel.AddThemeFontSizeOverride("font_size", CareerUiTheme.FontSize(12));
-        resumeChip.AddChild(resumeLabel);
-        _eventFeedContainer.AddChild(resumeChip);
-
-        Callable.From(() =>
-        {
-            if (IsInstanceValid(_eventFeedScroll))
-            {
-                _eventFeedScroll.ScrollVertical = 99999;
-            }
-        }).CallDeferred();
-
         _phaseLabel.Text = "2. YARI · CANLI";
-        _minuteLabel.Text = "46'";
-
         if (_pitch.CurrentFrameIndex + 1 < _pitch.Storyboard.Frames.Count)
         {
             _pitch.Advance();
@@ -1079,6 +1008,32 @@ public sealed partial class LiveMatchTimelineScreen : Control
         }
 
         RefreshControls();
+    }
+
+    private void FastForwardToEnd()
+    {
+        if (_pitch is null || _pitch.Storyboard.Frames.Count == 0)
+        {
+            return;
+        }
+
+        _hasHalfTimeEnded = true;
+        _hasKeyDecisionTriggered = true;
+        _hasKeyDecisionResolved = true;
+        _halfTimeCard.Visible = false;
+        _pitch.SetKeyDecisionHighlight(false);
+
+        _pitch.Pause();
+        var last = _pitch.Storyboard.Frames.Count - 1;
+        _pitch.ShowFrame(last);
+
+        for (var i = 0; i < _pitch.Storyboard.Frames.Count; i++)
+        {
+            AddEventChip(_pitch.Storyboard.Frames[i]);
+        }
+
+        RecalculateLiveScore(last);
+        OnSequenceFinished();
     }
 
     private void PopulateTelemetryStats()
@@ -1163,6 +1118,41 @@ public sealed partial class LiveMatchTimelineScreen : Control
         }
 
         return ("Ev Sahibi", "Deplasman");
+    }
+
+    private static string ResolveClubAcronym(string clubName)
+    {
+        if (string.IsNullOrWhiteSpace(clubName))
+        {
+            return "KUL";
+        }
+
+        var upper = clubName.ToUpperInvariant();
+        if (upper.Contains("CRYSTAL") || upper.Contains("PALACE")) return "CRY";
+        if (upper.Contains("LEEDS")) return "LEE";
+        if (upper.Contains("LIVERPOOL")) return "LIV";
+        if (upper.Contains("MANCHESTER CITY") || upper.Contains("MAN CITY")) return "MCI";
+        if (upper.Contains("MANCHESTER UNITED") || upper.Contains("MAN UTD")) return "MUN";
+        if (upper.Contains("ARSENAL")) return "ARS";
+        if (upper.Contains("CHELSEA")) return "CHE";
+        if (upper.Contains("BRIGHTON")) return "BHA";
+        if (upper.Contains("NOTTINGHAM") || upper.Contains("FOREST")) return "NFO";
+        if (upper.Contains("TOTTENHAM") || upper.Contains("SPURS")) return "TOT";
+        if (upper.Contains("GALATASARAY")) return "GS";
+        if (upper.Contains("FENERBAHCE") || upper.Contains("FENERBAHÇE")) return "FB";
+        if (upper.Contains("BESIKTAS") || upper.Contains("BEŞİKTAŞ")) return "BJK";
+        if (upper.Contains("TRABZONSPOR")) return "TS";
+        if (upper.Contains("REAL MADRID")) return "RMA";
+        if (upper.Contains("BARCELONA")) return "BAR";
+        if (upper.Contains("BAYERN")) return "BAY";
+
+        var words = clubName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length >= 2)
+        {
+            return $"{words[0][0]}{words[1][0]}".ToUpperInvariant();
+        }
+
+        return clubName.Length >= 3 ? clubName[..3].ToUpperInvariant() : clubName.ToUpperInvariant();
     }
 
     private static string FormatMoment(string kind) => kind switch

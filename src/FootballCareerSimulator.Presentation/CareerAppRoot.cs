@@ -237,7 +237,7 @@ public partial class CareerAppRoot : Control
             unchecked(timeline.RootSeed ^ timeline.CurrentDate.DayNumber));
         var panel = new LandscapeMatchDayScreen(controller);
         panel.BackRequested += () => ShowHub(controller);
-        panel.KickoffRequested += () => ShowKickoffMoment(controller);
+        panel.KickoffRequested += () => ProceedAfterKickoff(controller);
         ReplaceScreen(panel);
     }
 
